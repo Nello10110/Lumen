@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import User
+from ..models import Compte, Holding, User
 from ..schemas import (
     BenchmarkOption,
     ComparaisonBenchmark,
@@ -39,8 +39,38 @@ def get_performance(db: Session = Depends(get_db), current_user: User = Depends(
 
 
 @router.get("/history", response_model=PortfolioHistoryResponse)
-def get_portfolio_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    points = historical_performance_service.compute_portfolio_history(db, auth_service.id_foyer(current_user))
+def get_portfolio_history(
+    type_actif: str | None = None,
+    compte_id: int | None = None,
+    etablissement_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """`type_actif`/`compte_id`/`etablissement_id` (graphique filtrable de l'écran
+    Analyse, retour utilisateur du 13/09/2026) : optionnels, `type_actif` combinable
+    avec l'un des deux autres, mais `compte_id`/`etablissement_id` mutuellement
+    exclusifs (un seul niveau de granularité à la fois, plus simple à lire qu'un
+    établissement filtré puis un compte qui le restreindrait encore). Résolus ici en
+    un ensemble de tickers plutôt que transmis tels quels : `historical_performance_
+    service` ne connaît que des symboles (`Transaction` n'a pas de `compte_id`, seul
+    `Holding` le porte, via `Compte` pour l'établissement). Tous absents :
+    comportement strictement inchangé (portefeuille entier), même appel qu'avant
+    cette fonctionnalité."""
+    if compte_id is not None and etablissement_id is not None:
+        raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
+
+    user_id = auth_service.id_foyer(current_user)
+    symboles_filtres = None
+    if type_actif is not None or compte_id is not None or etablissement_id is not None:
+        requete = db.query(Holding.ticker).filter(Holding.user_id == user_id)
+        if type_actif is not None:
+            requete = requete.filter(Holding.type_actif == type_actif)
+        if compte_id is not None:
+            requete = requete.filter(Holding.compte_id == compte_id)
+        if etablissement_id is not None:
+            requete = requete.join(Compte, Holding.compte_id == Compte.id).filter(Compte.etablissement_id == etablissement_id)
+        symboles_filtres = {ticker for (ticker,) in requete.all()}
+    points = historical_performance_service.compute_portfolio_history(db, user_id, symboles_filtres=symboles_filtres)
     return PortfolioHistoryResponse(points=points)
 
 

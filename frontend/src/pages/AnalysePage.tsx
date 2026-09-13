@@ -7,8 +7,9 @@ import CompositionModal from '../components/CompositionModal'
 import { SecondaryButton, SegmentedControl } from '../components/Controls'
 import CoutGestionCard from '../components/CoutGestionCard'
 import EtatErreur from '../components/EtatErreur'
+import EvolutionFinanciereCard from '../components/EvolutionFinanciereCard'
 import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
-import { IconDividendes, IconMaison, IconPatrimoine } from '../components/icons'
+import { IconDividendes, IconEvolution, IconMaison, IconPatrimoine } from '../components/icons'
 import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PerformanceCard from '../components/PerformanceCard'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
@@ -19,10 +20,11 @@ import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
-type OngletKey = 'portefeuille' | 'revenus' | 'simulateur'
+type OngletKey = 'portefeuille' | 'evolution' | 'revenus' | 'simulateur'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconPatrimoine }[] = [
   { key: 'portefeuille', label: 'Portefeuille', Icone: IconPatrimoine },
+  { key: 'evolution', label: 'Évolution', Icone: IconEvolution },
   { key: 'revenus', label: 'Revenus', Icone: IconDividendes },
   { key: 'simulateur', label: 'Achat vs location', Icone: IconMaison },
 ]
@@ -37,11 +39,14 @@ const ONGLET_PAR_DEFAUT: OngletKey = 'portefeuille'
  * question qu'on se pose en ouvrant l'application — combien, et dans quel sens ça
  * va ; tout ce qui répond à « pourquoi » et « de quoi est-ce fait » vit ici.
  *
- * Deux onglets, parce que ce sont deux questions distinctes : **Portefeuille**
- * (de quoi le patrimoine est-il fait, comment se comporte-t-il, ce qu'il coûte) et
- * **Revenus** (ce qu'il rapporte sans qu'on le vende). Sélection portée par l'URL
- * (`?onglet=…`, même patron que `ReglagesPage`) : un lien direct vers un onglet
- * précis reste possible et le retour navigateur le restitue.
+ * Plusieurs onglets, chacun une question distincte : **Portefeuille** (de quoi le
+ * patrimoine est-il fait, comment se comporte-t-il, ce qu'il coûte), **Évolution**
+ * (retour utilisateur du 13/09/2026 — le graphique héros du tableau de bord, mais
+ * filtrable par classe d'actif/établissement/compte et sur une fourchette de dates
+ * précise, cf. `EvolutionFinanciereCard`), **Revenus** (ce qu'il rapporte sans qu'on
+ * le vende) et **Achat vs location**. Sélection portée par l'URL (`?onglet=…`, même
+ * patron que `ReglagesPage`) : un lien direct vers un onglet précis reste possible
+ * et le retour navigateur le restitue.
  *
  * L'ancienne URL `/dividendes` redirige ici (cf. `App.tsx`) — les marque-pages
  * survivent au renommage. */
@@ -138,6 +143,12 @@ export default function AnalysePage() {
         idPanneau={(v) => `panneau-${v}`}
         className="max-w-full flex-nowrap overflow-x-auto md:w-fit md:overflow-visible"
       />
+
+      {onglet === 'evolution' && (
+        <div id="panneau-evolution" role="tabpanel" aria-labelledby="onglet-evolution">
+          <EvolutionFinanciereCard />
+        </div>
+      )}
 
       {onglet === 'revenus' && (
         <div id="panneau-revenus" role="tabpanel" aria-labelledby="onglet-revenus">

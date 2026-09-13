@@ -107,7 +107,7 @@ def _fetch_fx_history(devise: str, start: datetime) -> TimeSeries:
     return series
 
 
-def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int) -> TimeSeries:
+def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int, symboles_filtres: set[str] | None = None) -> TimeSeries:
     """Somme cumulée, dans le temps, de tout ce que le graphique d'historique
     omettait jusqu'ici : le produit net de chaque vente (`TRADING/SELL`) et les
     revenus perçus (dividendes, intérêts, autres revenus). Même périmètre exact
@@ -124,8 +124,17 @@ def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int) -> TimeSeries:
     capital brut jamais décrémenté à la vente — en omettant entièrement ces
     montants. Ce cumul comble l'écart : `valeur_portefeuille +
     valeur_realisee_cumulee - valeur_investie` reconstitue exactement la même
-    formule que `gain_perte_total`, terme à terme."""
-    transactions = db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.datetime_utc.asc()).all()
+    formule que `gain_perte_total`, terme à terme.
+
+    `symboles_filtres` (graphique filtrable de l'écran Analyse, retour utilisateur
+    du 13/09/2026) : restreint la somme aux mouvements dont `symbol` appartient à cet
+    ensemble. Un mouvement SANS `symbol` (intérêts, bonus courtier) devient alors
+    exclu d'une vue filtrée, faute de pouvoir l'attribuer à un sous-ensemble précis —
+    comportement assumé, pas un oubli."""
+    query = db.query(Transaction).filter(Transaction.user_id == user_id)
+    if symboles_filtres is not None:
+        query = query.filter(Transaction.symbol.in_(symboles_filtres))
+    transactions = query.order_by(Transaction.datetime_utc.asc()).all()
 
     series: TimeSeries = []
     cumule = 0.0
@@ -145,7 +154,7 @@ def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int) -> TimeSeries:
     return series
 
 
-def _valeur_positions_live(db: Session, user_id: int) -> float:
+def _valeur_positions_live(db: Session, user_id: int, symboles_filtres: set[str] | None = None) -> float:
     """Valorisation « live » des positions financières ouvertes — exactement le
     même calcul que `valeur_positions` dans `performance_service.compute_performance`
     (`analysis_service.holdings_financiers` + `value_holdings`). Utilisée
@@ -153,8 +162,15 @@ def _valeur_positions_live(db: Session, user_id: int) -> float:
     points passés restent nécessairement valorisés au dernier cours hebdomadaire
     `yfinance` connu (pas d'historique de cours instantané disponible), mais le
     point d'aujourd'hui peut — et doit — coïncider exactement avec la carte
-    Rentabilité globale plutôt que de rester approximatif de quelques euros."""
+    Rentabilité globale plutôt que de rester approximatif de quelques euros.
+
+    `symboles_filtres` : restreint aux holdings dont le ticker appartient à cet
+    ensemble (graphique filtrable de l'écran Analyse) — SANS ce filtre, le dernier
+    point d'une courbe déjà filtrée afficherait la valeur de TOUT le portefeuille au
+    lieu du seul sous-ensemble affiché, un décrochage visible en fin de courbe."""
     holdings = analysis_service.holdings_financiers(db, user_id)
+    if symboles_filtres is not None:
+        holdings = [h for h in holdings if h.ticker in symboles_filtres]
     valued = analysis_service.value_holdings(holdings)
     return sum(v.valeur for v in valued)
 
@@ -165,30 +181,46 @@ def _valeur_positions_live(db: Session, user_id: int) -> float:
 _CHAMPS_POINT_PORTEFEUILLE = {"date", "valeur_portefeuille", "valeur_investie", "valeur_realisee_cumulee"}
 
 
-def compute_portfolio_history(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> list[dict]:
+def compute_portfolio_history(
+    db: Session,
+    user_id: int,
+    positions: dict[str, PositionState] | None = None,
+    symboles_filtres: set[str] | None = None,
+) -> list[dict]:
     """Historique de valeur du portefeuille d'UN utilisateur (Milestone 2a, cf. LOT 4.5).
 
-    Mis en cache (`historique_cache`, clé `cle_historique_portefeuille(user_id)` —
+    Mis en cache (`historique_cache`, clé `cle_historique_portefeuille(user_id, ...)` —
     scopée par utilisateur depuis Milestone 2a, sans quoi le premier utilisateur à
     calculer son historique verrait sa donnée servie à tous les autres tant que le
     cache est valide) : en cas de lecture à chaud, aucun accès au grand livre ni à
     `yfinance` n'a lieu, `positions` n'est alors même pas consulté. En cas de lecture
     à froid, `positions` — cf. LOT 4.3 — évite de rejouer le grand livre si l'appelant
     l'a déjà calculé ; recalculé sinon.
-    """
-    cle = historique_cache.cle_historique_portefeuille(user_id)
+
+    `symboles_filtres` (graphique filtrable par classe d'actif/compte de l'écran
+    Analyse, retour utilisateur du 13/09/2026) : `None` = comportement historique
+    inchangé (portefeuille entier, clé de cache inchangée — le tableau de bord n'est
+    jamais affecté) ; sinon restreint le calcul à ces seuls tickers, avec sa PROPRE
+    entrée de cache (cf. `historique_cache.cle_historique_portefeuille`)."""
+    cle = historique_cache.cle_historique_portefeuille(user_id, symboles_filtres)
     en_cache = historique_cache.lire(db, cle)
     if en_cache is not None and historique_cache.forme_valide(en_cache, _CHAMPS_POINT_PORTEFEUILLE):
         return en_cache
 
-    points = _compute_portfolio_history(
-        db, user_id, positions if positions is not None else portfolio_reconstruction.compute_positions(db, user_id)
+    toutes_positions = positions if positions is not None else portfolio_reconstruction.compute_positions(db, user_id)
+    positions_filtrees = (
+        toutes_positions
+        if symboles_filtres is None
+        else {symbol: state for symbol, state in toutes_positions.items() if symbol in symboles_filtres}
     )
+    points = _compute_portfolio_history(db, user_id, positions_filtrees, symboles_filtres)
     historique_cache.ecrire(db, cle, points)
     return points
 
 
-def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, PositionState]) -> list[dict]:
+def _compute_portfolio_history(
+    db: Session, user_id: int, positions: dict[str, PositionState], symboles_filtres: set[str] | None = None
+) -> list[dict]:
     starts = [state.shares_history[0][0] for state in positions.values() if state.shares_history]
     if not starts:
         return []
@@ -224,7 +256,7 @@ def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, P
 
         price_series[symbol] = _history_to_series(hist, fx_series)
 
-    revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id)
+    revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id, symboles_filtres)
 
     points = []
     for date in grid:
@@ -248,7 +280,7 @@ def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, P
         # par la même valorisation « live » que la carte Rentabilité globale, pour
         # une coïncidence exacte plutôt qu'une approximation à quelques euros près.
         if date == grid[-1]:
-            valeur_portefeuille = _valeur_positions_live(db, user_id)
+            valeur_portefeuille = _valeur_positions_live(db, user_id, symboles_filtres)
 
         points.append(
             {

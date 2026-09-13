@@ -25,6 +25,7 @@ vi.mock('../components/RevenusPassifsCard', () => ({ default: () => <div /> }))
 vi.mock('../components/QualiteDonneesCard', () => ({ default: () => <div /> }))
 vi.mock('../components/CoutGestionCard', () => ({ default: () => <div /> }))
 vi.mock('../components/SimulateurAchatLocationCard', () => ({ default: () => <div>SIMULATEUR_MOCK</div> }))
+vi.mock('../components/EvolutionFinanciereCard', () => ({ default: () => <div>EVOLUTION_MOCK</div> }))
 
 vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn(), detenteurId: null, setDetenteurId: vi.fn() }),
@@ -186,6 +187,25 @@ describe('AnalysePage — onglet Achat vs location (simulateur résidence princi
     renderPage('/analyse?onglet=simulateur')
 
     expect(await screen.findByText('SIMULATEUR_MOCK')).toBeInTheDocument()
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+  })
+})
+
+describe("AnalysePage — onglet Évolution (retour utilisateur du 13/09/2026, graphique filtrable)", () => {
+  it('bascule vers Évolution', async () => {
+    renderPage()
+    await screen.findByText('Score de diversification')
+
+    fireEvent.click(screen.getByRole('tab', { name: /Évolution/ }))
+
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+    expect(await screen.findByText('EVOLUTION_MOCK')).toBeInTheDocument()
+  })
+
+  it("ouvre directement Évolution quand l'URL le demande", async () => {
+    renderPage('/analyse?onglet=evolution')
+
+    expect(await screen.findByText('EVOLUTION_MOCK')).toBeInTheDocument()
     expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
   })
 })

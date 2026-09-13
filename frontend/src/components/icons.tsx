@@ -326,6 +326,15 @@ export function IconAvertissement({ className }: IconProps) {
  * fichier, distincte de `IconSynthese` (toit + façade + porte) qui désigne déjà la
  * page d'accueil dans la navigation : ici, un pignon simple, sans porte ni
  * fondation, pour ne pas se confondre visuellement au même endroit d'écran. */
+export function IconEvolution({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3 14 L8 9 L11.5 12.5 L17 6" />
+      <path d="M12.5 6 H17 V10.5" />
+    </svg>
+  )
+}
+
 export function IconMaison({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

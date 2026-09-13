@@ -320,7 +320,23 @@ export const api = {
   importBricksConfirm: (payload: BricksImportConfirmInput) =>
     request<BricksImportResult>('/transactions/import-bricks', { method: 'POST', body: JSON.stringify(payload) }),
   getPerformance: () => request<PerformanceSummary>('/performance'),
-  getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
+  // `filtre` (graphique filtrable de l'écran Analyse, retour utilisateur du
+  // 13/09/2026) : `compteId`/`etablissementId` mutuellement exclusifs côté serveur
+  // (400 sinon), combinables avec `typeActif`. Omis : comportement inchangé (même
+  // requête qu'avant cette fonctionnalité, sert le graphique héros du tableau de
+  // bord). `signal` permet d'annuler une requête devenue obsolète (changement de
+  // filtre pendant qu'un calcul précédent — jusqu'à une minute — est encore en cours).
+  getPortfolioHistory: (
+    filtre?: { typeActif?: string | null; compteId?: number | null; etablissementId?: number | null },
+    signal?: AbortSignal,
+  ) => {
+    const params = new URLSearchParams()
+    if (filtre?.typeActif) params.set('type_actif', filtre.typeActif)
+    if (filtre?.compteId != null) params.set('compte_id', String(filtre.compteId))
+    if (filtre?.etablissementId != null) params.set('etablissement_id', String(filtre.etablissementId))
+    const qs = params.toString()
+    return request<PortfolioHistoryResponse>(`/performance/history${qs ? `?${qs}` : ''}`, { signal })
+  },
   // Métriques de performance de niveau professionnel (backlog 2.P.2). `lentille`
   // (retour utilisateur du 09/09/2026) : "financier" par défaut (comportement
   // historique, positions du grand livre seules) — "brut"/"net" compare le

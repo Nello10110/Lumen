@@ -87,6 +87,30 @@ def test_cles_nommees_construisent_le_format_attendu():
     assert historique_cache.cle_historique_portefeuille(42) == "historique_portefeuille:42"
 
 
+def test_cle_historique_portefeuille_sans_filtre_est_inchangee():
+    """Non-régression : `symboles_filtres=None` (défaut) doit produire EXACTEMENT la
+    même clé qu'avant l'ajout du graphique filtrable — le tableau de bord continue de
+    lire/écrire la même entrée qu'avant cette fonctionnalité."""
+    assert historique_cache.cle_historique_portefeuille(1) == "historique_portefeuille:1"
+    assert historique_cache.cle_historique_portefeuille(1, None) == "historique_portefeuille:1"
+
+
+def test_cle_historique_portefeuille_filtree_est_stable_et_independante_de_lordre():
+    cle_a = historique_cache.cle_historique_portefeuille(1, {"AAA", "BBB"})
+    cle_b = historique_cache.cle_historique_portefeuille(1, {"BBB", "AAA"})
+
+    assert cle_a == cle_b  # ordre d'itération d'un `set` non garanti -> tri interne
+    assert cle_a != historique_cache.cle_historique_portefeuille(1)  # jamais la clé non filtrée
+    assert cle_a != historique_cache.cle_historique_portefeuille(1, {"AAA"})  # jamais un sous-ensemble
+
+
+def test_cle_historique_portefeuille_ensemble_vide_distincte_de_non_filtree():
+    """Un filtre actif qui ne retient aucun symbole (`set()`, `is not None`) doit
+    garder sa propre clé — `set()` est un test `not` vrai en Python, un piège que la
+    fonction doit éviter (vérifier `is None`, pas la vérité de l'ensemble)."""
+    assert historique_cache.cle_historique_portefeuille(1, set()) != historique_cache.cle_historique_portefeuille(1)
+
+
 def test_invalider_historiques_portefeuille_purge_tous_les_utilisateurs_sans_toucher_aux_lignes(db):
     historique_cache.ecrire(db, historique_cache.cle_historique_portefeuille(1), {"a": 1})
     historique_cache.ecrire(db, historique_cache.cle_historique_portefeuille(2), {"a": 2})
@@ -97,3 +121,16 @@ def test_invalider_historiques_portefeuille_purge_tous_les_utilisateurs_sans_tou
     assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(1)) is None
     assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(2)) is None
     assert historique_cache.lire(db, historique_cache.cle_historique_ligne("AAA")) == {"prix": 1}
+
+
+def test_invalider_historiques_portefeuille_purge_aussi_les_entrees_filtrees(db):
+    """Le préfixe commun `historique_portefeuille:` (préservé par
+    `cle_historique_portefeuille` même avec un filtre) garantit que cette purge
+    globale couvre aussi les vues filtrées du nouvel onglet Analyse, sans rien
+    changer à cette fonction."""
+    cle_filtree = historique_cache.cle_historique_portefeuille(1, {"AAA"})
+    historique_cache.ecrire(db, cle_filtree, {"a": 1})
+
+    historique_cache.invalider_historiques_portefeuille(db)
+
+    assert historique_cache.lire(db, cle_filtree) is None
