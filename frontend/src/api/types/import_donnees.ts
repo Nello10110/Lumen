@@ -133,3 +133,38 @@ export interface LedgerImportResult {
   anomalies_detectees: number
   comptes_crees: number
 }
+
+// Import d'un export Bricks.co (crowdfunding/crowdlending immobilier, retour
+// utilisateur du 13/09/2026) — carte séparée de Trade Republic et de Ledger,
+// même patron en deux temps. Contrairement à Ledger, pas de sélection ligne à
+// ligne : chaque opération Bricks.co est un investissement délibéré, l'aperçu se
+// limite à un résumé (biens détectés, montant investi).
+export interface BricksApercu {
+  file_token: string
+  lignes_lues: number
+  lignes_ignorees_statut: number
+  lignes_ignorees_type_operation: Record<string, number>
+  lignes_ignorees_remboursement_sans_achat: number
+  nb_biens: number
+  montant_total_investi: number
+  etablissements: Etablissement[]
+}
+
+export interface BricksImportConfirmInput {
+  file_token: string
+  etablissement_id?: number | null
+  etablissement_nom?: string | null
+  etablissement_logo_key?: string | null
+  nom_compte?: string
+}
+
+export interface BricksImportResult {
+  lignes_lues: number
+  importees: number
+  mises_a_jour: number
+  doublons_ignores: number
+  lignes_ignorees: number
+  positions_recalculees: number
+  anomalies_detectees: number
+  comptes_crees: number
+}

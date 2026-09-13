@@ -29,6 +29,9 @@ vi.mock('../api/client', () => ({
     // typage de `api`, aucun test ci-dessous n'interagit avec l'upload.
     importLedgerApercu: vi.fn(),
     importLedgerConfirm: vi.fn(),
+    // `ImportBricksSection` (retour utilisateur du 13/09/2026), même raison.
+    importBricksApercu: vi.fn(),
+    importBricksConfirm: vi.fn(),
   },
 }))
 
@@ -72,13 +75,15 @@ function renderImportPage() {
   )
 }
 
-describe("ImportPage — carte d'import Ledger séparée de Trade Republic (retour utilisateur du 11/09/2026)", () => {
-  it('affiche la carte Ledger, distincte de celle de Trade Republic', () => {
+describe("ImportPage — cartes d'import Ledger et Bricks.co séparées de Trade Republic (retours utilisateur des 11 et 13/09/2026)", () => {
+  it('affiche les trois cartes, chacune distincte', () => {
     renderImportPage()
 
+    expect(screen.getByText('Historique de transactions (format détecté automatiquement)')).toBeInTheDocument()
     expect(screen.getByText('Wallet crypto (export Ledger)')).toBeInTheDocument()
     expect(screen.getByTestId('dropzone-input-Wallet crypto Ledger')).toBeInTheDocument()
-    expect(screen.getByText('Historique de transactions (format détecté automatiquement)')).toBeInTheDocument()
+    expect(screen.getByText('Crowdfunding immobilier (export Bricks.co)')).toBeInTheDocument()
+    expect(screen.getByTestId('dropzone-input-Crowdfunding immobilier Bricks.co')).toBeInTheDocument()
   })
 })
 

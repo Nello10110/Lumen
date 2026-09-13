@@ -66,6 +66,9 @@ import type {
   SyntheseAnnee,
   ScheduledJob,
   Session,
+  BricksApercu,
+  BricksImportConfirmInput,
+  BricksImportResult,
   LedgerImportApercu,
   LedgerImportConfirmInput,
   LedgerImportResult,
@@ -299,6 +302,15 @@ export const api = {
   },
   importLedgerConfirm: (payload: LedgerImportConfirmInput) =>
     request<LedgerImportResult>('/transactions/import-ledger', { method: 'POST', body: JSON.stringify(payload) }),
+  // Import d'un export Bricks.co (crowdfunding immobilier, retour utilisateur du
+  // 13/09/2026) — même gabarit que ci-dessus, carte séparée sur l'écran Import.
+  importBricksApercu: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<BricksApercu>('/transactions/import-bricks/apercu', { method: 'POST', body: form })
+  },
+  importBricksConfirm: (payload: BricksImportConfirmInput) =>
+    request<BricksImportResult>('/transactions/import-bricks', { method: 'POST', body: JSON.stringify(payload) }),
   getPerformance: () => request<PerformanceSummary>('/performance'),
   getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
   // Métriques de performance de niveau professionnel (backlog 2.P.2). `lentille`

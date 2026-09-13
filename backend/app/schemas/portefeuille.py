@@ -452,6 +452,59 @@ class LedgerImportResult(BaseModel):
     comptes_crees: int = 0
 
 
+class BricksApercu(BaseModel):
+    """Réponse de `POST /api/transactions/import-bricks/apercu` — même esprit que
+    `LedgerImportApercu`, adapté au format Bricks.co (crowdfunding immobilier) : pas
+    de sélection par devise (chaque ligne est un investissement délibéré, pas un
+    jeton spam reçu passivement) — juste un résumé (biens détectés, montant investi)
+    avant confirmation."""
+
+    file_token: str
+    lignes_lues: int
+    lignes_ignorees_statut: int
+    lignes_ignorees_type_operation: dict[str, int]
+    lignes_ignorees_remboursement_sans_achat: int
+    nb_biens: int
+    montant_total_investi: float
+    etablissements: list[EtablissementOut]
+
+
+class BricksImportConfirm(BaseModel):
+    file_token: str
+    etablissement_id: int | None = None
+    etablissement_nom: str | None = None
+    etablissement_logo_key: str | None = None
+    nom_compte: str = "Bricks.co"
+
+    @field_validator("etablissement_nom")
+    @classmethod
+    def _valider_etablissement_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
+
+    @model_validator(mode="after")
+    def _valider_etablissement_requis(self) -> BricksImportConfirm:
+        if not self.etablissement_id and not self.etablissement_nom:
+            raise ValueError("Un établissement est obligatoire pour importer un export Bricks.co.")
+        return self
+
+
+class BricksImportResult(BaseModel):
+    """Même forme que `LedgerImportResult` mais schéma distinct — domaines
+    différents (crowdfunding immobilier vs wallet crypto), coût de duplication nul."""
+
+    lignes_lues: int
+    importees: int
+    mises_a_jour: int = 0
+    doublons_ignores: int
+    lignes_ignorees: int
+    positions_recalculees: int
+    anomalies_detectees: int = 0
+    comptes_crees: int = 0
+
+
 class HoldingPricePoint(BaseModel):
     date: str
     prix: float

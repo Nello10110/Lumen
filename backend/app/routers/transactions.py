@@ -18,6 +18,9 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Compte, Etablissement, Transaction, User
 from ..schemas import (
+    BricksApercu,
+    BricksImportConfirm,
+    BricksImportResult,
     LedgerImportApercu,
     LedgerImportConfirm,
     LedgerImportResult,
@@ -25,7 +28,15 @@ from ..schemas import (
     TransactionImportConfirm,
     TransactionImportResult,
 )
-from ..services import auth_service, comptes_service, ledger_import, portfolio_reconstruction, transaction_import, upload_limits
+from ..services import (
+    auth_service,
+    bricks_import,
+    comptes_service,
+    ledger_import,
+    portfolio_reconstruction,
+    transaction_import,
+    upload_limits,
+)
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -264,6 +275,87 @@ def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), c
     lignes_ignorees = parsed.lignes_ignorees_statut + sum(parsed.lignes_ignorees_type_operation.values())
 
     return LedgerImportResult(
+        lignes_lues=parsed.lignes_lues,
+        importees=importees,
+        mises_a_jour=mises_a_jour,
+        doublons_ignores=doublons,
+        lignes_ignorees=lignes_ignorees,
+        positions_recalculees=resultat_reconstruction.positions_recalculees,
+        anomalies_detectees=resultat_reconstruction.anomalies_detectees,
+        comptes_crees=comptes_crees,
+    )
+
+
+@router.post("/import-bricks/apercu", response_model=BricksApercu)
+async def import_bricks_apercu(file: UploadFile, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Retour utilisateur du 13/09/2026 : import d'un export Bricks.co
+    (crowdfunding/crowdlending immobilier), format distinct de Trade Republic et de
+    Ledger — même patron en deux temps que les deux autres, mais un résumé (biens
+    détectés, montant investi) plutôt qu'une sélection ligne à ligne : chaque
+    opération Bricks.co est un investissement délibéré, pas un jeton spam reçu
+    passivement."""
+    content = await file.read()
+    try:
+        upload_limits.verifier_taille_fichier(content)
+    except upload_limits.FichierTropVolumineuxError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    try:
+        parsed = bricks_import.parse_bricks_file(file.filename or "export.xlsx", content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    token = bricks_import.stage_parsed_bricks(parsed)
+    etablissements = comptes_service.list_etablissements(db, auth_service.id_foyer(current_user))
+
+    return BricksApercu(
+        file_token=token,
+        lignes_lues=parsed.lignes_lues,
+        lignes_ignorees_statut=parsed.lignes_ignorees_statut,
+        lignes_ignorees_type_operation=parsed.lignes_ignorees_type_operation,
+        lignes_ignorees_remboursement_sans_achat=parsed.lignes_ignorees_remboursement_sans_achat,
+        nb_biens=parsed.nb_biens,
+        montant_total_investi=parsed.montant_total_investi,
+        etablissements=etablissements,
+    )
+
+
+@router.post("/import-bricks", response_model=BricksImportResult)
+def import_bricks(payload: BricksImportConfirm, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_id = auth_service.id_foyer(current_user)
+    try:
+        parsed = bricks_import.get_pending_bricks(payload.file_token)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if payload.etablissement_id is not None:
+        etablissement = db.get(Etablissement, payload.etablissement_id)
+        if etablissement is None or etablissement.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Établissement introuvable")
+        etablissement_id = payload.etablissement_id
+    else:
+        etablissement_id = comptes_service.get_or_create_etablissement(
+            db, user_id, payload.etablissement_nom, payload.etablissement_logo_key
+        ).id
+
+    existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == payload.nom_compte).first() is not None
+    compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, payload.nom_compte, etablissement_id)
+    comptes_crees = 0 if existait_deja else 1
+    comptes_a_assigner = dict.fromkeys({row["symbol"] for row in parsed.rows}, compte.id)
+
+    importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, parsed.rows)
+
+    db.commit()
+    bricks_import.clear_pending_bricks(payload.file_token)
+
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id, comptes_a_assigner=comptes_a_assigner)
+
+    lignes_ignorees = (
+        parsed.lignes_ignorees_statut
+        + sum(parsed.lignes_ignorees_type_operation.values())
+        + parsed.lignes_ignorees_remboursement_sans_achat
+    )
+
+    return BricksImportResult(
         lignes_lues=parsed.lignes_lues,
         importees=importees,
         mises_a_jour=mises_a_jour,

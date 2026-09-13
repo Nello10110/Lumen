@@ -31,6 +31,8 @@ export const CATALOGUE_ETABLISSEMENTS: EtablissementConnu[] = [
   { cle: 'caisse_epargne', nom: "Caisse d'Épargne", couleur: '#e2001a', initiales: 'CE' },
   // Wallet matériel crypto (retour utilisateur du 11/09/2026, import Ledger).
   { cle: 'ledger', nom: 'Ledger', couleur: '#1d1d1b', initiales: 'LG' },
+  // Crowdfunding/crowdlending immobilier (retour utilisateur du 13/09/2026, import Bricks.co).
+  { cle: 'bricks_co', nom: 'Bricks.co', couleur: '#b5502d', initiales: 'BC' },
 ]
 
 export function trouverEtablissementConnu(cle: string | null | undefined): EtablissementConnu | undefined {
