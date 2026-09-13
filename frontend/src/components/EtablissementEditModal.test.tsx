@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import { reinitialiserPourTests } from '../utils/logosEtablissements'
+import { reinitialiserPourTests as reinitialiserLogosCataloguePourTests } from '../utils/logosCatalogue'
 import EtablissementEditModal from './EtablissementEditModal'
 
 vi.mock('../api/client', () => ({
   api: {
     updateEtablissement: vi.fn(),
     getLogosEtablissements: vi.fn().mockResolvedValue({}),
+    getLogosCatalogue: vi.fn().mockResolvedValue({}),
     recupererLogoCatalogue: vi.fn(),
     setEtablissementLogoUrl: vi.fn(),
     uploadEtablissementLogo: vi.fn(),
@@ -39,7 +41,9 @@ describe('EtablissementEditModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     reinitialiserPourTests()
+    reinitialiserLogosCataloguePourTests()
     vi.mocked(api.getLogosEtablissements).mockResolvedValue({})
+    vi.mocked(api.getLogosCatalogue).mockResolvedValue({})
   })
 
   it('« Récupérer le logo officiel » appelle le catalogue et prévient l\'appelant', async () => {
@@ -116,5 +120,25 @@ describe('EtablissementEditModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Renommer' }))
 
     await waitFor(() => expect(api.updateEtablissement).toHaveBeenCalledWith(3, 'Nouveau nom'))
+  })
+
+  it("propose de rattacher au catalogue un établissement créé sans logo_key (retour utilisateur du 13/09/2026, import Ledger/Bricks.co sans badge)", async () => {
+    vi.mocked(api.updateEtablissement).mockResolvedValue(etablissement({ logo_key: 'ledger', nom: 'Ledger' }))
+    afficher(etablissement({ logo_key: null, nom: 'Ledger' }))
+
+    expect(screen.getByText('Rattacher au catalogue')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Ledger/ }))
+
+    await waitFor(() => expect(api.updateEtablissement).toHaveBeenCalledWith(3, undefined, 'ledger'))
+    // Une fois rattaché, la section de rattachement disparaît et « Récupérer le logo
+    // officiel » (qui exige un établissement du catalogue) devient disponible.
+    await waitFor(() => expect(screen.queryByText('Rattacher au catalogue')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Récupérer le logo officiel' })).not.toBeDisabled()
+  })
+
+  it("ne propose pas de rattachement pour un établissement déjà du catalogue", () => {
+    afficher()
+
+    expect(screen.queryByText('Rattacher au catalogue')).not.toBeInTheDocument()
   })
 })

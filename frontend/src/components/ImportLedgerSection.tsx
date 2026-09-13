@@ -30,8 +30,15 @@ export default function ImportLedgerSection() {
 
   const [apercu, setApercu] = useState<LedgerImportApercu | null>(null)
   const [etablissementId, setEtablissementId] = useState('')
-  const [etablissementNom, setEtablissementNom] = useState('')
-  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>(null)
+  // Préremplis au nom/clé du catalogue (retour utilisateur du 13/09/2026 : le badge
+  // Ledger ne s'affichait pas) — cette carte ne sert QU'à importer Ledger, la clé de
+  // catalogue est donc déjà connue d'avance. Sans ce préremplissage, un utilisateur
+  // qui choisit « + Nouvel établissement... » puis valide sans cliquer sur la
+  // vignette du sélecteur de catalogue crée un établissement SANS `logo_key` : ni
+  // badge coloré, ni bouton « Récupérer le logo officiel » (qui exige un
+  // établissement déjà rattaché au catalogue) ensuite disponibles.
+  const [etablissementNom, setEtablissementNom] = useState('Ledger')
+  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>('ledger')
   const [nomCompte, setNomCompte] = useState('Ledger')
   const [devisesDecochees, setDevisesDecochees] = useState<Set<string>>(new Set())
 
@@ -43,8 +50,8 @@ export default function ImportLedgerSection() {
       const a = await api.importLedgerApercu(file)
       setApercu(a)
       setEtablissementId('')
-      setEtablissementNom('')
-      setEtablissementLogoKey(null)
+      setEtablissementNom('Ledger')
+      setEtablissementLogoKey('ledger')
       setNomCompte('Ledger')
       setDevisesDecochees(new Set())
     } catch (err) {

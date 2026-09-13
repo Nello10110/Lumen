@@ -4,6 +4,7 @@ import type { Etablissement } from '../api/types'
 import { trouverEtablissementConnu } from '../utils/etablissementsConnus'
 import { invaliderLogos } from '../utils/logosEtablissements'
 import { formatDateHeure } from '../utils/format'
+import CatalogueEtablissementPicker from './CatalogueEtablissementPicker'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtablissementLogo from './EtablissementLogo'
@@ -45,7 +46,11 @@ export default function EtablissementEditModal({
   const [error, setError] = useState<string | null>(null)
   const fichierRef = useRef<HTMLInputElement>(null)
 
-  const estDuCatalogue = Boolean(trouverEtablissementConnu(etablissement.logo_key))
+  // `courant`, pas la prop `etablissement` : sinon un rattachement au catalogue
+  // (ci-dessous) qui vient de poser `logo_key` ne réactivait jamais le bouton
+  // « Récupérer le logo officiel » dans la même ouverture de la modale — la prop
+  // reste figée à sa valeur d'ouverture, seul `courant` suit les actions `executer`.
+  const estDuCatalogue = Boolean(trouverEtablissementConnu(courant.logo_key))
 
   async function executer(cle: string, action: () => Promise<Etablissement | void>) {
     setEnCours(cle)
@@ -105,6 +110,24 @@ export default function EtablissementEditModal({
               {enCours === 'nom' ? 'Enregistrement…' : 'Renommer'}
             </PrimaryButton>
           </form>
+
+          {!estDuCatalogue && (
+            <div className="mt-4 space-y-2 border-t border-hairline pt-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink3">Rattacher au catalogue</h3>
+              <p className="text-xs text-ink3">
+                Cet établissement a été créé sans être relié à un établissement connu — c'est ce qui l'empêche
+                d'avoir un badge coloré ou d'aller chercher un logo officiel. Choisissez-le ci-dessous s'il en
+                fait partie (le nom n'est pas modifié).
+              </p>
+              <CatalogueEtablissementPicker
+                selection={null}
+                onSelect={(cle) => {
+                  if (!cle) return
+                  void executer('catalogue-rattachement', () => api.updateEtablissement(courant.id, undefined, cle))
+                }}
+              />
+            </div>
+          )}
 
           <div className="mt-4 space-y-3 border-t border-hairline pt-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-ink3">Logo</h3>

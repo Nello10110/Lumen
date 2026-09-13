@@ -241,8 +241,16 @@ export const api = {
   listEtablissements: () => request<Etablissement[]>('/comptes/etablissements'),
   createEtablissement: (nom: string, logoKey?: string | null) =>
     request<Etablissement>('/comptes/etablissements', { method: 'POST', body: JSON.stringify({ nom, logo_key: logoKey ?? null }) }),
-  updateEtablissement: (id: number, nom: string) =>
-    request<Etablissement>(`/comptes/etablissements/${id}`, { method: 'PATCH', body: JSON.stringify({ nom }) }),
+  // `nom`/`logoKey` optionnels indépendamment l'un de l'autre (rattachement rétroactif
+  // au catalogue, retour utilisateur du 13/09/2026) : le backend ignore tout champ
+  // absent du corps JSON (`model_dump(exclude_unset=True)`), donc n'inclure que
+  // `logo_key` laisse le nom déjà en base strictement inchangé.
+  updateEtablissement: (id: number, nom?: string, logoKey?: string | null) => {
+    const corps: Record<string, unknown> = {}
+    if (nom !== undefined) corps.nom = nom
+    if (logoKey !== undefined) corps.logo_key = logoKey
+    return request<Etablissement>(`/comptes/etablissements/${id}`, { method: 'PATCH', body: JSON.stringify(corps) })
+  },
   deleteEtablissement: (id: number) => request<{ ok: boolean }>(`/comptes/etablissements/${id}`, { method: 'DELETE' }),
 
   // Logos d'établissement (retour utilisateur, 05/09/2026) — l'image ne transite

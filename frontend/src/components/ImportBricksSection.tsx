@@ -28,8 +28,13 @@ export default function ImportBricksSection() {
 
   const [apercu, setApercu] = useState<BricksApercu | null>(null)
   const [etablissementId, setEtablissementId] = useState('')
-  const [etablissementNom, setEtablissementNom] = useState('')
-  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>(null)
+  // Préremplis au nom/clé du catalogue (retour utilisateur du 13/09/2026 : le badge
+  // Bricks.co ne s'affichait pas) — même raisonnement que `ImportLedgerSection.tsx` :
+  // cette carte ne sert QU'à importer Bricks.co, sans ce préremplissage un
+  // établissement créé sans passer par la vignette du sélecteur de catalogue reste
+  // sans `logo_key` (ni badge coloré, ni logo officiel récupérable ensuite).
+  const [etablissementNom, setEtablissementNom] = useState('Bricks.co')
+  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>('bricks_co')
   const [nomCompte, setNomCompte] = useState('Bricks.co')
 
   async function handleFileChange(file: File) {
@@ -40,8 +45,8 @@ export default function ImportBricksSection() {
       const a = await api.importBricksApercu(file)
       setApercu(a)
       setEtablissementId('')
-      setEtablissementNom('')
-      setEtablissementLogoKey(null)
+      setEtablissementNom('Bricks.co')
+      setEtablissementLogoKey('bricks_co')
       setNomCompte('Bricks.co')
     } catch (err) {
       setError((err as Error).message)
