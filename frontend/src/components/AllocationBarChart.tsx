@@ -32,7 +32,7 @@ export default function AllocationBarChart({
   const maximum = Math.max(...items.map((i) => i.pourcentage_reel), 0)
 
   return (
-    <div className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_auto] gap-x-4">
+    <div className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_auto] gap-x-4 select-none">
       {items.map((item) => {
         const contenu = (
           <>

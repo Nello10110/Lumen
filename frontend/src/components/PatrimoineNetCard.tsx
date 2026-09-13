@@ -267,7 +267,7 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
               n'ont pas de largeur dans une barre empilée : elles sortent de la barre
               mais restent listées en dessous, à leur valeur réelle — jamais escamotées. */}
           {totalPositif > 0 && (
-            <div className="mt-3 flex h-3 gap-0.5 overflow-hidden rounded-chip">
+            <div className="mt-3 flex h-3 gap-0.5 overflow-hidden rounded-chip select-none">
               {partsPositives.map((item, i) => (
                 <div
                   key={item.categorie}

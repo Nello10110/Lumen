@@ -107,6 +107,21 @@ summary,
   --color-tooltip-text: var(--ink, #16181d);
 }
 
+/* Sélection rectangulaire parasite au clic sur un graphique (retour utilisateur du
+   13/09/2026 : « si elles n'ouvrent pas de nouvelles vues, elle font une sélection
+   d'un rectangle sur mon IHM qui ne sert à rien ») — pas un bug propre à Recharts :
+   un `<svg>` est sélectionnable par défaut comme n'importe quel contenu de page, et
+   le moindre glissé involontaire pendant le clic (très courant au trackpad) déclenche
+   la sélection de texte NATIVE du navigateur sur les barres/aires, qu'elles aient ou
+   non un `onClick`. `.recharts-wrapper` est la classe que Recharts pose sur la racine
+   de CHAQUE graphique (posée par `<ResponsiveContainer>` lui-même) : une seule règle
+   ici couvre tous les graphiques de l'application, plutôt que de la répéter
+   composant par composant (une quinzaine de fichiers). */
+.recharts-wrapper {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Chiffre héros en mobile (refonte, étape 5) : 40 px au lieu de 54 — la maquette
    mobile le réduit pour que le montant tienne sur une ligne dans 390 px de large.
    Redéfinir la variable du jeton plutôt que d'ajouter une variante utilitaire :

@@ -217,7 +217,7 @@ export default function BudgetPage() {
 
                 {decompositionMois.length > 0 && (
                   <>
-                    <div className="mt-4 flex h-3 gap-0.5 overflow-hidden rounded-chip">
+                    <div className="mt-4 flex h-3 gap-0.5 overflow-hidden rounded-chip select-none">
                       {decompositionMois.map((part) => (
                         <div
                           key={part.libelle}

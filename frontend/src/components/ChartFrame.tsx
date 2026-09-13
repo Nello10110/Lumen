@@ -110,7 +110,7 @@ export function RepartitionEmpilee({
 
   return (
     <>
-      <div className="flex h-3 gap-0.5 overflow-hidden rounded-chip">
+      <div className="flex h-3 gap-0.5 overflow-hidden rounded-chip select-none">
         {parts.map((p, i) => (
           <span
             key={p.nom}
