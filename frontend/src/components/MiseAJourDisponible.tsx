@@ -38,6 +38,21 @@ export default function MiseAJourDisponible() {
   } = useRegisterSW({
     onRegisteredSW(_url, registration) {
       if (!registration) return
+      // Vérification immédiate en plus de l'intervalle ci-dessous (retour
+      // utilisateur du 13/09/2026 : le bouton SSO manquait encore après un
+      // simple Ctrl+F5 nécessaire malgré ce composant) : sans cet appel
+      // immédiat, un onglet fraîchement ouvert (nouvelle visite, pas un
+      // onglet resté ouvert des heures) ne déclenchait AUCUNE vérification
+      // avant la première heure d'attente — la vérification automatique du
+      // navigateur lui-même est throttlée à une fois par 24 h par
+      // registration de service worker, donc un déploiement survenu dans
+      // cette fenêtre de 24 h restait invisible tant que l'onglet n'avait
+      // pas dépassé une heure d'ouverture continue. `registration.update()`
+      // explicite n'est PAS soumis à ce throttle (`sw.js` est servi en
+      // `no-cache` par nginx, cf. `docker/nginx.conf`) : il détecte donc la
+      // nouvelle version dès CE chargement, sans attendre ni l'intervalle ni
+      // le prochain contrôle spontané du navigateur.
+      void registration.update()
       setInterval(() => {
         void registration.update()
       }, INTERVALLE_VERIFICATION_MS)

@@ -46,7 +46,7 @@ describe('MiseAJourDisponible', () => {
     expect(updateServiceWorker).not.toHaveBeenCalled()
   })
 
-  it('programme une vérification périodique de mise à jour une fois le service worker enregistré (retour utilisateur du 10/09/2026 — idle prolongé)', async () => {
+  it('vérifie immédiatement une mise à jour dès l\'enregistrement, puis toutes les heures (retour utilisateur du 10/09/2026 — idle prolongé)', async () => {
     vi.useFakeTimers()
     try {
       mockHook(false)
@@ -56,12 +56,13 @@ describe('MiseAJourDisponible', () => {
       const registration = { update: vi.fn() } as unknown as ServiceWorkerRegistration
       options?.onRegisteredSW?.('/sw.js', registration)
 
-      expect(registration.update).not.toHaveBeenCalled()
-      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
       expect(registration.update).toHaveBeenCalledTimes(1)
 
       await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
       expect(registration.update).toHaveBeenCalledTimes(2)
+
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(registration.update).toHaveBeenCalledTimes(3)
     } finally {
       vi.useRealTimers()
     }
