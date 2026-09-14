@@ -45,21 +45,23 @@ def cle_historique_benchmark(benchmark_key: str) -> str:
     return f"historique_benchmark:{benchmark_key}"
 
 
-def cle_historique_portefeuille(user_id: int, symboles_filtres: set[str] | None = None) -> str:
+def cle_historique_portefeuille(user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> str:
     """Clé de cache de l'historique de valeur du portefeuille (4.5), scopée par
     utilisateur (Milestone 2a) — sans `user_id`, le premier utilisateur à calculer
     son historique verrait sa donnée servie à tous les autres tant que le cache est
     valide (24h).
 
-    `symboles_filtres` (graphique filtrable de l'écran Analyse, retour utilisateur du
-    13/09/2026) : `None` laisse la clé EXACTEMENT inchangée (`historique_portefeuille:
-    {user_id}`) — le graphique héros du tableau de bord, qui n'a jamais de filtre,
-    continue de lire/écrire la même entrée qu'avant cette fonctionnalité. Un ensemble
-    de symboles ajoute un suffixe trié (l'ordre d'un `set` n'est pas garanti d'un
-    appel à l'autre en Python — sans tri, la même sélection de filtres produirait des
-    clés différentes selon l'ordre d'itération, dédoublant le cache pour rien) :
-    chaque combinaison de filtres obtient sa PROPRE entrée, purgée par les mêmes
-    fonctions `invalider*` ci-dessous (préfixe commun `historique_portefeuille:`).
+    `cles_filtres` (graphique filtrable de l'écran Analyse, retour utilisateur du
+    13/09/2026 ; devenu `(ticker, compte_id)` le 14/09/2026 — un ticker seul ne
+    désigne plus une position sans ambiguïté) : `None` laisse la clé EXACTEMENT
+    inchangée (`historique_portefeuille:{user_id}`) — le graphique héros du tableau
+    de bord, qui n'a jamais de filtre, continue de lire/écrire la même entrée
+    qu'avant cette fonctionnalité. Un ensemble de couples ajoute un suffixe trié
+    (l'ordre d'un `set` n'est pas garanti d'un appel à l'autre en Python — sans tri,
+    la même sélection de filtres produirait des clés différentes selon l'ordre
+    d'itération, dédoublant le cache pour rien) : chaque combinaison de filtres
+    obtient sa PROPRE entrée, purgée par les mêmes fonctions `invalider*` ci-dessous
+    (préfixe commun `historique_portefeuille:`).
 
     `is None`, pas une vérification de vérité : un ensemble VIDE (filtre actif,
     aucun ticker ne correspond — ex. un compte sans position financière) doit garder
@@ -72,9 +74,12 @@ def cle_historique_portefeuille(user_id: int, symboles_filtres: set[str] | None 
     332 ms pour le portefeuille entier, 68 ms pour une combinaison de filtres, contre
     1 ms en lecture (mesuré sur le portefeuille réel après le Lot 13). Un facteur 300
     sur l'écran d'accueil justifie de le garder ; la symétrie, non."""
-    if symboles_filtres is None:
+    if cles_filtres is None:
         return f"historique_portefeuille:{user_id}"
-    return f"historique_portefeuille:{user_id}:{','.join(sorted(symboles_filtres))}"
+    # `compte_id` peut être `None` (position sans compte) : rendu en "-" pour rester
+    # un suffixe de clé stable et lisible plutôt que le littéral `"None"`.
+    suffixe = ",".join(sorted(f"{ticker}:{compte_id if compte_id is not None else '-'}" for ticker, compte_id in cles_filtres))
+    return f"historique_portefeuille:{user_id}:{suffixe}"
 
 
 def cle_historique_patrimoine(user_id: int, detenteur_id: int | None = None) -> str:

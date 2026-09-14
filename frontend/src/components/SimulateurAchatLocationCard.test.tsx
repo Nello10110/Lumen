@@ -80,8 +80,9 @@ function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobili
   }
 }
 
-function detail(ticker: string, nom: string, immo: HoldingImmobilier | null): HoldingDetail {
+function detail(id: number, ticker: string, nom: string, immo: HoldingImmobilier | null): HoldingDetail {
   return {
+    id,
     ticker,
     nom,
     type_actif: 'REAL_ESTATE',
@@ -153,38 +154,40 @@ describe('SimulateurAchatLocationCard', () => {
   it("affiche un lien pour configurer le bien quand il existe mais n'est pas marqué résidence principale (retour utilisateur du 10/09/2026)", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holding()])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail('MAISON', 'Maison principale', immobilier({ residence_principale: false })))
+    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail(1, 'MAISON', 'Maison principale', immobilier({ residence_principale: false })))
 
     renderCard()
 
     expect(await screen.findByText('Aucune résidence principale configurée')).toBeInTheDocument()
     const lien = screen.getByRole('link', { name: 'Configurer « Maison principale »' })
-    expect(lien).toHaveAttribute('href', '/patrimoine/MAISON?onglet=parametres')
+    expect(lien).toHaveAttribute('href', '/patrimoine/1?onglet=parametres')
   })
 
   it("liste un lien par bien quand plusieurs biens existent sans résidence principale marquée", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'MAISON1' }), holding({ id: 2, ticker: 'MAISON2' })])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.getHoldingDetail).mockImplementation((ticker: string) =>
-      Promise.resolve(detail(ticker, ticker === 'MAISON1' ? 'Bien A' : 'Bien B', immobilier({ residence_principale: false }))),
+    vi.mocked(api.getHoldingDetail).mockImplementation((holdingId: number) =>
+      Promise.resolve(
+        detail(holdingId, holdingId === 1 ? 'MAISON1' : 'MAISON2', holdingId === 1 ? 'Bien A' : 'Bien B', immobilier({ residence_principale: false })),
+      ),
     )
 
     renderCard()
 
-    expect(await screen.findByRole('link', { name: 'Configurer « Bien A »' })).toHaveAttribute('href', '/patrimoine/MAISON1?onglet=parametres')
-    expect(screen.getByRole('link', { name: 'Configurer « Bien B »' })).toHaveAttribute('href', '/patrimoine/MAISON2?onglet=parametres')
+    expect(await screen.findByRole('link', { name: 'Configurer « Bien A »' })).toHaveAttribute('href', '/patrimoine/1?onglet=parametres')
+    expect(screen.getByRole('link', { name: 'Configurer « Bien B »' })).toHaveAttribute('href', '/patrimoine/2?onglet=parametres')
   })
 
   it('affiche un lien pour configurer le simulateur quand la fiche est incomplète', async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holding()])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail('MAISON', 'Maison principale', immobilier({ simulation_loyer_estime: null })))
+    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail(1, 'MAISON', 'Maison principale', immobilier({ simulation_loyer_estime: null })))
 
     renderCard()
 
     expect(await screen.findByText('Simulateur non configuré')).toBeInTheDocument()
     expect(screen.getByText(/Maison principale/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Configurer le simulateur' })).toHaveAttribute('href', '/patrimoine/MAISON?onglet=parametres')
+    expect(screen.getByRole('link', { name: 'Configurer le simulateur' })).toHaveAttribute('href', '/patrimoine/1?onglet=parametres')
   })
 
   it('calcule l’écart avec un emprunt rattaché : seule la part d’intérêts compte', async () => {
@@ -192,6 +195,7 @@ describe('SimulateurAchatLocationCard', () => {
     vi.mocked(api.listLoans).mockResolvedValue([loan()])
     vi.mocked(api.getHoldingDetail).mockResolvedValue(
       detail(
+        1,
         'MAISON',
         'Maison principale',
         immobilier({
@@ -220,6 +224,7 @@ describe('SimulateurAchatLocationCard', () => {
     vi.mocked(api.listLoans).mockResolvedValue([]) // pas d'emprunt
     vi.mocked(api.getHoldingDetail).mockResolvedValue(
       detail(
+        1,
         'MAISON',
         'Maison principale',
         immobilier({ simulation_loyer_estime: 1200, simulation_taxe_habitation_annuelle: 1200, simulation_charges_mensuelles: 150 }),
@@ -236,9 +241,14 @@ describe('SimulateurAchatLocationCard', () => {
   it('propose un sélecteur quand plusieurs résidences principales existent', async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'MAISON1' }), holding({ id: 2, ticker: 'MAISON2' })])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.getHoldingDetail).mockImplementation((ticker: string) =>
+    vi.mocked(api.getHoldingDetail).mockImplementation((holdingId: number) =>
       Promise.resolve(
-        detail(ticker, ticker === 'MAISON1' ? 'Ancienne résidence' : 'Nouvelle résidence', immobilier({ simulation_loyer_estime: 1000 })),
+        detail(
+          holdingId,
+          holdingId === 1 ? 'MAISON1' : 'MAISON2',
+          holdingId === 1 ? 'Ancienne résidence' : 'Nouvelle résidence',
+          immobilier({ simulation_loyer_estime: 1000 }),
+        ),
       ),
     )
 
@@ -249,8 +259,8 @@ describe('SimulateurAchatLocationCard', () => {
     expect(screen.getByRole('option', { name: 'Ancienne résidence' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Nouvelle résidence' })).toBeInTheDocument()
 
-    fireEvent.change(select, { target: { value: 'MAISON2' } })
+    fireEvent.change(select, { target: { value: '2' } })
 
-    await waitFor(() => expect((select as HTMLSelectElement).value).toBe('MAISON2'))
+    await waitFor(() => expect((select as HTMLSelectElement).value).toBe('2'))
   })
 })

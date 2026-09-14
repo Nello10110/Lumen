@@ -96,7 +96,7 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
 
   function rechargerHistorique() {
     api
-      .getHoldingValuationHistory(holding.ticker)
+      .getHoldingValuationHistory(holding.id)
       .then(setHistorique)
       .catch(() => setHistorique([]))
   }
@@ -105,7 +105,7 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
     if (!ouvert || historique !== null) return
     rechargerHistorique()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `rechargerHistorique` est recréée à chaque rendu ; la garde `historique !== null` suffit à ne charger qu'une fois.
-  }, [ouvert, historique, holding.ticker])
+  }, [ouvert, historique, holding.id])
 
   function handleValorisationAjoutee(h: Holding) {
     setValeurActuelle(h.valeur_estimee)
@@ -137,7 +137,7 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
     <div className="py-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <Link to={`/patrimoine/${encodeURIComponent(holding.ticker)}`} className="text-sm font-medium text-texte hover:underline">
+          <Link to={`/patrimoine/${holding.id}`} className="text-sm font-medium text-texte hover:underline">
             {nomActuel ?? holding.ticker}
           </Link>
           <p className="text-xs text-texte-attenue">{libelleTypeEpargne(holding.type_actif)}</p>
@@ -175,13 +175,13 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
 
       {ouvert && (
         <div className="mt-4 border-t border-bordure pt-4">
-          <AjoutValorisationForm ticker={holding.ticker} historique={historique ?? []} onAdded={handleValorisationAjoutee} />
+          <AjoutValorisationForm holdingId={holding.id} historique={historique ?? []} onAdded={handleValorisationAjoutee} />
         </div>
       )}
 
       <div className="mt-4">
         <ValorisationHistoriqueCard
-          ticker={holding.ticker}
+          holdingId={holding.id}
           historique={historique ?? []}
           onChanged={handleValorisationAjoutee}
           dateAcquisition={holding.date_acquisition}

@@ -424,7 +424,10 @@ interface PositionsTableProps {
   /** Lignes déjà filtrées (catégorie + compte) par la page, pas encore triées —
    * le tri est un état purement local à ce tableau. */
   rows: Holding[]
-  onSelectTicker: (ticker: string) => void
+  // Par `holdingId`, pas par ticker (revu le 14/09/2026) : deux lignes peuvent
+  // désormais partager un ticker (une par compte) — seul l'id désigne sans
+  // ambiguïté "de quelle ligne on parle".
+  onSelectHolding: (holdingId: number) => void
   onRequestDelete: (h: Holding) => void
   /** Appelé après un `Enregistrer` réussi, pour que la page recharge la liste. */
   onSaved: () => void
@@ -441,7 +444,7 @@ interface PositionsTableProps {
 
 export default function PositionsTable({
   rows,
-  onSelectTicker,
+  onSelectHolding,
   onRequestDelete,
   onSaved,
   comptes: comptesFournis,
@@ -632,7 +635,7 @@ export default function PositionsTable({
             montantsMasques={montantsMasques}
             comptes={comptes}
             etablissements={etablissements}
-            onSelect={() => editingId !== h.id && onSelectTicker(h.ticker)}
+            onSelect={() => editingId !== h.id && onSelectHolding(h.id)}
             onStartEdit={(e) => startEdit(e, h)}
             onCancelEdit={cancelEdit}
             onSaveEdit={(e) => saveEdit(e, h.id)}
@@ -698,7 +701,7 @@ export default function PositionsTable({
                 key={h.id}
                 onClick={() => {
                   if (enEdition) return
-                  onSelectTicker(h.ticker)
+                  onSelectHolding(h.id)
                 }}
                 className="cursor-pointer hover:bg-surface-elevee"
               >
@@ -714,7 +717,7 @@ export default function PositionsTable({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        onSelectTicker(h.ticker)
+                        onSelectHolding(h.id)
                       }}
                       aria-label={`Voir le détail de ${h.ticker}`}
                       className="cursor-pointer font-medium hover:underline"

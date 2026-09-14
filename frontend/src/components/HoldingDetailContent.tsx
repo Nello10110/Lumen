@@ -55,7 +55,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
   const gainPositif = (detail.rendement_depuis_achat_pct ?? 0) >= 0
   const estImmobilier = detail.type_actif === 'REAL_ESTATE'
   const estEpargne = detail.type_actif !== null && TYPES_EPARGNE.has(detail.type_actif)
-  const immo = useImmobilierDetail(detail.ticker, estImmobilier || estEpargne, detail.immobilier)
+  const immo = useImmobilierDetail(detail.id, estImmobilier || estEpargne, detail.immobilier)
   // Onglet initial lu depuis l'URL (`?onglet=parametres`, retour utilisateur du
   // 10/09/2026) — pour que le simulateur achat/location de la page Analyse
   // (`SimulateurAchatLocationCard`) puisse lier directement vers la fiche d'un bien
@@ -186,7 +186,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
 
           {estImmobilier ? (
             <ImmobilierApercu
-              ticker={detail.ticker}
+              holdingId={detail.id}
               immobilier={immo.immobilier}
               historique={immo.historique}
               onHistoriqueChanged={() => immo.rechargerHistorique()}
@@ -196,7 +196,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           ) : estEpargne ? (
             <EpargneApercu detail={detail} historique={immo.historique} onValorisationAjoutee={immo.rechargerHistorique} />
           ) : (
-            <HoldingPriceHistoryChart ticker={detail.ticker} />
+            <HoldingPriceHistoryChart holdingId={detail.id} />
           )}
 
           <Card title="Émetteur, résumé & frais">
@@ -326,7 +326,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
             </Card>
           )}
 
-          <DetenteursSection ticker={detail.ticker} quotitesInitiales={detail.quotites} compte={detail.compte} />
+          <DetenteursSection holdingId={detail.id} quotitesInitiales={detail.quotites} compte={detail.compte} />
         </div>
       )}
 

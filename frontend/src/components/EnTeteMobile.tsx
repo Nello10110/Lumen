@@ -52,7 +52,7 @@ export default function EnTeteMobile() {
     api.listDetenteurs().then(setDetenteurs).catch(() => setDetenteurs([]))
   }, [])
 
-  // `matchPath` et non une égalité stricte : la fiche d'une position (`/patrimoine/:ticker`)
+  // `matchPath` et non une égalité stricte : la fiche d'une position (`/patrimoine/:holdingId`)
   // doit afficher son titre d'écran comme les autres.
   const titreEcran = ROUTES.find((r) => matchPath({ path: r.path, end: true }, pathname))?.titre ?? 'Patrimoine'
   const nomDetenteur = detenteurId === null ? 'Foyer' : (detenteurs.find((d) => d.id === detenteurId)?.nom ?? 'Foyer')

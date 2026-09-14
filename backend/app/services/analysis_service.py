@@ -148,7 +148,10 @@ def holdings_in_category(db: Session, valued: list[ValuedHolding], type_: str, c
             contribution = v.valeur if categorie_propre_a_la_ligne(v, type_) == categorie else 0.0
 
         if contribution > 1e-9:
-            lignes.append({"ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(contribution, 2)})
+            # `id` (revu le 14/09/2026) : deux lignes peuvent désormais partager un
+            # ticker (un compte chacune) — sans lui, le frontend ne peut ni les
+            # distinguer (clé de liste React) ni les adresser individuellement.
+            lignes.append({"id": v.holding.id, "ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(contribution, 2)})
 
     lignes.sort(key=lambda ligne: -ligne["valeur"])
     return lignes

@@ -28,7 +28,7 @@ function EcranCourant() {
     <Routes>
       <Route path="/" element={<p>Accueil</p>} />
       <Route path="/patrimoine" element={<p>Écran patrimoine</p>} />
-      <Route path="/patrimoine/:ticker" element={<p>Écran fiche détaillée</p>} />
+      <Route path="/patrimoine/:holdingId" element={<p>Écran fiche détaillée</p>} />
     </Routes>
   )
 }

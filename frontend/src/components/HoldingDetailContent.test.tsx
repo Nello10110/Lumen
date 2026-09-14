@@ -39,6 +39,7 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
 
 function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
   return {
+    id: 1,
     ticker: 'AAPL',
     nom: 'Apple Inc.',
     type_actif: 'STOCK',
@@ -143,7 +144,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await vi.waitFor(() =>
-      expect(api.setHoldingQuotites).toHaveBeenCalledWith('AAPL', [
+      expect(api.setHoldingQuotites).toHaveBeenCalledWith(1, [
         { detenteur_id: 1, quotite_pct: 60 },
         { detenteur_id: 2, quotite_pct: 40 },
       ]),
@@ -310,7 +311,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
     await vi.waitFor(() =>
       expect(api.updateHoldingImmobilier).toHaveBeenCalledWith(
-        'AAPL',
+        1,
         expect.objectContaining({
           loyer_mensuel: 1000,
           surface_m2: 50,
@@ -421,7 +422,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await vi.waitFor(() =>
-      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7, { valeur: 220000, date: '2026-01-01', versement: null }),
+      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith(1, 7, { valeur: 220000, date: '2026-01-01', versement: null }),
     )
     // Rafraîchit l'historique après coup — la nouvelle valeur remplace l'ancienne dans le tableau.
     await screen.findByText('220 000,00 €')
@@ -442,7 +443,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     expect(api.deleteHoldingValuationPoint).not.toHaveBeenCalled()
     fireEvent.click(within(dialogue).getByRole('button', { name: 'Supprimer' }))
 
-    await vi.waitFor(() => expect(api.deleteHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7))
+    await vi.waitFor(() => expect(api.deleteHoldingValuationPoint).toHaveBeenCalledWith(1, 7))
   })
 })
 
@@ -469,7 +470,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       />,
     )
 
-    await vi.waitFor(() => expect(api.getHoldingValuationHistory).toHaveBeenCalledWith('AAPL'))
+    await vi.waitFor(() => expect(api.getHoldingValuationHistory).toHaveBeenCalledWith(1))
     expect(await screen.findByText('Historique de valorisation')).toBeInTheDocument()
     // "10 000,00 €" apparaît deux fois : la "Valeur actuelle" et la ligne d'historique.
     expect(screen.getAllByText('10 000,00 €')).toHaveLength(2)
@@ -517,7 +518,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
 
     await vi.waitFor(() =>
-      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15', versement: null }),
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith(1, { valeur: 12000, date: '2026-03-15', versement: null }),
     )
     expect(await screen.findByText('12 000,00 €')).toBeInTheDocument()
   })
@@ -535,7 +536,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
 
     await vi.waitFor(() =>
-      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15', versement: 1500 }),
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith(1, { valeur: 12000, date: '2026-03-15', versement: 1500 }),
     )
   })
 
@@ -556,7 +557,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await vi.waitFor(() =>
-      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7, { valeur: 12000, date: '2026-01-01', versement: 1800 }),
+      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith(1, 7, { valeur: 12000, date: '2026-01-01', versement: 1800 }),
     )
   })
 
@@ -586,7 +587,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
 
     // Évolution 10 000 -> 12 000 = 2 000 ; plus-value déclarée 1 200 => versement déduit 800.
     await vi.waitFor(() =>
-      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15', versement: 800 }),
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith(1, { valeur: 12000, date: '2026-03-15', versement: 800 }),
     )
   })
 
@@ -611,7 +612,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
 
     // Évolution 10 000 -> 12 000 = 2 000 ; plus-value déclarée 500 => versement déduit 1 500.
     await vi.waitFor(() =>
-      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 2, { valeur: 12000, date: '2026-01-01', versement: 1500 }),
+      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith(1, 2, { valeur: 12000, date: '2026-01-01', versement: 1500 }),
     )
   })
 })

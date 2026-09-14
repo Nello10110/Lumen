@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react'
-import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router-dom'
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
 import EnTeteMobile from './components/EnTeteMobile'
@@ -23,9 +23,12 @@ const PartagePublicPage = lazy(() => import('./pages/PartagePublicPage'))
 
 // Anciennes URL (avant le renommage backlog 2.K.2) : redirigées plutôt que
 // supprimées, pour ne pas casser les marque-pages ou l'historique du navigateur.
+// Vers la LISTE, pas vers `/patrimoine/${ticker}` (revu le 14/09/2026) : un ticker
+// seul ne peut plus désigner une fiche précise depuis que deux lignes peuvent le
+// partager (une par compte) — la route attend désormais un `holdingId` numérique,
+// qu'un vieux marque-page ne peut évidemment pas connaître.
 function RedirectionTicker() {
-  const { ticker } = useParams()
-  return <Navigate to={`/patrimoine/${ticker}`} replace />
+  return <Navigate to="/patrimoine" replace />
 }
 
 // Titre d'onglet dynamique (backlog 2.K.2) : `ROUTES` (`layout/routes.ts`) est la

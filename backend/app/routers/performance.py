@@ -51,26 +51,27 @@ def get_portfolio_history(
     avec l'un des deux autres, mais `compte_id`/`etablissement_id` mutuellement
     exclusifs (un seul niveau de granularité à la fois, plus simple à lire qu'un
     établissement filtré puis un compte qui le restreindrait encore). Résolus ici en
-    un ensemble de tickers plutôt que transmis tels quels : `historical_performance_
-    service` ne connaît que des symboles (`Transaction` n'a pas de `compte_id`, seul
-    `Holding` le porte, via `Compte` pour l'établissement). Tous absents :
-    comportement strictement inchangé (portefeuille entier), même appel qu'avant
-    cette fonctionnalité."""
+    un ensemble de couples `(ticker, compte_id)` plutôt que de simples tickers
+    (corrigé le 14/09/2026 : un filtre par ticker seul incluait à tort la part d'un
+    AUTRE compte partageant ce ticker — `Transaction.compte_id` existe désormais,
+    `historical_performance_service` filtre sur la position exacte, plus une
+    approximation). Tous absents : comportement strictement inchangé (portefeuille
+    entier), même appel qu'avant cette fonctionnalité."""
     if compte_id is not None and etablissement_id is not None:
         raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
 
     user_id = auth_service.id_foyer(current_user)
-    symboles_filtres = None
+    cles_filtres = None
     if type_actif is not None or compte_id is not None or etablissement_id is not None:
-        requete = db.query(Holding.ticker).filter(Holding.user_id == user_id)
+        requete = db.query(Holding.ticker, Holding.compte_id).filter(Holding.user_id == user_id)
         if type_actif is not None:
             requete = requete.filter(Holding.type_actif == type_actif)
         if compte_id is not None:
             requete = requete.filter(Holding.compte_id == compte_id)
         if etablissement_id is not None:
             requete = requete.join(Compte, Holding.compte_id == Compte.id).filter(Compte.etablissement_id == etablissement_id)
-        symboles_filtres = {ticker for (ticker,) in requete.all()}
-    points = historical_performance_service.compute_portfolio_history(db, user_id, symboles_filtres=symboles_filtres)
+        cles_filtres = {(ticker, compte_id) for ticker, compte_id in requete.all()}
+    points = historical_performance_service.compute_portfolio_history(db, user_id, cles_filtres=cles_filtres)
     return PortfolioHistoryResponse(points=points)
 
 

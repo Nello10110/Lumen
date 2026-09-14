@@ -31,7 +31,9 @@ export default function CompositionModal({
   const [data, setData] = useState<CategoryCompositionResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
+  // Par `holdingId` (revu le 14/09/2026), pas par ticker — deux lignes peuvent
+  // désormais partager un ticker (une par compte), cf. `HoldingDetailModal`.
+  const [selectedHoldingId, setSelectedHoldingId] = useState<number | null>(null)
 
   function charger() {
     setLoading(true)
@@ -88,10 +90,10 @@ export default function CompositionModal({
 
                 <ul className="mt-3 divide-y divide-bordure border-t border-bordure">
                   {data.lignes.map((l) => (
-                    <li key={l.ticker}>
+                    <li key={l.id}>
                       <button
                         type="button"
-                        onClick={() => setSelectedTicker(l.ticker)}
+                        onClick={() => setSelectedHoldingId(l.id)}
                         className="flex w-full items-center justify-between py-2 text-left text-sm hover:bg-surface-elevee"
                       >
                         <span className="text-texte">{l.nom ?? l.ticker}</span>
@@ -106,7 +108,7 @@ export default function CompositionModal({
         )}
       </Modale>
 
-      {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
+      {selectedHoldingId !== null && <HoldingDetailModal holdingId={selectedHoldingId} onClose={() => setSelectedHoldingId(null)} />}
     </>
   )
 }

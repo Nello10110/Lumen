@@ -133,6 +133,9 @@ export interface FundTopHoldingItem {
 }
 
 export interface HoldingDetail {
+  // Adresse cette fiche sans ambiguïté (revu le 14/09/2026) : deux lignes peuvent
+  // désormais partager un ticker (une par compte) — même convention que `Holding.id`.
+  id: number
   ticker: string
   nom: string | null
   type_actif: string | null

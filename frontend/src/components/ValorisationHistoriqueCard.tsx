@@ -23,13 +23,13 @@ import { STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
  * points réellement saisis par l'utilisateur) — même logique d'ancrage que la courbe
  * combinée du Tableau de bord (`patrimoine_history_service._serie_holding_manuel`). */
 export function ValorisationHistoriqueCard({
-  ticker,
+  holdingId,
   historique,
   onChanged,
   dateAcquisition = null,
   prixRevientMoyen = null,
 }: {
-  ticker: string
+  holdingId: number
   historique: ValuationHistoryPoint[]
   onChanged: (holding: Holding) => void
   dateAcquisition?: string | null
@@ -70,7 +70,7 @@ export function ValorisationHistoriqueCard({
     const indexEnEdition = historique.findIndex((h) => h.id === pointId)
     const valeurPrecedente = indexEnEdition > 0 ? historique[indexEnEdition - 1].valeur : null
     try {
-      const holding = await api.updateHoldingValuationPoint(ticker, pointId, {
+      const holding = await api.updateHoldingValuationPoint(holdingId, pointId, {
         valeur: Number(editValeur),
         date: editDate,
         versement: versementDepuisDecomposition(editMode, editMontant, editValeur, valeurPrecedente),
@@ -89,7 +89,7 @@ export function ValorisationHistoriqueCard({
     setSuppressionEnCours(true)
     setErreurAction(null)
     try {
-      const holding = await api.deleteHoldingValuationPoint(ticker, confirmSuppression.id)
+      const holding = await api.deleteHoldingValuationPoint(holdingId, confirmSuppression.id)
       setConfirmSuppression(null)
       onChanged(holding)
     } catch (err) {

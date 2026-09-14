@@ -11,7 +11,7 @@ comptes courtier différents) — ce fichier-ci ajoute le cas symétrique : un c
 qui CHANGE entre deux imports doit mettre à jour la ligne existante, pas être
 silencieusement perdu comme avant ce correctif."""
 
-from app.models import Transaction
+from app.models import Holding, Transaction
 
 from .conftest import ID_UTILISATEUR_TEST
 
@@ -74,6 +74,53 @@ def test_reimport_avec_quantite_et_prix_corriges_recalcule_le_portefeuille(clien
     holdings = client.get("/api/portfolio/holdings").json()
     holding = next(h for h in holdings if h["ticker"] == ticker)
     assert holding["quantite"] == 12
+
+
+def test_import_stampe_compte_id_sur_la_transaction(client, db):
+    """Revu le 14/09/2026 (retour utilisateur : un même ticker à deux comptes se
+    fusionnait à tort) : `Transaction.compte_id` est désormais un fait posé à
+    l'import, pas une approximation reconstruite après coup sur `Holding` seul."""
+    _importer(client, _csv(_ligne("tx-1")))
+
+    tx = db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST, Transaction.transaction_id == "tx-1").one()
+    holding = db.query(Holding).filter_by(user_id=ID_UTILISATEUR_TEST).one()
+
+    assert tx.compte_id is not None
+    assert tx.compte_id == holding.compte_id
+
+
+def test_reimport_resynchronise_compte_id_comme_les_autres_champs(client, db):
+    """`compte_id` fait partie de `_CHAMPS_TRANSACTION` (revu le 14/09/2026) : un
+    ré-import re-synchronise le compte comme n'importe quel autre champ mutable —
+    ici via un changement de bucket (`account_type`) entre les deux imports, le
+    courtier ayant reclassé la ligne d'un compte-titres ordinaire vers un PEA."""
+    en_tete_avec_compte = (
+        "transaction_id,datetime,date,category,type,asset_class,symbol,name,shares,price,amount,fee,tax,description,account_type"
+    )
+
+    def _csv_avec_bucket(account_type: str) -> bytes:
+        ligne = (
+            "tx-1,2024-01-15T10:30:00.000Z,2024-01-15,TRADING,BUY,STOCK,US0378331005,Apple Inc,"
+            f"10,150.5,-1505.00,1.00,0.00,Achat,{account_type}"
+        )
+        return "\n".join([en_tete_avec_compte, ligne]).encode("utf-8")
+
+    def _importer_avec_bucket(contenu: bytes):
+        apercu = client.post("/api/transactions/import/apercu", files={"file": ("grand_livre.csv", contenu, "text/csv")}).json()
+        return client.post("/api/transactions/import", json={"file_token": apercu["file_token"], "etablissement_nom": "Banque Test"})
+
+    _importer_avec_bucket(_csv_avec_bucket("DEFAULT"))
+    tx = db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST, Transaction.transaction_id == "tx-1").one()
+    premier_compte_id = tx.compte_id
+
+    reponse = _importer_avec_bucket(_csv_avec_bucket("PEA"))
+    assert reponse.json()["mises_a_jour"] == 1  # seul `compte_id` a changé, mais ça compte comme une mise à jour
+
+    db.refresh(tx)
+    # "Compte-titres" (DEFAULT) puis "PEA" : deux comptes distincts par construction
+    # (`transaction_import.cle_compte`) — `compte_id` doit suivre ce reclassement au
+    # ré-import, pas rester figé sur le compte du tout premier import.
+    assert tx.compte_id != premier_compte_id
 
 
 def test_reimport_avec_un_fichier_mixte_compte_correctement_chaque_categorie(client, db):

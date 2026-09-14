@@ -51,18 +51,19 @@ EXCLUDED_TYPES = {
 
 @dataclass
 class ParsedTransactions:
+    # Chaque ligne porte désormais sa propre clé `"cle_compte"` (bucket
+    # `pea`/`compte_titres`/`crypto`/`obligations`, cf. `cle_compte` ci-dessous),
+    # stampée par `parse_transactions_file` — revu le 14/09/2026 (retour
+    # utilisateur : un même ticker fusionnait à tort deux comptes différents).
+    # `routers/transactions.py::import_transactions` la convertit en un vrai
+    # `Transaction.compte_id` PAR LIGNE au moment de la confirmation (résolution
+    # bucket -> `Compte.id` réel), puis la retire avant insertion (`Transaction` n'a
+    # pas de colonne `cle_compte`). Remplace l'ancien `cle_compte_par_ticker`
+    # (« dernière ligne du fichier gagne » par ticker), qui perdait l'information
+    # pour tout fichier mêlant plusieurs buckets sur un même ticker.
     rows: list[dict] = field(default_factory=list)
     lignes_lues: int = 0
     mouvements_hors_bourse_exclus: int = 0
-    # Clé de compte suggérée par ticker (revue du 03/09/2026, § import multi-comptes)
-    # — PAS un champ de `Transaction` (aucune colonne `account_type` sur ce modèle,
-    # décision délibérée : cette clé ne sert qu'à l'assignation d'un compte à
-    # l'import, jamais réutile après coup, donc pas de raison de l'y stocker en
-    # base). « Dernière ligne du fichier gagne » par ticker, même règle que
-    # `portfolio_reconstruction.state.asset_class` — un ticker change quasiment
-    # jamais de nature entre deux transactions, la précision chronologique exacte
-    # n'a pas d'enjeu ici. Comptée par clé pour l'aperçu (`import/apercu`).
-    cle_compte_par_ticker: dict[str, str] = field(default_factory=dict)
     lignes_par_cle_compte: dict[str, int] = field(default_factory=lambda: dict.fromkeys(CLES_COMPTE, 0))
 
 
@@ -161,11 +162,6 @@ def parse_transactions_file(content: bytes) -> ParsedTransactions:
         # BOND`...). Le mapping par ticker ci-dessous sert un besoin différent :
         # décider à QUEL compte rattacher chaque position reconstruite.
         result.lignes_par_cle_compte[cle] = result.lignes_par_cle_compte.get(cle, 0) + 1
-        if symbol:
-            # Dernière ligne du fichier gagne par ticker (cf. docstring de
-            # `ParsedTransactions.cle_compte_par_ticker`) — un mouvement de cash pur
-            # (pas de `symbol`) ne concerne aucun ticker, jamais retenu ici.
-            result.cle_compte_par_ticker[symbol] = cle
 
         result.rows.append(
             {
@@ -183,6 +179,7 @@ def parse_transactions_file(content: bytes) -> ParsedTransactions:
                 "fee": to_float(row.get("fee")) or 0.0,
                 "tax": to_float(row.get("tax")) or 0.0,
                 "description": _clean(row.get("description")),
+                "cle_compte": cle,
             }
         )
 

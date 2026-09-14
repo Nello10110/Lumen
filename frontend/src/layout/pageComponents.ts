@@ -34,7 +34,7 @@ const SimulateurPage = lazy(() => import('../pages/SimulateurPage'))
 export const PAGE_COMPONENTS: Partial<Record<string, ComponentType>> = {
   '/': DashboardPage,
   '/patrimoine': PortefeuillePage,
-  '/patrimoine/:ticker': HoldingDetailPage,
+  '/patrimoine/:holdingId': HoldingDetailPage,
   '/comptes': ComptesPage,
   '/comptes/:id': CompteDetailPage,
   '/objectifs': SimulateurPage,

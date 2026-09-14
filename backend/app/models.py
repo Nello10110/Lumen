@@ -113,6 +113,16 @@ TYPES_EPARGNE = {
 
 class Holding(Base):
     __tablename__ = "holdings"
+    # Un ticker peut désormais légitimement apparaître deux fois pour le même
+    # utilisateur — une fois par compte qui le détient réellement (retour
+    # utilisateur du 14/09/2026 : BTC chez Ledger ET chez Trade Republic).
+    # `compte_id` fait donc partie de la clé d'unicité, pas seulement `ticker` —
+    # cette contrainte SQL n'existait pas avant ce lot (seul un garde-fou
+    # applicatif dans `routers/portfolio.py::create_holding` empêchait un doublon
+    # `(user_id, ticker)` à la saisie manuelle). NULL est traité comme distinct par
+    # SQLite : plusieurs lignes « sans compte » du même ticker restent chacune une
+    # position séparée, comme avant ce lot.
+    __table_args__ = (UniqueConstraint("user_id", "ticker", "compte_id", name="uq_holding_user_ticker_compte"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Multi-utilisateur (Milestone 2a, cf. docs/BACKLOG.md § 2.I.1) : les lignes
@@ -573,6 +583,16 @@ class Transaction(Base):
     type: Mapped[str] = mapped_column(String, index=True)
     asset_class: Mapped[str | None] = mapped_column(String, nullable=True)
     symbol: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    # Provenance réelle (retour utilisateur du 14/09/2026, cf. `Holding.__table_args__`
+    # ci-dessus) : le compte d'origine de CETTE transaction, stampé une fois à
+    # l'import (cf. `routers/transactions.py`, résolu par bucket pour Trade
+    # Republic, un seul compte pour tout l'import pour Ledger/Bricks.co) — jamais
+    # deviné après coup. `None` : mouvement de cash pur sans `symbol` (intérêts...),
+    # ou transaction plus ancienne que ce lot dont le compte n'a pas pu être
+    # rétro-rempli (cf. migration `a1c9f3e7d2b4`). Un ré-import RE-SYNCHRONISE ce
+    # champ comme les autres (`_CHAMPS_TRANSACTION`) : la source fait foi, il n'y a
+    # rien à "protéger" d'une réassignation manuelle puisqu'il n'y en a pas ici.
+    compte_id: Mapped[int | None] = mapped_column(ForeignKey("comptes.id"), nullable=True, index=True)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     shares: Mapped[float | None] = mapped_column(Float, nullable=True)
     price: Mapped[float | None] = mapped_column(Float, nullable=True)

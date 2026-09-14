@@ -26,6 +26,7 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
 
 function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
   return {
+    id: 1,
     ticker: 'AAPL',
     nom: 'Apple Inc.',
     type_actif: 'STOCK',
@@ -59,7 +60,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
   }
 }
 
-// LOT 6.1 : seul lien de l'application vers `/patrimoine/:ticker` — verrouille sa
+// LOT 6.1 : seul lien de l'application vers `/patrimoine/:holdingId` — verrouille sa
 // présence, sa cible, et qu'il referme la modale (pour ne pas la laisser ouverte
 // par-dessus la page de destination).
 describe('HoldingDetailModal — lien "Ouvrir en pleine page" (LOT 6.1)', () => {
@@ -72,14 +73,14 @@ describe('HoldingDetailModal — lien "Ouvrir en pleine page" (LOT 6.1)', () => 
     render(
       <MemoryRouter initialEntries={['/patrimoine']}>
         <Routes>
-          <Route path="/patrimoine" element={<HoldingDetailModal ticker="AAPL" onClose={onClose} />} />
-          <Route path="/patrimoine/:ticker" element={<p>Page pleine écran : AAPL</p>} />
+          <Route path="/patrimoine" element={<HoldingDetailModal holdingId={1} onClose={onClose} />} />
+          <Route path="/patrimoine/:holdingId" element={<p>Page pleine écran : AAPL</p>} />
         </Routes>
       </MemoryRouter>,
     )
 
     const lien = await screen.findByRole('link', { name: /Ouvrir en pleine page/ })
-    expect(lien).toHaveAttribute('href', '/patrimoine/AAPL')
+    expect(lien).toHaveAttribute('href', '/patrimoine/1')
 
     fireEvent.click(lien)
 
@@ -94,7 +95,7 @@ describe('HoldingDetailModal — erreur avec action de reprise (backlog 2.K.5)',
     vi.mocked(api.getHoldingDetail).mockRejectedValueOnce(new Error('panne simulée'))
     render(
       <MemoryRouter>
-        <HoldingDetailModal ticker="AAPL" onClose={vi.fn()} />
+        <HoldingDetailModal holdingId={1} onClose={vi.fn()} />
       </MemoryRouter>,
     )
 
@@ -120,7 +121,7 @@ describe('HoldingDetailModal — sous-titre de la composition en actions (LOT 6.
     vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ composition_actions }))
     return render(
       <MemoryRouter>
-        <HoldingDetailModal ticker="IWDA" onClose={vi.fn()} />
+        <HoldingDetailModal holdingId={2} onClose={vi.fn()} />
       </MemoryRouter>,
     )
   }

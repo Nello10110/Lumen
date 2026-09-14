@@ -157,7 +157,7 @@ describe('ExpositionConsolideeCard', () => {
       type: 'classe',
       categorie: 'Actions',
       valeur_totale: 10000,
-      lignes: [{ ticker: 'AAA', nom: null, valeur: 10000 }],
+      lignes: [{ id: 1, ticker: 'AAA', nom: null, valeur: 10000 }],
     })
     renderCard('brut')
     await screen.findByText("Répartition par classe d'actif")

@@ -334,7 +334,9 @@ def _rendement_pour_ligne(
     }
 
 
-def compute_holding_returns(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> dict[str, dict]:
+def compute_holding_returns(
+    db: Session, user_id: int, positions: dict[tuple[str, int | None], PositionState] | None = None
+) -> dict[int, dict]:
     """Rendement par ligne du portefeuille :
     - `depuis_achat` : simple (prix actuel vs prix de revient), calculable pour toute ligne
       ayant un prix de revient et un prix actuel (y compris les lignes saisies manuellement).
@@ -347,6 +349,13 @@ def compute_holding_returns(db: Session, user_id: int, positions: dict[str, Posi
     `user_id` : Milestone 2a, multi-utilisateur. `positions` : cf. LOT 4.3, résultat déjà
     calculé de `compute_positions(db, user_id)` à réutiliser si l'appelant l'a déjà en
     main ; recalculé si omis, comportement inchangé.
+
+    Clé du résultat par `holding.id`, pas par ticker (revu le 14/09/2026, retour
+    utilisateur : deux `Holding` peuvent désormais légitimement partager un
+    ticker — un par compte réel — et un dict keyé par ticker écrasait alors
+    silencieusement l'une des deux). `positions` est lui-même désormais keyé
+    `(ticker, compte_id)` (cf. `compute_positions`) : chaque ligne va chercher SA
+    propre position, jamais la position agrégée tous comptes confondus.
     """
     holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
     valued = analysis_service.value_holdings(holdings)
@@ -361,36 +370,40 @@ def compute_holding_returns(db: Session, user_id: int, positions: dict[str, Posi
     details_immobiliers = immobilier_service.details_immobiliers_par_holding(db, ids_immobiliers)
 
     return {
-        v.holding.ticker: _rendement_pour_ligne(
-            v, positions.get(v.holding.ticker), now, immobilier_service.frais_acquisition_total(details_immobiliers.get(v.holding.id))
+        v.holding.id: _rendement_pour_ligne(
+            v,
+            positions.get((v.holding.ticker, v.holding.compte_id)),
+            now,
+            immobilier_service.frais_acquisition_total(details_immobiliers.get(v.holding.id)),
         )
         for v in valued
     }
 
 
-def compute_holding_return(db: Session, ticker: str, user_id: int, position: PositionState | None = None) -> dict:
-    """Variante ciblée sur une seule ligne (LOT 4.2) : évite de relire tout le grand
-    livre et de revaloriser tout le portefeuille (`compute_holding_returns(db, user_id)`)
-    pour n'en afficher qu'une seule fiche (`holding_detail_service.build_holding_detail`).
-    Renvoie exactement le même résultat que `compute_holding_returns(db, user_id)[ticker]`
-    — même calcul (`_rendement_pour_ligne`), sur les mêmes données pour ce ticker, seule la
-    façon de les obtenir change (une ligne + sa position, au lieu de tout le
-    portefeuille). `{"rendement_depuis_achat_pct": None, "rendement_annualise_pct":
-    None}` si le ticker n'existe pas dans le portefeuille, comme le ferait un `.get(ticker,
-    {})` sur le résultat de `compute_holding_returns` (valeurs absentes -> `None` côté API).
+def compute_holding_return(db: Session, holding_id: int, user_id: int, position: PositionState | None = None) -> dict:
+    """Variante ciblée sur une seule ligne (LOT 4.2, revu le 14/09/2026) : évite de
+    relire tout le grand livre et de revaloriser tout le portefeuille
+    (`compute_holding_returns(db, user_id)`) pour n'en afficher qu'une seule fiche
+    (`holding_detail_service.build_holding_detail`). Renvoie exactement le même
+    résultat que `compute_holding_returns(db, user_id)[holding_id]` — même calcul
+    (`_rendement_pour_ligne`), sur les mêmes données, seule la façon de les obtenir
+    change. `{"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None}`
+    si `holding_id` n'existe pas (ou n'appartient pas à cet utilisateur).
 
-    `user_id` : filtré EN PLUS du ticker (Milestone 2a) — deux utilisateurs peuvent
-    détenir le même titre, jamais l'un sans l'autre. `position` : cf. LOT 4.3, résultat
-    déjà calculé de `portfolio_reconstruction.compute_position(db, ticker, user_id)` à
-    réutiliser si l'appelant l'a déjà en main ; recalculé si omis.
+    Adressé par `holding_id`, pas par ticker : depuis que deux lignes peuvent
+    partager un ticker (une par compte), seul l'id désigne sans ambiguïté "de
+    quelle ligne on parle". `user_id` : vérifié en plus de l'id (Milestone 2a).
+    `position` : cf. LOT 4.3, résultat déjà calculé de
+    `portfolio_reconstruction.compute_position(db, holding)` à réutiliser si
+    l'appelant l'a déjà en main ; recalculé si omis.
     """
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == user_id).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == user_id).first()
     if holding is None:
         return {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None}
 
     v = analysis_service.value_holdings([holding])[0]
     if position is None:
-        position = portfolio_reconstruction.compute_position(db, ticker, user_id)
+        position = portfolio_reconstruction.compute_position(db, holding)
     now = datetime.now(UTC).replace(tzinfo=None)
 
     frais_acquisition = immobilier_service.frais_acquisition_total(immobilier_service.detail_immobilier(db, holding.id))

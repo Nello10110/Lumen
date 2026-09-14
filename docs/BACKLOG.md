@@ -3592,6 +3592,49 @@ c'est désormais littéralement vrai, il est reformulé pour dire de quoi il s'a
 téléchargés) plutôt que de brandir une durée.
 
 ---
+
+### AC. Provenance par compte du grand livre (Lot 14, 14/09/2026)
+
+Retour utilisateur direct : « J'ai du BTC et de l'ETH avec Ledger & Trade Republic. Le problème c'est
+que ça s'affiche que chez Trade Republic [...] si j'ai 2 fois le même actif dans 2 établissements, il
+n'arrive pas à comprendre qu'il est dans les deux ». Deux options présentées : un symbole synthétique
+par établissement à l'import (léger, même précédent que Bricks.co) ou une vraie provenance de compte
+sur `Transaction` elle-même (lourd, structurellement correct). **L'utilisateur a choisi la seconde**
+(« Non la B »).
+
+**Cause racine** : `Transaction` ne portait aucune colonne de compte — seul `Holding.compte_id` (résolu
+a posteriori, « premier compte établi gagne pour toujours ») l'approximait. `portfolio_reconstruction.
+compute_positions` reconstruisait donc une position par TICKER SEUL, fusionnant à tort deux comptes
+distincts détenant le même actif.
+
+#### AC.1 — `majeur` · `L` · `P0` · `traité` (14/09/2026) — `Transaction.compte_id`, stampé à l'import
+
+Nouvelle colonne (migration `a1c9f3e7d2b4`, backfill exact pour tout l'historique existant — un ticker
+ne pouvait structurellement appartenir qu'à un seul compte avant ce lot). Chaque import (Trade
+Republic, Ledger, Bricks.co) connaissait déjà, ligne par ligne, le compte d'origine — cette information
+était calculée puis jetée (réduite à « dernier gagne par ticker »). Elle est désormais stampée sur
+chaque transaction à la confirmation de l'import, et re-synchronisée comme tout autre champ mutable à
+un ré-import (`_CHAMPS_TRANSACTION`).
+
+#### AC.2 — `majeur` · `L` · `P0` · `traité` (14/09/2026) — Reconstruction par `(ticker, compte_id)`
+
+`compute_positions`/`rebuild_holdings` : clé `(symbol, compte_id)` au lieu de `symbol` seul — deux
+lignes `Holding` distinctes pour un même ticker détenu à deux comptes, chacune sa propre
+quantité/coût/plus-value. Nouvelle contrainte SQL `uq_holding_user_ticker_compte` (`Holding` n'avait
+jusqu'ici AUCUNE contrainte d'unicité en base). Réassignation manuelle du compte (écran Comptes)
+préservée quand elle reste sans ambiguïté (un ticker, une position) ; abandonnée dès qu'un ticker se
+scinde en plusieurs comptes — il n'y a alors plus de correspondance à deviner.
+
+#### AC.3 — `majeur` · `M` · `P0` · `traité` (14/09/2026) — Consommateurs migrés de `ticker` à `holding_id`
+
+Tout ce qui indexait par ticker seul (rendements, historique filtré par compte, fiche détaillée, 8
+routes `/holdings/{ticker}/...`) migré vers `holding_id` — précédent déjà établi dans
+`routers/portfolio.py` par `PATCH`/`DELETE /holdings/{holding_id}`. Frontend : route
+`/patrimoine/:holdingId` (plus `:ticker`), `HoldingDetail`/`CategoryCompositionItem` gagnent un champ
+`id`. Confirmé sans impact : données de marché (`MarketDataCache`, `SerieCours`...), partagées par
+ticker quel que soit le compte qui le détient.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
@@ -3664,6 +3707,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
 | **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3, Z.4, Z.5 | — | `L` | **Livré** 03/09/2026 (6/6) |
 | **Lot 13 — Modèle des séries de cours** | AB.1, AB.2, AB.3, AB.4, AB.5, AB.6 | — | `L` | **Livré** 14/09/2026 (6/6) |
+| **Lot 14 — Provenance par compte du grand livre** | AC.1, AC.2, AC.3 | — | `L` | **Livré** 14/09/2026 (3/3) |
 
 **Pourquoi cet ordre.**
 

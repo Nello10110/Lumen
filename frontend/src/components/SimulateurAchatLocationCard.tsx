@@ -13,9 +13,11 @@ import { formatEuro } from '../utils/format'
 // Lien vers l'onglet Paramètres de la fiche du bien (`HoldingDetailContent` lit
 // `?onglet=` au montage, retour utilisateur du 10/09/2026) — évite un clic
 // supplémentaire une fois la fiche ouverte, pour les deux CTA ci-dessous
-// (résidence principale non définie / simulateur incomplet).
-function urlParametresBien(ticker: string): string {
-  return `/patrimoine/${encodeURIComponent(ticker)}?onglet=parametres`
+// (résidence principale non définie / simulateur incomplet). Par `id`, pas par
+// ticker (revu le 14/09/2026) : la route `/patrimoine/:holdingId` n'accepte plus
+// qu'un identifiant numérique.
+function urlParametresBien(id: number): string {
+  return `/patrimoine/${id}?onglet=parametres`
 }
 
 interface BienImmobilier {
@@ -50,7 +52,10 @@ export default function SimulateurAchatLocationCard() {
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [ticker, setTicker] = useState('')
+  // Sélecteur de bien par `id`, pas par ticker (revu le 14/09/2026) : un ticker
+  // seul ne désigne plus une ligne sans ambiguïté depuis que deux lignes peuvent
+  // le partager (une par compte).
+  const [holdingId, setHoldingId] = useState<number | null>(null)
 
   function charger() {
     setLoading(true)
@@ -62,7 +67,7 @@ export default function SimulateurAchatLocationCard() {
         setLoans(loansList)
 
         const immobiliers = holdings.filter((h) => h.type_actif === 'REAL_ESTATE')
-        const details = await Promise.all(immobiliers.map((h) => api.getHoldingDetail(h.ticker)))
+        const details = await Promise.all(immobiliers.map((h) => api.getHoldingDetail(h.id)))
         const biens: BienImmobilier[] = immobiliers.map((h, i) => ({
           id: h.id,
           ticker: h.ticker,
@@ -72,7 +77,7 @@ export default function SimulateurAchatLocationCard() {
         const residencesPrincipales = biens.filter((b): b is BienResidencePrincipale => b.immobilier?.residence_principale === true)
 
         setBiensImmobiliers(biens)
-        setTicker((precedent) => (residencesPrincipales.some((b) => b.ticker === precedent) ? precedent : (residencesPrincipales[0]?.ticker ?? '')))
+        setHoldingId((precedent) => (residencesPrincipales.some((b) => b.id === precedent) ? precedent : (residencesPrincipales[0]?.id ?? null)))
       })
       .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false))
@@ -110,7 +115,7 @@ export default function SimulateurAchatLocationCard() {
               {biensImmobiliers.length === 1 ? (
                 <>
                   Cochez « Résidence principale » sur la fiche du bien pour activer ce simulateur.
-                  <Link to={urlParametresBien(biensImmobiliers[0].ticker)} className="font-medium text-accent hover:underline">
+                  <Link to={urlParametresBien(biensImmobiliers[0].id)} className="font-medium text-accent hover:underline">
                     Configurer « {biensImmobiliers[0].nom ?? biensImmobiliers[0].ticker} »
                   </Link>
                 </>
@@ -118,7 +123,7 @@ export default function SimulateurAchatLocationCard() {
                 <>
                   Cochez « Résidence principale » sur la fiche d'un de vos biens pour activer ce simulateur.
                   {biensImmobiliers.map((b) => (
-                    <Link key={b.ticker} to={urlParametresBien(b.ticker)} className="font-medium text-accent hover:underline">
+                    <Link key={b.id} to={urlParametresBien(b.id)} className="font-medium text-accent hover:underline">
                       Configurer « {b.nom ?? b.ticker} »
                     </Link>
                   ))}
@@ -131,21 +136,21 @@ export default function SimulateurAchatLocationCard() {
     )
   }
 
-  const bien = residencesPrincipales.find((b) => b.ticker === ticker) ?? residencesPrincipales[0]
+  const bien = residencesPrincipales.find((b) => b.id === holdingId) ?? residencesPrincipales[0]
   const { immobilier } = bien
 
   if (immobilier.simulation_loyer_estime === null) {
     return (
       <Card title="Achat vs location">
         {residencesPrincipales.length > 1 && (
-          <SelecteurBien biens={residencesPrincipales} ticker={bien.ticker} onChange={setTicker} className="mb-4" />
+          <SelecteurBien biens={residencesPrincipales} holdingId={bien.id} onChange={setHoldingId} className="mb-4" />
         )}
         <EtatVide
           titre="Simulateur non configuré"
           description={
             <span className="flex flex-col items-center gap-1">
               {`Renseignez le loyer mensuel estimé sur la fiche « ${bien.nom ?? bien.ticker} » pour activer la comparaison.`}
-              <Link to={urlParametresBien(bien.ticker)} className="font-medium text-accent hover:underline">
+              <Link to={urlParametresBien(bien.id)} className="font-medium text-accent hover:underline">
                 Configurer le simulateur
               </Link>
             </span>
@@ -170,7 +175,7 @@ export default function SimulateurAchatLocationCard() {
   return (
     <Card title="Achat vs location">
       {residencesPrincipales.length > 1 && (
-        <SelecteurBien biens={residencesPrincipales} ticker={bien.ticker} onChange={setTicker} className="mb-4" />
+        <SelecteurBien biens={residencesPrincipales} holdingId={bien.id} onChange={setHoldingId} className="mb-4" />
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -206,20 +211,20 @@ export default function SimulateurAchatLocationCard() {
 
 function SelecteurBien({
   biens,
-  ticker,
+  holdingId,
   onChange,
   className = '',
 }: {
   biens: BienResidencePrincipale[]
-  ticker: string
-  onChange: (ticker: string) => void
+  holdingId: number
+  onChange: (id: number) => void
   className?: string
 }) {
   return (
     <Field label="Bien" className={className}>
-      <Select value={ticker} onChange={(e) => onChange(e.target.value)}>
+      <Select value={String(holdingId)} onChange={(e) => onChange(Number(e.target.value))}>
         {biens.map((b) => (
-          <option key={b.ticker} value={b.ticker}>
+          <option key={b.id} value={b.id}>
             {b.nom ?? b.ticker}
           </option>
         ))}

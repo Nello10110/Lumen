@@ -298,11 +298,13 @@ def test_la_fiche_detaillee_dune_ligne_expose_son_compte(client, db):
     depuis les endpoints `/api/comptes/*` eux-mêmes."""
     etablissement = client.post("/api/comptes/etablissements", json={"nom": "Banque Test"}).json()
     compte = client.post("/api/comptes", json={"nom": "CTO", "etablissement_id": etablissement["id"]}).json()
-    client.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte["id"]})
-    make_holding(db, ticker="BBB", quantite=5, prix_revient_moyen=50.0, compte_id=None)  # sans compte
+    holding_avec_compte = client.post(
+        "/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte["id"]}
+    ).json()
+    holding_sans_compte = make_holding(db, ticker="BBB", quantite=5, prix_revient_moyen=50.0, compte_id=None)  # sans compte
 
-    detail_avec_compte = client.get("/api/portfolio/holdings/AAA/detail").json()
-    detail_sans_compte = client.get("/api/portfolio/holdings/BBB/detail").json()
+    detail_avec_compte = client.get(f"/api/portfolio/holdings/{holding_avec_compte['id']}/detail").json()
+    detail_sans_compte = client.get(f"/api/portfolio/holdings/{holding_sans_compte.id}/detail").json()
 
     assert detail_avec_compte["compte"]["nom"] == "CTO"
     assert detail_avec_compte["compte"]["etablissement"]["nom"] == "Banque Test"
@@ -321,8 +323,8 @@ def test_la_fiche_detaillee_dune_ligne_expose_son_compte(client, db):
 
 def test_repartir_un_compte_entre_deux_detenteurs(client, db):
     compte = make_compte(db, nom="CTO")
-    make_holding(db, ticker="AAA", compte_id=compte.id)
-    make_holding(db, ticker="BBB", compte_id=compte.id)
+    holding_a = make_holding(db, ticker="AAA", compte_id=compte.id)
+    holding_b = make_holding(db, ticker="BBB", compte_id=compte.id)
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
     bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
 
@@ -332,8 +334,8 @@ def test_repartir_un_compte_entre_deux_detenteurs(client, db):
     )
 
     assert reponse.status_code == 200
-    detail_a = client.get("/api/portfolio/holdings/AAA/detail").json()
-    detail_b = client.get("/api/portfolio/holdings/BBB/detail").json()
+    detail_a = client.get(f"/api/portfolio/holdings/{holding_a.id}/detail").json()
+    detail_b = client.get(f"/api/portfolio/holdings/{holding_b.id}/detail").json()
     assert {q["detenteur_nom"] for q in detail_a["quotites"]} == {"Alice", "Bob"}
     assert {q["detenteur_nom"] for q in detail_b["quotites"]} == {"Alice", "Bob"}
 

@@ -289,7 +289,7 @@ def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(ge
     result = []
     for h, v in zip(holdings, valued, strict=True):
         out = HoldingOut.model_validate(h)
-        r = rendements.get(h.ticker, {})
+        r = rendements.get(h.id, {})
         out.rendement_depuis_achat_pct = r.get("rendement_depuis_achat_pct")
         out.rendement_annualise_pct = r.get("rendement_annualise_pct")
         out.cout_acquisition_total = r.get("cout_acquisition_total")
@@ -309,26 +309,26 @@ def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(ge
     return result
 
 
-def _verifier_ticker_visible_invite(db: Session, current_user: User, ticker: str) -> None:
+def _verifier_holding_visible_invite(db: Session, current_user: User, holding_id: int) -> None:
     if current_user.role != ROLE_INVITE:
         return
-    tickers_visibles = {h.ticker for h in _holdings_visibles(db, current_user)}
-    if ticker not in tickers_visibles:
+    ids_visibles = {h.id for h in _holdings_visibles(db, current_user)}
+    if holding_id not in ids_visibles:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
 
 
-@router.get("/holdings/{ticker}/detail", response_model=HoldingDetail)
-def get_holding_detail(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    _verifier_ticker_visible_invite(db, current_user, ticker)
-    detail = holding_detail_service.build_holding_detail(db, ticker, auth_service.id_foyer(current_user))
+@router.get("/holdings/{holding_id}/detail", response_model=HoldingDetail)
+def get_holding_detail(holding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _verifier_holding_visible_invite(db, current_user, holding_id)
+    detail = holding_detail_service.build_holding_detail(db, holding_id, auth_service.id_foyer(current_user))
     if detail is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     return HoldingDetail(**detail)
 
 
-@router.put("/holdings/{ticker}/immobilier", response_model=HoldingImmobilierOut)
+@router.put("/holdings/{holding_id}/immobilier", response_model=HoldingImmobilierOut)
 def update_holding_immobilier(
-    ticker: str,
+    holding_id: int,
     payload: HoldingImmobilierUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(_peut_ecrire),
@@ -336,22 +336,22 @@ def update_holding_immobilier(
     """Crée ou remplace le détail immobilier de cette ligne (backlog 2.M.3) — pas
     restreint à `type_actif == "REAL_ESTATE"` côté serveur (l'UI ne le propose que
     pour ce type, mais rien n'empêche techniquement un autre usage)."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     immobilier_service.upsert_detail_immobilier(db, holding.id, **payload.model_dump())
-    detail = holding_detail_service.build_holding_detail(db, ticker, auth_service.id_foyer(current_user))
+    detail = holding_detail_service.build_holding_detail(db, holding_id, auth_service.id_foyer(current_user))
     return HoldingImmobilierOut(**detail["immobilier"])
 
 
-@router.get("/holdings/{ticker}/immobilier-history", response_model=list[ValuationHistoryPoint])
-def get_holding_valuation_history(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.get("/holdings/{holding_id}/immobilier-history", response_model=list[ValuationHistoryPoint])
+def get_holding_valuation_history(holding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Historique daté des valorisations manuelles (backlog 2.M.3) — jamais écrasé,
     contrairement à `Holding.valeur_estimee`/`date_valeur_estimee` (valeur courante
     seule). Pas réservé à l'immobilier : disponible pour tout type valorisé
     manuellement, cf. `models.HoldingValuationHistory`."""
-    _verifier_ticker_visible_invite(db, current_user, ticker)
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    _verifier_holding_visible_invite(db, current_user, holding_id)
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     points = immobilier_service.historique_valorisation(db, holding.id)
@@ -388,9 +388,9 @@ def _recuperer_point_du_foyer(db: Session, holding: Holding, point_id: int) -> H
     return point
 
 
-@router.patch("/holdings/{ticker}/immobilier-history/{point_id}", response_model=HoldingOut)
+@router.patch("/holdings/{holding_id}/immobilier-history/{point_id}", response_model=HoldingOut)
 def update_holding_valuation_point(
-    ticker: str,
+    holding_id: int,
     point_id: int,
     payload: ValorisationInput,
     db: Session = Depends(get_db),
@@ -401,7 +401,7 @@ def update_holding_valuation_point(
     n'écrase jamais un point existant, par design). Renvoie le `Holding` à jour :
     si le point corrigé est (ou devient) le plus récent, `valeur_estimee`/
     `date_valeur_estimee` suivent — cf. `_resynchroniser_valeur_courante`."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     _recuperer_point_du_foyer(db, holding, point_id)
@@ -412,9 +412,9 @@ def update_holding_valuation_point(
     return holding
 
 
-@router.delete("/holdings/{ticker}/immobilier-history/{point_id}", response_model=HoldingOut)
+@router.delete("/holdings/{holding_id}/immobilier-history/{point_id}", response_model=HoldingOut)
 def delete_holding_valuation_point(
-    ticker: str,
+    holding_id: int,
     point_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(_peut_ecrire),
@@ -422,7 +422,7 @@ def delete_holding_valuation_point(
     """Supprime un point saisi par erreur (backlog quickwin § T.3). Renvoie le
     `Holding` à jour, `valeur_estimee`/`date_valeur_estimee` resynchronisés sur le
     nouveau point le plus récent restant (ou `None` si l'historique devient vide)."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     _recuperer_point_du_foyer(db, holding, point_id)
@@ -432,9 +432,9 @@ def delete_holding_valuation_point(
     return holding
 
 
-@router.put("/holdings/{ticker}/valorisation", response_model=HoldingOut)
+@router.put("/holdings/{holding_id}/valorisation", response_model=HoldingOut)
 def set_holding_valorisation(
-    ticker: str,
+    holding_id: int,
     payload: ValorisationInput,
     db: Session = Depends(get_db),
     current_user: User = Depends(_peut_ecrire),
@@ -445,7 +445,7 @@ def set_holding_valorisation(
     `date_valeur_estimee`) n'est mise à jour que si ce point est le plus RÉCENT connu :
     un rattrapage antidaté ne doit jamais écraser une valeur plus récente déjà
     enregistrée."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     date_dt = datetime.strptime(payload.date, "%Y-%m-%d")
@@ -459,9 +459,9 @@ def set_holding_valorisation(
     return holding
 
 
-@router.put("/holdings/{ticker}/quotites")
+@router.put("/holdings/{holding_id}/quotites")
 def set_holding_quotites(
-    ticker: str,
+    holding_id: int,
     payload: QuotitesUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(_peut_ecrire),
@@ -469,7 +469,7 @@ def set_holding_quotites(
     """Remplace intégralement la répartition (quotités) de cette ligne entre
     détenteurs (backlog 2.L.1). Une liste vide retire toute répartition (retombe à
     100 % foyer implicite)."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     try:
@@ -482,10 +482,10 @@ def set_holding_quotites(
     return {"ok": True}
 
 
-@router.get("/holdings/{ticker}/price-history", response_model=HoldingPriceHistoryResponse)
-def get_holding_price_history(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    _verifier_ticker_visible_invite(db, current_user, ticker)
-    result = historical_performance_service.compute_holding_price_history(db, ticker, auth_service.id_foyer(current_user))
+@router.get("/holdings/{holding_id}/price-history", response_model=HoldingPriceHistoryResponse)
+def get_holding_price_history(holding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _verifier_holding_visible_invite(db, current_user, holding_id)
+    result = historical_performance_service.compute_holding_price_history(db, holding_id, auth_service.id_foyer(current_user))
     return HoldingPriceHistoryResponse(**result) if result else HoldingPriceHistoryResponse(points=[])
 
 
@@ -495,23 +495,14 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
     #
-    # Refus du doublon (revue du 03/09/2026) : deux lignes du même foyer portant le
-    # même ticker restaient créables, et plusieurs agrégations indexent par ticker
-    # (`performance_service.compute_holding_returns`) — la seconde ligne écrasait
-    # alors silencieusement les chiffres de la première. Mieux vaut un refus
-    # explicite qu'un export faux : pour renforcer une position, on modifie la
-    # quantité de la ligne existante.
-    if db.query(Holding).filter(Holding.user_id == user_id, Holding.ticker == payload.ticker).first() is not None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Une ligne « {payload.ticker} » existe déjà. Modifiez-la plutôt que d'en créer une seconde.",
-        )
     donnees = payload.model_dump()
     # `compte_id`/`compte_nom`/`etablissement_id`/`etablissement_nom` (schéma) ne
     # sont pas des colonnes de `Holding` (qui n'a que `compte_id`, résolu ici) —
     # retirés du dict avant construction. `HoldingCreate._valider_compte_requis`
     # garantit déjà qu'un compte est fourni pour tout type non exempté — cette
-    # résolution ne peut donc renvoyer `None` que pour un type exempté.
+    # résolution ne peut donc renvoyer `None` que pour un type exempté. Résolu AVANT
+    # le contrôle de doublon ci-dessous (revu le 14/09/2026) : la clé d'unicité
+    # inclut désormais le compte.
     compte_id = donnees.pop("compte_id")
     compte_nom = donnees.pop("compte_nom")
     etablissement_id = donnees.pop("etablissement_id")
@@ -520,6 +511,26 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     donnees["compte_id"] = _resoudre_compte_id(
         db, user_id, compte_id, compte_nom, etablissement_id, etablissement_nom, etablissement_logo_key
     )
+    # Refus du doublon (revue du 03/09/2026, étendu le 14/09/2026) : deux lignes du
+    # même foyer portant le même ticker AU MÊME COMPTE restaient créables, et
+    # plusieurs agrégations indexaient alors par ticker seul
+    # (`performance_service.compute_holding_returns`) — la seconde ligne écrasait
+    # silencieusement les chiffres de la première. Le même ticker à DEUX comptes
+    # différents est désormais légitime (retour utilisateur du 14/09/2026 : BTC chez
+    # Ledger ET chez Trade Republic) — la clé du refus suit celle de la vraie
+    # contrainte SQL (`uq_holding_user_ticker_compte`). Mieux vaut un refus explicite
+    # qu'un export faux : pour renforcer une position existante, on modifie sa
+    # quantité plutôt que d'en créer une seconde identique.
+    if (
+        db.query(Holding)
+        .filter(Holding.user_id == user_id, Holding.ticker == payload.ticker, Holding.compte_id == donnees["compte_id"])
+        .first()
+        is not None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Une ligne « {payload.ticker} » existe déjà sur ce compte. Modifiez-la plutôt que d'en créer une seconde.",
+        )
     # `date_valeur_estimee` (immobilier/SCPI/assurance-vie/PER, Phase 1 de
     # `docs/ROADMAP.md`) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
     # ici dès qu'une valeur estimée est fournie à la création.

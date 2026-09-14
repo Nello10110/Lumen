@@ -57,7 +57,10 @@ export type RouteMeta = {
 export const ROUTES: RouteMeta[] = [
   { path: '/', titre: 'Synthèse', navLabel: 'Synthèse', icone: IconSynthese, rang: 'consultation' },
   { path: '/patrimoine', titre: 'Patrimoine', navLabel: 'Patrimoine', icone: IconPatrimoine, rang: 'consultation' },
-  { path: '/patrimoine/:ticker', titre: 'Détail de la position' },
+  // `:holdingId` (revu le 14/09/2026, pas `:ticker`) : deux lignes peuvent
+  // désormais partager un ticker (une par compte) — un ticker seul ne peut plus
+  // désambiguïser laquelle afficher, cf. `App.tsx::RedirectionTicker`.
+  { path: '/patrimoine/:holdingId', titre: 'Détail de la position' },
   {
     path: '/objectifs',
     titre: 'Objectifs',

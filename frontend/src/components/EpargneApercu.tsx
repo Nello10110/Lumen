@@ -52,7 +52,7 @@ export default function EpargneApercu({
       </Card>
 
       <ValorisationHistoriqueCard
-        ticker={detail.ticker}
+        holdingId={detail.id}
         historique={historique}
         onChanged={handleValorisationAjoutee}
         dateAcquisition={detail.date_acquisition}
@@ -64,7 +64,7 @@ export default function EpargneApercu({
           Un point antidaté (rattrapage a posteriori) ne remplace jamais la valeur actuelle si une date plus récente est déjà
           connue.
         </p>
-        <AjoutValorisationForm ticker={detail.ticker} historique={historique} onAdded={handleValorisationAjoutee} />
+        <AjoutValorisationForm holdingId={detail.id} historique={historique} onAdded={handleValorisationAjoutee} />
       </Card>
     </>
   )

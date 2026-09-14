@@ -160,12 +160,12 @@ def test_invite_est_filtre_a_son_perimetre(client_reel):
         headers=_en_tete(token_proprio),
     ).json()
     client_reel.put(
-        f"/api/portfolio/holdings/{holding_alice['ticker']}/quotites",
+        f"/api/portfolio/holdings/{holding_alice['id']}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]},
         headers=_en_tete(token_proprio),
     )
     client_reel.put(
-        f"/api/portfolio/holdings/{holding_bob['ticker']}/quotites",
+        f"/api/portfolio/holdings/{holding_bob['id']}/quotites",
         json={"quotites": [{"detenteur_id": bob["id"], "quotite_pct": 100.0}]},
         headers=_en_tete(token_proprio),
     )

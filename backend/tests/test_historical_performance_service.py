@@ -121,12 +121,13 @@ class _FauxTickerQuiEchoue:
 
 
 def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(db, monkeypatch):
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    h = Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
+    db.add(h)
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    resultat_froid = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
+    resultat_froid = compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
     assert resultat_froid is not None
     assert len(resultat_froid["points"]) == 3
 
@@ -135,7 +136,7 @@ def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(
     # et non plus d'un blob JSON de résultat : le recalcul local de la volatilité et du
     # drawdown, lui, a bien lieu — il coûte quelques millisecondes.
     monkeypatch.setattr(yf, "Ticker", _FauxTickerQuiEchoue)
-    resultat_chaud = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
+    resultat_chaud = compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
 
     assert resultat_chaud == resultat_froid
 
@@ -143,12 +144,13 @@ def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(
 def test_holding_price_history_recharge_la_serie_quand_elle_est_perimee(db, monkeypatch):
     """Remplace l'ancien test d'expiration du cache JSON de résultat, supprimé avec lui
     (§ AB.2) : c'est désormais la SÉRIE en base qui porte la fraîcheur, et elle seule."""
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    h = Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
+    db.add(h)
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
+    compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
 
     meta = db.get(SerieCours, "RESOLVED")
     assert meta is not None
@@ -166,7 +168,7 @@ def test_holding_price_history_recharge_la_serie_quand_elle_est_perimee(db, monk
 
     monkeypatch.setattr(yf, "Ticker", _FauxTickerCompte)
 
-    resultat = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
+    resultat = compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
     assert resultat is not None
     assert appels["n"] == 1  # série périmée : un complément a bien été demandé
 
@@ -252,7 +254,8 @@ def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(d
 
 def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_eur(db, monkeypatch):
     """Même verrouillage côté fiche détaillée d'une position (`compute_holding_price_history`)."""
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="FUND"))
+    h = Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="FUND")
+    db.add(h)
     db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=110.0))
     db.commit()
 
@@ -260,7 +263,7 @@ def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_e
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecDeviseUSD)
     monkeypatch.setattr(cours_service, "_serie_change", _faux_taux_change_fixe)
 
-    resultat = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
+    resultat = compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
 
     assert resultat is not None
     # Série simulée 100/105/110 (USD) x taux simulé 0.5 = 50/52.5/55.
@@ -459,13 +462,15 @@ def test_la_reconciliation_tient_meme_avec_une_position_fermee_sans_vente(db):
 
 # ---------------------------------------------------------------------------
 # Retour utilisateur du 13/09/2026 — graphique filtrable (écran Analyse, onglet
-# Évolution) : `symboles_filtres` doit restreindre TOUT le calcul, pas seulement la
+# Évolution) ; devenu `(ticker, compte_id)` le 14/09/2026 (retour utilisateur : un
+# filtre par ticker seul incluait à tort la part d'un AUTRE compte partageant ce
+# ticker) : `cles_filtres` doit restreindre TOUT le calcul, pas seulement la
 # boucle de prix — deux points où un filtrage naïf resservait silencieusement une
 # valeur NON filtrée, identifiés en planification puis verrouillés ici.
 # ---------------------------------------------------------------------------
 
 
-def test_symboles_filtres_exclut_le_dernier_point_live_des_symboles_non_retenus(db, monkeypatch):
+def test_cles_filtres_exclut_le_dernier_point_live_des_symboles_non_retenus(db, monkeypatch):
     """Sans le filtre propagé jusqu'à `_valeur_positions_live`, le DERNIER point de la
     grille (toujours recalculé « live ») afficherait la valeur de TOUT le portefeuille
     financier au lieu du seul sous-ensemble filtré — un décrochage visible en fin de
@@ -481,14 +486,14 @@ def test_symboles_filtres_exclut_le_dernier_point_live_des_symboles_non_retenus(
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    resultat_aaa = compute_portfolio_history(db, ID_UTILISATEUR_TEST, symboles_filtres={"AAA"})
+    resultat_aaa = compute_portfolio_history(db, ID_UTILISATEUR_TEST, cles_filtres={("AAA", None)})
     assert resultat_aaa[-1]["valeur_portefeuille"] == pytest.approx(9990.0)  # 10 x 999, jamais BBB
 
-    resultat_bbb = compute_portfolio_history(db, ID_UTILISATEUR_TEST, symboles_filtres={"BBB"})
+    resultat_bbb = compute_portfolio_history(db, ID_UTILISATEUR_TEST, cles_filtres={("BBB", None)})
     assert resultat_bbb[-1]["valeur_portefeuille"] == pytest.approx(555.0)  # 5 x 111, jamais AAA
 
 
-def test_symboles_filtres_exclut_les_ventes_et_revenus_des_symboles_non_retenus(db, monkeypatch):
+def test_cles_filtres_exclut_les_ventes_et_revenus_des_symboles_non_retenus(db, monkeypatch):
     """Sans le filtre propagé jusqu'à `_serie_cumulee_ventes_et_revenus`, une vente/un
     dividende sur un symbole EXCLU du filtre contaminerait quand même
     `valeur_realisee_cumulee` d'une vue filtrée sur un autre symbole."""
@@ -508,24 +513,24 @@ def test_symboles_filtres_exclut_les_ventes_et_revenus_des_symboles_non_retenus(
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    resultat_aaa = compute_portfolio_history(db, ID_UTILISATEUR_TEST, symboles_filtres={"AAA"})
+    resultat_aaa = compute_portfolio_history(db, ID_UTILISATEUR_TEST, cles_filtres={("AAA", None)})
     assert resultat_aaa[-1]["valeur_realisee_cumulee"] == pytest.approx(0.0)
 
-    resultat_bbb = compute_portfolio_history(db, ID_UTILISATEUR_TEST, symboles_filtres={"BBB"})
+    resultat_bbb = compute_portfolio_history(db, ID_UTILISATEUR_TEST, cles_filtres={("BBB", None)})
     assert resultat_bbb[-1]["valeur_realisee_cumulee"] == pytest.approx(50.0)
 
 
-def test_symboles_filtres_vide_renvoie_un_historique_vide(db):
-    """Un filtre actif qui ne retient aucun symbole (ex. compte sans position
+def test_cles_filtres_vide_renvoie_un_historique_vide(db):
+    """Un filtre actif qui ne retient aucune position (ex. compte sans position
     financière) doit renvoyer une série vide, jamais lever ni retomber sur le
     portefeuille entier."""
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
-    assert compute_portfolio_history(db, ID_UTILISATEUR_TEST, symboles_filtres=set()) == []
+    assert compute_portfolio_history(db, ID_UTILISATEUR_TEST, cles_filtres=set()) == []
 
 
-def test_symboles_filtres_a_sa_propre_entree_de_cache_distincte_du_portefeuille_entier(db, monkeypatch):
+def test_cles_filtres_a_sa_propre_entree_de_cache_distincte_du_portefeuille_entier(db, monkeypatch):
     """Une vue filtrée et la vue complète ne doivent jamais partager la même entrée
     de cache — sans quoi la première calculée écraserait/servirait à tort l'autre."""
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
@@ -535,17 +540,17 @@ def test_symboles_filtres_a_sa_propre_entree_de_cache_distincte_du_portefeuille_
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
     complet = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
-    filtre = compute_portfolio_history(db, ID_UTILISATEUR_TEST, symboles_filtres={"AAA"})
+    filtre = compute_portfolio_history(db, ID_UTILISATEUR_TEST, cles_filtres={("AAA", None)})
 
     assert complet != filtre
     assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST)) == complet
     assert (
-        historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST, {"AAA"})) == filtre
+        historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST, {("AAA", None)})) == filtre
     )
 
     # Lecture à chaud du filtre : aucun nouvel appel yfinance.
     monkeypatch.setattr(yf, "Ticker", _FauxTickerQuiEchoue)
-    assert compute_portfolio_history(db, ID_UTILISATEUR_TEST, symboles_filtres={"AAA"}) == filtre
+    assert compute_portfolio_history(db, ID_UTILISATEUR_TEST, cles_filtres={("AAA", None)}) == filtre
 
 
 def test_le_dernier_point_utilise_la_valorisation_live_pas_le_prix_hebdomadaire(db, monkeypatch):

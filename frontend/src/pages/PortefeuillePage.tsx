@@ -132,7 +132,8 @@ export default function PortefeuillePage() {
     })
   }
 
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
+  // Par `holdingId` (revu le 14/09/2026), pas par ticker — cf. `HoldingDetailModal`.
+  const [selectedHoldingId, setSelectedHoldingId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -408,7 +409,7 @@ export default function PortefeuillePage() {
         ) : (
           <PositionsTable
             rows={lignesFiltrees}
-            onSelectTicker={setSelectedTicker}
+            onSelectHolding={setSelectedHoldingId}
             onRequestDelete={(h) => setConfirmSuppression({ id: h.id, ticker: h.ticker })}
             onSaved={load}
             comptes={comptes}
@@ -440,7 +441,7 @@ export default function PortefeuillePage() {
 
       <LoansCard holdings={holdings} etablissements={etablissements} reloadToken={loansReloadToken} />
 
-      {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
+      {selectedHoldingId !== null && <HoldingDetailModal holdingId={selectedHoldingId} onClose={() => setSelectedHoldingId(null)} />}
 
       {confirmSuppression && (
         <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">

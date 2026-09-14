@@ -178,10 +178,16 @@ def test_bucket_par_ligne_reproduit_le_cas_reel():
     }
 
 
-def test_cle_compte_par_ticker_associe_chaque_symbole():
+def test_cle_compte_est_portee_par_chaque_ligne():
+    """Revu le 14/09/2026 (retour utilisateur : un même ticker détenu à deux
+    comptes différents se fusionnait à tort) : `cle_compte` est désormais portée
+    PAR LIGNE dans `resultat.rows` (`ParsedTransactions.cle_compte_par_ticker`,
+    qui réduisait à un seul bucket par ticker, a disparu) — `routers/transactions.py`
+    la convertit en `Transaction.compte_id` réel, ligne par ligne, à la confirmation."""
     resultat = parse_transactions_file(_contenu_csv_multi_comptes(LIGNES_MULTI_COMPTES))
 
-    assert resultat.cle_compte_par_ticker == {
+    cle_par_symbole = {row["symbol"]: row["cle_compte"] for row in resultat.rows}
+    assert cle_par_symbole == {
         "FR0000120271": CLE_COMPTE_PEA,
         "US0378331005": CLE_COMPTE_TITRES,
         "BTC": CLE_COMPTE_CRYPTO,
@@ -189,12 +195,12 @@ def test_cle_compte_par_ticker_associe_chaque_symbole():
     }
 
 
-def test_dernier_gagne_par_ticker_sur_deux_lignes_du_meme_symbole():
-    """Un même ticker classé différemment sur deux lignes du fichier (rare, mais
-    possible si le courtier change la nature d'un compte) : la DERNIÈRE ligne du
-    fichier gagne pour le mapping par ticker (même règle que `state.asset_class`
-    en reconstruction) — mais chaque ligne reste comptée individuellement dans
-    `lignes_par_cle_compte` (comptage par ligne, pas par ticker)."""
+def test_deux_lignes_du_meme_symbole_gardent_chacune_leur_propre_cle():
+    """Correctif central du 14/09/2026 : un même ticker classé différemment sur
+    deux lignes du fichier (rare, mais possible si le courtier change la nature
+    d'un compte, ou si le même ticker existe légitimement à deux comptes) ne doit
+    PLUS être réduit à « la dernière ligne gagne » — chaque ligne garde SA propre
+    `cle_compte`, stampée individuellement sur sa transaction à la confirmation."""
     lignes = [
         "tx-1,2024-01-10T10:00:00.000Z,2024-01-10,TRADING,BUY,STOCK,XYZ,Ticker XYZ,"
         "1,10.0,-10.00,0,0,Achat 1,DEFAULT",
@@ -203,7 +209,8 @@ def test_dernier_gagne_par_ticker_sur_deux_lignes_du_meme_symbole():
     ]
     resultat = parse_transactions_file(_contenu_csv_multi_comptes(lignes))
 
-    assert resultat.cle_compte_par_ticker == {"XYZ": CLE_COMPTE_PEA}
+    cles_par_transaction = {row["transaction_id"]: row["cle_compte"] for row in resultat.rows}
+    assert cles_par_transaction == {"tx-1": CLE_COMPTE_TITRES, "tx-2": CLE_COMPTE_PEA}
     assert resultat.lignes_par_cle_compte[CLE_COMPTE_TITRES] == 1
     assert resultat.lignes_par_cle_compte[CLE_COMPTE_PEA] == 1
 

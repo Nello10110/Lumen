@@ -16,19 +16,13 @@ from .test_historical_performance_service import _FauxTickerAvecHistorique
 
 def _preparer_deux_positions(db, monkeypatch):
     """AAA (STOCK) et BBB (CRYPTO), chacune sur son propre compte/établissement,
-    avec un prix « live » distinct pour détecter toute contamination croisée."""
-    make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    make_transaction(
-        db,
-        transaction_id="t2",
-        symbol="BBB",
-        shares=5.0,
-        amount=-500.0,
-        asset_class="CRYPTO",
-        datetime_utc=datetime(2024, 1, 1),
-    )
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    avec un prix « live » distinct pour détecter toute contamination croisée.
 
+    Le compte est stampé sur la TRANSACTION avant `rebuild_holdings` (revu le
+    14/09/2026, comme le ferait un import réel via `routers/transactions.py`) —
+    pas posé après coup directement sur `Holding` : depuis ce lot, le filtre par
+    compte de `/api/performance/history` résout les positions via
+    `Transaction.compte_id`, `Holding.compte_id` n'en étant qu'un reflet."""
     etablissement = Etablissement(user_id=ID_UTILISATEUR_TEST, nom="Établissement Test")
     db.add(etablissement)
     db.commit()
@@ -37,12 +31,23 @@ def _preparer_deux_positions(db, monkeypatch):
     db.add_all([compte_aaa, compte_bbb])
     db.commit()
 
-    db.query(Holding).filter(Holding.ticker == "AAA", Holding.user_id == ID_UTILISATEUR_TEST).update(
-        {"compte_id": compte_aaa.id, "type_actif": "STOCK"}
+    make_transaction(
+        db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1), compte_id=compte_aaa.id
     )
-    db.query(Holding).filter(Holding.ticker == "BBB", Holding.user_id == ID_UTILISATEUR_TEST).update(
-        {"compte_id": compte_bbb.id, "type_actif": "CRYPTO"}
+    make_transaction(
+        db,
+        transaction_id="t2",
+        symbol="BBB",
+        shares=5.0,
+        amount=-500.0,
+        asset_class="CRYPTO",
+        datetime_utc=datetime(2024, 1, 1),
+        compte_id=compte_bbb.id,
     )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    db.query(Holding).filter(Holding.ticker == "AAA", Holding.user_id == ID_UTILISATEUR_TEST).update({"type_actif": "STOCK"})
+    db.query(Holding).filter(Holding.ticker == "BBB", Holding.user_id == ID_UTILISATEUR_TEST).update({"type_actif": "CRYPTO"})
     db.commit()
 
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")

@@ -58,6 +58,9 @@ export interface CoutGestionConsolide {
 }
 
 export interface CategoryCompositionItem {
+  // Adresse cette ligne sans ambiguïté (revu le 14/09/2026) : deux lignes peuvent
+  // désormais partager un ticker (une par compte) — cf. `Holding.id`.
+  id: number
   ticker: string
   nom: string | null
   valeur: number

@@ -674,6 +674,10 @@ class ValuationHistoryPoint(BaseModel):
 
 
 class HoldingDetail(BaseModel):
+    # Adresse cette fiche sans ambiguïté (revu le 14/09/2026) : depuis qu'un ticker
+    # peut être détenu à deux comptes différents, `ticker` seul ne suffit plus à
+    # désigner une ligne précise — cf. `HoldingOut.id`, même convention.
+    id: int
     ticker: str
     nom: str | None = None
     type_actif: str | None = None

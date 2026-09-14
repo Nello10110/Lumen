@@ -10,21 +10,30 @@ from ..models import Detenteur, FundComposition, FundCompositionBrute, FundTopHo
 from . import detenteurs_service, immobilier_service, market_data_service, performance_service, reference_indices
 
 
-def _frais_transaction_payes(db: Session, ticker: str, user_id: int) -> float:
+def _frais_transaction_payes(db: Session, holding: Holding) -> float:
+    # Filtré par `compte_id` EN PLUS du ticker (revu le 14/09/2026, retour
+    # utilisateur : un même ticker peut désormais être détenu à deux comptes
+    # différents) — sans ce filtre, les frais des DEUX comptes se retrouveraient
+    # comptés sur chacune des deux fiches.
     lignes = (
         db.query(Transaction)
-        .filter(Transaction.symbol == ticker, Transaction.user_id == user_id)
+        .filter(
+            Transaction.symbol == holding.ticker,
+            Transaction.compte_id == holding.compte_id,
+            Transaction.user_id == holding.user_id,
+        )
         .with_entities(Transaction.fee, Transaction.tax)
         .all()
     )
     return sum(abs(fee) + abs(tax) for fee, tax in lignes)
 
 
-def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
-    """Retourne `None` si le ticker n'existe pas dans le portefeuille de cet
-    utilisateur (`user_id`, Milestone 2a — deux comptes peuvent détenir le même
-    ticker, filtré en plus dans toute requête ci-dessous)."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == user_id).first()
+def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | None:
+    """Retourne `None` si cette ligne n'existe pas ou n'appartient pas à cet
+    utilisateur (`user_id`, Milestone 2a). Adressé par `holding_id`, pas par ticker
+    (revu le 14/09/2026) : depuis qu'un ticker peut être détenu à deux comptes
+    différents, seul l'id désigne sans ambiguïté "de quelle ligne on parle"."""
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == user_id).first()
     if holding is None:
         return None
 
@@ -37,8 +46,12 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
     # les transactions de ce ticker, plutôt que `compute_holding_returns(db)` qui
     # rejouerait tout le grand livre et revaloriserait tout le portefeuille pour
     # n'afficher au final que ces deux pourcentages sur une seule fiche.
-    rendements = performance_service.compute_holding_return(db, ticker, user_id)
+    rendements = performance_service.compute_holding_return(db, holding.id, user_id)
 
+    # Composition/répartition d'un fonds : données de marché PUBLIQUES, partagées
+    # par ticker seul — correctement indépendantes du compte qui le détient (deux
+    # lignes du même ticker à deux comptes affichent la même composition).
+    ticker = holding.ticker
     compositions = db.query(FundComposition).filter(FundComposition.ticker == ticker).all()
     repartition_geo = [{"categorie": c.categorie, "poids": c.poids} for c in compositions if c.type == "geo"]
     repartition_sector = [{"categorie": c.categorie, "poids": c.poids} for c in compositions if c.type == "sector"]
@@ -148,6 +161,7 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
         }
 
     return {
+        "id": holding.id,
         "ticker": holding.ticker,
         "nom": nom_affiche,
         "type_actif": holding.type_actif,
@@ -165,7 +179,7 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
         "emetteur": emetteur,
         "resume": resume,
         "frais_gestion_pct": extra.get("frais_gestion_pct"),
-        "frais_transaction_payes": round(_frais_transaction_payes(db, ticker, user_id), 2),
+        "frais_transaction_payes": round(_frais_transaction_payes(db, holding), 2),
         "repartition_geo": repartition_geo,
         "repartition_sector": repartition_sector,
         "repartition_geo_detaillee": repartition_geo_detaillee,

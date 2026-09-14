@@ -50,8 +50,9 @@ function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
  * historique — calculés côté serveur, jamais recalculés ici — dans *Aperçu*.
  * Toujours appelé (règle des hooks), `chargerHistorique` désactive juste la requête
  * réseau pour toute ligne qui n'est ni `REAL_ESTATE` ni de type Épargne (backlog
- * 2.S.1 — l'historique daté n'est pas réservé à l'immobilier malgré le nom du hook). */
-export function useImmobilierDetail(ticker: string, chargerHistorique: boolean, immobilierInitial: HoldingDetail['immobilier']) {
+ * 2.S.1 — l'historique daté n'est pas réservé à l'immobilier malgré le nom du hook).
+ * Adressé par `holdingId` (revu le 14/09/2026), pas par ticker — cf. `client.ts`. */
+export function useImmobilierDetail(holdingId: number, chargerHistorique: boolean, immobilierInitial: HoldingDetail['immobilier']) {
   const [immobilier, setImmobilier] = useState(immobilierInitial)
   const [form, setForm] = useState<FormImmobilier>(() => formulaireDepuis(immobilierInitial))
   const [saving, setSaving] = useState(false)
@@ -60,7 +61,7 @@ export function useImmobilierDetail(ticker: string, chargerHistorique: boolean, 
 
   const rechargerHistorique = () => {
     api
-      .getHoldingValuationHistory(ticker)
+      .getHoldingValuationHistory(holdingId)
       .then(setHistorique)
       .catch(() => setHistorique([]))
   }
@@ -68,14 +69,14 @@ export function useImmobilierDetail(ticker: string, chargerHistorique: boolean, 
   useEffect(() => {
     if (!chargerHistorique) return
     rechargerHistorique()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `ticker` change = remontage du composant parent (route/modale).
-  }, [ticker, chargerHistorique])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `holdingId` change = remontage du composant parent (route/modale).
+  }, [holdingId, chargerHistorique])
 
   async function handleSave() {
     setSaving(true)
     setError(null)
     try {
-      await api.updateHoldingImmobilier(ticker, {
+      await api.updateHoldingImmobilier(holdingId, {
         type_location: form.type_location || null,
         loyer_mensuel: form.loyer_mensuel ? Number(form.loyer_mensuel) : null,
         charges_mensuelles: form.charges_mensuelles ? Number(form.charges_mensuelles) : null,
@@ -97,7 +98,7 @@ export function useImmobilierDetail(ticker: string, chargerHistorique: boolean, 
       // Cashflow/rentabilité/prix au m² sont calculés côté serveur (jamais recalculés
       // ici) : on relit la fiche complète pour les obtenir à jour, même pattern que
       // `DetenteursSection` après l'enregistrement d'une quotité.
-      const detailFrais = await api.getHoldingDetail(ticker)
+      const detailFrais = await api.getHoldingDetail(holdingId)
       setImmobilier(detailFrais.immobilier)
     } catch (err) {
       setError((err as Error).message)

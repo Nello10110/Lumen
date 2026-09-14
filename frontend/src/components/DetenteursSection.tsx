@@ -18,11 +18,11 @@ import { formatEuro } from '../utils/format'
  * compte quand cette ligne en a un — la répartition qui s'y fait s'applique à TOUTES
  * les lignes du compte en une fois, alternative à cette saisie ligne par ligne. */
 export default function DetenteursSection({
-  ticker,
+  holdingId,
   quotitesInitiales,
   compte,
 }: {
-  ticker: string
+  holdingId: number
   quotitesInitiales: HoldingDetail['quotites']
   compte?: Compte | null
 }) {
@@ -30,12 +30,12 @@ export default function DetenteursSection({
   const [quotitesEnregistrees, setQuotitesEnregistrees] = useState(quotitesInitiales)
   const { detenteurs, erreurChargement, rechargerDetenteurs, saisie, setValeur, total, totalValide, saving, error, handleSave } =
     useEditeurQuotites({
-      enregistrer: (quotites) => api.setHoldingQuotites(ticker, quotites),
+      enregistrer: (quotites) => api.setHoldingQuotites(holdingId, quotites),
       valeursInitiales: quotitesInitiales,
       // Seul des trois éditeurs à recharger : l'endpoint de la fiche renvoie les
       // parts détenue/nette recalculées, que ce bloc affiche.
       apresEnregistrement: async () => {
-        const detailFrais = await api.getHoldingDetail(ticker)
+        const detailFrais = await api.getHoldingDetail(holdingId)
         setQuotitesEnregistrees(detailFrais.quotites)
       },
     })

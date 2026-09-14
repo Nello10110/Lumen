@@ -6,8 +6,8 @@ import { IconFlecheGauche } from '../components/icons'
 import { useHoldingDetail } from '../hooks/useHoldingDetail'
 
 export default function HoldingDetailPage() {
-  const { ticker } = useParams<{ ticker: string }>()
-  const { detail, loading, error, recharger } = useHoldingDetail(ticker)
+  const { holdingId } = useParams<{ holdingId: string }>()
+  const { detail, loading, error, recharger } = useHoldingDetail(holdingId !== undefined ? Number(holdingId) : undefined)
   const navigate = useNavigate()
   const location = useLocation()
 

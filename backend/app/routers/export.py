@@ -75,7 +75,7 @@ def export_positions(db: Session = Depends(get_db), current_user: User = Depends
     lignes = []
     for h in holdings:
         md = h.market_data
-        rendement = rendements.get(h.ticker, {})
+        rendement = rendements.get(h.id, {})
         lignes.append(
             [
                 h.ticker,

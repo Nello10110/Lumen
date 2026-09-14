@@ -50,10 +50,10 @@ def _peupler_foyer(client, db) -> dict:
             "date_acquisition": "2021-06-15",
         },
     ).json()
-    client.put(f"/api/portfolio/holdings/{maison['ticker']}/immobilier", json={"type_location": "nue", "loyer_mensuel": 1200.0})
-    client.put(f"/api/portfolio/holdings/{maison['ticker']}/valorisation", json={"valeur": 310000.0, "date": "2025-01-15"})
+    client.put(f"/api/portfolio/holdings/{maison['id']}/immobilier", json={"type_location": "nue", "loyer_mensuel": 1200.0})
+    client.put(f"/api/portfolio/holdings/{maison['id']}/valorisation", json={"valeur": 310000.0, "date": "2025-01-15"})
     client.put(
-        f"/api/portfolio/holdings/{action['ticker']}/quotites",
+        f"/api/portfolio/holdings/{action['id']}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 60.0}, {"detenteur_id": bob["id"], "quotite_pct": 40.0}]},
     )
 
@@ -172,7 +172,7 @@ def test_aller_retour_preserve_les_relations_entre_tables(client, db):
     assert action.compte.etablissement.nom == "Banque Test"
 
     # Quotités → bonnes personnes, bons pourcentages
-    detail = client.get("/api/portfolio/holdings/AAA/detail").json()
+    detail = client.get(f"/api/portfolio/holdings/{action.id}/detail").json()
     assert {(q["detenteur_nom"], q["quotite_pct"]) for q in detail["quotites"]} == {("Alice", 60.0), ("Bob", 40.0)}
 
     # Emprunt → la bonne ligne (celle de l'immobilier, pas l'action)
@@ -185,9 +185,9 @@ def test_aller_retour_preserve_les_relations_entre_tables(client, db):
     assert [a["ticker"] for a in objectif["actifs_rattaches"]] == ["MAISON"]
 
     # Fiche immobilier et historique de valorisation suivent leur ligne
-    fiche = client.get("/api/portfolio/holdings/MAISON/detail").json()
+    fiche = client.get(f"/api/portfolio/holdings/{maison.id}/detail").json()
     assert fiche["immobilier"]["loyer_mensuel"] == 1200.0
-    assert len(client.get("/api/portfolio/holdings/MAISON/immobilier-history").json()) >= 1
+    assert len(client.get(f"/api/portfolio/holdings/{maison.id}/immobilier-history").json()) >= 1
 
 
 def test_import_remplace_integralement_lexistant(client, db):

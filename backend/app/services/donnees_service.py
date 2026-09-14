@@ -150,7 +150,10 @@ TABLES: list[TableExportee] = [
         references={"loan_id": "loans", "detenteur_id": "detenteurs"},
         scope_par="loan_id",
     ),
-    TableExportee("transactions", Transaction),
+    # `references` ajoutée le 14/09/2026 : `Transaction.compte_id` (nouvelle colonne)
+    # doit être remappée vers le NOUVEL id du `Compte` importé, comme `holdings`
+    # ci-dessus — sinon un import pointerait vers l'id d'un compte d'un autre foyer.
+    TableExportee("transactions", Transaction, references={"compte_id": "comptes"}),
     TableExportee(
         "salaires",
         Salaire,

@@ -24,6 +24,9 @@ class RepartitionItem(BaseModel):
 
 
 class CategoryCompositionItem(BaseModel):
+    # Adresse cette ligne sans ambiguïté (revu le 14/09/2026) : deux lignes peuvent
+    # désormais partager un ticker (un compte chacune) — cf. `HoldingOut.id`.
+    id: int
     ticker: str
     nom: str | None = None
     valeur: float

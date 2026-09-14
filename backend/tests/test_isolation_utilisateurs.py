@@ -52,10 +52,10 @@ def test_liste_holdings_ne_montre_pas_les_lignes_dun_autre_utilisateur(client, d
 
 
 def test_fiche_detail_dun_ticker_dun_autre_utilisateur_renvoie_404(client, db):
-    make_holding(db, ticker="AAA", user_id=ID_UTILISATEUR_TEST)
+    ligne = make_holding(db, ticker="AAA", user_id=ID_UTILISATEUR_TEST)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
-    reponse = client.get("/api/portfolio/holdings/AAA/detail")
+    reponse = client.get(f"/api/portfolio/holdings/{ligne.id}/detail")
 
     assert reponse.status_code == 404
 

@@ -10,14 +10,14 @@ import { formatEuro, formatPct } from '../utils/format'
  * jamais écrasé, une nouvelle ligne à chaque changement réel de `valeur_estimee`.
  * Remplace la courbe de cours (sans objet pour un bien non coté). */
 export default function ImmobilierApercu({
-  ticker,
+  holdingId,
   immobilier,
   historique,
   onHistoriqueChanged,
   dateAcquisition,
   prixRevientMoyen,
 }: {
-  ticker: string
+  holdingId: number
   immobilier: HoldingDetail['immobilier']
   historique: ValuationHistoryPoint[]
   onHistoriqueChanged: (holding: Holding) => void
@@ -78,7 +78,7 @@ export default function ImmobilierApercu({
       )}
 
       <ValorisationHistoriqueCard
-        ticker={ticker}
+        holdingId={holdingId}
         historique={historique}
         onChanged={onHistoriqueChanged}
         dateAcquisition={dateAcquisition}

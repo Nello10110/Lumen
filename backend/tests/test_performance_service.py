@@ -36,7 +36,8 @@ def test_xirr_none_si_tous_les_flux_ont_le_meme_signe():
 
 
 def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0))
+    holding = Holding(user_id=ID_UTILISATEUR_TEST, ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0)
+    db.add(holding)
     db.add(
         MarketDataCache(
             ticker="XYZ",
@@ -48,7 +49,7 @@ def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
 
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
-    assert resultats["XYZ"]["rendement_depuis_achat_pct"] == 20.0
+    assert resultats[holding.id]["rendement_depuis_achat_pct"] == 20.0
 
 
 def test_pas_de_rendement_annualise_sans_prix_de_marche_reel(db):
@@ -62,10 +63,11 @@ def test_pas_de_rendement_annualise_sans_prix_de_marche_reel(db):
     # au-delà de l'achat.
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    holding = db.query(Holding).filter(Holding.ticker == "ABC").one()
 
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
-    assert resultats["ABC"]["rendement_annualise_pct"] is None
+    assert resultats[holding.id]["rendement_annualise_pct"] is None
 
 
 def test_rendement_annualise_dividende_sans_cotation_bricks_co(db):
@@ -98,6 +100,7 @@ def test_rendement_annualise_dividende_sans_cotation_bricks_co(db):
         datetime_utc=datetime(2024, 1, 1),
     )
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    holding = db.query(Holding).filter(Holding.ticker == "BRICKS-ABC").one()
     # Aucune `MarketDataCache` pour ce ticker — comme tout ticker Bricks.co réel
     # (`market_data_service.est_symbole_non_cotable` refuse même la recherche
     # réseau) : `a_des_donnees=False`, la ligne reste valorisée à son coût.
@@ -106,35 +109,34 @@ def test_rendement_annualise_dividende_sans_cotation_bricks_co(db):
 
     # Toujours aucun prix connu : on ne sait toujours pas ce que vaut la ligne
     # aujourd'hui, et il serait faux de prétendre le contraire.
-    assert resultats["BRICKS-ABC"]["rendement_depuis_achat_pct"] is None
+    assert resultats[holding.id]["rendement_depuis_achat_pct"] is None
     # Mais les revenus RÉELLEMENT perçus, eux, donnent un rendement annualisé réel —
     # positif ici (120 € perçus sur 1 000 € investis, capital encore détenu).
-    assert resultats["BRICKS-ABC"]["rendement_annualise_pct"] is not None
-    assert resultats["BRICKS-ABC"]["rendement_annualise_pct"] > 0
+    assert resultats[holding.id]["rendement_annualise_pct"] is not None
+    assert resultats[holding.id]["rendement_annualise_pct"] > 0
 
 
 def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
     """Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) : pas de
     `MarketDataCache`, mais `valeur_estimee` joue le rôle du prix actuel."""
-    db.add(
-        Holding(
-            user_id=ID_UTILISATEUR_TEST,
-            ticker="MAISON",
-            nom="Résidence",
-            quantite=1.0,
-            prix_revient_moyen=200000.0,
-            type_actif="REAL_ESTATE",
-            valeur_estimee=230000.0,
-        )
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="MAISON",
+        nom="Résidence",
+        quantite=1.0,
+        prix_revient_moyen=200000.0,
+        type_actif="REAL_ESTATE",
+        valeur_estimee=230000.0,
     )
+    db.add(holding)
     db.commit()
 
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
-    assert resultats["MAISON"]["rendement_depuis_achat_pct"] == 15.0
+    assert resultats[holding.id]["rendement_depuis_achat_pct"] == 15.0
     # Pas d'historique de transactions pour cette ligne, ni de date d'acquisition
     # renseignée : pas de flux connu, pas de XIRR possible.
-    assert resultats["MAISON"]["rendement_annualise_pct"] is None
+    assert resultats[holding.id]["rendement_annualise_pct"] is None
 
 
 def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisition(db):
@@ -158,12 +160,12 @@ def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisitio
 
     # coût total = 200000 + 15000 = 215000 ; rendement = 230000/215000 - 1 ≈ 6.98 %.
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
-    assert resultats["MAISON_FRAIS"]["rendement_depuis_achat_pct"] == pytest.approx((230000 / 215000 - 1) * 100, abs=0.01)
+    assert resultats[holding.id]["rendement_depuis_achat_pct"] == pytest.approx((230000 / 215000 - 1) * 100, abs=0.01)
 
-    # `compute_holding_return` (variante mono-ticker, utilisée par la fiche) doit
+    # `compute_holding_return` (variante mono-ligne, utilisée par la fiche) doit
     # renvoyer exactement le même résultat.
-    resultat_seul = compute_holding_return(db, "MAISON_FRAIS", ID_UTILISATEUR_TEST)
-    assert resultat_seul["rendement_depuis_achat_pct"] == resultats["MAISON_FRAIS"]["rendement_depuis_achat_pct"]
+    resultat_seul = compute_holding_return(db, holding.id, ID_UTILISATEUR_TEST)
+    assert resultat_seul["rendement_depuis_achat_pct"] == resultats[holding.id]["rendement_depuis_achat_pct"]
 
 
 def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
@@ -171,44 +173,42 @@ def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
     flux pour un actif valorisé manuellement, là où aucun grand livre de transactions
     n'existe pour fournir un flux réel — `xirr` avec exactement un flux entrant et un
     flux sortant se réduit à la formule CAGR classique."""
-    db.add(
-        Holding(
-            user_id=ID_UTILISATEUR_TEST,
-            ticker="MAISON_DATEE",
-            nom="Résidence",
-            quantite=1.0,
-            prix_revient_moyen=200000.0,
-            type_actif="REAL_ESTATE",
-            valeur_estimee=242000.0,
-            date_acquisition=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=730),
-        )
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="MAISON_DATEE",
+        nom="Résidence",
+        quantite=1.0,
+        prix_revient_moyen=200000.0,
+        type_actif="REAL_ESTATE",
+        valeur_estimee=242000.0,
+        date_acquisition=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=730),
     )
+    db.add(holding)
     db.commit()
 
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
     # (1 + r)^2 = 242000 / 200000 = 1.21 -> r = 10 %.
-    assert resultats["MAISON_DATEE"]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
+    assert resultats[holding.id]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
 
 
 def test_pas_de_rendement_annualise_si_detention_trop_courte_meme_avec_date_acquisition(db):
-    db.add(
-        Holding(
-            user_id=ID_UTILISATEUR_TEST,
-            ticker="MAISON_RECENTE",
-            nom="Achat récent",
-            quantite=1.0,
-            prix_revient_moyen=200000.0,
-            type_actif="REAL_ESTATE",
-            valeur_estimee=205000.0,
-            date_acquisition=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=10),
-        )
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="MAISON_RECENTE",
+        nom="Achat récent",
+        quantite=1.0,
+        prix_revient_moyen=200000.0,
+        type_actif="REAL_ESTATE",
+        valeur_estimee=205000.0,
+        date_acquisition=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=10),
     )
+    db.add(holding)
     db.commit()
 
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
-    assert resultats["MAISON_RECENTE"]["rendement_annualise_pct"] is None
+    assert resultats[holding.id]["rendement_annualise_pct"] is None
 
 
 def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
@@ -502,23 +502,25 @@ def test_compute_holding_return_identique_a_compute_holding_returns_sur_plusieur
     db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
     db.add(MarketDataCache(ticker="BBB", prix_actuel=90.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
+    holdings_par_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST).all()}
 
     ensemble = compute_holding_returns(db, ID_UTILISATEUR_TEST)
-    assert set(ensemble) == {"AAA", "BBB", "CCC"}
+    assert set(ensemble) == {h.id for h in holdings_par_ticker.values()}
     # CCC : achat seul, sans cotation NI aucun flux réalisé depuis (pas de vente, pas
     # de dividende) — garde-fou explicite (retour utilisateur du 14/09/2026, positions
     # Bricks.co) : un XIRR ici serait trivialement 0 % (coût = valorisation), donc
     # toujours supprimé. Seule l'égalité croisée ci-dessous ne l'aurait pas détecté
     # si le correctif avait, par erreur, fait apparaître un XIRR pour ce cas.
-    assert ensemble["CCC"] == {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None, "cout_acquisition_total": 100.0}
+    ccc_id = holdings_par_ticker["CCC"].id
+    assert ensemble[ccc_id] == {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None, "cout_acquisition_total": 100.0}
 
-    for ticker in ensemble:
-        assert compute_holding_return(db, ticker, ID_UTILISATEUR_TEST) == ensemble[ticker], f"divergence pour {ticker}"
+    for holding_id in ensemble:
+        assert compute_holding_return(db, holding_id, ID_UTILISATEUR_TEST) == ensemble[holding_id], f"divergence pour {holding_id}"
 
-    # Un ticker absent du portefeuille renvoie des valeurs nulles — même comportement
-    # que `.get(ticker, {})` sur le résultat de `compute_holding_returns`, tel qu'utilisé
-    # par les appelants (routeur/`holding_detail_service`).
-    assert compute_holding_return(db, "INEXISTANT", ID_UTILISATEUR_TEST) == {
+    # Une ligne absente du portefeuille renvoie des valeurs nulles — même comportement
+    # que `.get(holding_id, {})` sur le résultat de `compute_holding_returns`, tel
+    # qu'utilisé par les appelants (routeur/`holding_detail_service`).
+    assert compute_holding_return(db, 999999, ID_UTILISATEUR_TEST) == {
         "rendement_depuis_achat_pct": None,
         "rendement_annualise_pct": None,
     }
@@ -531,13 +533,14 @@ def test_compute_holding_return_ne_relit_pas_tout_le_grand_livre(db, monkeypatch
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=1.0, amount=-100.0)
     make_transaction(db, transaction_id="t2", symbol="BBB", shares=1.0, amount=-100.0)
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    holding = db.query(Holding).filter(Holding.ticker == "AAA").one()
 
     def _echoue(*args, **kwargs):
         raise AssertionError("compute_holding_return ne doit pas appeler compute_positions (tout le grand livre)")
 
     monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _echoue)
 
-    resultat = compute_holding_return(db, "AAA", ID_UTILISATEUR_TEST)
+    resultat = compute_holding_return(db, holding.id, ID_UTILISATEUR_TEST)
     assert resultat["rendement_depuis_achat_pct"] is None  # pas de cotation, mais pas d'exception non plus
 
 

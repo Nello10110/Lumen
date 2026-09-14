@@ -204,7 +204,7 @@ export default function CompteDetailContent({
                 </li>
               ) : (
                 <li key={h.id} className="flex items-center justify-between py-2 text-sm">
-                  <Link to={`/patrimoine/${encodeURIComponent(h.ticker)}`} className="font-medium text-texte hover:underline">
+                  <Link to={`/patrimoine/${h.id}`} className="font-medium text-texte hover:underline">
                     {h.nom ?? h.ticker}
                   </Link>
                   <span className="text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>

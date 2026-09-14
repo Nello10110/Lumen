@@ -109,9 +109,11 @@ export function libelleTaux(typeActif: string): string {
 
 // Identifiant technique dérivé du Nom pour une ligne patrimoniale (retour
 // utilisateur du 09/09/2026 : « Ticker n'a pas de sens pour l'immobilier ») —
-// `Holding.ticker` reste obligatoire et unique côté serveur (`create_holding`
-// refuse un doublon), mais personne ne devrait avoir à inventer un faux symbole
-// boursier pour une maison. Calculé en arrière-plan à partir du Nom (jamais
+// `Holding.ticker` reste obligatoire côté serveur, et unique PAR COMPTE
+// (`create_holding` refuse un doublon sur le même compte — cf. revue du
+// 14/09/2026, deux comptes peuvent désormais partager un même ticker), mais
+// personne ne devrait avoir à inventer un faux symbole boursier pour une maison.
+// Calculé en arrière-plan à partir du Nom (jamais
 // montré tant que la création réussit) ; l'appelant ne révèle le champ que si le
 // serveur refuse la valeur calculée (collision, ou autre), pour laisser corriger
 // à la main sans deviner. Toujours non vide : `TICKER_PAR_DEFAUT` couvre le cas

@@ -66,7 +66,7 @@ export default function PaletteRecherche({ compact = false }: { compact?: boolea
       type: 'holding',
       label: h.ticker,
       sousLabel: h.nom ?? undefined,
-      to: `/patrimoine/${encodeURIComponent(h.ticker)}`,
+      to: `/patrimoine/${h.id}`,
     }))
     const posLoans: Resultat[] = (loans ?? []).map((l) => ({ type: 'loan', label: l.libelle, to: '/patrimoine' }))
 

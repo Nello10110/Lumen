@@ -11,7 +11,7 @@ import { formatDate, formatEuro } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
 
-export default function HoldingPriceHistoryChart({ ticker }: { ticker: string }) {
+export default function HoldingPriceHistoryChart({ holdingId }: { holdingId: number }) {
   const { montantsMasques } = usePreferencesAffichage()
   const [data, setData] = useState<HoldingPriceHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -22,13 +22,13 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
     setLoading(true)
     setError(null)
     api
-      .getHoldingPriceHistory(ticker)
+      .getHoldingPriceHistory(holdingId)
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
-  useEffect(charger, [ticker])
+  useEffect(charger, [holdingId])
 
   if (loading) {
     return (

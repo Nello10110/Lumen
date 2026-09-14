@@ -157,7 +157,7 @@ describe('CompteDetailContent — lignes rattachées', () => {
     renderContent(compte(), [holding({ id: 7, ticker: 'AAPL', nom: 'Apple Inc.', valeur: 1500 })])
 
     const lien = screen.getByRole('link', { name: 'Apple Inc.' })
-    expect(lien).toHaveAttribute('href', '/patrimoine/AAPL')
+    expect(lien).toHaveAttribute('href', '/patrimoine/7')
     // `.getAllByText` : "1 500,00 €" apparaît aussi sur la carte Solde (une seule
     // ligne dans ce scénario, même montant) — on vérifie juste sa présence ici.
     expect(screen.getAllByText('1 500,00 €').length).toBeGreaterThan(0)
@@ -238,7 +238,7 @@ describe('CompteDetailContent — ligne d\'épargne inline (fusion de l\'écran 
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
 
     await vi.waitFor(() =>
-      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AV1', { valeur: 10500, date: '2026-02-01', versement: null }),
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith(1, { valeur: 10500, date: '2026-02-01', versement: null }),
     )
     expect(onChanged).toHaveBeenCalled()
   })

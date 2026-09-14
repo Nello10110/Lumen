@@ -45,6 +45,10 @@ router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 # doit être RE-SYNCHRONISÉE (retour utilisateur du 10/09/2026 : « ça ne s'additionne
 # pas mais ça met à jour les données ») plutôt qu'ignorée en silence comme avant.
 # Même liste de clés que `transaction_import.parse_transactions_file` produit par ligne.
+# `compte_id` en fait partie depuis le 14/09/2026 : le compte d'origine d'une
+# transaction est désormais un fait stampé à l'import (cf. plus bas), pas une
+# annotation manuelle à protéger — un ré-import le re-synchronise comme les autres
+# champs, sans doctrine « ne jamais écraser ».
 _CHAMPS_TRANSACTION = (
     "datetime_utc",
     "date",
@@ -59,6 +63,7 @@ _CHAMPS_TRANSACTION = (
     "fee",
     "tax",
     "description",
+    "compte_id",
 )
 
 
@@ -171,9 +176,13 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
         if not existait_deja:
             comptes_crees += 1
 
-    comptes_a_assigner = {
-        symbol: comptes_par_cle[cle] for symbol, cle in parsed.cle_compte_par_ticker.items() if cle in comptes_par_cle
-    }
+    # Compte réel stampé LIGNE PAR LIGNE (revu le 14/09/2026, retour utilisateur : un
+    # même ticker mêlant deux buckets — ex. PEA et Crypto dans le même fichier —
+    # fusionnait à tort en un seul compte). `cle_compte` est un champ transitoire de
+    # `parsed.rows` (cf. `transaction_import.ParsedTransactions`), retiré ici avant
+    # insertion — `Transaction` n'a pas de colonne de ce nom.
+    for row in parsed.rows:
+        row["compte_id"] = comptes_par_cle.get(row.pop("cle_compte"))
 
     # Re-synchronisation scopée à l'utilisateur (Milestone 2a) : le transaction_id
     # est émis par le courtier, pas garanti unique entre deux comptes courtier
@@ -189,7 +198,7 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     db.commit()
     transaction_import.clear_pending_transactions(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id, comptes_a_assigner=comptes_a_assigner)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
 
     return TransactionImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -262,15 +271,19 @@ def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), c
     existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == payload.nom_compte).first() is not None
     compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, payload.nom_compte, etablissement_id)
     comptes_crees = 0 if existait_deja else 1
-    comptes_a_assigner = dict.fromkeys(devises_choisies, compte.id)
 
+    # Tout l'import va vers un seul compte, déjà résolu ci-dessus — stampé sur
+    # chaque ligne (revu le 14/09/2026, cf. `import_transactions` pour le cas
+    # multi-bucket de Trade Republic).
     rows_filtrees = [row for row in parsed.rows if row["symbol"] in devises_choisies]
+    for row in rows_filtrees:
+        row["compte_id"] = compte.id
     importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, rows_filtrees)
 
     db.commit()
     ledger_import.clear_pending_ledger(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id, comptes_a_assigner=comptes_a_assigner)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
 
     lignes_ignorees = parsed.lignes_ignorees_statut + sum(parsed.lignes_ignorees_type_operation.values())
 
@@ -340,14 +353,16 @@ def import_bricks(payload: BricksImportConfirm, db: Session = Depends(get_db), c
     existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == payload.nom_compte).first() is not None
     compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, payload.nom_compte, etablissement_id)
     comptes_crees = 0 if existait_deja else 1
-    comptes_a_assigner = dict.fromkeys({row["symbol"] for row in parsed.rows}, compte.id)
 
+    # Tout l'import Bricks.co va vers un seul compte — même traitement que Ledger.
+    for row in parsed.rows:
+        row["compte_id"] = compte.id
     importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, parsed.rows)
 
     db.commit()
     bricks_import.clear_pending_bricks(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id, comptes_a_assigner=comptes_a_assigner)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
 
     lignes_ignorees = (
         parsed.lignes_ignorees_statut

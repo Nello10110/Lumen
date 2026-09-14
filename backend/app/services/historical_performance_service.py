@@ -68,7 +68,9 @@ def _value_at(history: TimeSeries, date: datetime) -> float | None:
 # `tests/test_cours_service.py`.
 
 
-def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int, symboles_filtres: set[str] | None = None) -> TimeSeries:
+def _serie_cumulee_ventes_et_revenus(
+    db: Session, user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None
+) -> TimeSeries:
     """Somme cumulée, dans le temps, de tout ce que le graphique d'historique
     omettait jusqu'ici : le produit net de chaque vente (`TRADING/SELL`) et les
     revenus perçus (dividendes, intérêts, autres revenus). Même périmètre exact
@@ -87,15 +89,21 @@ def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int, symboles_filtres
     valeur_realisee_cumulee - valeur_investie` reconstitue exactement la même
     formule que `gain_perte_total`, terme à terme.
 
-    `symboles_filtres` (graphique filtrable de l'écran Analyse, retour utilisateur
-    du 13/09/2026) : restreint la somme aux mouvements dont `symbol` appartient à cet
-    ensemble. Un mouvement SANS `symbol` (intérêts, bonus courtier) devient alors
-    exclu d'une vue filtrée, faute de pouvoir l'attribuer à un sous-ensemble précis —
-    comportement assumé, pas un oubli."""
-    query = db.query(Transaction).filter(Transaction.user_id == user_id)
-    if symboles_filtres is not None:
-        query = query.filter(Transaction.symbol.in_(symboles_filtres))
-    transactions = query.order_by(Transaction.datetime_utc.asc()).all()
+    `cles_filtres` (graphique filtrable de l'écran Analyse, retour utilisateur du
+    13/09/2026 ; devenu `(symbol, compte_id)` le 14/09/2026 — un filtre "compte A"
+    sur un ticker seul incluait à tort les mouvements du même ticker au compte B)
+    : restreint la somme aux mouvements dont `(symbol, compte_id)` appartient à cet
+    ensemble. Filtré en Python (pas un `IN` SQL sur tuple, peu portable) — le
+    volume ici (transactions d'UN utilisateur) reste largement dans ce budget,
+    même patron que `_trier_pour_reconstruction`. Un mouvement SANS `symbol`
+    (intérêts, bonus courtier) devient alors exclu d'une vue filtrée, faute de
+    pouvoir l'attribuer à un sous-ensemble précis — comportement assumé, pas un
+    oubli."""
+    transactions = (
+        db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.datetime_utc.asc()).all()
+    )
+    if cles_filtres is not None:
+        transactions = [tx for tx in transactions if (tx.symbol, tx.compte_id) in cles_filtres]
 
     series: TimeSeries = []
     cumule = 0.0
@@ -115,7 +123,7 @@ def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int, symboles_filtres
     return series
 
 
-def _valeur_positions_live(db: Session, user_id: int, symboles_filtres: set[str] | None = None) -> float:
+def _valeur_positions_live(db: Session, user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> float:
     """Valorisation « live » des positions financières ouvertes — exactement le
     même calcul que `valeur_positions` dans `performance_service.compute_performance`
     (`analysis_service.holdings_financiers` + `value_holdings`). Utilisée
@@ -125,13 +133,15 @@ def _valeur_positions_live(db: Session, user_id: int, symboles_filtres: set[str]
     point d'aujourd'hui peut — et doit — coïncider exactement avec la carte
     Rentabilité globale plutôt que de rester approximatif de quelques euros.
 
-    `symboles_filtres` : restreint aux holdings dont le ticker appartient à cet
-    ensemble (graphique filtrable de l'écran Analyse) — SANS ce filtre, le dernier
-    point d'une courbe déjà filtrée afficherait la valeur de TOUT le portefeuille au
-    lieu du seul sous-ensemble affiché, un décrochage visible en fin de courbe."""
+    `cles_filtres` : restreint aux holdings dont `(ticker, compte_id)` appartient à
+    cet ensemble (graphique filtrable de l'écran Analyse ; devenu compte-exact le
+    14/09/2026 — un filtre par ticker seul incluait à tort la part d'un AUTRE
+    compte partageant ce ticker) — SANS ce filtre, le dernier point d'une courbe
+    déjà filtrée afficherait la valeur de TOUT le portefeuille au lieu du seul
+    sous-ensemble affiché, un décrochage visible en fin de courbe."""
     holdings = analysis_service.holdings_financiers(db, user_id)
-    if symboles_filtres is not None:
-        holdings = [h for h in holdings if h.ticker in symboles_filtres]
+    if cles_filtres is not None:
+        holdings = [h for h in holdings if (h.ticker, h.compte_id) in cles_filtres]
     valued = analysis_service.value_holdings(holdings)
     return sum(v.valeur for v in valued)
 
@@ -145,8 +155,8 @@ _CHAMPS_POINT_PORTEFEUILLE = {"date", "valeur_portefeuille", "valeur_investie", 
 def compute_portfolio_history(
     db: Session,
     user_id: int,
-    positions: dict[str, PositionState] | None = None,
-    symboles_filtres: set[str] | None = None,
+    positions: dict[tuple[str, int | None], PositionState] | None = None,
+    cles_filtres: set[tuple[str, int | None]] | None = None,
 ) -> list[dict]:
     """Historique de valeur du portefeuille d'UN utilisateur (Milestone 2a, cf. LOT 4.5).
 
@@ -158,12 +168,14 @@ def compute_portfolio_history(
     à froid, `positions` — cf. LOT 4.3 — évite de rejouer le grand livre si l'appelant
     l'a déjà calculé ; recalculé sinon.
 
-    `symboles_filtres` (graphique filtrable par classe d'actif/compte de l'écran
-    Analyse, retour utilisateur du 13/09/2026) : `None` = comportement historique
-    inchangé (portefeuille entier, clé de cache inchangée — le tableau de bord n'est
-    jamais affecté) ; sinon restreint le calcul à ces seuls tickers, avec sa PROPRE
-    entrée de cache (cf. `historique_cache.cle_historique_portefeuille`)."""
-    cle = historique_cache.cle_historique_portefeuille(user_id, symboles_filtres)
+    `cles_filtres` (graphique filtrable par classe d'actif/compte de l'écran Analyse,
+    retour utilisateur du 13/09/2026 ; devenu `(ticker, compte_id)` le 14/09/2026 —
+    un filtre par ticker seul incluait à tort la part d'un AUTRE compte partageant
+    ce ticker) : `None` = comportement historique inchangé (portefeuille entier, clé
+    de cache inchangée — le tableau de bord n'est jamais affecté) ; sinon restreint
+    le calcul à ces seules positions, avec sa PROPRE entrée de cache (cf.
+    `historique_cache.cle_historique_portefeuille`)."""
+    cle = historique_cache.cle_historique_portefeuille(user_id, cles_filtres)
     en_cache = historique_cache.lire(db, cle)
     if en_cache is not None and historique_cache.forme_valide(en_cache, _CHAMPS_POINT_PORTEFEUILLE):
         return en_cache
@@ -171,16 +183,19 @@ def compute_portfolio_history(
     toutes_positions = positions if positions is not None else portfolio_reconstruction.compute_positions(db, user_id)
     positions_filtrees = (
         toutes_positions
-        if symboles_filtres is None
-        else {symbol: state for symbol, state in toutes_positions.items() if symbol in symboles_filtres}
+        if cles_filtres is None
+        else {cle_pos: state for cle_pos, state in toutes_positions.items() if cle_pos in cles_filtres}
     )
-    points = _compute_portfolio_history(db, user_id, positions_filtrees, symboles_filtres)
+    points = _compute_portfolio_history(db, user_id, positions_filtrees, cles_filtres)
     historique_cache.ecrire(db, cle, points)
     return points
 
 
 def _compute_portfolio_history(
-    db: Session, user_id: int, positions: dict[str, PositionState], symboles_filtres: set[str] | None = None
+    db: Session,
+    user_id: int,
+    positions: dict[tuple[str, int | None], PositionState],
+    cles_filtres: set[tuple[str, int | None]] | None = None,
 ) -> list[dict]:
     starts = [state.shares_history[0][0] for state in positions.values() if state.shares_history]
     if not starts:
@@ -190,7 +205,12 @@ def _compute_portfolio_history(
     now = datetime.now(UTC).replace(tzinfo=None)
     grid = _weekly_grid(start, now)
 
-    holdings_by_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id).all()}
+    # `(ticker, compte_id)` -> `Holding` (revu le 14/09/2026, cf. docstring de
+    # module) — deux lignes peuvent désormais partager un ticker.
+    holdings_par_cle = {(h.ticker, h.compte_id): h for h in db.query(Holding).filter(Holding.user_id == user_id).all()}
+    # Les séries de COURS, elles, restent indexées par ticker seul : une donnée de
+    # marché publique, partagée par toute position de ce ticker quel que soit son
+    # compte — un seul téléchargement/lecture, jamais dupliqué par compte.
     price_series: dict[str, TimeSeries] = {}
 
     # Les séries de cours viennent de la BASE (`cours_service`, backlog § AB), plus du
@@ -204,8 +224,8 @@ def _compute_portfolio_history(
     # l'heure de clôture : sans effet sur `_value_at`, qui cherche la dernière valeur
     # connue à date <= point de grille — une série hebdomadaire n'a jamais deux points
     # le même jour, et un point tronqué devient disponible au plus tôt le jour même.
-    for symbol, state in positions.items():
-        if not state.shares_history:
+    for (symbol, _compte_id), state in positions.items():
+        if not state.shares_history or symbol in price_series:
             continue
         ticker_resolu = market_data_service.resolve_ticker(db, symbol, state.asset_class)
         if ticker_resolu is None:
@@ -214,13 +234,13 @@ def _compute_portfolio_history(
         if serie:
             price_series[symbol] = serie
 
-    revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id, symboles_filtres)
+    revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id, cles_filtres)
 
     points = []
     for date in grid:
         valeur_portefeuille = 0.0
         valeur_investie = 0.0
-        for symbol, state in positions.items():
+        for (symbol, compte_id), state in positions.items():
             valeur_investie += _value_at(state.invested_history, date) or 0.0
 
             shares_at = _value_at(state.shares_history, date) or 0.0
@@ -229,7 +249,7 @@ def _compute_portfolio_history(
 
             prix_at = _value_at(price_series.get(symbol, []), date)
             if prix_at is None:
-                holding = holdings_by_ticker.get(symbol)
+                holding = holdings_par_cle.get((symbol, compte_id))
                 prix_at = holding.prix_revient_moyen if holding else 0.0
             valeur_portefeuille += shares_at * (prix_at or 0.0)
 
@@ -238,7 +258,7 @@ def _compute_portfolio_history(
         # par la même valorisation « live » que la carte Rentabilité globale, pour
         # une coïncidence exacte plutôt qu'une approximation à quelques euros près.
         if date == grid[-1]:
-            valeur_portefeuille = _valeur_positions_live(db, user_id, symboles_filtres)
+            valeur_portefeuille = _valeur_positions_live(db, user_id, cles_filtres)
 
         points.append(
             {
@@ -328,15 +348,17 @@ def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict
     return {"benchmark_key": benchmark_key, "label": benchmark["label"], "points": comparaison}
 
 
-def compute_holding_price_history(db: Session, identifiant: str, user_id: int) -> dict | None:
+def compute_holding_price_history(db: Session, holding_id: int, user_id: int) -> dict | None:
     """Performance historique du titre/fonds lui-même (indépendante de la position de
     l'utilisateur) : série de prix + volatilité annualisée + max drawdown. Retourne
-    `None` si le titre n'est pas résolu ou si aucune donnée n'est disponible (ex.
+    `None` si la ligne n'est pas trouvée ou si aucune donnée n'est disponible (ex.
     private equity, obligation).
 
-    `user_id` (Milestone 2a) : seulement pour vérifier que CE ticker fait bien partie
-    du portefeuille de l'appelant — le résultat lui-même reste une donnée de marché
-    publique.
+    Adressé par `holding_id`, pas par ticker (revu le 14/09/2026) : deux lignes
+    peuvent désormais partager un ticker (une par compte) — seul l'id désigne sans
+    ambiguïté "de quelle ligne on parle". `user_id` (Milestone 2a) : seulement pour
+    vérifier que CETTE ligne appartient bien à l'appelant — le résultat lui-même
+    reste une donnée de marché publique (partagée par toute ligne du même ticker).
 
     **Plus de cache JSON dédié** (`cle_historique_ligne`, backlog § AB.2). Il existait
     parce que chaque ouverture de la fiche retéléchargeait tout l'historique
@@ -347,15 +369,15 @@ def compute_holding_price_history(db: Session, identifiant: str, user_id: int) -
     n'aurait fait que dupliquer la même donnée sous une deuxième forme, avec sa propre
     expiration à faire coïncider : c'est précisément la désynchronisation que ce lot
     supprime."""
-    return _compute_holding_price_history(db, identifiant, user_id)
+    return _compute_holding_price_history(db, holding_id, user_id)
 
 
-def _compute_holding_price_history(db: Session, identifiant: str, user_id: int) -> dict | None:
-    holding = db.query(Holding).filter(Holding.ticker == identifiant, Holding.user_id == user_id).first()
+def _compute_holding_price_history(db: Session, holding_id: int, user_id: int) -> dict | None:
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == user_id).first()
     if holding is None:
         return None
 
-    ticker_resolu = market_data_service.resolve_ticker(db, identifiant, holding.type_actif)
+    ticker_resolu = market_data_service.resolve_ticker(db, holding.ticker, holding.type_actif)
     if ticker_resolu is None:
         return None
 

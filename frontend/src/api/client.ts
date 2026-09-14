@@ -228,21 +228,24 @@ export const api = {
   updateHolding: (id: number, payload: HoldingUpdateInput) =>
     request<Holding>(`/portfolio/holdings/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteHolding: (id: number) => request<{ ok: boolean }>(`/portfolio/holdings/${id}`, { method: 'DELETE' }),
-  getHoldingDetail: (ticker: string) => request<HoldingDetail>(`/portfolio/holdings/${encodeURIComponent(ticker)}/detail`),
-  getHoldingPriceHistory: (ticker: string) =>
-    request<HoldingPriceHistoryResponse>(`/portfolio/holdings/${encodeURIComponent(ticker)}/price-history`),
+  // Adressées par `holdingId`, pas par ticker (revu le 14/09/2026) : deux lignes
+  // peuvent désormais partager un ticker (une par compte) — seul l'id désigne sans
+  // ambiguïté "de quelle ligne on parle". Cf. `layout/routes.ts` (`/patrimoine/:holdingId`).
+  getHoldingDetail: (holdingId: number) => request<HoldingDetail>(`/portfolio/holdings/${holdingId}/detail`),
+  getHoldingPriceHistory: (holdingId: number) =>
+    request<HoldingPriceHistoryResponse>(`/portfolio/holdings/${holdingId}/price-history`),
   // Fiche immobilier complète (backlog 2.M.3).
-  updateHoldingImmobilier: (ticker: string, payload: HoldingImmobilierInput) =>
-    request<HoldingImmobilier>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier`, {
+  updateHoldingImmobilier: (holdingId: number, payload: HoldingImmobilierInput) =>
+    request<HoldingImmobilier>(`/portfolio/holdings/${holdingId}/immobilier`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
-  getHoldingValuationHistory: (ticker: string) =>
-    request<ValuationHistoryPoint[]>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier-history`),
+  getHoldingValuationHistory: (holdingId: number) =>
+    request<ValuationHistoryPoint[]>(`/portfolio/holdings/${holdingId}/immobilier-history`),
   // Ajoute un point d'historique à une date choisie par l'utilisateur (écran
   // Épargne, backlog 2.S.1) — cf. `PUT .../valorisation` côté backend.
-  setHoldingValorisation: (ticker: string, payload: ValorisationInput) =>
-    request<Holding>(`/portfolio/holdings/${encodeURIComponent(ticker)}/valorisation`, {
+  setHoldingValorisation: (holdingId: number, payload: ValorisationInput) =>
+    request<Holding>(`/portfolio/holdings/${holdingId}/valorisation`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
@@ -250,13 +253,13 @@ export const api = {
   // utilisateur 30/08/2026) — jusqu'ici seul l'ajout (`setHoldingValorisation`
   // ci-dessus) était possible, une valeur tapée par erreur restait figée pour
   // toujours dans l'historique.
-  updateHoldingValuationPoint: (ticker: string, pointId: number, payload: ValorisationInput) =>
-    request<Holding>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier-history/${pointId}`, {
+  updateHoldingValuationPoint: (holdingId: number, pointId: number, payload: ValorisationInput) =>
+    request<Holding>(`/portfolio/holdings/${holdingId}/immobilier-history/${pointId}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
-  deleteHoldingValuationPoint: (ticker: string, pointId: number) =>
-    request<Holding>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier-history/${pointId}`, { method: 'DELETE' }),
+  deleteHoldingValuationPoint: (holdingId: number, pointId: number) =>
+    request<Holding>(`/portfolio/holdings/${holdingId}/immobilier-history/${pointId}`, { method: 'DELETE' }),
 
   importPreview: (file: File) => {
     const form = new FormData()
@@ -483,8 +486,8 @@ export const api = {
   updateDetenteur: (id: number, payload: { nom?: string; type?: TypeDetenteur }) =>
     request<Detenteur>(`/detenteurs/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteDetenteur: (id: number) => request<{ ok: boolean }>(`/detenteurs/${id}`, { method: 'DELETE' }),
-  setHoldingQuotites: (ticker: string, quotites: QuotiteEntree[]) =>
-    request<{ ok: boolean }>(`/portfolio/holdings/${encodeURIComponent(ticker)}/quotites`, {
+  setHoldingQuotites: (holdingId: number, quotites: QuotiteEntree[]) =>
+    request<{ ok: boolean }>(`/portfolio/holdings/${holdingId}/quotites`, {
       method: 'PUT',
       body: JSON.stringify({ quotites }),
     }),

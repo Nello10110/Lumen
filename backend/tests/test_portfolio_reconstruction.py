@@ -26,7 +26,7 @@ def test_achat_simple_quantite_et_cout_de_revient_avec_frais(db):
     )
 
     positions = compute_positions(db, ID_UTILISATEUR_TEST)
-    etat = positions["AAA"]
+    etat = positions[("AAA", None)]
 
     assert etat.shares == 10.0
     assert etat.cost_basis == 1007.0  # 1000 + frais + taxe
@@ -53,7 +53,7 @@ def test_achats_successifs_cout_moyen_pondere(db):
     make_transaction(db, transaction_id="tx-1", symbol="BBB", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
     make_transaction(db, transaction_id="tx-2", symbol="BBB", shares=10.0, amount=-2000.0, datetime_utc=datetime(2024, 2, 1))
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["BBB"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("BBB", None)]
 
     assert etat.shares == 20.0
     assert etat.cost_basis == 3000.0
@@ -74,7 +74,7 @@ def test_vente_partielle_cout_moyen_et_gain_realise(db):
         datetime_utc=datetime(2024, 3, 1),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["CCC"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("CCC", None)]
 
     # Coût moyen avant vente = 150€/titre ; coût retiré = 150 * 5 = 750.
     assert etat.shares == 15.0
@@ -96,7 +96,7 @@ def test_position_retombee_a_zero_disparait_du_portefeuille(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["DDD"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("DDD", None)]
     assert abs(etat.shares) < EPSILON
 
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
@@ -118,7 +118,7 @@ def test_dividende_ne_modifie_jamais_la_quantite(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["EEE"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("EEE", None)]
     assert etat.shares == 10.0
 
 
@@ -141,7 +141,7 @@ def test_dividende_entre_dans_cash_flows_net_de_frais_et_taxes(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["EEE"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("EEE", None)]
 
     assert etat.cash_flows == [(datetime(2024, 1, 1), -1000.0), (datetime(2024, 2, 1), 20.0)]
     # Toujours pas de quantité modifiée (test ci-dessus) : seul `cash_flows` change.
@@ -150,7 +150,7 @@ def test_dividende_entre_dans_cash_flows_net_de_frais_et_taxes(db):
 
 def test_operation_sur_titre_ajuste_quantite_a_cout_nul(db):
     make_transaction(db, transaction_id="tx-1", symbol="FFF", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    cost_basis_avant = compute_positions(db, ID_UTILISATEUR_TEST)["FFF"].cost_basis
+    cost_basis_avant = compute_positions(db, ID_UTILISATEUR_TEST)[("FFF", None)].cost_basis
 
     # Action gratuite : ni TRADING/BUY-SELL, ni CASH/PRIVATE_MARKET_BUY, ni CASH/DIVIDEND.
     make_transaction(
@@ -164,7 +164,7 @@ def test_operation_sur_titre_ajuste_quantite_a_cout_nul(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["FFF"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("FFF", None)]
     assert etat.shares == 15.0
     assert etat.cost_basis == cost_basis_avant  # coût nul pour l'opération sur titre
 
@@ -179,7 +179,7 @@ def test_private_market_buy_une_part_egale_un_euro_investi(db):
         amount=-500.0,
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["GGG"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("GGG", None)]
     assert etat.shares == 500.0
     assert etat.cost_basis == 500.0
 
@@ -199,7 +199,7 @@ def test_private_market_buy_frais_integres_au_cout_mais_pas_a_la_quantite(db):
         tax=-1.0,
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["HHH"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("HHH", None)]
     assert etat.shares == 500.0  # quantité inchangée : -amount uniquement
     assert etat.cost_basis == 511.0  # 500 + 10 + 1 : coût de revient alourdi
 
@@ -222,7 +222,7 @@ def test_vente_sans_achat_correspondant_est_signalee_et_le_cout_reste_positif(db
     )
 
     with caplog.at_level(logging.WARNING, logger="patrimoine.reconstruction"):
-        etat = compute_positions(db, ID_UTILISATEUR_TEST)["III"]
+        etat = compute_positions(db, ID_UTILISATEUR_TEST)[("III", None)]
 
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-6)  # jamais négatif, borné à zéro
     assert len(etat.anomalies) == 1
@@ -268,7 +268,7 @@ def test_vente_horodatee_avant_son_achat_ne_cree_pas_de_position_fantome(db, cap
     )
 
     with caplog.at_level(logging.WARNING, logger="patrimoine.reconstruction"):
-        etat = compute_positions(db, ID_UTILISATEUR_TEST)["KKK"]
+        etat = compute_positions(db, ID_UTILISATEUR_TEST)[("KKK", None)]
 
     assert etat.shares == pytest.approx(0.0, abs=1e-9)
     assert etat.anomalies == []
@@ -313,7 +313,7 @@ def test_vente_avant_achat_meme_jour_fonctionne_aussi_en_fifo(db):
         datetime_utc=datetime(2024, 3, 1, 16, 20),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["LLL"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")[("LLL", None)]
 
     assert etat.shares == pytest.approx(0.0, abs=1e-9)
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)
@@ -338,7 +338,7 @@ def test_operation_sur_titre_qui_retire_toute_la_position_realise_une_perte(db):
         datetime_utc=datetime(2026, 6, 15),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST)["MMM"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("MMM", None)]
 
     assert etat.shares == pytest.approx(0.0, abs=1e-9)
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)  # plus orphelin
@@ -361,7 +361,7 @@ def test_operation_sur_titre_qui_retire_toute_la_position_realise_une_perte_en_f
         datetime_utc=datetime(2025, 3, 1),
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["NNN"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")[("NNN", None)]
 
     assert etat.shares == pytest.approx(0.0, abs=1e-9)
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)
@@ -583,13 +583,13 @@ def test_fifo_vs_cout_moyen_pondere_gains_realises_et_prix_de_revient_different(
         db, transaction_id="tx-4", symbol="AAA", type="SELL", shares=-20.0, amount=5000.0, datetime_utc=datetime(2024, 4, 1)
     )
 
-    etat_moyen = compute_positions(db, ID_UTILISATEUR_TEST, methode="cout_moyen_pondere")["AAA"]
+    etat_moyen = compute_positions(db, ID_UTILISATEUR_TEST, methode="cout_moyen_pondere")[("AAA", None)]
     assert etat_moyen.shares == 10.0
     assert round(etat_moyen.realized_gain, 2) == 1000.00
     assert round(etat_moyen.cost_basis, 2) == 2000.00
     assert round(etat_moyen.cost_basis / etat_moyen.shares, 2) == 200.00
 
-    etat_fifo = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["AAA"]
+    etat_fifo = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")[("AAA", None)]
     assert etat_fifo.shares == 10.0
     assert round(etat_fifo.realized_gain, 2) == 2000.00
     assert round(etat_fifo.cost_basis, 2) == 3000.00
@@ -606,8 +606,8 @@ def test_fifo_defaut_reste_cout_moyen_pondere_sans_reglage_en_base(db):
     make_transaction(db, transaction_id="tx-1", symbol="BBB", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
     make_transaction(db, transaction_id="tx-2", symbol="BBB", shares=10.0, amount=-2000.0, datetime_utc=datetime(2024, 2, 1))
 
-    etat_defaut = compute_positions(db, ID_UTILISATEUR_TEST)["BBB"]
-    etat_moyen = compute_positions(db, ID_UTILISATEUR_TEST, methode="cout_moyen_pondere")["BBB"]
+    etat_defaut = compute_positions(db, ID_UTILISATEUR_TEST)[("BBB", None)]
+    etat_moyen = compute_positions(db, ID_UTILISATEUR_TEST, methode="cout_moyen_pondere")[("BBB", None)]
 
     assert etat_defaut.cost_basis == etat_moyen.cost_basis == 3000.0
     assert etat_defaut.shares == etat_moyen.shares == 20.0
@@ -623,7 +623,7 @@ def test_fifo_operation_sur_titre_a_cout_nul_empile_un_lot_a_cout_nul(db):
         db, transaction_id="tx-3", symbol="CCC", type="SELL", shares=-5.0, amount=600.0, datetime_utc=datetime(2024, 3, 1)
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["CCC"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")[("CCC", None)]
 
     # Les 5 titres vendus proviennent entièrement du lot gratuit (coût nul) :
     # tout le produit de la vente est un gain réalisé.
@@ -641,7 +641,122 @@ def test_fifo_vente_avec_lots_insuffisants_ne_retire_pas_plus_que_le_cout_dispon
         db, transaction_id="tx-2", symbol="DDD", type="SELL", shares=-15.0, amount=1800.0, datetime_utc=datetime(2024, 2, 1)
     )
 
-    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["DDD"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")[("DDD", None)]
 
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-6)
     assert len(etat.anomalies) == 1
+
+
+# ---------------------------------------------------------------------------
+# Retour utilisateur du 14/09/2026 — un même ticker détenu à deux comptes
+# différents (BTC chez Ledger ET chez Trade Republic) se fusionnait à tort en
+# une seule position, l'un des deux établissements « disparaissant ». Correctif
+# structurel : `Transaction.compte_id`, stampé à l'import, devient la clé de
+# regroupement — cf. `compute_positions`/`rebuild_holdings`.
+# ---------------------------------------------------------------------------
+
+
+def test_meme_ticker_deux_comptes_produit_deux_positions_distinctes(db):
+    compte_ledger = Compte(user_id=ID_UTILISATEUR_TEST, nom="Ledger")
+    compte_tr = Compte(user_id=ID_UTILISATEUR_TEST, nom="Trade Republic Crypto")
+    db.add_all([compte_ledger, compte_tr])
+    db.commit()
+
+    make_transaction(
+        db, transaction_id="tx-ledger-1", symbol="BTC", shares=0.1, amount=-4000.0,
+        datetime_utc=datetime(2024, 1, 1), compte_id=compte_ledger.id,
+    )
+    make_transaction(
+        db, transaction_id="tx-tr-1", symbol="BTC", shares=0.2, amount=-9000.0,
+        datetime_utc=datetime(2024, 2, 1), compte_id=compte_tr.id,
+    )
+
+    positions = compute_positions(db, ID_UTILISATEUR_TEST)
+
+    assert set(positions) == {("BTC", compte_ledger.id), ("BTC", compte_tr.id)}
+    assert positions[("BTC", compte_ledger.id)].shares == pytest.approx(0.1)
+    assert positions[("BTC", compte_ledger.id)].cost_basis == pytest.approx(4000.0)
+    assert positions[("BTC", compte_tr.id)].shares == pytest.approx(0.2)
+    assert positions[("BTC", compte_tr.id)].cost_basis == pytest.approx(9000.0)
+
+
+def test_meme_ticker_deux_comptes_cree_deux_holdings_apres_rebuild(db):
+    """Vérifie le bug rapporté tel quel : sans ce correctif, une seule ligne `Holding`
+    « BTC » apparaissait (celle du DERNIER compte importé), l'autre établissement
+    disparaissant entièrement de l'écran Portefeuille/Comptes."""
+    compte_ledger = Compte(user_id=ID_UTILISATEUR_TEST, nom="Ledger")
+    compte_tr = Compte(user_id=ID_UTILISATEUR_TEST, nom="Trade Republic Crypto")
+    db.add_all([compte_ledger, compte_tr])
+    db.commit()
+
+    make_transaction(
+        db, transaction_id="tx-ledger-1", symbol="BTC", shares=0.1, amount=-4000.0,
+        datetime_utc=datetime(2024, 1, 1), compte_id=compte_ledger.id,
+    )
+    make_transaction(
+        db, transaction_id="tx-tr-1", symbol="BTC", shares=0.2, amount=-9000.0,
+        datetime_utc=datetime(2024, 2, 1), compte_id=compte_tr.id,
+    )
+
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    lignes = db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST, Holding.ticker == "BTC").all()
+    assert len(lignes) == 2
+    par_compte = {h.compte_id: h for h in lignes}
+    assert par_compte[compte_ledger.id].quantite == pytest.approx(0.1)
+    assert par_compte[compte_ledger.id].prix_revient_moyen == pytest.approx(40000.0)
+    assert par_compte[compte_tr.id].quantite == pytest.approx(0.2)
+    assert par_compte[compte_tr.id].prix_revient_moyen == pytest.approx(45000.0)
+
+
+def test_meme_ticker_deux_comptes_puis_achat_supplementaire_reste_scinde(db):
+    """Un deuxième import (nouvel achat sur l'un des deux comptes) ne doit ni
+    refusionner les deux positions, ni perdre la quantité déjà connue de l'autre."""
+    compte_ledger = Compte(user_id=ID_UTILISATEUR_TEST, nom="Ledger")
+    compte_tr = Compte(user_id=ID_UTILISATEUR_TEST, nom="Trade Republic Crypto")
+    db.add_all([compte_ledger, compte_tr])
+    db.commit()
+
+    make_transaction(
+        db, transaction_id="tx-ledger-1", symbol="BTC", shares=0.1, amount=-4000.0,
+        datetime_utc=datetime(2024, 1, 1), compte_id=compte_ledger.id,
+    )
+    make_transaction(
+        db, transaction_id="tx-tr-1", symbol="BTC", shares=0.2, amount=-9000.0,
+        datetime_utc=datetime(2024, 2, 1), compte_id=compte_tr.id,
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    make_transaction(
+        db, transaction_id="tx-ledger-2", symbol="BTC", shares=0.05, amount=-2500.0,
+        datetime_utc=datetime(2024, 3, 1), compte_id=compte_ledger.id,
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    lignes = db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST, Holding.ticker == "BTC").all()
+    assert len(lignes) == 2
+    par_compte = {h.compte_id: h for h in lignes}
+    assert par_compte[compte_ledger.id].quantite == pytest.approx(0.15)  # 0.1 + 0.05
+    assert par_compte[compte_tr.id].quantite == pytest.approx(0.2)  # inchangé
+
+
+def test_transaction_sans_compte_forme_son_propre_groupe_distinct_des_comptes_reels(db):
+    """`compte_id=None` (mouvement sans compte connu, ex. transaction antérieure au
+    correctif jamais rétro-remplie) ne doit jamais se fondre avec un compte réel du
+    même ticker — cf. docstring de `compute_positions`."""
+    compte_tr = Compte(user_id=ID_UTILISATEUR_TEST, nom="Trade Republic Crypto")
+    db.add(compte_tr)
+    db.commit()
+
+    make_transaction(
+        db, transaction_id="tx-sans-compte", symbol="BTC", shares=0.1, amount=-4000.0,
+        datetime_utc=datetime(2024, 1, 1), compte_id=None,
+    )
+    make_transaction(
+        db, transaction_id="tx-tr-1", symbol="BTC", shares=0.2, amount=-9000.0,
+        datetime_utc=datetime(2024, 2, 1), compte_id=compte_tr.id,
+    )
+
+    positions = compute_positions(db, ID_UTILISATEUR_TEST)
+
+    assert set(positions) == {("BTC", None), ("BTC", compte_tr.id)}

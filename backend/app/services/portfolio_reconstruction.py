@@ -110,6 +110,12 @@ def _consommer_lots_fifo(lots: list[Lot], quantite_a_vendre: float) -> float:
 @dataclass
 class PositionState:
     symbol: str
+    # Compte d'origine de cette position (retour utilisateur du 14/09/2026 : un même
+    # ticker peut désormais légitimement produire DEUX `PositionState` distincts —
+    # un par compte qui le détient réellement) — cf. `compute_positions` ci-dessous.
+    # `None` : transactions sans compte connu (mouvements de cash purs, ou
+    # transactions antérieures à ce lot jamais rétro-remplies).
+    compte_id: int | None = None
     name: str | None = None
     asset_class: str | None = None
     shares: float = 0.0
@@ -296,7 +302,9 @@ def _trier_pour_reconstruction(transactions: list[Transaction]) -> list[Transact
     return sorted(transactions, key=lambda tx: (tx.datetime_utc.date(), priorite(tx), tx.datetime_utc))
 
 
-def compute_positions(db: Session, user_id: int, methode: str | None = None) -> dict[str, PositionState]:
+def compute_positions(
+    db: Session, user_id: int, methode: str | None = None
+) -> dict[tuple[str, int | None], PositionState]:
     """`user_id` : reconstruction strictement scopée à ce compte — le grand livre
     d'un autre utilisateur ne doit JAMAIS entrer dans ce calcul (Milestone 2a,
     multi-utilisateur, cf. `docs/BACKLOG.md` § 2.I.1). `methode` :
@@ -305,7 +313,15 @@ def compute_positions(db: Session, user_id: int, methode: str | None = None) -> 
     module passent la méthode qu'ils veulent vérifier) ; si omis (cas normal des
     appelants applicatifs), lu depuis les préférences persistées DE CE COMPTE
     (Milestone 2b, LOT 5B) — comportement par défaut : coût moyen pondéré, comme
-    avant l'introduction de ce réglage."""
+    avant l'introduction de ce réglage.
+
+    Clé `(symbol, compte_id)`, pas `symbol` seul (retour utilisateur du 14/09/2026) :
+    un même ticker détenu réellement à deux comptes différents (ex. BTC chez Ledger
+    ET chez Trade Republic) produit désormais DEUX `PositionState` distincts, chacun
+    avec sa propre quantité/coût de revient — `Transaction.compte_id` (stampé à
+    l'import, cf. `routers/transactions.py`) est la source de vérité, jamais devinée
+    ici. `compte_id=None` (mouvement sans compte connu) forme son propre bucket,
+    distinct de tout compte réel — jamais fusionné avec eux ni entre eux."""
     if methode is None:
         methode = preferences_service.lire_methode_cout(db, user_id)
 
@@ -317,9 +333,10 @@ def compute_positions(db: Session, user_id: int, methode: str | None = None) -> 
     )
     transactions = _trier_pour_reconstruction(transactions)
 
-    positions: dict[str, PositionState] = {}
+    positions: dict[tuple[str, int | None], PositionState] = {}
     for tx in transactions:
-        state = positions.setdefault(tx.symbol, PositionState(symbol=tx.symbol))
+        cle = (tx.symbol, tx.compte_id)
+        state = positions.setdefault(cle, PositionState(symbol=tx.symbol, compte_id=tx.compte_id))
         _apply_transaction(state, tx, methode)
 
     for state in positions.values():
@@ -328,26 +345,31 @@ def compute_positions(db: Session, user_id: int, methode: str | None = None) -> 
     return positions
 
 
-def compute_position(db: Session, ticker: str, user_id: int, methode: str | None = None) -> PositionState | None:
-    """Reconstruction ciblée sur un seul ticker (cf. LOT 4.2) : ne relit que les
-    transactions de ce ticker plutôt que de rejouer tout le grand livre pour n'en
-    garder qu'une position, comme le faisait `holding_detail_service` en passant par
-    `compute_positions(db)` complet pour afficher une seule fiche. Résultat
-    rigoureusement identique à `compute_positions(db, user_id).get(ticker)` — même
-    fonction de traitement (`_apply_transaction`/`_controler_coherence`) appliquée
-    aux mêmes transactions, seule la requête source change (filtrée par ticker
-    plutôt que ramenant tout le grand livre). Renvoie `None` si ce ticker n'a aucune
-    transaction (pas de ligne dans `positions` pour lui, comme `compute_positions`).
+def compute_position(db: Session, holding: Holding, methode: str | None = None) -> PositionState | None:
+    """Reconstruction ciblée sur UNE ligne de portefeuille (cf. LOT 4.2, revu le
+    14/09/2026) : ne relit que les transactions de son `(ticker, compte_id)` plutôt
+    que de rejouer tout le grand livre pour n'en garder qu'une position, comme le
+    faisait `holding_detail_service` en passant par `compute_positions(db)` complet
+    pour afficher une seule fiche. Résultat rigoureusement identique à
+    `compute_positions(db, holding.user_id).get((holding.ticker, holding.compte_id))`
+    — même fonction de traitement (`_apply_transaction`/`_controler_coherence`)
+    appliquée aux mêmes transactions, seule la requête source change.
 
-    `user_id` : deux utilisateurs peuvent détenir le même ticker — filtré en plus du
-    ticker, jamais l'un sans l'autre (Milestone 2a). `methode` : cf. `compute_positions`,
-    même défaut (lu depuis les préférences de ce compte)."""
+    Prend le `Holding` complet (pas juste son ticker) : depuis que deux lignes
+    peuvent partager un ticker (retour utilisateur du 14/09/2026), le `compte_id`
+    fait partie intégrante de l'identité de la position — un ticker seul ne suffit
+    plus à désigner sans ambiguïté "de quelle position on parle". Renvoie `None` si
+    cette position n'a aucune transaction correspondante."""
     if methode is None:
-        methode = preferences_service.lire_methode_cout(db, user_id)
+        methode = preferences_service.lire_methode_cout(db, holding.user_id)
 
     transactions = (
         db.query(Transaction)
-        .filter(Transaction.symbol == ticker, Transaction.user_id == user_id)
+        .filter(
+            Transaction.symbol == holding.ticker,
+            Transaction.compte_id == holding.compte_id,
+            Transaction.user_id == holding.user_id,
+        )
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
@@ -355,7 +377,7 @@ def compute_position(db: Session, ticker: str, user_id: int, methode: str | None
         return None
     transactions = _trier_pour_reconstruction(transactions)
 
-    state = PositionState(symbol=ticker)
+    state = PositionState(symbol=holding.ticker, compte_id=holding.compte_id)
     for tx in transactions:
         _apply_transaction(state, tx, methode)
     _controler_coherence(state)
@@ -392,73 +414,86 @@ class ReconstructionResult:
     lignes_manuelles_remplacees: int
 
 
-def rebuild_holdings(
-    db: Session, user_id: int, comptes_a_assigner: dict[str, int] | None = None
-) -> ReconstructionResult:
+def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     """Reconstruit les lignes du portefeuille depuis le grand livre, pour UN SEUL
     utilisateur (`user_id`, Milestone 2a) — ne touche jamais aux lignes/transactions
     d'un autre compte.
 
-    `comptes_a_assigner` (revue du 03/09/2026, import multi-comptes) : compte
-    dérivé par `transaction_import.cle_compte` sur la dernière transaction de
-    chaque ticker fraîchement importé (`{ticker: compte_id}`), fourni par
-    `routers/transactions.py::import_transactions` uniquement lors d'un import —
-    `None` pour un simple re-déclenchement manuel (`POST /reconstruct`), qui ne
-    doit assigner aucun nouveau compte. Ne s'applique JAMAIS à un ticker déjà
-    présent dans `comptes_par_ticker` ci-dessous (assignation manuelle ou héritée
-    d'un import précédent) : un ré-import ne réassigne jamais silencieusement une
-    ligne déjà rattachée par l'utilisateur — seuls les tickers encore sans compte
-    en profitent.
+    Compte d'origine (revu le 14/09/2026, retour utilisateur : un même ticker
+    fusionnait à tort deux comptes différents) : la vérité vit désormais
+    directement sur `Transaction.compte_id`, stampée une fois à l'import
+    (`routers/transactions.py`) — `compute_positions` en dérive une clé
+    `(symbol, compte_id)`, et cette fonction crée une ligne `Holding` PAR clé, pas
+    par ticker. L'ancien mécanisme `comptes_a_assigner`/`comptes_par_ticker`
+    (« premier compte établi gagne pour toujours ») est supprimé.
+
+    Réassignation manuelle du compte (écran Comptes, `PATCH /holdings/{id}`) —
+    PRÉSERVÉE, mais seulement quand elle reste sans ambiguïté : si ce ticker ne
+    produit plus qu'UNE seule position (pas de partage entre plusieurs comptes) ET
+    qu'une seule ligne (manuelle OU déjà reconstruite — cf. `lignes_manuelles_
+    existantes` juste en dessous, une ligne manuelle en conflit avec le grand livre
+    est elle-même remplacée par la reconstruction) portait déjà ce ticker avant cet
+    appel, son `compte_id` (potentiellement réassigné à la main, divergent du
+    compte déduit des transactions) est reporté sur la ligne recréée — comportement
+    inchangé depuis LOT 5.1 pour le cas normal (un ticker, un compte). Dès que ce
+    ticker se scinde en plusieurs positions (retour utilisateur du 14/09/2026, cf.
+    docstring de `compute_positions`), il n'existe plus d'ambiguïté à lever :
+    chaque position récupère directement le compte déduit de SES transactions —
+    inventer une correspondance entre l'ancienne ligne unique et l'une des
+    nouvelles positions scindées serait une supposition, pas un fait.
 
     Arbitrage saisie manuelle / reconstruction (LOT 3.4) : seules les lignes
     `origine=ORIGINE_RECONSTRUIT` sont supprimées puis recréées — une ligne saisie
     à la main (`ORIGINE_MANUEL`) survit à cet appel, sauf si le grand livre
     reconstruit justement une position sur le même ticker, auquel cas le grand
     livre fait foi : la ligne manuelle est supprimée (elle ferait doublon dans tous
-    les calculs) et l'événement est journalisé en warning et compté.
-
-    Préservation du compte (LOT 5.1, structurel depuis le backlog X.1) : le
-    rattachement à un `Compte` (écran Comptes) est une annotation manuelle par
-    ligne — le grand livre importé ne porte aucune information de compte, donc sans
-    ce report explicite, une ligne reconstruite supprimée puis recréée par un
-    nouvel import perdrait son `compte_id` entre deux imports. Capturée sur TOUTES
-    les lignes existantes (manuelles et reconstruites) avant leur suppression, pour
-    couvrir aussi le cas, plus rare, d'une ligne manuelle remplacée ci-dessous. Le
-    compte visé existe déjà (créé avant cette reconstruction) : juste l'id à
-    reporter, aucune résolution/création à faire ici.
+    les calculs) et l'événement est journalisé en warning et compté. Ce rapport
+    manuel↔reconstruit reste volontairement par TICKER SEUL (pas par compte) : une
+    ligne manuelle n'a jamais eu de notion de compte d'origine issue d'un grand
+    livre, il n'y a qu'un compte réel pour elle.
     """
     positions = compute_positions(db, user_id)
+
+    # Existant AVANT suppression (cf. docstring ci-dessus) : dernier repère pour
+    # savoir si CE ticker portait une réassignation manuelle du compte à préserver.
+    # Les DEUX origines comptent ici (manuelle incluse) : une ligne manuelle en
+    # conflit avec le grand livre est elle-même remplacée par la reconstruction
+    # juste plus bas — son compte doit survivre à ce remplacement tout autant qu'à
+    # une reconstruction ordinaire.
+    comptes_reconstruits_existants: dict[str, list[int | None]] = {}
+    for ticker, compte_id in db.query(Holding.ticker, Holding.compte_id).filter(Holding.user_id == user_id).all():
+        comptes_reconstruits_existants.setdefault(ticker, []).append(compte_id)
+
+    # Nombre de positions distinctes par ticker dans CE calcul — un ticker scindé
+    # en plusieurs comptes (>1) n'a plus de compte "à préserver" au sens singulier.
+    etats_par_symbole: dict[str, int] = {}
+    for symbol, _compte_id in positions:
+        etats_par_symbole[symbol] = etats_par_symbole.get(symbol, 0) + 1
 
     lignes_manuelles_existantes = {
         h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_MANUEL).all()
     }
 
-    comptes_par_ticker: dict[str, int] = {}
-    # Répartition entre détenteurs, reportée pour la MÊME raison que le compte
-    # ci-dessus : le grand livre ne porte aucune information de propriété, et une
+    # Répartition entre détenteurs, reportée pour une raison structurelle : une
     # ligne supprimée puis recréée reçoit un NOUVEL id. Sans ce report, les
     # `QuotiteHolding` continuaient de pointer vers l'ancien id — la répartition
     # disparaissait de l'écran tout en laissant des lignes orphelines en base
-    # (constaté le 02/09/2026 en construisant l'export de données).
-    quotites_par_ticker: dict[str, list[tuple[int, float]]] = {}
-    for h in db.query(Holding).filter(Holding.user_id == user_id).all():
-        if h.compte_id is not None and h.ticker not in comptes_par_ticker:
-            comptes_par_ticker[h.ticker] = h.compte_id
-    if comptes_a_assigner:
-        for ticker, compte_id in comptes_a_assigner.items():
-            comptes_par_ticker.setdefault(ticker, compte_id)
+    # (constaté le 02/09/2026 en construisant l'export de données). Clé
+    # `(ticker, compte_id)`, pas `ticker` seul (14/09/2026) : deux lignes peuvent
+    # désormais partager un ticker, chacune ses propres quotités.
+    quotites_par_cle: dict[tuple[str, int | None], list[tuple[int, float]]] = {}
     # Quotités lues en TUPLES (colonnes explicites) et non en objets ORM : les lignes
     # sont supprimées juste après, et les nouvelles réutiliseront les mêmes ids
     # auto-incrémentés — des instances `QuotiteHolding` restées dans l'identity map de
     # la session provoqueraient alors un conflit d'identité au flush (SAWarning). Une
     # seule requête jointe, aussi, plutôt qu'une par ligne.
-    for ticker, detenteur_id, quotite_pct in (
-        db.query(Holding.ticker, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct)
+    for ticker, compte_id, detenteur_id, quotite_pct in (
+        db.query(Holding.ticker, Holding.compte_id, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct)
         .join(QuotiteHolding, QuotiteHolding.holding_id == Holding.id)
         .filter(Holding.user_id == user_id)
         .all()
     ):
-        quotites_par_ticker.setdefault(ticker, []).append((detenteur_id, quotite_pct))
+        quotites_par_cle.setdefault((ticker, compte_id), []).append((detenteur_id, quotite_pct))
 
     # Les quotités des lignes sur le point de disparaître sont retirées ici : elles
     # sont réécrites plus bas sur les nouvelles lignes, et celles dont le ticker
@@ -478,7 +513,12 @@ def rebuild_holdings(
         if state.shares <= EPSILON:
             continue
 
-        ligne_manuelle = lignes_manuelles_existantes.get(state.symbol)
+        # `.pop` (pas `.get`) : un ticker désormais partagé par deux `state` (un par
+        # compte) ne doit remplacer la ligne manuelle correspondante qu'UNE fois —
+        # `lignes_manuelles_existantes` n'a de toute façon qu'une ligne par ticker
+        # (saisie manuelle, jamais dupliquée), la seconde itération ne doit pas
+        # retenter de la supprimer.
+        ligne_manuelle = lignes_manuelles_existantes.pop(state.symbol, None)
         if ligne_manuelle is not None:
             logger.warning(
                 "Ligne saisie manuellement pour %s remplacée par la reconstruction depuis le grand "
@@ -487,7 +527,24 @@ def rebuild_holdings(
             )
             db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == ligne_manuelle.id).delete(synchronize_session=False)
             db.delete(ligne_manuelle)
+            # Flush immédiat (pas seulement à la fin de la boucle) : la ligne
+            # recréée juste en dessous peut légitimement porter le MÊME
+            # `(ticker, compte_id)` que celle qu'on vient de marquer supprimée
+            # (compte préservé, cf. plus bas) — sans ce flush, SQLAlchemy peut
+            # émettre l'INSERT avant le DELETE dans le même flush et déclencher à
+            # tort `uq_holding_user_ticker_compte` sur une collision transitoire.
+            db.flush()
             lignes_manuelles_remplacees += 1
+
+        # Réassignation manuelle préservée seulement si sans ambiguïté (cf.
+        # docstring de la fonction) : ce ticker ne produit qu'UNE position ici ET
+        # n'en portait qu'UNE avant cet appel — son `compte_id` (potentiellement
+        # réassigné à la main) prime alors sur celui déduit des transactions.
+        compte_id_final = state.compte_id
+        if etats_par_symbole[state.symbol] == 1:
+            anciens_comptes = comptes_reconstruits_existants.get(state.symbol)
+            if anciens_comptes is not None and len(anciens_comptes) == 1:
+                compte_id_final = anciens_comptes[0]
 
         prix_revient = state.cost_basis / state.shares
         nouvelle_ligne = Holding(
@@ -498,10 +555,10 @@ def rebuild_holdings(
             prix_revient_moyen=prix_revient,
             type_actif=state.asset_class,
             origine=ORIGINE_RECONSTRUIT,
-            compte_id=comptes_par_ticker.get(state.symbol),
+            compte_id=compte_id_final,
         )
         db.add(nouvelle_ligne)
-        quotites_reportees = quotites_par_ticker.get(state.symbol)
+        quotites_reportees = quotites_par_cle.get((state.symbol, compte_id_final))
         if quotites_reportees:
             db.flush()  # `nouvelle_ligne.id` n'existe qu'après le flush
             db.add_all(

@@ -15,11 +15,11 @@ import { dateVersISO } from '../utils/format'
  * avec `LigneEpargne` (action rapide « Ajouter une valorisation » sur chaque ligne
  * d'épargne, dans la fiche détaillée d'un compte). */
 export function AjoutValorisationForm({
-  ticker,
+  holdingId,
   historique,
   onAdded,
 }: {
-  ticker: string
+  holdingId: number
   historique: ValuationHistoryPoint[]
   onAdded: (holding: Holding) => void
 }) {
@@ -41,7 +41,7 @@ export function AjoutValorisationForm({
     setSaving(true)
     setError(null)
     try {
-      const holding = await api.setHoldingValorisation(ticker, {
+      const holding = await api.setHoldingValorisation(holdingId, {
         valeur: Number(valeur),
         date,
         versement: versementDepuisDecomposition(mode, montant, valeur, valeurPrecedente),

@@ -141,7 +141,7 @@ def test_quotite_negative_refusee(client, db):
     h = make_holding(db, ticker="AAA")
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
     reponse = client.put(
-        f"/api/portfolio/holdings/{h.ticker}/quotites",
+        f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": -10.0}]},
     )
     assert reponse.status_code in REFUS
@@ -151,7 +151,7 @@ def test_quotite_superieure_a_100_refusee(client, db):
     h = make_holding(db, ticker="AAA")
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
     reponse = client.put(
-        f"/api/portfolio/holdings/{h.ticker}/quotites",
+        f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 150.0}]},
     )
     assert reponse.status_code in REFUS
@@ -160,7 +160,7 @@ def test_quotite_superieure_a_100_refusee(client, db):
 def test_quotites_avec_detenteur_inexistant_refusees(client, db):
     h = make_holding(db, ticker="AAA")
     reponse = client.put(
-        f"/api/portfolio/holdings/{h.ticker}/quotites",
+        f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": 999999, "quotite_pct": 100.0}]},
     )
     assert reponse.status_code in REFUS
@@ -171,7 +171,7 @@ def test_quotites_somme_superieure_a_100_refusee(client, db):
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
     bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
     reponse = client.put(
-        f"/api/portfolio/holdings/{h.ticker}/quotites",
+        f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 70.0}, {"detenteur_id": bob["id"], "quotite_pct": 70.0}]},
     )
     assert reponse.status_code in REFUS
@@ -252,7 +252,7 @@ def test_emprunt_inexistant_renvoie_404(client):
 
 def test_valorisation_negative_refusee(client, db):
     h = make_holding(db, ticker="LIVRETA", type_actif="REGULATED_SAVINGS")
-    reponse = client.put(f"/api/portfolio/holdings/{h.ticker}/valorisation", json={"valeur": -100.0})
+    reponse = client.put(f"/api/portfolio/holdings/{h.id}/valorisation", json={"valeur": -100.0})
     assert reponse.status_code in REFUS
 
 
@@ -261,14 +261,14 @@ def test_valorisation_a_une_date_future_refusee(client, db):
     historique de valorisation : ce sont des constats, jamais des projections."""
     h = make_holding(db, ticker="LIVRETA", type_actif="REGULATED_SAVINGS")
     demain = (datetime.now() + timedelta(days=1)).date().isoformat()
-    reponse = client.put(f"/api/portfolio/holdings/{h.ticker}/valorisation", json={"valeur": 1000.0, "date": demain})
+    reponse = client.put(f"/api/portfolio/holdings/{h.id}/valorisation", json={"valeur": 1000.0, "date": demain})
     assert reponse.status_code in REFUS
 
 
-def test_valorisation_sur_un_ticker_inexistant_est_refusee(client):
-    """400 plutôt que 404 ici (choix existant du routeur, message explicite) : ce
-    qui compte est le refus propre, pas le code exact — cf. docstring de module."""
-    assert client.put("/api/portfolio/holdings/INCONNU/valorisation", json={"valeur": 1000.0}).status_code in REFUS | {404}
+def test_valorisation_sur_un_holding_inexistant_est_refusee(client):
+    """404 (ligne introuvable) — cf. docstring de module : ce qui compte est le
+    refus propre, pas le code exact."""
+    assert client.put("/api/portfolio/holdings/999999999/valorisation", json={"valeur": 1000.0}).status_code in REFUS | {404}
 
 
 # ---------------------------------------------------------------------------

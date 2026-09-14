@@ -302,7 +302,9 @@ def compute_composition_categorie_consolidee(db: Session, user_id: int, dimensio
     else:
         lignes = sorted(
             (
-                {"ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(v.valeur, 2)}
+                # `id` (revu le 14/09/2026) : deux lignes peuvent désormais partager un
+                # ticker (un compte chacune) — cf. `CategoryCompositionItem`.
+                {"id": v.holding.id, "ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(v.valeur, 2)}
                 for v in valued
                 if LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE) == categorie and abs(v.valeur) > 1e-9
             ),
