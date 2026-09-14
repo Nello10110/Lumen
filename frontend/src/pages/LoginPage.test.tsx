@@ -1,12 +1,20 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { api } from '../api/client'
+import { api, ErreurPortailAuthentification } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import LoginPage from './LoginPage'
 
 vi.mock('../api/client', () => ({
   api: {
     getOidcStatus: vi.fn(),
+  },
+  // Classe réelle (pas un double) : les écrans la reconnaissent par `instanceof`,
+  // un faux la ferait passer inaperçue.
+  ErreurPortailAuthentification: class ErreurPortailAuthentification extends Error {
+    constructor() {
+      super("La session avec le portail d'authentification a expiré.")
+      this.name = 'ErreurPortailAuthentification'
+    }
   },
 }))
 
@@ -23,6 +31,7 @@ describe('LoginPage', () => {
     vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login, register, logout: vi.fn(), completeOnboarding: vi.fn(), refetchUser: vi.fn() })
     vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO' })
     window.history.replaceState(null, '', '/login')
+    sessionStorage.clear()
   })
 
   it("mode connexion par défaut : soumettre appelle login avec nom d'utilisateur/mot de passe", async () => {
@@ -65,6 +74,7 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
     vi.clearAllMocks()
     vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login: vi.fn(), register: vi.fn(), logout: vi.fn(), completeOnboarding: vi.fn(), refetchUser: vi.fn() })
     window.history.replaceState(null, '', '/login')
+    sessionStorage.clear()
   })
 
   it("n'affiche pas le bouton SSO quand il n'est pas configuré (ou désactivé) sur ce déploiement", async () => {
@@ -85,43 +95,97 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
     expect(lien).toHaveAttribute('href', '/api/auth/oidc/login')
   })
 
-  it('après un échec réseau ponctuel, retente une fois et affiche le bouton si le second essai réussit (retour utilisateur du 10/09/2026)', async () => {
-    vi.useFakeTimers()
+  // ---------------------------------------------------------------------------
+  // Retour utilisateur du 14/09/2026, après deux correctifs insuffisants : « quand
+  // je me fais déconnecter sur mon téléphone, il garde en cache l'application mais
+  // sans le bouton Authentik, je ne peux plus me connecter et je suis obligé de
+  // vider le cache ».
+  //
+  // La cause n'était ni le service worker ni le jeton expiré : c'est que l'échec de
+  // la vérification du SSO était SILENCIEUX par choix. « Le SSO n'est pas configuré »
+  // et « je n'ai pas réussi à le demander » produisaient le même écran — un écran de
+  // connexion amputé de son seul moyen de connexion, sans rien qui l'explique.
+  // ---------------------------------------------------------------------------
+
+  it("dit qu'il n'a pas pu vérifier, au lieu de masquer le bouton SSO en silence", async () => {
+    vi.mocked(api.getOidcStatus).mockRejectedValue(new Error('Panne réseau'))
+
+    render(<LoginPage />)
+
+    expect(await screen.findByText(/Impossible de joindre le serveur/)).toBeInTheDocument()
+    // L'utilisateur garde une prise sur la situation : trois issues, dont celle
+    // qu'il devait jusqu'ici aller chercher dans les réglages de son téléphone.
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Vider le cache de l'application" })).toBeInTheDocument()
+    // Pas de « Recharger la page » : il serait trompeur, le service worker
+    // resservirait la même coquille depuis son cache.
+    expect(screen.queryByRole('button', { name: /Recharger/ })).not.toBeInTheDocument()
+  })
+
+  it('« Réessayer » rétablit le bouton SSO sans rien vider', async () => {
+    vi.mocked(api.getOidcStatus)
+      .mockRejectedValueOnce(new Error('Panne réseau'))
+      .mockResolvedValueOnce({ enabled: true, display_name: 'Authentik' })
+
+    render(<LoginPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
+
+    expect(await screen.findByRole('link', { name: /Se connecter avec Authentik/ })).toBeInTheDocument()
+    expect(screen.queryByText(/Impossible de joindre le serveur/)).not.toBeInTheDocument()
+  })
+
+  it("reconnaît un portail d'authentification qui a repris la main, et se recharge pour lui rendre la main", async () => {
+    // Authentik en « proxy provider » dont la session a expiré : il répond sa propre
+    // page de connexion en HTML, avec un code 200. Reproduit en conditions réelles
+    // avant correction — `res.json()` explosait alors sur `<!doctype`, et l'échec
+    // était avalé en silence.
+    //
+    // Le service worker sert toute navigation depuis son précache : un simple
+    // `reload()` ne contacte donc JAMAIS le serveur, et le portail ne peut pas
+    // rediriger — c'est ce qui enfermait l'utilisateur. Le correctif désinstalle le
+    // service worker AVANT de recharger, pour que la navigation suivante parte
+    // vraiment au réseau.
+    const rechargements = vi.fn()
+    const vraieLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...vraieLocation, reload: rechargements },
+    })
+    vi.mocked(api.getOidcStatus).mockRejectedValue(new ErreurPortailAuthentification())
+
     try {
-      vi.mocked(api.getOidcStatus)
-        .mockRejectedValueOnce(new Error('Panne réseau'))
-        .mockResolvedValueOnce({ enabled: true, display_name: 'Authentik' })
-
       render(<LoginPage />)
-      await vi.advanceTimersByTimeAsync(0)
-      expect(api.getOidcStatus).toHaveBeenCalledTimes(1)
 
-      await vi.advanceTimersByTimeAsync(2000)
-      await vi.advanceTimersByTimeAsync(0) // laisse la réponse du second essai résoudre et re-rendre
-      expect(api.getOidcStatus).toHaveBeenCalledTimes(2)
-      expect(screen.getByRole('link', { name: /Se connecter avec Authentik/ })).toBeInTheDocument()
+      await waitFor(() => expect(rechargements).toHaveBeenCalledTimes(1))
     } finally {
-      vi.useRealTimers()
+      Object.defineProperty(window, 'location', { configurable: true, value: vraieLocation })
     }
   })
 
-  it("après deux échecs réseau consécutifs, le bouton reste caché sans boucler indéfiniment", async () => {
-    vi.useFakeTimers()
+  it("ne recharge automatiquement qu'UNE fois, jamais en boucle", async () => {
+    // Un rechargement automatique évite à l'utilisateur d'agir. Mais si le portail
+    // renvoie vers une application qui échoue encore, boucler serait bien pire que
+    // la panne d'origine : la seconde fois, on explique et on laisse la main.
+    const rechargements = vi.fn()
+    const vraieLocation = window.location
+    // Restauré en `finally` : sans ça, un `window.location` figé fuiterait sur les
+    // tests suivants, qui lisent `window.location.search` (le cas `?oidc_error=`).
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...vraieLocation, reload: rechargements },
+    })
+    sessionStorage.setItem('patrimoine:rechargement-portail', '1')
+    vi.mocked(api.getOidcStatus).mockRejectedValue(new ErreurPortailAuthentification())
+
     try {
-      vi.mocked(api.getOidcStatus).mockRejectedValue(new Error('Panne réseau'))
-
       render(<LoginPage />)
-      await vi.advanceTimersByTimeAsync(0)
-      expect(api.getOidcStatus).toHaveBeenCalledTimes(1)
 
-      await vi.advanceTimersByTimeAsync(2000)
-      expect(api.getOidcStatus).toHaveBeenCalledTimes(2)
-
-      await vi.advanceTimersByTimeAsync(10000)
-      expect(api.getOidcStatus).toHaveBeenCalledTimes(2) // jamais de troisième tentative
-      expect(screen.queryByRole('link', { name: /SSO|Authentik/ })).not.toBeInTheDocument()
+      expect(await screen.findByText(/portail d.authentification a expiré/)).toBeInTheDocument()
+      expect(rechargements).not.toHaveBeenCalled()
+      // Le bouton propose bien la seule manœuvre qui sorte de l'impasse.
+      expect(screen.getByRole('button', { name: 'Se reconnecter' })).toBeInTheDocument()
     } finally {
-      vi.useRealTimers()
+      Object.defineProperty(window, 'location', { configurable: true, value: vraieLocation })
     }
   })
 

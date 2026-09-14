@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { useCallback, useEffect, useState } from 'react'
+import { api, ErreurPortailAuthentification } from '../api/client'
+import {
+  oublierTentativeRechargement,
+  peutRechargerAutomatiquement,
+  reinitialiserApplication,
+} from '../auth/reinitialisationApplication'
 import { useAuth } from '../hooks/useAuth'
-import { PrimaryButton } from '../components/Controls'
+import { PrimaryButton, SecondaryButton } from '../components/Controls'
 import { Field, Input } from '../components/Field'
 import { GlassPanel } from '../components/GlassPanel'
 
@@ -21,8 +26,55 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(() => erreurOidcDepuisUrl())
-  const [oidcEnabled, setOidcEnabled] = useState(false)
+  // Trois états, jamais deux (retour utilisateur du 14/09/2026) : « le SSO n'est pas
+  // configuré » et « je n'ai pas réussi à le demander » ne sont PAS la même chose, et
+  // les confondre est exactement ce qui a fait perdre l'accès à l'application.
+  //
+  // Historique : l'échec était silencieux par choix (backlog 2.K.5), au motif qu'un
+  // bouton absent sur un déploiement sans SSO n'est pas une erreur. Vrai — mais
+  // seulement quand le serveur a RÉPONDU. Quand l'appel échoue, on ne sait rien, et
+  // afficher un écran de connexion amputé revient à mentir : sur un téléphone, avec
+  // l'application servie depuis le cache du service worker, l'utilisateur se
+  // retrouvait devant un écran d'apparence normale, sans son seul moyen de
+  // connexion, sans rien qui l'explique — et sans autre issue que de vider le cache
+  // dans les réglages du système.
+  const [statutOidc, setStatutOidc] = useState<'inconnu' | 'absent' | 'disponible' | 'indisponible'>('inconnu')
   const [oidcDisplayName, setOidcDisplayName] = useState('SSO')
+  const [portailExpire, setPortailExpire] = useState(false)
+
+  const chargerStatutOidc = useCallback(async () => {
+    setStatutOidc('inconnu')
+    setPortailExpire(false)
+    try {
+      const s = await api.getOidcStatus()
+      oublierTentativeRechargement()
+      setOidcDisplayName(s.display_name)
+      setStatutOidc(s.enabled ? 'disponible' : 'absent')
+    } catch (err) {
+      // Un portail d'authentification s'est interposé (sa propre page de connexion
+      // renvoyée à la place du JSON). Pour lui rendre la main, il faut une navigation
+      // qui parte VRAIMENT au réseau — et un simple `location.reload()` n'en est pas
+      // une ici : le service worker sert toute navigation depuis son précache
+      // (`NavigationRoute(createHandlerBoundToURL("index.html"))`, vérifié dans le
+      // `sw.js` généré), sans jamais contacter le serveur. C'est précisément ce qui
+      // enfermait l'utilisateur : recharger réaffichait indéfiniment la même coquille
+      // en cache, et seul un vidage manuel du cache depuis les réglages du téléphone
+      // en sortait.
+      //
+      // `reinitialiserApplication` désinstalle donc le service worker avant de
+      // recharger : la navigation suivante atteint le réseau, le portail la voit
+      // passer et redirige. Tenté UNE fois automatiquement — l'utilisateur n'a alors
+      // rien à faire —, puis on explique et on lui laisse la main.
+      if (err instanceof ErreurPortailAuthentification) {
+        setPortailExpire(true)
+        if (peutRechargerAutomatiquement()) {
+          void reinitialiserApplication()
+          return
+        }
+      }
+      setStatutOidc('indisponible')
+    }
+  }, [])
 
   useEffect(() => {
     if (erreurOidcDepuisUrl()) {
@@ -31,36 +83,8 @@ export default function LoginPage() {
       const reste = params.toString()
       window.history.replaceState(null, '', window.location.pathname + (reste ? `?${reste}` : ''))
     }
-    // Échec silencieux volontaire (backlog 2.K.5) : ce n'est pas une carte de
-    // données qui disparaît, juste une fonctionnalité optionnelle absente sur les
-    // déploiements où le SSO n'est pas configuré (ou désactivé) — le bouton reste
-    // alors caché, sans bandeau d'erreur.
-    //
-    // Une seule replanification (retour utilisateur du 10/09/2026 : le bouton SSO
-    // manquait après une longue inactivité, jusqu'à un Ctrl+F5) : un raté purement
-    // réseau (l'onglet vient de se réveiller, la connexion n'est pas encore stable)
-    // ne doit pas condamner le bouton pour tout le reste de la session au premier
-    // essai — l'échec reste silencieux, seule une tentative UNIQUE est rejouée,
-    // jamais une boucle qui martèlerait le serveur si le SSO est authentiquement
-    // absent.
-    let annule = false
-    function chargerStatutOidc(dernierEssai: boolean) {
-      api
-        .getOidcStatus()
-        .then((s) => {
-          if (annule) return
-          setOidcEnabled(s.enabled)
-          setOidcDisplayName(s.display_name)
-        })
-        .catch(() => {
-          if (!annule && !dernierEssai) setTimeout(() => chargerStatutOidc(true), 2000)
-        })
-    }
-    chargerStatutOidc(false)
-    return () => {
-      annule = true
-    }
-  }, [])
+    void chargerStatutOidc()
+  }, [chargerStatutOidc])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -124,7 +148,7 @@ export default function LoginPage() {
           </PrimaryButton>
         </form>
 
-        {oidcEnabled && (
+        {statutOidc === 'disponible' && (
           <>
             <div className="my-4 flex items-center gap-3 text-xs text-ink4">
               <span className="h-px flex-1 bg-hairline" />
@@ -138,6 +162,31 @@ export default function LoginPage() {
               Se connecter avec {oidcDisplayName}
             </a>
           </>
+        )}
+
+        {/* Le serveur n'a pas répondu : on ne sait pas si le SSO existe. On le DIT,
+            avec les deux issues possibles — au lieu d'afficher un écran amputé qui
+            laisse croire que la connexion par SSO n'existe pas sur ce déploiement. */}
+        {statutOidc === 'indisponible' && (
+          <div className="mt-4 rounded-control border border-hairline bg-chip p-3 text-[13px] text-ink2">
+            <p>
+              {portailExpire
+                ? "La session avec le portail d’authentification a expiré : l’application est affichée depuis le cache, mais elle ne parle plus au serveur. « Se reconnecter » la recharge depuis le réseau pour t’y reconnecter."
+                : "Impossible de joindre le serveur : si ce foyer utilise une connexion SSO, son bouton ne peut pas être affiché pour l’instant."}
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {/* Deux actions, pas trois : un simple « Recharger la page » serait
+                  trompeur — le service worker resservirait la même coquille depuis
+                  son cache sans jamais contacter le serveur. */}
+              <SecondaryButton onClick={() => void chargerStatutOidc()}>Réessayer</SecondaryButton>
+              {/* La sortie de secours, enfin dans l'application : c'est exactement ce
+                  que l'utilisateur devait aller faire à la main dans les réglages de
+                  son téléphone (retour du 14/09/2026). */}
+              <SecondaryButton onClick={() => void reinitialiserApplication()}>
+                {portailExpire ? 'Se reconnecter' : "Vider le cache de l'application"}
+              </SecondaryButton>
+            </div>
+          </div>
         )}
 
         {/* Les deux onglets « Se connecter / Créer un compte » deviennent un simple

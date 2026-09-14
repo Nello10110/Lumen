@@ -143,9 +143,50 @@ async function fetchApi(path: string, options?: RequestInit): Promise<Response> 
   return res
 }
 
+/** Une réponse HTML là où l'API doit renvoyer du JSON : ce n'est pas l'application
+ * qui répond, c'est quelque chose qui s'est interposé devant elle.
+ *
+ * Le cas réel (retour utilisateur du 14/09/2026, reproduit) : l'application est
+ * publiée derrière un portail d'authentification (Authentik en « proxy provider »).
+ * Quand la session de CE PORTAIL expire — ce qui arrive typiquement sur un
+ * téléphone après plusieurs jours —, il intercepte les appels `/api/...` et répond
+ * sa propre page de connexion, en HTML, avec un code 200. Du point de vue du code
+ * appelant, `res.ok` vaut `true` : rien ne signale l'anomalie, et c'est `res.json()`
+ * qui explosait sur `<!doctype html>` avec une `SyntaxError` illisible.
+ *
+ * L'application, elle, continuait de s'afficher : le service worker sert sa coquille
+ * depuis le cache, indépendamment du réseau. L'utilisateur voyait donc un écran de
+ * connexion normal — mais SANS le bouton SSO (dont la vérification échouait en
+ * silence) et sans pouvoir se connecter autrement. D'où le « il faut vider le
+ * cache » : cela désinstalle le service worker, la navigation suivante part vraiment
+ * au réseau, et le portail peut enfin rejouer sa redirection.
+ *
+ * Cette erreur typée permet aux écrans de reconnaître ce cas précis et de proposer
+ * la seule action qui le résout : une navigation COMPLÈTE, que le portail peut
+ * intercepter et rediriger — un `fetch` ne le peut pas. */
+export class ErreurPortailAuthentification extends Error {
+  constructor() {
+    super(
+      "La session avec le portail d'authentification a expiré. " +
+        'Recharge la page pour t’y reconnecter.',
+    )
+    this.name = 'ErreurPortailAuthentification'
+  }
+}
+
+/** Vrai quand la réponse n'est pas du JSON alors que l'API n'en renvoie jamais
+ * d'autre. Contrôle du `Content-Type` plutôt que tentative de parsing : on veut
+ * distinguer AVANT de lire le corps, pour renvoyer une erreur explicite au lieu
+ * d'une `SyntaxError` sur les premiers octets d'une page HTML. */
+function reponseNonJson(res: Response): boolean {
+  const type = res.headers.get('content-type') ?? ''
+  return !type.includes('json')
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetchApi(path, options)
   if (res.status === 204) return undefined as T
+  if (reponseNonJson(res)) throw new ErreurPortailAuthentification()
   return res.json() as Promise<T>
 }
 

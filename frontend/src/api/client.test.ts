@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken, setUnauthorizedHandler } from '../auth/tokenStorage'
-import { api } from './client'
+import { api, ErreurPortailAuthentification } from './client'
 
 // `api.*` passe systématiquement par `request()` : on teste directement via une
 // méthode existante (`listHoldings`) plutôt que de dupliquer `request` en dur ici.
@@ -9,6 +9,12 @@ function mockFetchOnce(reponse: Partial<Response> & { ok: boolean; status: numbe
   const fetchMock = vi.fn().mockResolvedValue({
     statusText: '',
     json: async () => ({}),
+    // Une vraie `Response` porte toujours des en-têtes, et `request()` lit désormais
+    // son `Content-Type` pour repérer une réponse qui ne vient PAS de l'API (page de
+    // connexion HTML d'un portail d'authentification interposé, backlog du
+    // 14/09/2026). Le double doit donc en fournir, sans quoi il ne représente plus
+    // ce que le code rencontre réellement.
+    headers: new Headers({ 'content-type': 'application/json' }),
     ...reponse,
   } as Response)
   vi.stubGlobal('fetch', fetchMock)
@@ -162,5 +168,41 @@ describe('api client — downloadDeclarationPatrimoine (backlog 2.Q.2)', () => {
     mockFetchOnce({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({ detail: 'Détenteur introuvable' }) })
 
     await expect(api.downloadDeclarationPatrimoine({ detenteur_id: 999 })).rejects.toThrow('Détenteur introuvable')
+  })
+})
+
+describe("api client — portail d'authentification interposé (retour utilisateur du 14/09/2026)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('reconnaît une page HTML servie à la place du JSON, au lieu de laisser exploser res.json()', async () => {
+    // Le cas réel, reproduit avant correction : Authentik en « proxy provider » dont
+    // la session a expiré répond SA page de connexion, en HTML, avec un code 200.
+    // `res.ok` valait donc `true`, rien ne signalait l'anomalie, et `res.json()`
+    // levait une `SyntaxError` sur « <!doctype » — illisible, et avalée en silence
+    // par les appelants, qui masquaient alors le bouton SSO.
+    mockFetchOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }),
+      json: async () => {
+        throw new SyntaxError("Unexpected token '<'")
+      },
+    })
+
+    await expect(api.listHoldings()).rejects.toThrow(ErreurPortailAuthentification)
+  })
+
+  it('laisse passer une réponse JSON normale', async () => {
+    mockFetchOnce({ ok: true, status: 200, json: async () => [{ id: 1 }] })
+
+    await expect(api.listHoldings()).resolves.toEqual([{ id: 1 }])
+  })
+
+  it('ne se déclenche pas sur un 204 sans corps', async () => {
+    mockFetchOnce({ ok: true, status: 204, headers: new Headers() })
+
+    await expect(api.logout()).resolves.toBeUndefined()
   })
 })
