@@ -63,7 +63,15 @@ def cle_historique_portefeuille(user_id: int, symboles_filtres: set[str] | None 
 
     `is None`, pas une vérification de vérité : un ensemble VIDE (filtre actif,
     aucun ticker ne correspond — ex. un compte sans position financière) doit garder
-    sa propre clé distincte, jamais retomber sur celle du portefeuille entier."""
+    sa propre clé distincte, jamais retomber sur celle du portefeuille entier.
+
+    **Pourquoi ce cache survit au Lot 13** (§ AB.6), alors que ceux de l'historique
+    d'une ligne et de l'indice de référence ont été supprimés : ceux-là évitaient un
+    TÉLÉCHARGEMENT, que `cours_historique` rend désormais inutile — ils ne faisaient
+    plus que dupliquer la donnée. Celui-ci évite un CALCUL, qui lui reste réel :
+    332 ms pour le portefeuille entier, 68 ms pour une combinaison de filtres, contre
+    1 ms en lecture (mesuré sur le portefeuille réel après le Lot 13). Un facteur 300
+    sur l'écran d'accueil justifie de le garder ; la symétrie, non."""
     if symboles_filtres is None:
         return f"historique_portefeuille:{user_id}"
     return f"historique_portefeuille:{user_id}:{','.join(sorted(symboles_filtres))}"

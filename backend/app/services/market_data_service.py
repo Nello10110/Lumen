@@ -83,6 +83,31 @@ DELAI_ENTRE_APPELS_SECONDES = 0.0 if os.environ.get("PATRIMOINE_TESTING") else 0
 DUREE_CACHE_SUCCES_JOURS = 90
 DUREE_CACHE_ECHEC_JOURS = 1
 
+# Préfixes des symboles que l'APPLICATION fabrique elle-même pour représenter un
+# actif qui n'a pas d'identifiant de marché (backlog § AB.4). Ce ne sont pas des
+# tickers : les chercher chez Yahoo est voué à l'échec par construction, et cet
+# échec-là n'est pas conjoncturel — il ne sert à rien de le réessayer chaque jour.
+# Sur le foyer réel, l'import Bricks.co en crée à lui seul ≈ 145 (un par bien),
+# soit autant de recherches quotidiennes dont l'issue est connue d'avance.
+PREFIXES_SYMBOLES_INTERNES = ("BRICKS-",)
+
+
+def est_symbole_non_cotable(identifiant: str, asset_class: str | None) -> bool:
+    """Vrai quand ce symbole ne peut PAS, par nature, correspondre à un titre coté.
+
+    Deux familles, toutes deux certaines — jamais une heuristique sur la forme de la
+    chaîne, qui écarterait un jour un vrai ticker :
+      • les symboles fabriqués par l'application (cf. `PREFIXES_SYMBOLES_INTERNES`) ;
+      • les classes d'actifs valorisées à la main (immobilier, véhicule, livret,
+        assurance-vie...). C'est la même frontière que celle déjà tracée par
+        `analysis_service.holdings_financiers`, qui les exclut du portefeuille
+        financier : un bien ou un livret n'a pas de cotation, quel que soit le texte
+        libre que l'utilisateur a saisi dans son champ `ticker`.
+    """
+    if identifiant.startswith(PREFIXES_SYMBOLES_INTERNES):
+        return True
+    return asset_class in TYPES_ACTIF_PATRIMOINE_MANUEL
+
 
 # yf.Search(isin) échoue parfois à retrouver un titre pourtant coté (ADR sous un
 # ticker différent de l'ISIN émetteur, plusieurs cotations du même fonds sur des
@@ -106,6 +131,11 @@ def _resolution_encore_valide(cached: TickerResolution) -> bool:
     jamais lue, donc rien n'expirait).
 
     D'où deux durées très différentes selon l'issue."""
+    # Échec STRUCTUREL (backlog § AB.4) : ce symbole n'est pas un titre coté, et ne le
+    # deviendra pas. Rien à réessayer, jamais — c'est la seule façon de distinguer
+    # « Yahoo n'a rien trouvé aujourd'hui » de « il n'y a rien à trouver ».
+    if cached.echec_structurel:
+        return True
     age = datetime.now(UTC).replace(tzinfo=None) - cached.resolue_le
     if cached.ticker_resolu is None:
         return age < timedelta(days=DUREE_CACHE_ECHEC_JOURS)
@@ -113,7 +143,7 @@ def _resolution_encore_valide(cached: TickerResolution) -> bool:
 
 
 def _enregistrer_resolution(
-    db: Session, identifiant: str, ticker_resolu: str | None, quote_type: str | None
+    db: Session, identifiant: str, ticker_resolu: str | None, quote_type: str | None, echec_structurel: bool = False
 ) -> str | None:
     """Écrit la résolution en cache, en tolérant qu'une requête concurrente ait gagné
     la course.
@@ -129,7 +159,14 @@ def _enregistrer_resolution(
     La ligne écrite par la gagnante fait autorité : on la relit plutôt que de
     réessayer d'écrire. Les deux résolutions portent sur le même identifiant, elles
     ne peuvent différer que par un aléa de Yahoo, jamais par un désaccord de fond."""
-    db.add(TickerResolution(identifiant=identifiant, ticker_resolu=ticker_resolu, quote_type=quote_type))
+    db.add(
+        TickerResolution(
+            identifiant=identifiant,
+            ticker_resolu=ticker_resolu,
+            quote_type=quote_type,
+            echec_structurel=echec_structurel,
+        )
+    )
     try:
         db.commit()
     except IntegrityError:
@@ -148,6 +185,13 @@ def resolve_ticker(db: Session, identifiant: str, asset_class: str | None) -> st
         # (la clé primaire est `identifiant`, donc pas de doublon possible).
         db.delete(cached)
         db.flush()
+
+    # Avant toute recherche réseau (backlog § AB.4) : un symbole que l'application a
+    # fabriqué, ou un actif d'une classe jamais cotée, n'a rien à aller chercher chez
+    # Yahoo. On mémorise l'échec comme STRUCTUREL pour ne plus jamais y revenir, là où
+    # un échec ordinaire est réessayé tous les jours.
+    if est_symbole_non_cotable(identifiant, asset_class):
+        return _enregistrer_resolution(db, identifiant, None, None, echec_structurel=True)
 
     if identifiant in MANUAL_TICKER_OVERRIDES:
         ticker_resolu = MANUAL_TICKER_OVERRIDES[identifiant]

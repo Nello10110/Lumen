@@ -18,7 +18,7 @@ import pytest
 
 from app import database
 from app.database import SessionLocal
-from app.models import ScheduledJobConfig
+from app.models import Holding, ScheduledJobConfig
 from app.services import backup_service, justetf_service, market_data_refresh, market_data_service, scheduler_service
 
 from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
@@ -29,7 +29,12 @@ def _supprimer_config_job():
     try:
         db.query(ScheduledJobConfig).filter(
             ScheduledJobConfig.job_key.in_(
-                [scheduler_service.MARKET_DATA_REFRESH, scheduler_service.JUSTETF_REFRESH, scheduler_service.BACKUP_ENCRYPTED]
+                [
+                    scheduler_service.MARKET_DATA_REFRESH,
+                    scheduler_service.JUSTETF_REFRESH,
+                    scheduler_service.BACKUP_ENCRYPTED,
+                    scheduler_service.COURS_HISTORIQUES,
+                ]
             )
         ).delete(synchronize_session=False)
         db.commit()
@@ -361,3 +366,91 @@ def test_run_job_now_sauvegarde_chiffree_synchrone_via_la_branche_generique(db, 
 
     assert appels == [1]
     assert config.job_key == scheduler_service.BACKUP_ENCRYPTED
+
+
+# ---------------------------------------------------------------------------
+# Backlog § AB.5 — remplissage des séries de cours en tâche de fond : le
+# téléchargement doit être payé ici, pas au moment où l'utilisateur ouvre un écran.
+# ---------------------------------------------------------------------------
+
+
+def test_cours_historiques_present_dans_jobs():
+    assert scheduler_service.COURS_HISTORIQUES in scheduler_service.JOBS
+
+
+def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
+    """Vérifie les trois choses qui comptent : les titres détenus sont bien couverts,
+    le rafraîchissement est FORCÉ (le job ne doit pas être bloqué par le délai de
+    fraîcheur, sinon il ne sert à rien), et un actif non cotable n'y entre pas."""
+    from app.services import cours_service, market_data_service
+
+    appels: list[tuple[str, bool]] = []
+    monkeypatch.setattr(
+        market_data_service,
+        "resolve_ticker",
+        lambda db, identifiant, asset_class: None if identifiant.startswith("BRICKS-") else f"{identifiant}.RES",
+    )
+    monkeypatch.setattr(
+        cours_service, "rafraichir", lambda db, ticker, forcer=False: appels.append((ticker, forcer))
+    )
+
+    db = SessionLocal()
+    try:
+        db.query(Holding).delete()
+        db.add(Holding(user_id=1, ticker="AAA", quantite=1.0, type_actif="STOCK"))
+        db.add(Holding(user_id=1, ticker="BRICKS-ABC", quantite=1.0, type_actif="BOND"))
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        scheduler_service._run_cours_historiques()
+    finally:
+        db = SessionLocal()
+        try:
+            db.query(Holding).delete()
+            db.commit()
+        finally:
+            db.close()
+
+    assert ("AAA.RES", True) in appels
+    assert not any(t.startswith("BRICKS-") for t, _ in appels)
+
+
+def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):
+    """Même exigence que les autres jobs : une panne ne doit ni arrêter le scheduler,
+    ni rester invisible dans les Réglages."""
+    from app.services import market_data_service
+
+    def _explose(*args, **kwargs):
+        raise RuntimeError("panne simulée")
+
+    monkeypatch.setattr(market_data_service, "resolve_ticker", _explose)
+
+    db = SessionLocal()
+    try:
+        db.query(Holding).delete()
+        db.add(Holding(user_id=1, ticker="AAA", quantite=1.0, type_actif="STOCK"))
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        scheduler_service._run_cours_historiques()  # ne doit pas lever
+        db = SessionLocal()
+        try:
+            config = db.get(ScheduledJobConfig, scheduler_service.COURS_HISTORIQUES)
+            assert config is not None
+            assert config.dernier_statut == "erreur"
+        finally:
+            db.close()
+    finally:
+        db = SessionLocal()
+        try:
+            db.query(Holding).delete()
+            db.query(ScheduledJobConfig).filter(
+                ScheduledJobConfig.job_key == scheduler_service.COURS_HISTORIQUES
+            ).delete()
+            db.commit()
+        finally:
+            db.close()

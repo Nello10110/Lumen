@@ -163,7 +163,12 @@ export default function PortfolioHistoryChart({
       {loadingActif && (
         <>
           <p className="mb-2 text-[13px] text-ink3">
-            Calcul de l'historique en cours (peut prendre jusqu'à une minute, une seule fois)...
+            {/* « une seule fois » est désormais littéralement vrai (backlog § AB) :
+                l'attente ne concerne que des titres dont la série de cours n'est pas
+                encore en base. Une fois remplie — par cet écran ou par le job planifié
+                « Historique des cours » —, le calcul retombe à ~330 ms, réseau compris
+                (mesuré sur le portefeuille réel). */}
+            Calcul de l'historique en cours (seulement pour les titres jamais téléchargés)...
           </p>
           <SkeletonGraphique />
         </>

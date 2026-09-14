@@ -12,6 +12,7 @@ const JOB_LABELS: Record<string, string> = {
   justetf_refresh: 'Composition géographique/sectorielle (justETF)',
   sauvegarde_chiffree: 'Sauvegarde chiffrée',
   logos_refresh: "Logos des établissements",
+  cours_historiques: 'Historique des cours',
 }
 
 const JOB_DESCRIPTIONS: Record<string, string> = {
@@ -22,6 +23,8 @@ const JOB_DESCRIPTIONS: Record<string, string> = {
     "Copie chiffrée de la base, déposée dans backend/sauvegardes/ (rétention des 10 plus récentes). Nécessite la variable d'environnement PATRIMOINE_BACKUP_KEY sur le serveur — sans elle, ce job échoue proprement (visible ci-dessous) sans affecter les autres.",
   logos_refresh:
     "Re-télécharge les logos des établissements depuis leur site officiel (ou depuis l'adresse que vous avez saisie). Hebdomadaire par défaut : un logo bouge rarement, et rien n'est réécrit si l'image n'a pas changé. Un logo que vous avez téléversé vous-même n'est jamais touché.",
+  cours_historiques:
+    "Complète l'historique de cours hebdomadaire des titres détenus, en ne téléchargeant que les semaines écoulées depuis la dernière fois. C'est ce qui permet aux graphiques d'évolution de s'afficher immédiatement : le temps de téléchargement est dépensé ici, en arrière-plan, plutôt qu'au moment où vous ouvrez un écran.",
 }
 
 // 168h (une semaine) couvre l'intervalle par défaut de justetf_refresh

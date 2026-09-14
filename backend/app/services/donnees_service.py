@@ -16,9 +16,12 @@ machine neuve.
 a saisi, y compris le budget. Sont exclus, délibérément :
 
 - les CACHES reconstructibles (`market_data_cache`, `fund_composition*`,
-  `fund_top_holdings`, `ticker_resolution`, `historique_cache`) — ils se
-  régénèrent seuls au premier rafraîchissement, et alourdiraient le fichier sans
-  rien apporter ;
+  `fund_top_holdings`, `ticker_resolution`, `historique_cache`, et depuis le Lot 13
+  `cours_historique`/`cours_serie`) — ils se régénèrent seuls au premier
+  rafraîchissement, et alourdiraient le fichier sans rien apporter. Les séries de
+  cours sont volumineuses (≈ 54 000 points pour 55 titres) mais ce sont des données
+  de MARCHÉ, publiques et identiques pour tout le monde : les faire voyager dans
+  l'export du patrimoine d'un foyer n'aurait aucun sens ;
 - tout ce qui est SENSIBLE ou propre à l'instance : `users` (hachages de mots de
   passe), `auth_tokens`, `access_log_entries`, `liens_partage`/`partage_acces`
   (jetons de partage), `perimetres_invites`, `scheduled_job_config`, `parametres`

@@ -20,7 +20,7 @@ from scripts import sauvegarde as sauvegarde_module
 from .. import database
 from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
-from . import backup_service, justetf_service, logo_service, market_data_refresh, market_data_service
+from . import backup_service, cours_service, justetf_service, logo_service, market_data_refresh, market_data_service
 
 logger = logging.getLogger("patrimoine.scheduler")
 
@@ -28,6 +28,7 @@ MARKET_DATA_REFRESH = "market_data_refresh"
 JUSTETF_REFRESH = "justetf_refresh"
 BACKUP_ENCRYPTED = "sauvegarde_chiffree"
 LOGOS_REFRESH = "logos_refresh"
+COURS_HISTORIQUES = "cours_historiques"
 
 # Intervalle par défaut (heures) appliqué à la création de la config d'un job, à la
 # place du `24.0` du modèle `ScheduledJobConfig` (correct pour MARKET_DATA_REFRESH,
@@ -165,11 +166,47 @@ def _run_logos_refresh() -> None:
         db.close()
 
 
+def _run_cours_historiques() -> None:
+    """Complète les séries de cours de tous les titres détenus (backlog § AB.5).
+
+    Le remplissage est incrémental (`cours_service.rafraichir` ne redemande que les
+    semaines écoulées depuis le dernier point connu), donc ce job est court dès la
+    deuxième exécution. Son intérêt n'est pas de gagner du temps de calcul — la
+    lecture en base est déjà immédiate — mais de faire en sorte que **l'utilisateur
+    ne paie jamais le téléchargement au moment où il ouvre un écran** : c'est ici que
+    les quelques secondes de réseau sont dépensées, en arrière-plan.
+
+    Même structure défensive que les jobs ci-dessus : un titre qui échoue n'interrompt
+    pas les suivants (`cours_service.rafraichir` ne lève pas), et un échec global est
+    journalisé sans empêcher la prochaine exécution planifiée."""
+    db = SessionLocal()
+    try:
+        tickers: set[str] = set()
+        for holding in db.query(Holding).all():
+            resolu = market_data_service.resolve_ticker(db, holding.ticker, holding.type_actif)
+            if resolu:
+                tickers.add(resolu)
+        for ticker in sorted(tickers):
+            cours_service.rafraichir(db, ticker, forcer=True)
+        _record_result(db, COURS_HISTORIQUES, "ok", f"{len(tickers)} série(s) de cours à jour")
+    except Exception as exc:
+        db.rollback()
+        logger.exception("échec du remplissage planifié des séries de cours")
+        db_statut = SessionLocal()
+        try:
+            _record_result(db_statut, COURS_HISTORIQUES, "erreur", str(exc))
+        finally:
+            db_statut.close()
+    finally:
+        db.close()
+
+
 JOBS: dict[str, Callable[[], None]] = {
     MARKET_DATA_REFRESH: _run_market_data_refresh,
     JUSTETF_REFRESH: _run_justetf_refresh,
     BACKUP_ENCRYPTED: _run_sauvegarde_chiffree,
     LOGOS_REFRESH: _run_logos_refresh,
+    COURS_HISTORIQUES: _run_cours_historiques,
 }
 
 _scheduler: BackgroundScheduler | None = None

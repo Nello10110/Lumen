@@ -19,10 +19,9 @@ import pandas as pd
 import pytest
 import yfinance as yf
 
-from app.models import HistoriqueCache, Holding, MarketDataCache
-from app.services import historical_performance_service, historique_cache, performance_service
+from app.models import HistoriqueCache, Holding, MarketDataCache, SerieCours
+from app.services import cours_service, historical_performance_service, historique_cache, performance_service
 from app.services.historical_performance_service import (
-    _devise_historique_yfinance,
     _value_at,
     compute_holding_price_history,
     compute_portfolio_history,
@@ -132,14 +131,18 @@ def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(
     assert len(resultat_froid["points"]) == 3
 
     # Lecture à chaud : le double lève désormais s'il est instancié -> preuve qu'aucun
-    # appel yfinance n'a eu lieu, le résultat vient bien du cache.
+    # appel yfinance n'a eu lieu. La série vient de `cours_historique` (backlog § AB),
+    # et non plus d'un blob JSON de résultat : le recalcul local de la volatilité et du
+    # drawdown, lui, a bien lieu — il coûte quelques millisecondes.
     monkeypatch.setattr(yf, "Ticker", _FauxTickerQuiEchoue)
     resultat_chaud = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
 
     assert resultat_chaud == resultat_froid
 
 
-def test_holding_price_history_expire_au_dela_de_24h(db, monkeypatch):
+def test_holding_price_history_recharge_la_serie_quand_elle_est_perimee(db, monkeypatch):
+    """Remplace l'ancien test d'expiration du cache JSON de résultat, supprimé avec lui
+    (§ AB.2) : c'est désormais la SÉRIE en base qui porte la fraîcheur, et elle seule."""
     db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
@@ -147,9 +150,10 @@ def test_holding_price_history_expire_au_dela_de_24h(db, monkeypatch):
 
     compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
 
-    entree = db.get(HistoriqueCache, historique_cache.cle_historique_ligne("AAA"))
-    entree.derniere_maj = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
-        hours=historique_cache.DUREE_VALIDITE_HEURES + 1
+    meta = db.get(SerieCours, "RESOLVED")
+    assert meta is not None
+    meta.derniere_maj = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        hours=cours_service.DUREE_FRAICHEUR_HEURES + 1
     )
     db.commit()
 
@@ -164,7 +168,7 @@ def test_holding_price_history_expire_au_dela_de_24h(db, monkeypatch):
 
     resultat = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
     assert resultat is not None
-    assert appels["n"] == 1  # cache périmé : un nouvel appel yfinance a bien eu lieu
+    assert appels["n"] == 1  # série périmée : un complément a bien été demandé
 
 
 def test_portfolio_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(db, monkeypatch):
@@ -194,12 +198,12 @@ class _FauxTickerAvecDeviseUSD(_FauxTickerAvecHistorique):
         self.info = {"currency": "USD"}
 
 
-def _faux_taux_change_fixe(devise, start):
-    # Premier point volontairement bien avant la série OHLC simulée (2024-01-01) :
-    # `_history_to_series` convertit chaque date OHLC via `.astimezone(timezone.utc)`,
-    # qui interprète une date naïve comme heure LOCALE avant de la convertir — sur
-    # une machine en avance sur UTC, un taux fixé pile au 1er janvier arriverait
-    # après la conversion du premier point OHLC et le ferait ignorer (`rate=None`).
+def _faux_taux_change_fixe(db, devise):
+    """Remplace `cours_service._serie_change` (backlog § AB : la conversion de change
+    a quitté ce module avec le reste du réseau). Premier point volontairement bien
+    avant la série OHLC simulée (2024-01-01) : les dates OHLC sont converties en UTC,
+    et sur une machine en avance sur UTC un taux fixé pile au 1er janvier arriverait
+    après le premier point et le ferait ignorer."""
     return [(datetime(2023, 12, 1), 0.5), (datetime(2024, 1, 15), 0.5)]
 
 
@@ -215,20 +219,9 @@ def _faux_taux_change_fixe(devise, start):
 # ---------------------------------------------------------------------------
 
 
-def test_devise_historique_yfinance_lit_info_currency_pas_market_data_cache():
-    class _Faux:
-        info = {"currency": "USD"}
-
-    assert _devise_historique_yfinance(_Faux()) == "USD"
-
-
-def test_devise_historique_yfinance_renvoie_none_si_info_leve():
-    class _FauxDefaillant:
-        @property
-        def info(self):
-            raise Exception("panne réseau simulée")
-
-    assert _devise_historique_yfinance(_FauxDefaillant()) is None
+# Les deux tests unitaires de lecture de la devise vivent désormais dans
+# `test_cours_service.py`, avec la fonction qu'ils verrouillent (`_devise_yfinance`) —
+# déplacés, pas supprimés : la régression qu'ils protègent est la même.
 
 
 def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(db, monkeypatch):
@@ -241,7 +234,7 @@ def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(d
 
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecDeviseUSD)
-    monkeypatch.setattr(historical_performance_service, "_fetch_fx_history", _faux_taux_change_fixe)
+    monkeypatch.setattr(cours_service, "_serie_change", _faux_taux_change_fixe)
 
     resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
 
@@ -265,7 +258,7 @@ def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_e
 
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecDeviseUSD)
-    monkeypatch.setattr(historical_performance_service, "_fetch_fx_history", _faux_taux_change_fixe)
+    monkeypatch.setattr(cours_service, "_serie_change", _faux_taux_change_fixe)
 
     resultat = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
 

@@ -13,13 +13,12 @@ hebdomadaire qui ne bouge qu'une fois par jour au mieux.
 import bisect
 from datetime import UTC, datetime, timedelta
 
-import pandas as pd
-import yfinance as yf
 from sqlalchemy.orm import Session
 
 from ..models import Holding, Transaction
 from . import (
     analysis_service,
+    cours_service,
     historique_cache,
     market_data_service,
     metriques_performance_service,
@@ -60,51 +59,13 @@ def _value_at(history: TimeSeries, date: datetime) -> float | None:
     return history[idx - 1][1]
 
 
-def _history_to_series(hist: pd.DataFrame, fx_series: TimeSeries | None) -> TimeSeries:
-    series: TimeSeries = []
-    for idx, row in hist.iterrows():
-        close = row.get("Close")
-        if close is None or pd.isna(close):
-            continue
-        dt = idx.to_pydatetime().astimezone(UTC).replace(tzinfo=None)
-        prix = float(close)
-        if fx_series is not None:
-            rate = _value_at(fx_series, dt)
-            if rate is None:
-                continue
-            prix *= rate
-        series.append((dt, prix))
-    return series
-
-
-def _devise_historique_yfinance(ticker_yf: yf.Ticker) -> str | None:
-    """Devise dans laquelle `ticker_yf.history()` renvoie ses prix. À ne JAMAIS
-    confondre avec `MarketDataCache.devise` : depuis le passage du cours des ETF à
-    justETF (2.4), ce champ vaut systématiquement "EUR" pour un fonds (devise de
-    la cotation justETF), quelle que soit la devise réelle de cotation Yahoo
-    Finance de l'historique sous-jacent (ex. `IWDA.L` cote en USD, `XSDR.L` en
-    GBp) — l'utiliser ici ferait sauter à tort la conversion de change et
-    fausserait tout l'historique de ce titre. Toujours redemandée directement à
-    yfinance plutôt que déduite d'un champ désormais réutilisé à d'autres fins."""
-    try:
-        return ticker_yf.info.get("currency")
-    except Exception:
-        return None
-
-
-def _fetch_fx_history(devise: str, start: datetime) -> TimeSeries:
-    pence = devise in ("GBp", "GBX")
-    code = "GBP" if pence else devise.upper()
-    try:
-        hist = yf.Ticker(f"{code}EUR=X").history(start=start.date().isoformat(), interval="1wk")
-    except Exception:
-        return []
-    if hist is None or hist.empty:
-        return []
-    series = _history_to_series(hist, None)
-    if pence:
-        series = [(d, v / 100) for d, v in series]
-    return series
+# `_history_to_series`, `_devise_historique_yfinance` et `_fetch_fx_history` ont
+# quitté ce module (backlog § AB) : la lecture des cours et la conversion de
+# change appartiennent désormais à `cours_service`, qui les adosse à la base au
+# lieu de refaire un aller-retour réseau à chaque calcul. Leur logique — troncature
+# de date en UTC, devise lue sur `info` et jamais sur `MarketDataCache.devise`,
+# pence divisés par cent — y est reprise à l'identique et verrouillée par
+# `tests/test_cours_service.py`.
 
 
 def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int, symboles_filtres: set[str] | None = None) -> TimeSeries:
@@ -230,31 +191,28 @@ def _compute_portfolio_history(
     grid = _weekly_grid(start, now)
 
     holdings_by_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id).all()}
-    fx_cache: dict[str, TimeSeries] = {}
     price_series: dict[str, TimeSeries] = {}
 
+    # Les séries de cours viennent de la BASE (`cours_service`, backlog § AB), plus du
+    # réseau : téléchargées une seule fois par ticker dans leur vie, puis complétées
+    # de façon incrémentale, et partagées avec la fiche d'une position et la
+    # comparaison à un indice — qui allaient chacune chercher la même donnée de leur
+    # côté. C'est ce qui fait passer ce calcul de 23,4 s à sa part locale (0,4 s
+    # mesurées, § AB.0) une fois les séries en place.
+    #
+    # Les dates y sont tronquées au jour, là où le téléchargement direct gardait
+    # l'heure de clôture : sans effet sur `_value_at`, qui cherche la dernière valeur
+    # connue à date <= point de grille — une série hebdomadaire n'a jamais deux points
+    # le même jour, et un point tronqué devient disponible au plus tôt le jour même.
     for symbol, state in positions.items():
         if not state.shares_history:
             continue
         ticker_resolu = market_data_service.resolve_ticker(db, symbol, state.asset_class)
         if ticker_resolu is None:
             continue
-        try:
-            ticker_yf = yf.Ticker(ticker_resolu)
-            hist = ticker_yf.history(start=start.date().isoformat(), interval="1wk")
-        except Exception:
-            continue
-        if hist is None or hist.empty:
-            continue
-        devise = _devise_historique_yfinance(ticker_yf)
-
-        fx_series = None
-        if devise and devise != "EUR":
-            if devise not in fx_cache:
-                fx_cache[devise] = _fetch_fx_history(devise, start)
-            fx_series = fx_cache[devise]
-
-        price_series[symbol] = _history_to_series(hist, fx_series)
+        serie = cours_service.serie_en_euros(db, ticker_resolu)
+        if serie:
+            price_series[symbol] = serie
 
     revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id, symboles_filtres)
 
@@ -308,21 +266,15 @@ BENCHMARKS: dict[str, dict[str, str]] = {
 }
 
 
-def _fetch_benchmark_series(ticker: str) -> TimeSeries:
-    """Historique complet (`period="max"`) d'un indice de référence, mis en cache
-    globalement (`historique_cache.cle_historique_benchmark`) — jamais recalculé par
-    utilisateur ni par période demandée, cf. docstring de cette fonction de clé."""
-    try:
-        ticker_yf = yf.Ticker(ticker)
-        hist = ticker_yf.history(period="max", interval="1wk")
-    except Exception:
-        return []
-    if hist is None or hist.empty:
-        return []
-    devise = _devise_historique_yfinance(ticker_yf)
-    first_date = hist.index[0].to_pydatetime().astimezone(UTC).replace(tzinfo=None)
-    fx_series = _fetch_fx_history(devise, first_date) if devise and devise != "EUR" else None
-    return _history_to_series(hist, fx_series)
+def _fetch_benchmark_series(db: Session, ticker: str) -> TimeSeries:
+    """Historique complet d'un indice de référence, en euros.
+
+    Passe par `cours_service` (backlog § AB) comme n'importe quelle autre série : un
+    indice est une donnée de marché publique, au même titre qu'un titre, et n'a donc
+    besoin ni de son propre téléchargement ni de son propre cache JSON — la table
+    `cours_historique` joue exactement le rôle que tenait
+    `historique_cache.cle_historique_benchmark`, en le partageant avec tout le reste."""
+    return cours_service.serie_en_euros(db, ticker)
 
 
 def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict]) -> dict | None:
@@ -352,15 +304,14 @@ def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict
     if benchmark is None or len(points) < 2:
         return None
 
-    cle = historique_cache.cle_historique_benchmark(benchmark_key)
-    en_cache = historique_cache.lire(db, cle)
-    if en_cache is not None:
-        serie = [(datetime.fromisoformat(d), p) for d, p in en_cache]
-    else:
-        serie = _fetch_benchmark_series(benchmark["ticker"])
-        if not serie:
-            return None
-        historique_cache.ecrire(db, cle, [[d.isoformat(), p] for d, p in serie])
+    # Plus de cache JSON dédié (`cle_historique_benchmark`) : la série vit désormais
+    # dans `cours_historique`, qui la partage avec tous les autres usages et la
+    # complète de façon incrémentale (backlog § AB.2) — un cache de plus par-dessus
+    # ne ferait que dupliquer la même donnée sous une deuxième forme, avec sa propre
+    # expiration à faire coïncider.
+    serie = _fetch_benchmark_series(db, benchmark["ticker"])
+    if not serie:
+        return None
 
     dates = [datetime.fromisoformat(p["date"]) for p in points]
     prix_base = _value_at(serie, dates[0])
@@ -379,31 +330,24 @@ def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict
 
 def compute_holding_price_history(db: Session, identifiant: str, user_id: int) -> dict | None:
     """Performance historique du titre/fonds lui-même (indépendante de la position de
-    l'utilisateur) : série de prix + volatilité annualisée + max drawdown, calculées
-    sur tout l'historique disponible via `yfinance`. Retourne `None` si le titre n'est
-    pas résolu ou si aucune donnée n'est disponible (ex. private equity, obligation).
+    l'utilisateur) : série de prix + volatilité annualisée + max drawdown. Retourne
+    `None` si le titre n'est pas résolu ou si aucune donnée n'est disponible (ex.
+    private equity, obligation).
 
     `user_id` (Milestone 2a) : seulement pour vérifier que CE ticker fait bien partie
-    du portefeuille de l'appelant (`_compute_holding_price_history`) — le résultat
-    lui-même (prix, volatilité) reste une donnée de marché publique, partageable, mise
-    en cache globalement comme avant (clé `cle_historique_ligne(identifiant)`, sans
-    `user_id` : contrairement à l'historique du PORTEFEUILLE, l'historique d'un TICKER
-    est objectivement le même pour tout le monde). Sans ça, chaque ouverture de la
-    fiche détaillée retélécharge tout l'historique (`period="max"`), plusieurs
-    secondes d'attente pour une série hebdomadaire. Un résultat `None` n'est
-    volontairement pas mis en cache (ticker non résolu ou absence de donnée peuvent
-    être transitoires ou corrigés par un rafraîchissement entre-temps ; ce n'est de
-    toute façon jamais le chemin coûteux qu'on cherche à éviter, aucun appel
-    `yfinance` ne s'est produit ou son résultat était vide)."""
-    cle = historique_cache.cle_historique_ligne(identifiant)
-    en_cache = historique_cache.lire(db, cle)
-    if en_cache is not None:
-        return en_cache
+    du portefeuille de l'appelant — le résultat lui-même reste une donnée de marché
+    publique.
 
-    resultat = _compute_holding_price_history(db, identifiant, user_id)
-    if resultat is not None:
-        historique_cache.ecrire(db, cle, resultat)
-    return resultat
+    **Plus de cache JSON dédié** (`cle_historique_ligne`, backlog § AB.2). Il existait
+    parce que chaque ouverture de la fiche retéléchargeait tout l'historique
+    (`period="max"`, plusieurs secondes) ; la série vit désormais dans
+    `cours_historique`, partagée avec l'historique du portefeuille et la comparaison à
+    un indice. Ce qui reste ici — une volatilité et un drawdown sur une série déjà en
+    mémoire — se recalcule en quelques millisecondes. Garder un second cache par-dessus
+    n'aurait fait que dupliquer la même donnée sous une deuxième forme, avec sa propre
+    expiration à faire coïncider : c'est précisément la désynchronisation que ce lot
+    supprime."""
+    return _compute_holding_price_history(db, identifiant, user_id)
 
 
 def _compute_holding_price_history(db: Session, identifiant: str, user_id: int) -> dict | None:
@@ -415,21 +359,11 @@ def _compute_holding_price_history(db: Session, identifiant: str, user_id: int) 
     if ticker_resolu is None:
         return None
 
-    try:
-        ticker_yf = yf.Ticker(ticker_resolu)
-        hist = ticker_yf.history(period="max", interval="1wk")
-    except Exception:
-        return None
-    if hist is None or hist.empty:
-        return None
-
-    devise = _devise_historique_yfinance(ticker_yf)
-    first_date = hist.index[0].to_pydatetime().astimezone(UTC).replace(tzinfo=None)
-    fx_series = None
-    if devise and devise != "EUR":
-        fx_series = _fetch_fx_history(devise, first_date)
-
-    series = _history_to_series(hist, fx_series)
+    # Même série que celle qu'utilise l'historique du portefeuille (backlog § AB.2) :
+    # les deux écrans affichaient la même donnée de marché en la téléchargeant chacun
+    # de son côté. Volatilité et drawdown restent calculés ici, sur place — ce sont
+    # quelques millisecondes sur une série déjà en mémoire.
+    series = cours_service.serie_en_euros(db, ticker_resolu)
     if len(series) < 2:
         return None
 

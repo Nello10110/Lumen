@@ -3459,6 +3459,139 @@ Les deux vérifiés en réintroduisant le défaut correspondant.
 première, pas un pays), et l'autre ne correspond à aucun indice reconnu.
 
 ---
+
+### AB. Modèle de données des séries de cours (Lot 13, 14/09/2026)
+
+Question directe de l'utilisateur, après avoir constaté que « les calculs au niveau des graphiques
+sont de plus en plus longs et coûteux » : **le type de base de données est-il adapté ?** La réponse
+courte est **non, ce n'est pas la base** — et la mesure ci-dessous le montre sans ambiguïté. Mais la
+question était la bonne : il y a bien un problème de **modèle de données**, ailleurs.
+
+#### AB.0 — Mesure préalable : où part réellement le temps
+
+Instrumentation de `_compute_portfolio_history` sur une **copie** de la base réelle (4 059
+transactions, 51 positions, 3,3 Mo), en séparant réseau et calcul local :
+
+| Étape | Temps |
+|---|---|
+| Rejeu du grand livre (4 059 transactions, SQLite) | **0,09 s** |
+| Calcul local de l'historique (146 points hebdomadaires × 55 positions) | **0,4 s** — 2 % |
+| **Réseau yfinance** | **22,9 s** — **98 %** |
+| → `.info`, appelé une fois par titre **uniquement pour lire sa devise de cotation** | **18,0 s** (48 appels) |
+| → `.history()`, les cours eux-mêmes | 3,9 s (56 appels) |
+| → `Search()`, résolution de tickers | 1,0 s (5 appels) |
+| Lecture à chaud (cache d'agrégat) | 1 ms |
+
+**Conclusion sur la base de données.** SQLite exécute sa part en 0,09 s sur l'intégralité du grand
+livre. Les index nécessaires sont déjà posés (chaque clé étrangère a le sien, plus le composite
+`ix_transactions_user_id_date`). Une base de 3,3 Mo et 4 059 lignes n'est pas un problème de moteur :
+c'est un volume que SQLite traite en mémoire. Migrer vers PostgreSQL, DuckDB ou une base
+time-series n'améliorerait, au mieux, que les 2 % de calcul local — au prix d'un service
+supplémentaire à exploiter, sauvegarder et mettre à jour dans un homelab mono-foyer, alors que la
+sauvegarde chiffrée d'un fichier unique (§ Y) est aujourd'hui triviale. **SQLite reste le bon
+choix, et ce point est tranché** — inutile de rouvrir la question sans nouvelle mesure.
+
+**Le vrai défaut de modèle.** La donnée la plus coûteuse à acquérir (23 s) est aussi la plus stable
+qui soit : *un cours de clôture passé ne change jamais*. Or elle n'a **aucune table**. Elle n'existe
+que sous deux formes, toutes deux mauvaises :
+
+1. **en transit**, re-téléchargée intégralement à chaque calcul à froid ;
+2. **noyée dans des blobs JSON d'agrégats dérivés** (`historique_cache`), à durée de vie 24 h.
+
+D'où trois conséquences absurdes, toutes mesurées :
+
+- `historique_ligne:FR0000120644` contient **déjà** (77,9 Ko de JSON) exactement la série
+  hebdomadaire dont `_compute_portfolio_history` a besoin — mais celui-ci ne la lit pas et
+  re-télécharge la même donnée depuis Yahoo ;
+- la devise de cotation d'un ticker, **invariante**, est redemandée à chaque calcul par l'appel le
+  plus lourd de yfinance : 18 s sur 23 s, soit 77 % du temps total, pour une chaîne de trois
+  lettres qui ne change jamais ;
+- tout expire au bout de 24 h : chaque jour, le premier graphique ouvert repaye l'intégralité.
+
+Le filtrage ajouté le 13/09 (§ AB.6) n'a pas créé le problème, il l'a **rendu visible** : chaque
+combinaison de filtres est un calcul à froid de plus (mesuré : 4,2 s pour 13 titres).
+
+#### AB.R — Résultat mesuré (14/09/2026), même méthode et même copie de base
+
+| Chemin | Avant | Après |
+|---|---|---|
+| Historique du portefeuille, séries déjà en base | 23,4 s | **332 ms** — **0 appel réseau** |
+| Une combinaison de filtres (onglet Évolution) | 4,2 s | **68 ms** — 0 appel réseau |
+| Fiche d'une position | plusieurs secondes | **8 ms** — 0 appel réseau |
+| Lecture d'une série complète en base | — | **0,01 ms** |
+| Premier remplissage d'un ticker jamais vu | (à chaque calcul) | 29,9 s, **une seule fois dans sa vie** |
+
+Soit **~70×** sur le calcul complet et **~62×** sur un filtre, *et* la disparition
+complète du réseau du chemin courant. Contrepartie : **+2,3 Mo** de base (3,3 → 5,6 Mo)
+pour 53 807 points de cours, soit ≈ 19 ans d'historique hebdomadaire sur 55 titres.
+C'est la confirmation chiffrée de la conclusion du § AB.0 : il n'y avait pas de
+problème de moteur, seulement une donnée qu'on ne stockait pas.
+
+**Gain non prévu, mais réel** : une indisponibilité de Yahoo ne vide plus un graphique.
+Faute de pouvoir compléter, on sert ce que la base contient déjà — la courbe est un peu
+en retard au lieu d'être absente.
+
+#### AB.1 — `majeur` · `S` · `P0` · `traité` (14/09/2026) — Devise de cotation : la stocker au lieu de la redemander
+
+77 % du temps de calcul. `_devise_historique_yfinance` appelle `ticker_yf.info` une fois par titre et
+par calcul, uniquement pour `currency`. Cette donnée appartient au ticker, pas au calcul : elle doit
+être persistée à côté de sa résolution (`TickerResolution`) et relue. Ne jamais confondre avec
+`MarketDataCache.devise`, qui vaut « EUR » pour tout fonds coté via justETF et ferait sauter la
+conversion de change (régression déjà vécue le 19/08/2026, verrouillée par test).
+
+#### AB.2 — `majeur` · `L` · `P0` · `traité` (14/09/2026) — Table `cours_historique` : donner un modèle aux séries de prix
+
+Une vraie table `(ticker, date) -> clôture`, dans sa devise d'origine, alimentée **incrémentalement**
+(on ne redemande que les semaines manquantes depuis le dernier point connu) et **partagée par tous
+les usages** : historique du portefeuille, fiche d'une position, comparaison à un indice. C'est la
+même doctrine que celle déjà écrite dans `historique_cache.cle_historique_ligne` — « l'historique
+d'un TICKER est objectivement le même pour tout le monde » — mais appliquée au modèle relationnel
+plutôt qu'à un blob JSON par usage.
+
+#### AB.3 — `majeur` · `M` · `P0` · `traité` (14/09/2026) — Table `taux_change` : même traitement pour les devises
+
+`_fetch_fx_history` re-téléchargeait l'historique `USDEUR=X`/`GBPEUR=X` à chaque calcul à froid.
+
+**Livré sans table ni mécanisme dédiés**, contrairement à ce qui était prévu ici : `yfinance` expose
+les changes comme des tickers ordinaires (`USDEUR=X`), ils passent donc par exactement le même chemin
+que n'importe quel titre — `cours_historique`. Un taux de change EST une série de cours ; lui donner
+sa propre table aurait dupliqué le mécanisme de remplissage incrémental pour rien. Le cas des pence
+(`GBp`/`GBX`, cotation en centièmes de livre) est conservé tel quel dans `cours_service._serie_change`.
+
+#### AB.4 — `majeur` · `S` · `P1` · `traité` (14/09/2026) — Ne plus chercher ce qui ne peut pas exister
+
+L'import Bricks.co crée des symboles synthétiques (`BRICKS-<md5>`), l'immobilier et les actifs
+manuels en créent d'autres (`MAISON_TEST`, `APPARTEMENT`). Aucun ne correspondra jamais à un titre
+coté — mais `DUREE_CACHE_ECHEC_JOURS = 1` fait réessayer chaque échec de résolution tous les jours.
+Sur le foyer réel (≈ 145 positions Bricks.co), c'est ≈ 145 recherches Yahoo par jour dont l'issue est
+connue par construction. Il faut distinguer l'échec **conjoncturel** (Yahoo indisponible : réessayer)
+de l'échec **structurel** (ce symbole n'est pas un titre coté : ne jamais réessayer).
+
+#### AB.5 — `mineur` · `M` · `P2` · `traité` (14/09/2026) — Remplissage en tâche de fond
+
+Une fois AB.2/AB.3 en place, le rafraîchissement devient incrémental et court. Le planificateur
+existant (`scheduler_service`, quatre jobs déjà en place) peut compléter les séries en arrière-plan,
+pour que l'utilisateur ne paie jamais le téléchargement au moment où il ouvre un écran.
+
+#### AB.6 — `mineur` · `S` · `P2` · `traité` (14/09/2026) — Simplifications rendues possibles
+
+Trois caches d'agrégats dérivés coexistaient avec les séries. Deux ont été **supprimés** — celui de
+la fiche d'une position (`cle_historique_ligne`) et celui de l'indice de référence
+(`cle_historique_benchmark`) : ils n'évitaient qu'un TÉLÉCHARGEMENT, que `cours_historique` rend
+inutile, et ne faisaient donc plus que dupliquer la même donnée sous une seconde forme, avec sa propre
+expiration à faire coïncider.
+
+Le troisième — le cache de l'historique du portefeuille, par combinaison de filtres — est **conservé**,
+contre l'intention initiale de ce point, parce que la mesure ne lui donne pas tort : il n'évite pas un
+téléchargement mais un CALCUL, qui reste réel (332 ms pour le portefeuille entier, contre 1 ms en
+lecture). Un facteur 300 sur l'écran d'accueil justifie de le garder ; la symétrie, non.
+
+Messages d'attente : celui de l'onglet Évolution annonçait « jusqu'à une minute » à chaque changement
+de filtre — devenu faux (68 ms), il est retiré. Celui du tableau de bord disait « une seule fois » :
+c'est désormais littéralement vrai, il est reformulé pour dire de quoi il s'agit (les titres jamais
+téléchargés) plutôt que de brandir une durée.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
@@ -3530,6 +3663,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
 | **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
 | **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3, Z.4, Z.5 | — | `L` | **Livré** 03/09/2026 (6/6) |
+| **Lot 13 — Modèle des séries de cours** | AB.1, AB.2, AB.3, AB.4, AB.5, AB.6 | — | `L` | **Livré** 14/09/2026 (6/6) |
 
 **Pourquoi cet ordre.**
 

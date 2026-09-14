@@ -5,10 +5,20 @@ par `no_network_yfinance` dans `conftest.py`). Verrouille aussi la limitation de
 appels vers Yahoo Finance (LOT 7.5) : temporisation entre deux identifiants d'un
 même rafraîchissement, et délai minimal entre deux rafraîchissements manuels."""
 
+from datetime import datetime
+
 import pytest
 import yfinance as yf
 
-from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding, MarketDataCache
+from app.models import (
+    SOURCE_COMPOSITION,
+    SOURCE_INDICE,
+    SOURCE_JUSTETF,
+    FundComposition,
+    FundTopHolding,
+    MarketDataCache,
+    TickerResolution,
+)
 from app.services import market_data_refresh, market_data_service
 from app.services.market_data_service import fetch_fund_composition
 
@@ -658,3 +668,83 @@ class _FauxSearch:
 
     def __init__(self, symbol):
         self.quotes = [{"symbol": symbol, "quoteType": "ETF"}]
+
+
+class _FauxSearchVide:
+    """`yf.Search` qui ne trouve rien — l'échec ORDINAIRE, celui qu'il faut
+    continuer de réessayer."""
+
+    def __init__(self, *args, **kwargs):
+        self.quotes = []
+
+
+# ---------------------------------------------------------------------------
+# Backlog § AB.4 — un symbole qui ne peut PAS être coté ne doit jamais partir en
+# recherche chez Yahoo, et son échec ne doit pas être réessayé tous les jours.
+# Sur le foyer réel, l'import Bricks.co crée ≈ 145 symboles de ce genre : autant de
+# recherches quotidiennes dont l'issue est connue par construction.
+# ---------------------------------------------------------------------------
+
+
+def test_symbole_interne_de_lapplication_nest_jamais_cherche(db, monkeypatch):
+    def _search_interdit(*args, **kwargs):
+        raise AssertionError("aucune recherche réseau ne doit avoir lieu pour un symbole interne")
+
+    monkeypatch.setattr(market_data_service.yf, "Search", _search_interdit)
+
+    assert market_data_service.resolve_ticker(db, "BRICKS-3A4B5C6D7E", "BOND") is None
+
+    cached = db.get(TickerResolution, "BRICKS-3A4B5C6D7E")
+    assert cached.echec_structurel is True
+
+
+def test_actif_valorise_a_la_main_nest_jamais_cherche(db, monkeypatch):
+    def _search_interdit(*args, **kwargs):
+        raise AssertionError("aucune recherche réseau ne doit avoir lieu pour un actif manuel")
+
+    monkeypatch.setattr(market_data_service.yf, "Search", _search_interdit)
+
+    assert market_data_service.resolve_ticker(db, "MA_MAISON", "REAL_ESTATE") is None
+    assert market_data_service.resolve_ticker(db, "LIVRET_A", "REGULATED_SAVINGS") is None
+
+
+def test_un_echec_structurel_nest_jamais_reessaye(db, monkeypatch):
+    """La différence avec un échec ordinaire : celui-ci est réessayé chaque jour
+    (`DUREE_CACHE_ECHEC_JOURS`), celui-là jamais."""
+    monkeypatch.setattr(market_data_service.yf, "Search", lambda *a, **k: _FauxSearchVide())
+    market_data_service.resolve_ticker(db, "BRICKS-AAAA", "BOND")
+
+    cached = db.get(TickerResolution, "BRICKS-AAAA")
+    cached.resolue_le = datetime(2020, 1, 1)  # très ancien : un échec ordinaire repartirait
+    db.commit()
+
+    def _search_interdit(*args, **kwargs):
+        raise AssertionError("un échec structurel ne doit jamais être réessayé")
+
+    monkeypatch.setattr(market_data_service.yf, "Search", _search_interdit)
+    assert market_data_service.resolve_ticker(db, "BRICKS-AAAA", "BOND") is None
+
+
+def test_un_echec_ordinaire_reste_reessaye(db, monkeypatch):
+    """Non-régression : un vrai titre que Yahoo n'a pas trouvé aujourd'hui (panne,
+    titre fraîchement coté) doit continuer d'être réessayé — c'est tout l'objet de
+    `DUREE_CACHE_ECHEC_JOURS`, que ce lot ne remet pas en cause."""
+    monkeypatch.setattr(market_data_service.yf, "Search", lambda *a, **k: _FauxSearchVide())
+    market_data_service.resolve_ticker(db, "FR0000000000", "STOCK")
+
+    cached = db.get(TickerResolution, "FR0000000000")
+    assert cached.echec_structurel is False
+    cached.resolue_le = datetime(2020, 1, 1)
+    db.commit()
+
+    appels = {"n": 0}
+
+    class _SearchCompte:
+        def __init__(self, *args, **kwargs):
+            appels["n"] += 1
+            self.quotes = []
+
+    monkeypatch.setattr(market_data_service.yf, "Search", _SearchCompte)
+    market_data_service.resolve_ticker(db, "FR0000000000", "STOCK")
+
+    assert appels["n"] == 1

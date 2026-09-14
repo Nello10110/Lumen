@@ -590,6 +590,76 @@ class TickerResolution(Base):
     ticker_resolu: Mapped[str | None] = mapped_column(String, nullable=True)
     quote_type: Mapped[str | None] = mapped_column(String, nullable=True)
     resolue_le: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    # Échec STRUCTUREL (backlog § AB.4) : ce symbole ne correspondra jamais à un
+    # titre coté — symbole synthétique généré par l'application (`BRICKS-<md5>` de
+    # `bricks_import`), bien immobilier, véhicule... Sans cette distinction, tout
+    # échec est traité comme conjoncturel (Yahoo indisponible, titre fraîchement
+    # coté) et réessayé toutes les 24 h : sur le foyer réel, ≈ 145 recherches Yahoo
+    # par jour dont l'issue est connue par construction. `False` (défaut) préserve
+    # exactement le comportement d'avant pour les échecs ordinaires.
+    echec_structurel: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
+
+class SerieCours(Base):
+    """Métadonnées d'une série de cours (backlog § AB.2) : devise de cotation et
+    bornes couvertes, par TICKER YAHOO RÉSOLU (pas par identifiant/ISIN — deux ISIN
+    peuvent pointer le même titre, et la devise appartient à la cotation).
+
+    `devise` est la devise dans laquelle `yfinance` renvoie l'historique de ce
+    ticker. Elle valait 77 % du temps de calcul de l'historique du portefeuille (18 s
+    sur 23 s mesurées, cf. § AB.0) parce qu'elle était redemandée à chaque calcul via
+    `Ticker.info` — l'appel le plus lourd de la librairie — pour une chaîne de trois
+    lettres qui ne change jamais. À ne JAMAIS confondre avec `MarketDataCache.devise`,
+    qui vaut systématiquement "EUR" pour un fonds depuis le passage de son cours à
+    justETF : s'en servir ici ferait sauter la conversion de change et fausserait tout
+    l'historique d'un titre coté hors zone euro (régression du 19/08/2026).
+
+    `sans_donnees` : yfinance ne renvoie rien pour ce ticker (titre retiré de la cote,
+    non couvert). Mémorisé pour ne pas le redemander à chaque calcul, et réévalué
+    comme le reste par `derniere_maj`."""
+
+    __tablename__ = "cours_serie"
+
+    ticker: Mapped[str] = mapped_column(String, primary_key=True)
+    devise: Mapped[str | None] = mapped_column(String, nullable=True)
+    premiere_date: Mapped[str | None] = mapped_column(String, nullable=True)  # "AAAA-MM-JJ"
+    derniere_date: Mapped[str | None] = mapped_column(String, nullable=True)  # "AAAA-MM-JJ"
+    sans_donnees: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # Pas d'`onupdate=utcnow`, contrairement aux autres tables de cache : ce champ
+    # PILOTE la logique de fraîcheur, il ne l'observe pas. Avec `onupdate`, toute
+    # écriture sur la ligne — corriger une devise à la main, une migration de données
+    # — réinitialiserait silencieusement le compteur et ferait re-télécharger la
+    # série. C'est `cours_service.rafraichir` qui l'écrit, explicitement, et lui seul.
+    derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class CoursHistorique(Base):
+    """Un point de cotation hebdomadaire, dans la devise d'origine du ticker
+    (backlog § AB.2) — la donnée la plus coûteuse à acquérir de toute l'application,
+    et la plus stable qui soit : un cours de clôture passé ne change jamais.
+
+    Elle n'avait jusqu'ici AUCUNE table : elle ne vivait qu'en transit (re-téléchargée
+    à chaque calcul à froid) ou noyée dans des blobs JSON d'agrégats dérivés
+    (`historique_cache`, expirés toutes les 24 h). Trois usages la re-téléchargeaient
+    chacun de leur côté — historique du portefeuille, fiche d'une position,
+    comparaison à un indice — alors que c'est la MÊME donnée de marché, publique et
+    identique pour tous les foyers (même doctrine que
+    `historique_cache.cle_historique_ligne`, mais portée par le modèle relationnel
+    plutôt que par un blob par usage).
+
+    Les TAUX DE CHANGE vivent dans cette même table : `yfinance` les expose comme des
+    tickers ordinaires (`USDEUR=X`, `GBPEUR=X`), ils n'ont donc besoin ni d'une table
+    ni d'un mécanisme de remplissage à part (§ AB.3).
+
+    `date` en texte "AAAA-MM-JJ" plutôt qu'en `Date` : même convention que
+    `Transaction.date` et que les points renvoyés par `historical_performance_service`,
+    comparable et triable tel quel en SQL comme en Python, sans conversion."""
+
+    __tablename__ = "cours_historique"
+
+    ticker: Mapped[str] = mapped_column(String, primary_key=True)
+    date: Mapped[str] = mapped_column(String, primary_key=True)
+    cloture: Mapped[float] = mapped_column(Float)
 
 
 class FundComposition(Base):

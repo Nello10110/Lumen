@@ -262,9 +262,12 @@ export default function EvolutionFinanciereCard() {
 
       {!periodeInvalide && loading && (
         <>
-          <p className="mb-2 text-[13px] text-ink3">
-            Calcul de l'historique en cours pour ce filtre (peut prendre jusqu'à une minute la première fois, puis instantané)...
-          </p>
+          {/* Ce message ne vaut plus que pour un titre jamais téléchargé (backlog
+              § AB) : une fois sa série de cours en base, un changement de filtre se
+              recalcule en quelques dizaines de millisecondes — 68 ms mesurées sur le
+              portefeuille réel. Annoncer « jusqu'à une minute » à chaque fois serait
+              désormais faux, et ferait patienter pour rien. */}
+          <p className="mb-2 text-[13px] text-ink3">Calcul de l'historique en cours...</p>
           <SkeletonGraphique />
         </>
       )}
