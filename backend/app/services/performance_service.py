@@ -293,11 +293,23 @@ def _rendement_pour_ligne(
     if cout_total and cout_total > EPSILON and prix_actuel_effectif is not None:
         depuis_achat = (prix_actuel_effectif / cout_total - 1) * 100
 
+    # `v.a_des_donnees` (prix de marché réel connu) n'est plus une condition stricte
+    # depuis le 14/09/2026 (retour utilisateur : rentabilité jamais affichée pour les
+    # positions Bricks.co, valorisées au coût faute de cotation boursière). Sans
+    # cotation, la ligne reste valorisée à son coût — mais un XIRR n'est TROMPEUR que
+    # si rien d'autre que l'achat ne s'est produit (il donnerait alors trivialement
+    # 0 %, cf. l'ancien commentaire ici). Dès qu'un flux RÉALISÉ existe — vente,
+    # remboursement de capital, ou désormais un dividende/revenu perçu (`cash_flows`
+    # les porte depuis ce même correctif, cf. `portfolio_reconstruction`) — le XIRR
+    # mesure un vrai rendement, même si le capital encore ouvert reste supposé valoir
+    # son coût. C'est exactement le cas d'une obligation/part de crowdfunding qui
+    # verse un revenu périodique sans cotation de marché disponible : `depuis_achat`
+    # (basé sur un prix) reste `None` à raison — on ne sait toujours pas ce qu'elle
+    # vaut aujourd'hui —, mais `annualise` (basé sur les flux réels) redevient
+    # calculable.
+    flux_realise = state is not None and any(montant > EPSILON for _, montant in state.cash_flows)
     annualise = None
-    if state and state.cash_flows and v.a_des_donnees:
-        # Sans prix de marché réel, la ligne est valorisée à son coût : un XIRR
-        # calculé sur ce flux fictif afficherait un 0% trompeur plutôt qu'une
-        # vraie mesure de performance. On préfère ne rien afficher dans ce cas.
+    if state and state.cash_flows and (v.a_des_donnees or flux_realise):
         flows = list(state.cash_flows) + [(now, v.valeur)]
         annualise = xirr(flows)
     elif h.date_acquisition is not None and cout_total and cout_total > EPSILON and v.a_des_donnees:

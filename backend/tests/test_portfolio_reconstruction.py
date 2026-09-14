@@ -122,6 +122,32 @@ def test_dividende_ne_modifie_jamais_la_quantite(db):
     assert etat.shares == 10.0
 
 
+def test_dividende_entre_dans_cash_flows_net_de_frais_et_taxes(db):
+    """Retour utilisateur du 14/09/2026 : la rentabilité (XIRR) ne comptait jamais les
+    revenus perçus (Bricks.co, mais aussi tout titre à dividende/coupon) — corrigé en
+    ajoutant le dividende à `cash_flows`, même convention algébrique (`amount + fee +
+    tax`, jamais un `abs()`) que la vente juste au-dessus."""
+    make_transaction(db, transaction_id="tx-1", symbol="EEE", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="EEE",
+        category="CASH",
+        type="DIVIDEND",
+        shares=10.0,
+        amount=25.0,
+        fee=0.0,
+        tax=-5.0,
+        datetime_utc=datetime(2024, 2, 1),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["EEE"]
+
+    assert etat.cash_flows == [(datetime(2024, 1, 1), -1000.0), (datetime(2024, 2, 1), 20.0)]
+    # Toujours pas de quantité modifiée (test ci-dessus) : seul `cash_flows` change.
+    assert etat.shares == 10.0
+
+
 def test_operation_sur_titre_ajuste_quantite_a_cout_nul(db):
     make_transaction(db, transaction_id="tx-1", symbol="FFF", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
     cost_basis_avant = compute_positions(db, ID_UTILISATEUR_TEST)["FFF"].cost_basis

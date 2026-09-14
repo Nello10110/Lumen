@@ -52,15 +52,65 @@ def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
 
 
 def test_pas_de_rendement_annualise_sans_prix_de_marche_reel(db):
-    # Position reconstruite (donc avec des flux de trésorerie réels)...
+    # Position reconstruite, mais dont le SEUL flux est l'achat lui-même (pas de
+    # vente, pas de dividende reçu depuis) : sans cotation en cache, la ligne est
+    # valorisée à son coût (`a_des_donnees=False`) — un XIRR y serait trivialement
+    # 0 % (coût = valorisation), donc jamais affiché. Reformulé le 14/09/2026 : ce
+    # n'est plus « pas de flux réalisé » qui bloque le XIRR (cf.
+    # `test_rendement_annualise_dividende_sans_cotation_bricks_co` juste après, où un
+    # dividende SANS cotation donne bien un XIRR), seulement l'absence de tout flux
+    # au-delà de l'achat.
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
-    # ... mais sans aucune cotation en cache : la ligne est valorisée à son coût
-    # (`a_des_donnees=False`), donc pas de XIRR affiché même si des flux existent.
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
     assert resultats["ABC"]["rendement_annualise_pct"] is None
+
+
+def test_rendement_annualise_dividende_sans_cotation_bricks_co(db):
+    """Retour utilisateur du 14/09/2026 : une position Bricks.co (obligation de
+    crowdfunding immobilier, jamais cotée sur aucun marché) affichait toujours « — »
+    en rentabilité — alors que le grand livre contient déjà tout ce qu'il faut
+    (achat + revenus perçus) pour calculer un vrai rendement annualisé, sans avoir
+    besoin d'un prix de marché qui n'existera jamais pour ce type d'actif."""
+    make_transaction(
+        db, transaction_id="tx-1", symbol="BRICKS-ABC", shares=10.0, amount=-1000.0, asset_class="BOND", datetime_utc=datetime(2023, 1, 1)
+    )
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="BRICKS-ABC",
+        category="CASH",
+        type="DIVIDEND",
+        shares=10.0,
+        amount=60.0,
+        datetime_utc=datetime(2023, 7, 1),
+    )
+    make_transaction(
+        db,
+        transaction_id="tx-3",
+        symbol="BRICKS-ABC",
+        category="CASH",
+        type="DIVIDEND",
+        shares=10.0,
+        amount=60.0,
+        datetime_utc=datetime(2024, 1, 1),
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    # Aucune `MarketDataCache` pour ce ticker — comme tout ticker Bricks.co réel
+    # (`market_data_service.est_symbole_non_cotable` refuse même la recherche
+    # réseau) : `a_des_donnees=False`, la ligne reste valorisée à son coût.
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+
+    # Toujours aucun prix connu : on ne sait toujours pas ce que vaut la ligne
+    # aujourd'hui, et il serait faux de prétendre le contraire.
+    assert resultats["BRICKS-ABC"]["rendement_depuis_achat_pct"] is None
+    # Mais les revenus RÉELLEMENT perçus, eux, donnent un rendement annualisé réel —
+    # positif ici (120 € perçus sur 1 000 € investis, capital encore détenu).
+    assert resultats["BRICKS-ABC"]["rendement_annualise_pct"] is not None
+    assert resultats["BRICKS-ABC"]["rendement_annualise_pct"] > 0
 
 
 def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
@@ -177,6 +227,35 @@ def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
     # 10 * 150 = 1500 (ABC seul, la maison à 250000 € n'y figure pas).
     assert resultat["valeur_positions"] == 1500.0
     assert resultat["gains_latents"] == pytest.approx(500.0)  # 1500 - 1000 (coût de base d'ABC)
+
+
+def test_rendement_annualise_du_foyer_inclut_desormais_les_dividendes(db):
+    """Le XIRR agrégé du foyer (`compute_performance`) sommait déjà
+    `state.cash_flows` de toutes les positions (achats/ventes), mais PAS les
+    dividendes/revenus perçus — un oubli distinct de `dividendes_percus`
+    (simple total, déjà correct depuis l'Increment 13) : `rendement_simple_pct`
+    comptait les revenus perçus, `rendement_annualise_pct` non. Corrigé le
+    14/09/2026 (retour utilisateur sur Bricks.co) en même temps que le rendement
+    par ligne — ici vérifié au niveau du foyer.
+
+    Comparaison directe : la MÊME position, avec puis sans le dividende, doit
+    donner un XIRR strictement supérieur avec le dividende — la preuve la plus
+    directe qu'il est maintenant pris en compte, sans dépendre d'une valeur XIRR
+    exacte (fonction non linéaire, fragile à figer en dur)."""
+    make_transaction(db, transaction_id="tx-1", symbol="ABC", shares=10.0, amount=-1000.0, datetime_utc=datetime(2023, 1, 1))
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    db.add(MarketDataCache(ticker="ABC", prix_actuel=100.0, derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+    sans_dividende = compute_performance(db, ID_UTILISATEUR_TEST)["rendement_annualise_pct"]
+
+    make_transaction(
+        db, transaction_id="tx-2", symbol="ABC", category="CASH", type="DIVIDEND", shares=10.0, amount=80.0, datetime_utc=datetime(2023, 6, 1)
+    )
+
+    avec_dividende = compute_performance(db, ID_UTILISATEUR_TEST)["rendement_annualise_pct"]
+
+    assert sans_dividende is not None and avec_dividende is not None
+    assert avec_dividende > sans_dividende
 
 
 # --- 1.1 + 1.2 + 1.3 : arithmétique algébrique de compute_performance ------------
@@ -426,6 +505,12 @@ def test_compute_holding_return_identique_a_compute_holding_returns_sur_plusieur
 
     ensemble = compute_holding_returns(db, ID_UTILISATEUR_TEST)
     assert set(ensemble) == {"AAA", "BBB", "CCC"}
+    # CCC : achat seul, sans cotation NI aucun flux réalisé depuis (pas de vente, pas
+    # de dividende) — garde-fou explicite (retour utilisateur du 14/09/2026, positions
+    # Bricks.co) : un XIRR ici serait trivialement 0 % (coût = valorisation), donc
+    # toujours supprimé. Seule l'égalité croisée ci-dessous ne l'aurait pas détecté
+    # si le correctif avait, par erreur, fait apparaître un XIRR pour ce cas.
+    assert ensemble["CCC"] == {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None, "cout_acquisition_total": 100.0}
 
     for ticker in ensemble:
         assert compute_holding_return(db, ticker, ID_UTILISATEUR_TEST) == ensemble[ticker], f"divergence pour {ticker}"

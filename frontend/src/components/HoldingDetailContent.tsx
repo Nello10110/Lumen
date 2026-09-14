@@ -164,7 +164,12 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(detail.rendement_annualise_pct)}</p>
                 {detail.rendement_annualise_pct === null && (
                   <p className="text-xs text-texte-attenue">
-                    indisponible : moins de 90 jours de détention, ou pas d'historique exploitable
+                    {/* Reformulé le 14/09/2026 : « moins de 90 jours » n'était plus la
+                        seule cause possible depuis que le rendement annualisé peut se
+                        calculer sans cotation de marché dès qu'un revenu a été perçu
+                        (Bricks.co et assimilés) — une ligne fraîchement achetée, sans
+                        aucun flux depuis, n'a simplement rien à mesurer pour l'instant. */}
+                    indisponible : détention trop récente, ou aucune vente/revenu connu depuis l'achat
                   </p>
                 )}
               </div>

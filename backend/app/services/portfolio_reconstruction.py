@@ -207,7 +207,16 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
         # Le champ `shares` d'une ligne DIVIDEND indique le nombre de titres détenus
         # à la date de détachement (info de référence), pas une acquisition : il ne
         # doit surtout pas être additionné à la quantité détenue.
-        pass
+        #
+        # Le montant NET perçu (frais/taxes compris, même convention algébrique que
+        # `proceeds` ci-dessus), lui, entre dans `cash_flows` (retour utilisateur du
+        # 14/09/2026 : rentabilité jamais affichée pour les positions Bricks.co).
+        # Un rendement annualisé (XIRR) qui ignore les revenus perçus sous-estime le
+        # rendement réel de tout actif à revenu périodique — obligation, part de
+        # crowdfunding, action à dividende. C'était déjà corrigé pour le graphique
+        # d'évolution du portefeuille (`_serie_cumulee_ventes_et_revenus`, Increment 13)
+        # mais pas pour le XIRR, ni par ligne ni au niveau du foyer.
+        state.cash_flows.append((tx.datetime_utc, tx.amount + tx.fee + tx.tax))
 
     elif tx.shares is not None and tx.shares >= -EPSILON:
         # Opération sur titres qui AJOUTE des titres (split, action gratuite reçue,
