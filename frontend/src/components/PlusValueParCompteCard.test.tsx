@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Compte, Holding } from '../api/types'
+import type { Compte, Holding, MarketData } from '../api/types'
 import PlusValueParCompteCard from './PlusValueParCompteCard'
 
 // Graphique recharts mis de côté (même doctrine que `AllocationChartCard.test.tsx`) :
@@ -9,6 +9,21 @@ import PlusValueParCompteCard from './PlusValueParCompteCard'
 
 function compte(overrides: Partial<Compte> = {}): Compte {
   return { id: 1, nom: 'PEA', etablissement: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+}
+
+function marketData(overrides: Partial<MarketData> = {}): MarketData {
+  return {
+    ticker: 'AAA',
+    nom: null,
+    prix_actuel: 1,
+    devise: 'EUR',
+    secteur: null,
+    pays: null,
+    region: null,
+    erreur: null,
+    derniere_maj: '2026-01-01T00:00:00',
+    ...overrides,
+  }
 }
 
 function holding(overrides: Partial<Holding> = {}): Holding {
@@ -27,7 +42,11 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     origine: 'reconstruit',
     created_at: '2026-01-01T00:00:00',
     updated_at: '2026-01-01T00:00:00',
-    market_data: null,
+    // Une cotation par défaut : ce fichier teste le cas ORDINAIRE (plus-value
+    // mesurable). Le cas Bricks.co (aucune cotation, `gain` affiché « — », retour
+    // utilisateur du 14/09/2026) a son propre test plus bas, `market_data: null`
+    // posé explicitement.
+    market_data: marketData(),
     rendement_depuis_achat_pct: null,
     rendement_annualise_pct: null,
     valeur: 0,
@@ -103,5 +122,24 @@ describe('PlusValueParCompteCard', () => {
     const lignes = screen.getAllByRole('row').slice(1) // ignore la ligne d'en-tête
     expect(lignes[0]).toHaveTextContent('Compte gagnant')
     expect(lignes[1]).toHaveTextContent('Compte perdant')
+  })
+
+  it("affiche « — » pour la plus-value d'un compte valorisé au coût, jamais « +0 € » (retour utilisateur du 14/09/2026, Bricks.co)", () => {
+    const bricksCo = compte({ id: 1, nom: 'Bricks.co' })
+    render(
+      <PlusValueParCompteCard
+        holdings={[
+          holding({ ticker: 'BRICKS-ABC', compte: bricksCo, quantite: 10, prix_revient_moyen: 100, valeur: 1000, market_data: null }),
+        ]}
+        montantsMasques={false}
+      />,
+    )
+
+    const ligne = screen.getByText('Bricks.co').closest('tr')!
+    // Le total reste affiché (1 000 €, la meilleure estimation disponible) ; seule
+    // la plus-value — une comparaison à un prix qu'on ne connaît pas — est absente.
+    expect(ligne).toHaveTextContent('1 000 €')
+    expect(ligne).not.toHaveTextContent('+0 €')
+    expect(ligne.textContent).toMatch(/—/)
   })
 })

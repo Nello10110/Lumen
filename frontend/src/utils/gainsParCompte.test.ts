@@ -1,9 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import type { Compte, Holding } from '../api/types'
+import type { Compte, Holding, MarketData } from '../api/types'
 import { calculerGainsParCompte } from './gainsParCompte'
 
 function compte(overrides: Partial<Compte> = {}): Compte {
   return { id: 1, nom: 'PEA', etablissement: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+}
+
+function marketData(overrides: Partial<MarketData> = {}): MarketData {
+  return {
+    ticker: 'AAA',
+    nom: null,
+    prix_actuel: 1,
+    devise: 'EUR',
+    secteur: null,
+    pays: null,
+    region: null,
+    erreur: null,
+    derniere_maj: '2026-01-01T00:00:00',
+    ...overrides,
+  }
 }
 
 function holding(overrides: Partial<Holding> = {}): Holding {
@@ -22,7 +37,11 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     origine: 'reconstruit',
     created_at: '2026-01-01T00:00:00',
     updated_at: '2026-01-01T00:00:00',
-    market_data: null,
+    // Une cotation par défaut (pas `null`) : la majorité de ce fichier teste le cas
+    // ORDINAIRE, une ligne dont la plus-value latente est mesurable. Le cas Bricks.co
+    // (sans aucune cotation, `donneesReelles(h)` false) a son propre bloc de tests
+    // plus bas, avec `market_data: null` posé explicitement.
+    market_data: marketData(),
     rendement_depuis_achat_pct: null,
     rendement_annualise_pct: null,
     valeur: 0,
@@ -117,6 +136,72 @@ describe('calculerGainsParCompte', () => {
     ])
 
     expect(resultat.map((r) => r.compteNom)).toEqual(['Compte gagnant', 'Compte perdant'])
+  })
+
+  // ---------------------------------------------------------------------------
+  // Retour utilisateur du 14/09/2026 : une position Bricks.co affichait « +0 € » de
+  // plus-value latente. Un vrai zéro mesuré (rien à comparer, on ne sait pas ce que
+  // vaut la ligne aujourd'hui) — pas "aucun gain" — devait afficher « — », pas 0.
+  // ---------------------------------------------------------------------------
+
+  it("un compte dont AUCUNE ligne n'a de valorisation réelle connue affiche un gain null, pas zéro", () => {
+    const bricksCo = compte({ id: 3, nom: 'Bricks.co' })
+    const resultat = calculerGainsParCompte([
+      // Valorisée AU COÛT faute de cotation (comme tout ticker Bricks.co réel) :
+      // `valeur` retombe exactement sur `cout_acquisition_total x quantite`, ce qui
+      // rendrait l'ancien calcul (`valeur - cout`) trivialement nul.
+      holding({ ticker: 'BRICKS-ABC', compte: bricksCo, quantite: 10, prix_revient_moyen: 100, valeur: 1000, market_data: null }),
+    ])
+
+    expect(resultat).toEqual([
+      {
+        compteId: 3,
+        compteNom: 'Bricks.co',
+        valeur: 1000, // le total reste réel : c'est bien la meilleure estimation disponible
+        gain: null, // jamais 0 : la mesure elle-même est indisponible, pas "sans gain"
+        gainPct: null,
+        rendementAnnualise: null,
+      },
+    ])
+  })
+
+  it('un compte MIXTE (une ligne cotée, une valorisée au coût) ne compte que la ligne mesurable dans le gain', () => {
+    const pea = compte({ id: 1, nom: 'PEA' })
+    const resultat = calculerGainsParCompte([
+      holding({ ticker: 'AAA', compte: pea, quantite: 10, prix_revient_moyen: 100, valeur: 1200 }), // coté, +200
+      holding({ ticker: 'BRICKS-ABC', compte: pea, quantite: 10, prix_revient_moyen: 100, valeur: 1000, market_data: null }), // au coût
+    ])
+
+    // Valeur totale inclut les deux lignes (2200), le gain ne reflète QUE la ligne
+    // cotée (200) — mélanger la valeur de la ligne au coût sans son coût en face
+    // (ou l'inverse) ferait apparaître un gain fictif.
+    expect(resultat[0].valeur).toBe(2200)
+    expect(resultat[0].gain).toBe(200)
+  })
+
+  it('une ligne à coût nul (actions offertes) avec une VRAIE cotation compte dans le gain, malgré rendement_depuis_achat_pct=null', () => {
+    // `rendement_depuis_achat_pct` est aussi `null` quand le coût est nul (garde
+    // `cout_total > EPSILON` côté backend) — ne pas confondre avec « pas de
+    // cotation connue » : `donneesReelles()` doit s'appuyer sur `market_data`, pas
+    // sur ce champ dérivé, sous peine d'exclure à tort cette ligne de son propre gain.
+    const pea = compte({ id: 1, nom: 'PEA' })
+    const resultat = calculerGainsParCompte([
+      holding({ ticker: 'GIFT', compte: pea, quantite: 5, prix_revient_moyen: 0, valeur: 200, rendement_depuis_achat_pct: null }),
+    ])
+
+    expect(resultat[0].gain).toBe(200) // 200 - 0 : entièrement plus-value, coût nul
+    expect(resultat[0].gainPct).toBeNull() // toujours pas de division par un coût nul
+  })
+
+  it("gain null trié en fin de liste, quel que soit le signe des autres comptes", () => {
+    const compteA = compte({ id: 1, nom: 'Compte perdant' })
+    const compteB = compte({ id: 2, nom: 'Compte au coût' })
+    const resultat = calculerGainsParCompte([
+      holding({ ticker: 'AAA', compte: compteA, quantite: 1, prix_revient_moyen: 100, valeur: 50 }), // -50
+      holding({ ticker: 'BRICKS-ABC', compte: compteB, quantite: 1, prix_revient_moyen: 100, valeur: 100, market_data: null }), // null
+    ])
+
+    expect(resultat.map((r) => r.compteNom)).toEqual(['Compte perdant', 'Compte au coût'])
   })
 
   it('deux comptes du même nom mais dun id différent restent distincts (regroupement par id, pas par nom)', () => {

@@ -44,6 +44,10 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
     )
   }
 
+  // `gain: null` (aucune ligne du compte n'a de valorisation réelle connue — cas
+  // Bricks.co, retour utilisateur du 14/09/2026) : aucune barre à tracer plutôt
+  // qu'une fausse barre à zéro, Recharts n'affiche alors simplement rien pour cette
+  // catégorie — cohérent avec le « — » du tableau juste en dessous.
   const data = lignes.map((l) => ({ nom: l.compteNom, gain: l.gain }))
 
   return (
@@ -70,7 +74,7 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
           />
           <Bar dataKey="gain" radius={[12, 12, 12, 12]} isAnimationActive={false}>
             {data.map((entree) => (
-              <Cell key={entree.nom} fill={entree.gain >= 0 ? COULEUR_POSITIF : COULEUR_NEGATIF} />
+              <Cell key={entree.nom} fill={entree.gain !== null && entree.gain >= 0 ? COULEUR_POSITIF : COULEUR_NEGATIF} />
             ))}
           </Bar>
         </BarChart>
@@ -104,13 +108,13 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
           </thead>
           <tbody className="divide-y divide-bordure">
             {lignes.map((l) => {
-              const couleur = l.gain >= 0 ? 'text-positif' : 'text-negatif'
+              const couleur = l.gain === null ? 'text-texte-attenue' : l.gain >= 0 ? 'text-positif' : 'text-negatif'
               return (
                 <tr key={l.compteId}>
                   <td className="py-2 text-texte">{l.compteNom}</td>
                   <td className="py-2 text-texte">{formatEuro(l.valeur, 0, montantsMasques)}</td>
-                  <td className={`py-2 font-medium ${couleur}`}>
-                    {l.gain >= 0 ? '+' : ''}
+                  <td className={`py-2 font-medium ${couleur}`} title={l.gain === null ? 'Pas de valorisation connue pour ce compte (positions valorisées au coût, faute de cotation).' : undefined}>
+                    {l.gain !== null && l.gain >= 0 ? '+' : ''}
                     {formatEuro(l.gain, 0, montantsMasques)}
                     {l.gainPct !== null && <span className="ml-1.5 font-normal">({formatPct(l.gainPct)})</span>}
                   </td>
