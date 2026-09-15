@@ -3920,8 +3920,46 @@ disponible pour qui la veut — ex. XIRR : *« Comme un taux d'intérêt qui tie
 exact où tu as versé chaque euro, pas juste du début et de la fin. »* Faible effort, fort effet sur
 la perception d'accessibilité — piste à prioriser haut si l'utilisateur en retient peu.
 
-**Prochaine étape** : 14 pistes validées au total (§ AF + § AG), aucune développée — ordre de
+**Prochaine étape** : 17 pistes validées au total (§ AF + § AG + § AH), aucune développée — ordre de
 développement à définir avec l'utilisateur avant de commencer.
+
+---
+
+### AH. Animations « effet Whaou » (validé, 15/09/2026)
+
+Demande directe de l'utilisateur : *« 2-3 idées d'animations sympa qui pourrait être en rapport avec
+Lumen [...] fun et classe et aussi qui donne le côté Whaou ça claque ! »* Trois pistes proposées,
+**validées en bloc** (« parfait ajoute aussi à la backlog »). Principe commun aux trois, posé dès la
+proposition : jamais en boucle continue, toujours déclenchées par un vrai événement (connexion,
+rafraîchissement, changement de valeur) — c'est ce qui évite le piège du gadget qui lasse vite.
+`prefers-reduced-motion` désactive les trois (élément final visible immédiatement, sans l'animation).
+
+#### AH.1 — `validé` (15/09/2026) — Flash lumineux à la connexion
+
+Juste avant que le tableau de bord n'apparaisse après connexion : un éclair bleu-blanc traverse
+l'écran en un quart de seconde (façon flash photo, doux, pas agressif), le tableau de bord se
+révélant à travers cette lumière plutôt qu'après elle. Ne survient qu'une fois par session — l'effet
+peut donc être plus marqué qu'un élément croisé 50 fois par jour, sans jamais lasser. Techniquement :
+un calque blanc en fondu-enchaîné rapide (`mix-blend-mode`), 100 % CSS, aucun impact sur le reste de
+l'application. Effort `S`.
+
+#### AH.2 — `validé` (15/09/2026) — Balayage lumineux au rafraîchissement des cours
+
+Pendant un rafraîchissement, un fin rayon de lumière descend le tableau du Portefeuille ligne par
+ligne, chaque ligne s'« allumant » brièvement au moment précis où sa nouvelle cotation arrive — rend
+visible, littéralement, ce que le texte du bouton promet déjà (« Rallumer les cours », § AD.3). Le
+plus haut rapport effet/effort des trois : coup de cœur explicite pour développement en priorité.
+Techniquement : le balayage suit l'ordre réel de traitement de `refresh_tickers` (déjà séquentiel
+côté backend, cf. `on_progression`), pas un ordre décoratif indépendant de la vraie progression.
+Effort `M`.
+
+#### AH.3 — `validé` (15/09/2026) — Le chiffre héros qui respire à la mise à jour
+
+Le grand chiffre du patrimoine net (tableau de bord) pulse une fois avec un halo qui grandit puis se
+stabilise au moment où sa valeur change réellement (nouveau rafraîchissement, nouvelle donnée) —
+même esprit que le halo du logo (§ AD.2) mais nettement plus marqué, sur l'élément le plus regardé de
+toute l'application. Jamais en continu : seulement au changement réel de valeur, pour rester un
+signal plutôt que du bruit visuel permanent. Effort `S`.
 
 ---
 ## 3. Hors périmètre (assumé)
