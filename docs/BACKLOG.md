@@ -3636,80 +3636,79 @@ ticker quel que soit le compte qui le détient.
 
 ---
 
-### AD. Identité « Lumen » — accroches, animations, easter eggs (proposé, 15/09/2026)
+### AD. Identité « Lumen » — accroches, animations, easter eggs (Lot 16, 15/09/2026)
 
 Renommage décidé par l'utilisateur le 15/09/2026 : le projet s'appelle désormais **Lumen** (toutes
 les mentions d'« Application Patrimoine » retirées du code, des docs, des images Docker — livré le
 jour même, cf. commit correspondant). Le nom porte une intention explicite de l'utilisateur : « la
-lumière et la transparence des finances du foyer ». Les points ci-dessous sont des **propositions**
-pour prolonger ce nom au-delà du simple libellé — aucun n'est développé, tous attendent la
-validation de l'utilisateur avant tout code (contrairement au reste de ce backlog, où `proposé`
-n'existe normalement pas comme statut).
+lumière et la transparence des finances du foyer ». Cinq propositions pour prolonger ce nom
+au-delà du simple libellé ont été soumises à l'utilisateur le jour même, puis validées et
+développées en bloc (« fais tout ceux que tu as dit »), le choix explicite *« Faites la lumière sur
+vos finances. »* tranchant AD.1.
 
 **Logo reçu et intégré (15/09/2026, `traité`)** : emblème « verre liquide » bleu fourni par
 l'utilisateur (`docs/Ressources/lumen_logo.svg`), recadré sur son empreinte réelle et posé comme
 favicon, icônes PWA (`apple-touch-icon`, `icon-192`, `icon-512`, régénérées via `sharp-cli`) et
 composant `LumenMark.tsx` réutilisé sur la sidebar et la page de connexion — remplace l'ancien
-monogramme « P » (dégradé générique de l'ex-« Application Patrimoine »). Ceci lève le préalable
-bloquant d'AD.2 ci-dessous ; AD.1/AD.3/AD.4/AD.5 restent `proposé`, inchangés.
+monogramme « P » (dégradé générique de l'ex-« Application Patrimoine »).
 
-#### AD.1 — `proposé` (15/09/2026) — Phrase d'accroche
+#### AD.1 — `mineur` · `XS` · `P2` · `traité` (15/09/2026) — Phrase d'accroche
 
-Le README et la page de connexion n'ont aujourd'hui qu'un nom, sans accroche. Trois pistes, toutes
-filant la métaphore lumière/transparence sans tomber dans le jeu de mots forcé :
+*« Faites la lumière sur vos finances. »* — choix explicite de l'utilisateur parmi trois pistes
+soumises. Posée sous le titre de la page de connexion (`LoginPage.tsx`, remplace la simple mention
+« Lumen », redondante avec le logo juste à côté) et en tête du README, en italique sous le titre.
 
-- *« Lumen — la lumière sur votre patrimoine. »* (la plus directe, double sens assumé : faire la
-  lumière sur ses comptes, littéralement)
-- *« Faites la lumière sur vos finances. »* (verbe d'action, ton compagnon plutôt que produit)
-- *« Votre patrimoine, en pleine lumière. »* (insiste sur la transparence plutôt que la découverte)
+#### AD.2 — `majeur` · `S` · `P2` · `traité` (15/09/2026) — Logo réactif à la santé du patrimoine
 
-À placer sous le titre sur la page de connexion (`LoginPage.tsx`) et en tête du README. Décision
-utilisateur nécessaire : laquelle, ou aucune.
+Le logo de la sidebar porte désormais un halo CSS (`filter: drop-shadow`) dont l'intensité suit la
+variation du patrimoine sur la lentille/période/détenteur **actuellement affichés** — nouveau hook
+`useVariationPatrimoine` (`hooks/useVariationPatrimoine.ts`), réutilisant les préférences globales
+déjà partagées avec le tableau de bord et le Rapport (`usePreferencesAffichage`), plutôt qu'un état
+parallèle qui risquerait de diverger. En hausse : halo vert (`--positif`), intensité croissante avec
+l'amplitude (plafonnée à 20 %, cf. `utils/lumenHalo.ts`). En baisse : le logo se désature/s'assombrit
+légèrement — **jamais de rouge**, conformément à la demande explicite (« l'app n'est pas là pour
+stresser »). Aucune donnée (chargement, erreur réseau silencieuse, historique insuffisant) : logo
+dans son état par défaut, sans filtre. Statique par construction (pas de boucle d'animation) : rien
+à désactiver pour `prefers-reduced-motion`.
 
-#### AD.2 — `proposé` (15/09/2026) — Logo réactif à la santé du patrimoine
+#### AD.3 — `mineur` · `XS` · `P2` · `traité` (15/09/2026) — Micro-textes thématiques
 
-Idée la plus structurante des trois : le nom « Lumen » (unité de flux lumineux) se prête à un logo
-qui ne serait pas statique. Le SVG de la sidebar (`Sidebar.tsx`) gagnerait un halo/glow CSS dont
-l'intensité et la teinte suivraient la variation du patrimoine net sur la période affichée — vert et
-lumineux quand ça monte, terne quand ça baisse, sans jamais devenir alarmant (pas de rouge agressif,
-l'app n'est pas là pour stresser). Techniquement : un `filter: drop-shadow(...)` animé en fonction du
-signe/de l'amplitude de la variation déjà calculée pour le tableau de bord, `prefers-reduced-motion`
-respecté (halo fixe, pas de pulsation, pour qui le demande). Effort `S`. Logo définitif désormais
-disponible et intégré (`LumenMark.tsx`, ci-dessus) — reste seulement l'arbitrage utilisateur avant
-de coder le halo réactif lui-même.
+Trois emplacements (sur les quatre proposés — la page de partage public, déjà sobre, restait
+inchangée par construction) :
 
-#### AD.3 — `proposé` (15/09/2026) — Micro-textes thématiques
+- État vide du portefeuille (`PortefeuillePage.tsx`) : *« Ajoutez votre première ligne pour allumer
+  votre patrimoine. »*
+- Tooltip du bouton de rafraîchissement manuel des cours : *« Rallumer les cours. »*
+- Nouvel écran 404 (`PageIntrouvablePage.tsx`, route `*` — une URL inconnue tombait jusqu'ici sur un
+  cadre vide, sans aucun message) : *« Aucune lumière par ici. »* + lien de retour au tableau de bord.
 
-Quelques emplacements où un texte générique pourrait porter la métaphore sans effort de lecture
-supplémentaire :
+#### AD.4 — `mineur` · `S` · `P3` · `traité` (15/09/2026) — Animation de premier chargement
 
-- État vide du portefeuille (aucune ligne) : *« Ajoutez votre première ligne pour allumer votre
-  patrimoine. »*
-- Page de partage public (déjà « Vue en lecture seule, générée par Lumen ») : inchangée, déjà sobre.
-- Bouton de rafraîchissement manuel des cours (tooltip) : *« Rallumer les cours. »*
-- Écran 404 / route inconnue : *« Aucune lumière par ici — retour au tableau de bord. »*
+L'écran de chargement affiché pendant la vérification de connexion (`AppAuthentifiee`, avant que
+l'application authentifiée ne soit prête) remplace le squelette de texte générique par le logo qui
+grandit jusqu'à sa taille pleine (< 600 ms, `@keyframes lumen-allumage` posées dans `index.css`,
+classe `animate-lumen-allumage`) — `prefers-reduced-motion` désactive l'animation elle-même
+(le logo reste visible, immobile), jamais le logo. Portée volontairement restreinte à cet écran
+(vu une fois par connexion, quelques centaines de millisecondes) plutôt qu'au tout premier paint
+avant même React (`index.html`) — plus simple et sans risque de flash de contenu non stylé, pour un
+gain visuel équivalent.
 
-Volontairement peu nombreux : la metaphore doit rester un clin d'œil ponctuel, pas un habillage
-systématique qui fatiguerait à l'usage quotidien d'un outil de suivi financier sérieux.
+#### AD.5 — `mineur` · `S` · `P3` · `traité` (15/09/2026) — Easter egg
 
-#### AD.4 — `proposé` (15/09/2026) — Animation de premier chargement
+Cliquer 5 fois de suite sur le logo de la sidebar dans une fenêtre de 2,5 s affiche un fait amusant
+en toast (nouveau `LumenFaitAmusant.tsx`, même patron que `MiseAJourDisponible.tsx`) : *« Un lumen,
+c'est le flux lumineux d'une bougie à un mètre. Votre patrimoine, lui, n'a pas d'unité SI — mais on
+garde le nom. »* Se ferme seul après 6 s, ou au clic sur « Fermer » ; un nouveau cycle de 5 clics le
+rouvre. Un seul niveau, aucun Konami code, aucun impact fonctionnel — le logo reste un lien normal
+vers l'accueil, chaque clic navigue toujours.
 
-Le splashscreen/chargement initial (avant montage React, cf. script anti-flash de `index.html`)
-pourrait remplacer un spinner générique par une animation courte (< 600 ms) d'allumage — un point
-lumineux qui grandit doucement jusqu'au logo plein, plutôt qu'un cercle qui tourne. Cohérent avec le
-thème, mais discutable : c'est aussi l'écran le plus vu (à chaque ouverture), donc le risque de
-lassitude est réel. À valider en priorité basse, après AD.1/AD.2.
-
-#### AD.5 — `proposé` (15/09/2026) — Easter egg
-
-Un seul, discret, pour ne pas transformer un outil financier sérieux en jouet : cliquer 5 fois de
-suite sur le logo de la sidebar dans un délai court affiche un petit fait amusant en toast — par
-exemple *« Un lumen, c'est le flux lumineux d'une bougie à un mètre. Votre patrimoine, lui, n'a pas
-d'unité SI — mais on garde le nom. »* Sans persistance, sans easter egg en cascade (pas de Konami
-code ni de mode caché) : un seul niveau, purement décoratif, aucun impact fonctionnel.
-
-**Prochaine étape** : présenter ces cinq points à l'utilisateur pour arbitrage avant tout
-développement — le logo étant désormais intégré, plus aucun n'est bloqué par une donnée manquante.
+**Vérification** : `lumenHalo.test.ts` (5 tests, fonction pure du halo — jamais de rouge, plafond
+d'amplitude), tests ajoutés dans `Sidebar.test.tsx` (halo appliqué au SVG, easter egg 5 clics/fermeture/
+réouverture), `PortefeuillePage.test.tsx`, `App.test.tsx` mis à jour. Suite frontend complète
+(702 tests), `tsc -b`, `oxlint`, `vite build` propres. Suite E2E Playwright complète (86 tests, dont
+le test dédié aux URL inconnues qui exerce désormais `PageIntrouvablePage`) verte contre un backend
+isolé. Vérification visuelle manuelle supplémentaire (backend + frontend isolés, jamais la base
+réelle) : accroche, état vide, page 404 et easter egg confirmés à l'écran.
 
 ---
 
@@ -3862,6 +3861,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 13 — Modèle des séries de cours** | AB.1, AB.2, AB.3, AB.4, AB.5, AB.6 | — | `L` | **Livré** 14/09/2026 (6/6) |
 | **Lot 14 — Provenance par compte du grand livre** | AC.1, AC.2, AC.3 | — | `L` | **Livré** 14/09/2026 (3/3) |
 | **Lot 15 — Cours des cryptomonnaies via CoinGecko** | AE.1, AE.2, AE.3 | — | `M` | **Livré** 15/09/2026 (3/3) |
+| **Lot 16 — Identité « Lumen »** | AD.1, AD.2, AD.3, AD.4, AD.5 | Logo intégré | `M` | **Livré** 15/09/2026 (5/5) |
 
 **Pourquoi cet ordre.**
 

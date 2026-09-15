@@ -50,12 +50,13 @@
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
     {
-      // Bannière « nouvelle version disponible » (retour utilisateur du 10/09/2026) :
-      // `role="status"` annonce l'apparition de la bannière aux lecteurs d'écran sans
-      // voler le focus — `<output>`, l'équivalent natif suggéré par la règle, porte un
-      // sens sémantique différent (résultat d'un calcul déclenché par l'utilisateur),
-      // pas adapté à un message d'état poussé par l'application elle-même.
-      "files": ["src/components/MiseAJourDisponible.tsx"],
+      // Bannière « nouvelle version disponible » (retour utilisateur du 10/09/2026) et
+      // fait amusant de l'easter egg (backlog § AD.5, 15/09/2026), même patron : les
+      // deux sont des messages d'état poussés par l'application elle-même —
+      // `role="status"` les annonce aux lecteurs d'écran sans voler le focus, alors
+      // que `<output>`, l'équivalent natif suggéré par la règle, porte un sens
+      // sémantique différent (résultat d'un calcul déclenché par l'utilisateur).
+      "files": ["src/components/MiseAJourDisponible.tsx", "src/components/LumenFaitAmusant.tsx"],
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
     {

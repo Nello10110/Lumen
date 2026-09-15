@@ -261,3 +261,31 @@ summary,
   --negatif: var(--neg, #c0392b);
   --avertissement: var(--warn, #b45309);
 }
+
+/* Backlog § AD.4/AD.2 (identité « Lumen », 15/09/2026).
+   `animate-lumen-allumage` : écran de connexion (chargement initial) — un point
+   lumineux qui grandit jusqu'au logo plein, plutôt qu'un spinner générique.
+   `prefers-reduced-motion` désactive l'animation, jamais le logo lui-même (qui
+   reste visible, immobile, à sa taille finale). */
+@keyframes lumen-allumage {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-lumen-allumage {
+  animation: lumen-allumage 500ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-lumen-allumage {
+    animation: none;
+  }
+}

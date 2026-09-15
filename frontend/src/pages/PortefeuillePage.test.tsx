@@ -697,7 +697,7 @@ describe('PortefeuillePage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Private Equity' }))
 
       expect(await screen.findByText('Aucune position ne correspond à ce filtre.')).toBeInTheDocument()
-      expect(screen.queryByText('Aucune position. Ajoute une ligne ou importe un fichier.')).not.toBeInTheDocument()
+      expect(screen.queryByText('Ajoutez votre première ligne pour allumer votre patrimoine.')).not.toBeInTheDocument()
 
       fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser les filtres' }))
 

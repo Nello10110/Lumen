@@ -1,10 +1,21 @@
+import { useCallback, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useVariationPatrimoine } from '../hooks/useVariationPatrimoine'
 import { routesDuRang } from '../layout/routes'
+import { styleHaloLumen } from '../utils/lumenHalo'
 import { GlassPanel } from './GlassPanel'
+import LumenFaitAmusant from './LumenFaitAmusant'
 import LumenMark from './LumenMark'
 import MenuCompte from './MenuCompte'
 import PaletteRecherche from './PaletteRecherche'
+
+// Easter egg (backlog § AD.5, 15/09/2026) : 5 clics sur le logo dans cette fenêtre
+// glissante déclenchent `LumenFaitAmusant`. Volontairement un seul niveau, pas de
+// persistance — un simple tableau d'horodatages en `ref` (jamais un `state`, ces
+// horodatages ne doivent déclencher aucun rendu par eux-mêmes).
+const FENETRE_CLICS_MS = 2500
+const CLICS_REQUIS = 5
 
 /** Barre latérale verticale (backlog 2.K.2), remplace l'ancien en-tête horizontal à
  * 9 onglets qui ne tenait plus sous ~1000 px de large. N'affiche que les écrans de
@@ -20,6 +31,24 @@ import PaletteRecherche from './PaletteRecherche'
  * tout, seulement une encre atténuée. */
 export default function Sidebar() {
   const { user } = useAuth()
+  const variation = useVariationPatrimoine()
+  const clicsLogo = useRef<number[]>([])
+  const [faitAmusantVisible, setFaitAmusantVisible] = useState(false)
+  // Référence stable (backlog § AD.5) : `LumenFaitAmusant` redémarre son minuteur
+  // d'auto-fermeture à chaque changement de `onFermer` (cf. sa docstring) — sans
+  // `useCallback`, une fonction fléchée inline serait recréée à chaque rendu de
+  // `Sidebar` (ex. quand `useVariationPatrimoine` reçoit une nouvelle valeur),
+  // remettant le minuteur à zéro indéfiniment.
+  const fermerFaitAmusant = useCallback(() => setFaitAmusantVisible(false), [])
+
+  function gererClicLogo() {
+    const maintenant = Date.now()
+    clicsLogo.current = [...clicsLogo.current, maintenant].filter((t) => maintenant - t < FENETRE_CLICS_MS)
+    if (clicsLogo.current.length >= CLICS_REQUIS) {
+      clicsLogo.current = []
+      setFaitAmusantVisible(true)
+    }
+  }
 
   return (
     <GlassPanel
@@ -30,12 +59,20 @@ export default function Sidebar() {
         <Link
           to="/"
           aria-label="Lumen"
+          onClick={gererClicLogo}
           className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink"
         >
-          <LumenMark className="h-7 w-7 shrink-0" />
+          {/* Halo réactif (backlog § AD.2) : la teinte/l'intensité suivent la
+              variation du patrimoine (lentille/période/détenteur actuellement
+              affichés, cf. `useVariationPatrimoine`) — jamais de rouge (§ AD.2,
+              « l'app n'est pas là pour stresser »), et statique (pas de
+              pulsation), donc rien à désactiver pour `prefers-reduced-motion`. */}
+          <LumenMark className="h-7 w-7 shrink-0" style={styleHaloLumen(variation)} />
           <span className="truncate">Lumen</span>
         </Link>
       </div>
+
+      {faitAmusantVisible && <LumenFaitAmusant onFermer={fermerFaitAmusant} />}
 
       <div className="pb-2">
         <PaletteRecherche />

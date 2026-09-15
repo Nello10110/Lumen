@@ -281,7 +281,7 @@ export default function PortefeuillePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <SecondaryButton onClick={handleRefresh} disabled={refreshing || holdings.length === 0}>
+          <SecondaryButton onClick={handleRefresh} disabled={refreshing || holdings.length === 0} title="Rallumer les cours.">
             {refreshing ? libelleRafraichissement : 'Rafraîchir'}
           </SecondaryButton>
           <PrimaryButton onClick={() => setAjoutOuvert(true)}>Ajouter une ligne</PrimaryButton>
@@ -396,7 +396,7 @@ export default function PortefeuillePage() {
         {loading ? (
           <SkeletonTexte lignes={5} />
         ) : holdings.length === 0 ? (
-          <EtatVide titre="Aucune position. Ajoute une ligne ou importe un fichier." />
+          <EtatVide titre="Ajoutez votre première ligne pour allumer votre patrimoine." />
         ) : lignesFiltrees.length === 0 ? (
           <EtatVide
             titre="Aucune position ne correspond à ce filtre."

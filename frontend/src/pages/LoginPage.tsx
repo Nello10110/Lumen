@@ -112,7 +112,7 @@ export default function LoginPage() {
             <h1 className="text-[26px] font-semibold tracking-title text-ink">
               {mode === 'connexion' ? 'Bon retour' : 'Créer un compte'}
             </h1>
-            <p className="text-sm text-ink3">Lumen</p>
+            <p className="text-sm text-ink3">Faites la lumière sur vos finances.</p>
           </div>
         </div>
 

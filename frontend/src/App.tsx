@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router-do
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
 import EnTeteMobile from './components/EnTeteMobile'
+import LumenMark from './components/LumenMark'
 import MiseAJourDisponible from './components/MiseAJourDisponible'
 import { SkeletonTexte } from './components/Skeleton'
 import { useAppliquerTheme } from './hooks/useTheme'
@@ -15,6 +16,7 @@ import { useAuth } from './hooks/useAuth'
 import { PAGE_COMPONENTS } from './layout/pageComponents'
 import { ROUTES } from './layout/routes'
 import LoginPage from './pages/LoginPage'
+import PageIntrouvablePage from './pages/PageIntrouvablePage'
 
 // `/partage/:token` (backlog 2.Q.1) est une page publique, jamais dans `ROUTES`
 // (réservé aux écrans de l'application authentifiée) : lazy-chargée séparément de
@@ -51,9 +53,15 @@ function AppAuthentifiee() {
   useTitreDocument()
 
   if (loading) {
+    // Backlog § AD.4 (15/09/2026) : un point lumineux qui grandit jusqu'au logo
+    // plein (< 600 ms, `animate-lumen-allumage` posée dans `index.css`), plutôt
+    // qu'un squelette de texte générique — cet écran, vu à chaque connexion, ne
+    // reste affiché que le temps d'une vérification réseau (`GET /api/auth/me`),
+    // quasi instantanée en pratique. `prefers-reduced-motion` désactive
+    // l'animation elle-même (règle posée dans `index.css`), pas le logo.
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <SkeletonTexte lignes={1} />
+        <LumenMark className="h-14 w-14 animate-lumen-allumage" />
       </div>
     )
   }
@@ -124,6 +132,11 @@ function AppAuthentifiee() {
                     (07/09/2026) : l'ancienne URL y mène directement. */}
                 <Route path="/dividendes" element={<Navigate to="/analyse?onglet=revenus" replace />} />
                 <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
+                {/* Backlog § AD.3 (15/09/2026) : jusqu'ici une URL inconnue tombait sur
+                    un cadre vide, sans message — cette route capture tout ce qu'aucune
+                    route ci-dessus n'a intercepté (React Router : matché en dernier
+                    recours, quel que soit l'ordre de déclaration). */}
+                <Route path="*" element={<PageIntrouvablePage />} />
               </Routes>
             </Suspense>
           </div>
