@@ -11,7 +11,11 @@ const THEME_ICONES: Record<Theme, (props: { className?: string }) => React.JSX.E
   sombre: IconLune,
   systeme: IconEcran,
 }
-const THEME_LABELS: Record<Theme, string> = { clair: 'Clair', sombre: 'Sombre', systeme: 'Système' }
+// « Éclipse » plutôt que « Sombre » (backlog § AF.5, 15/09/2026, validé avec réserve
+// explicite sur la clarté) — le clin d'œil reste accompagné de l'icône lune
+// (`IconLune`, universellement reconnue), qui porte la clarté que le mot seul
+// pourrait perdre.
+const THEME_LABELS: Record<Theme, string> = { clair: 'Clair', sombre: 'Éclipse', systeme: 'Système' }
 
 export default function BasculeTheme({ className = '' }: { className?: string }) {
   const { theme, setTheme } = useTheme()
@@ -24,7 +28,11 @@ export default function BasculeTheme({ className = '' }: { className?: string })
       aria-label={`Thème : ${THEME_LABELS[theme]}. Cliquer pour changer.`}
       className={`flex w-full items-center gap-2.5 rounded-control px-3 py-2 text-sm text-texte-attenue hover:bg-surface-elevee ${className}`}
     >
-      <Icone className="h-4 w-4" />
+      {/* Micro-interaction (backlog § AF.2, 15/09/2026) : `key={theme}` force React à
+          remonter l'icône à chaque changement, ce qui relance l'animation CSS
+          (`animate-lumen-bascule-theme`, `index.css`) — pas d'état ni de minuteur à
+          gérer côté composant. */}
+      <Icone key={theme} className="h-4 w-4 animate-lumen-bascule-theme" />
       <span>Thème : {THEME_LABELS[theme]}</span>
     </button>
   )

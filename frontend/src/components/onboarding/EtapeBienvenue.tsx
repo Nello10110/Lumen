@@ -15,10 +15,18 @@ export default function EtapeBienvenue() {
           (préférences, détenteurs, portefeuille) : rien n'est rejoué à vide, tu peux compléter ou corriger ce qui manque.
         </p>
       ) : (
-        <p>
-          Cette application suit ton patrimoine dans son ensemble : portefeuille boursier, immobilier, épargne, budget,
-          objectifs. Quelques réglages de départ permettent de l'adapter à ta situation — ça prend deux minutes.
-        </p>
+        <>
+          {/* Variante de la tagline (backlog § AF.3, 15/09/2026), sur cette seule
+              première étape — jamais répétée sur les suivantes. Registre "tu",
+              cohérent avec le reste de cette étape (contrairement à la page de
+              connexion, au "vous" — deux contextes différents, deux registres déjà
+              établis chacun de leur côté). */}
+          <p className="font-medium text-ink">Bienvenue — faisons la lumière sur tes finances, ensemble.</p>
+          <p>
+            Cette application suit ton patrimoine dans son ensemble : portefeuille boursier, immobilier, épargne, budget,
+            objectifs. Quelques réglages de départ permettent de l'adapter à ta situation — ça prend deux minutes.
+          </p>
+        </>
       )}
       <p className="text-texte-attenue">
         Chaque étape peut être passée et modifiée plus tard depuis Réglages, y compris cet assistant lui-même (bouton

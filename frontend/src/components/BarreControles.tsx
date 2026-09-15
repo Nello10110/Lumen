@@ -39,7 +39,7 @@ const AIDE_MONTANTS_MASQUES =
 // seule ligne. Le libellé complet reste accessible par l'infobulle et le nom ARIA.
 const OPTIONS_THEME: { valeur: Theme; libelle: React.ReactNode; aide: string }[] = [
   { valeur: 'clair', libelle: <IconSoleil className="h-4 w-4" />, aide: 'Thème clair' },
-  { valeur: 'sombre', libelle: <IconLune className="h-4 w-4" />, aide: 'Thème sombre' },
+  { valeur: 'sombre', libelle: <IconLune className="h-4 w-4" />, aide: 'Éclipse (thème sombre)' },
   { valeur: 'systeme', libelle: <IconEcran className="h-4 w-4" />, aide: 'Suivre le système' },
 ]
 

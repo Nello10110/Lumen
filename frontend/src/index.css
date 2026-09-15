@@ -289,3 +289,28 @@ summary,
     animation: none;
   }
 }
+
+/* Backlog § AF.2 (15/09/2026) — micro-interaction sur la bascule de thème
+   (`BasculeTheme.tsx` uniquement : le sélecteur segmenté de `BarreControles.tsx`
+   est un composant générique partagé, `Controls.SegmentedControl`, jamais
+   spécialisé pour une seule de ses utilisations). Un petit "flip" à chaque
+   changement, `key={theme}` côté composant forçant le remontage qui relance
+   l'animation. */
+@keyframes lumen-bascule-theme {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.6) rotate(-18deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+.animate-lumen-bascule-theme {
+  animation: lumen-bascule-theme 220ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-lumen-bascule-theme {
+    animation: none;
+  }
+}

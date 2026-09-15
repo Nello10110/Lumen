@@ -200,9 +200,9 @@ describe('App — menu du compte (backlog 2.K.2 / 2.K.7)', () => {
     expect(within(menu).queryByRole('button', { name: /Thème/ })).not.toBeInTheDocument()
 
     const barre = screen.getByRole('group', { name: 'Thème' })
-    expect(within(barre).getByRole('button', { name: 'Thème sombre' })).toBeInTheDocument()
-    fireEvent.click(within(barre).getByRole('button', { name: 'Thème sombre' }))
-    expect(within(barre).getByRole('button', { name: 'Thème sombre' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(barre).getByRole('button', { name: 'Éclipse (thème sombre)' })).toBeInTheDocument()
+    fireEvent.click(within(barre).getByRole('button', { name: 'Éclipse (thème sombre)' }))
+    expect(within(barre).getByRole('button', { name: 'Éclipse (thème sombre)' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 
