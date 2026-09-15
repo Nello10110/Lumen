@@ -123,7 +123,7 @@ const QUESTIONS_CHIFFRES: QuestionReponse[] = [
   {
     question: '📈 Le rendement annualisé (XIRR), ça veut dire quoi ?',
     reponse:
-      'C’est le taux de croissance annuel moyen qui, appliqué à chacun de vos versements (à leur date exacte), retomberait sur la valeur actuelle de votre portefeuille. Contrairement à une simple division gain/investi, il tient compte du MOMENT où l’argent a été investi — un euro investi il y a 3 ans ne "pèse" pas pareil qu’un euro investi hier.',
+      'En une phrase : comme un taux d’intérêt qui tiendrait compte du moment exact où vous avez versé chaque euro, pas juste du début et de la fin. Plus précisément, c’est le taux de croissance annuel moyen qui, appliqué à chacun de vos versements (à leur date exacte), retomberait sur la valeur actuelle de votre portefeuille. Contrairement à une simple division gain/investi, il tient compte du MOMENT où l’argent a été investi — un euro investi il y a 3 ans ne "pèse" pas pareil qu’un euro investi hier.',
   },
   {
     question: '🎯 Le score de diversification, comment il est calculé ?',
@@ -146,9 +146,9 @@ const GLOSSAIRE: GlossaireEntry[] = [
   { terme: 'ETF', definition: 'Fonds coté en bourse qui réplique un indice (ex. le CAC 40 ou le S&P 500) — on l’achète et le vend comme une action, mais il contient plusieurs dizaines à plusieurs milliers de titres.' },
   { terme: 'ISIN', definition: 'Le "numéro de sécurité sociale" d’un titre financier : un code unique à 12 caractères qui l’identifie sans ambiguïté, quel que soit le courtier ou la place boursière.' },
   { terme: 'PEA / CTO', definition: 'Deux enveloppes pour détenir des titres en France. Le PEA (Plan d’Épargne en Actions) a un cadre fiscal avantageux mais des restrictions (titres européens surtout, plafond de versement). Le CTO (Compte-Titres Ordinaire) n’a pas ces limites, mais une fiscalité moins favorable.' },
-  { terme: 'TER', definition: '"Total Expense Ratio" : les frais de gestion annuels d’un fonds, en % de l’encours, prélevés automatiquement — pas besoin de les payer à part, ils réduisent simplement la performance du fonds chaque année.' },
-  { terme: 'Drawdown', definition: 'La perte maximale subie entre un plus haut et le creux qui a suivi, sur une période donnée. Un bon indicateur de "à quel point ça peut faire mal" avant de remonter.' },
-  { terme: 'Volatilité', definition: 'À quel point le prix d’un titre bouge dans le temps. Une volatilité élevée veut dire des variations plus fortes (à la hausse comme à la baisse) — pas forcément une mauvaise performance, mais un trajet plus mouvementé.' },
+  { terme: 'TER', definition: 'Comme les frais bancaires d’un abonnement : prélevés automatiquement, sans facture à régler à part. "Total Expense Ratio" : les frais de gestion annuels d’un fonds, en % de l’encours — ils réduisent simplement la performance du fonds chaque année.' },
+  { terme: 'Drawdown', definition: 'La pire chute que le portefeuille ait encaissée avant de remonter — comme le point le plus bas d’un grand huit avant qu’il ne reparte vers le haut. Techniquement : la perte maximale subie entre un plus haut et le creux qui a suivi, sur une période donnée.' },
+  { terme: 'Volatilité', definition: 'À quel point le trajet est mouvementé, pas s’il est bon ou mauvais — un peu comme la différence entre une route de montagne et une autoroute qui mènent au même endroit. Techniquement : à quel point le prix d’un titre bouge dans le temps, à la hausse comme à la baisse.' },
   { terme: 'Plus-value latente / réalisée', definition: 'Latente : le gain "sur le papier" d’une position toujours détenue, qui peut encore monter ou redescendre. Réalisée : le gain devenu définitif au moment de la vente.' },
 ]
 
