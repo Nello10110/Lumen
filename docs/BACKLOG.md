@@ -3788,13 +3788,15 @@ mais plus jamais de substitution erronée.
 
 ---
 
-### AF. Identité « Lumen » — nouvelles pistes (proposé, 15/09/2026)
+### AF. Identité « Lumen » — nouvelles pistes (validé, 15/09/2026)
 
 Le Lot 16 (§ AD) épuisé, cinq nouvelles pistes proposées à l'utilisateur suite à sa demande (« Proposes
-moi en plus quand tu auras fini ») — même statut `proposé` qu'AD à l'origine : aucune développée,
-toutes en attente d'arbitrage, même retenue générale (peu nombreuses, jamais d'habillage systématique).
+moi en plus quand tu auras fini »). **Validées par l'utilisateur le 15/09/2026** (« Elles sont toutes
+super cool, on va les faire ») — statut relevé à `validé` : toutes à développer, mais après la nouvelle
+campagne d'idéation ouverte le même jour (§ AG) plutôt qu'immédiatement, à la demande explicite de
+l'utilisateur (« on va continuer à chercher des idées supplémentaires »).
 
-#### AF.1 — `proposé` (15/09/2026) — Filigrane discret sur les documents exportés
+#### AF.1 — `validé` (15/09/2026) — Filigrane discret sur les documents exportés
 
 Le relevé PDF et la déclaration de patrimoine (`declaration_patrimoine_service.py`) portent déjà
 « Généré le [date] par Lumen » en pied de page. Un filigrane très léger (opacité ~3-5 %, l'emblème
@@ -3802,20 +3804,20 @@ seul, pas le mot-symbole) en fond de chaque page renforcerait l'identité d'un d
 être partagé (banque, notaire) sans gêner la lecture. Effort `S` (reportlab sait poser une image en
 fond de page).
 
-#### AF.2 — `proposé` (15/09/2026) — Micro-interaction sur la bascule de thème
+#### AF.2 — `validé` (15/09/2026) — Micro-interaction sur la bascule de thème
 
 Le bouton clair/sombre/système change de thème instantanément. Une courte transition « interrupteur »
 (200-300 ms, un fondu ou une légère rotation de l'icône) au moment du basculement, `prefers-reduced-motion`
 respecté (bascule instantanée pour qui le demande). Discutable : gain marginal pour un geste déjà
 fluide — à valider en priorité basse.
 
-#### AF.3 — `proposé` (15/09/2026) — Première étape de l'assistant de bienvenue
+#### AF.3 — `validé` (15/09/2026) — Première étape de l'assistant de bienvenue
 
 `WelcomeWizard.tsx` (assistant de configuration initiale) ouvre sur un « Bienvenue » générique.
 Compléter par une variante de la tagline (ex. *« Bienvenue — configurons ensemble votre lumière sur
 vos finances. »*) sur cette seule première étape, jamais répétée sur les suivantes.
 
-#### AF.4 — `proposé` (15/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
+#### AF.4 — `validé` (15/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
 
 Au-delà d'un certain nombre de jours sans rafraîchissement réussi (`market_data_refresh`, déjà
 horodaté en base), un encart discret dans Réglages ou le tableau de bord : *« Vos cours dorment
@@ -3823,7 +3825,7 @@ depuis N jours — les rallumer ? »*, avec le bouton de rafraîchissement déj�
 donnée déjà en base (`ScheduledJobConfig.dernier_succes` ou équivalent) ; à vérifier avant de
 développer.
 
-#### AF.5 — `proposé` (15/09/2026) — Renommer « Sombre » en « Éclipse » dans le sélecteur de thème
+#### AF.5 — `validé` (15/09/2026) — Renommer « Sombre » en « Éclipse » dans le sélecteur de thème
 
 Clin d'œil optionnel sur le sélecteur clair/sombre/système (`hooks/useTheme.ts`, `MenuCompte.tsx`) —
 « Éclipse » plutôt que « Sombre ». **Réserve explicite** : un libellé moins immédiatement clair
@@ -3831,8 +3833,94 @@ qu'un mot déjà universellement compris (« Sombre ») a un coût réel d'utili
 purement décoratif — la seule des cinq pistes où le jeu de mots pourrait l'emporter sur la clarté.
 À ne retenir que si l'utilisateur la trouve vraiment à son goût.
 
-**Prochaine étape** : présenter ces cinq pistes à l'utilisateur pour arbitrage avant tout
-développement, comme pour le Lot 16.
+**Prochaine étape** : développement à planifier après § AG ci-dessous.
+
+---
+
+### AG. Rendre la finance accessible et agréable — nouvelle direction (proposé, 15/09/2026)
+
+Mandat élargi de l'utilisateur, au-delà de la seule identité visuelle : *« On est sur un truc de
+patrimoine mais je veux orienter ça pour les jeunes et rendre la finance agréable. Arrêter le côté
+élitiste et rendre accessible. »* — *« tu peux aller assez loin dans les trucs beaux, originaux,
+esthétiques et fun. »* Neuf pistes, volontairement plus audacieuses que §§ AD/AF, groupées par angle
+d'attaque. Aucune développée — brainstorm ouvert, présenté à l'utilisateur pour tri avant tout
+développement. Garde-fou explicite conservé malgré le ton plus audacieux : rien qui ressemble à de la
+gamification de trading (aucune incitation à transacter plus), rien de social/cloud (l'application
+reste 100 % locale — cf. principe fondateur, § 0).
+
+#### AG.1 — `proposé` (15/09/2026) — Mode « langage simple »
+
+La piste la plus directement anti-élitiste : un bouton bascule qui remplace le jargon (XIRR, TWR,
+drawdown, quotité...) par du langage courant partout dans l'application, avec un lien « en savoir
+plus » qui déplie le terme technique pour qui le veut. Le glossaire existant (« Petit glossaire »,
+`AidePage.tsx`) en serait la première source. Effort réel non trivial (chaque écran financier à
+auditer), mais c'est la fonctionnalité qui répond le plus frontalement à la demande.
+
+#### AG.2 — `proposé` (15/09/2026) — Chiffres traduits en équivalents concrets
+
+Un pourcentage ou un montant abstrait parle peu à qui n'est pas déjà à l'aise avec la finance. À
+côté (jamais à la place) du chiffre : une traduction concrète — *« ça représente 3 mois de loyer »*,
+*« l'équivalent de 40 pleins d'essence »* — calculée sur des repères déclarés par l'utilisateur
+(loyer, dépense récurrente) plutôt que des moyennes nationales anonymes, pour rester honnête et
+personnel plutôt que vaguement moralisateur.
+
+#### AG.3 — `proposé` (15/09/2026) — Célébrations discrètes aux jalons
+
+Un jalon franchi (premier import réussi, premier objectif atteint, une année de suivi complète) —
+une micro-animation ponctuelle et sobre (pas de confettis plein écran façon appli de courtage), un
+message chaleureux, jamais répété pour le même jalon. Aucune pression à en refaire un autre : ce
+sont des accusés de réception, pas des paliers à grinder.
+
+#### AG.4 — `proposé` (15/09/2026) — Badges personnels, jamais sociaux
+
+Une petite galerie privée dans Réglages (« Premier import », « 3 mois de suivi sans interruption »,
+« Premier objectif atteint »...) — strictement personnelle, jamais partageable ni comparée à qui que
+ce soit (l'application n'a pas de notion de classement, et ça doit le rester). Sert à valoriser la
+régularité, jamais le volume investi ou le risque pris — pour ne jamais dériver vers une incitation
+à « faire plus ».
+
+#### AG.5 — `proposé` (15/09/2026) — Ambiance visuelle qui respire la santé du patrimoine
+
+Extension du halo du logo (§ AD.2) : le fond à halos déjà présent sur toute l'application (`body`,
+refonte « liquid glass ») pourrait très légèrement teinter sa chaleur selon la tendance générale du
+patrimoine — un effet d'ambiance, jamais un indicateur chiffré déguisé, à peine perceptible plutôt
+qu'un thème qui change de couleur franchement. Risque réel de trop en faire ; à essayer avec
+retenue, réversible si ça distrait plus que ça n'apaise.
+
+#### AG.6 — `proposé` (15/09/2026) — Simulateur reformulé en histoires
+
+Le Simulateur existant (FIRE, achat/location) présente déjà un résultat, mais façon feuille de
+calcul. Une première phrase en langage humain avant le détail chiffré — *« Avec 50 € de plus par
+mois, tu prendrais ta retraite 8 mois plus tôt »* — le tableau détaillé restant disponible juste
+en dessous pour qui veut vérifier. Rend le simulateur utilisable sans comprendre immédiatement tous
+ses paramètres.
+
+#### AG.7 — `proposé` (15/09/2026) — Mode découverte avec données fictives
+
+Avant d'importer ses vraies données, pouvoir explorer l'application avec un foyer fictif préremplit
+(actions, immobilier, budget) — baisse la barrière à l'entrée réelle constatée sur ce type d'outil
+(« je dois tout comprendre et tout saisir avant de voir si ça me plaît »). Techniquement : un jeu de
+données proche de `seed_e2e.py`, chargé à la demande dans un foyer de démonstration, jamais mélangé
+aux vraies données.
+
+#### AG.8 — `proposé` (15/09/2026) — Illustrations légères sur les états vides
+
+Les états vides (`EtatVide`) sont aujourd'hui du texte seul. Une petite illustration au trait, dans
+le bleu de marque, cohérente avec l'esthétique « verre liquide » du logo — jamais des photos stock,
+jamais un style enfantin qui déprécierait le sérieux de l'outil. Effort non négligeable (plusieurs
+illustrations à produire), à réserver aux 2-3 écrans les plus vus en premier (Portefeuille,
+Patrimoine, tableau de bord).
+
+#### AG.9 — `proposé` (15/09/2026) — Glossaire réécrit par analogies
+
+Le « Petit glossaire » existant (`AidePage.tsx`) définit chaque terme techniquement. Une réécriture
+par analogie concrète en tête de chaque définition, avant la définition formelle qui reste
+disponible pour qui la veut — ex. XIRR : *« Comme un taux d'intérêt qui tiendrait compte du moment
+exact où tu as versé chaque euro, pas juste du début et de la fin. »* Faible effort, fort effet sur
+la perception d'accessibilité — piste à prioriser haut si l'utilisateur en retient peu.
+
+**Prochaine étape** : présenter ces neuf pistes à l'utilisateur pour tri, en parallèle des cinq
+pistes déjà validées (§ AF) — développement à planifier ensemble une fois le tri fait.
 
 ---
 ## 3. Hors périmètre (assumé)
