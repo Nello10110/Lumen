@@ -3646,6 +3646,13 @@ pour prolonger ce nom au-delà du simple libellé — aucun n'est développé, t
 validation de l'utilisateur avant tout code (contrairement au reste de ce backlog, où `proposé`
 n'existe normalement pas comme statut).
 
+**Logo reçu et intégré (15/09/2026, `traité`)** : emblème « verre liquide » bleu fourni par
+l'utilisateur (`docs/Ressources/lumen_logo.svg`), recadré sur son empreinte réelle et posé comme
+favicon, icônes PWA (`apple-touch-icon`, `icon-192`, `icon-512`, régénérées via `sharp-cli`) et
+composant `LumenMark.tsx` réutilisé sur la sidebar et la page de connexion — remplace l'ancien
+monogramme « P » (dégradé générique de l'ex-« Application Patrimoine »). Ceci lève le préalable
+bloquant d'AD.2 ci-dessous ; AD.1/AD.3/AD.4/AD.5 restent `proposé`, inchangés.
+
 #### AD.1 — `proposé` (15/09/2026) — Phrase d'accroche
 
 Le README et la page de connexion n'ont aujourd'hui qu'un nom, sans accroche. Trois pistes, toutes
@@ -3667,8 +3674,9 @@ l'intensité et la teinte suivraient la variation du patrimoine net sur la péri
 lumineux quand ça monte, terne quand ça baisse, sans jamais devenir alarmant (pas de rouge agressif,
 l'app n'est pas là pour stresser). Techniquement : un `filter: drop-shadow(...)` animé en fonction du
 signe/de l'amplitude de la variation déjà calculée pour le tableau de bord, `prefers-reduced-motion`
-respecté (halo fixe, pas de pulsation, pour qui le demande). Effort `S` une fois le SVG final fourni.
-Nécessite le logo définitif (en attente) avant tout code.
+respecté (halo fixe, pas de pulsation, pour qui le demande). Effort `S`. Logo définitif désormais
+disponible et intégré (`LumenMark.tsx`, ci-dessus) — reste seulement l'arbitrage utilisateur avant
+de coder le halo réactif lui-même.
 
 #### AD.3 — `proposé` (15/09/2026) — Micro-textes thématiques
 
@@ -3700,8 +3708,8 @@ exemple *« Un lumen, c'est le flux lumineux d'une bougie à un mètre. Votre pa
 d'unité SI — mais on garde le nom. »* Sans persistance, sans easter egg en cascade (pas de Konami
 code ni de mode caché) : un seul niveau, purement décoratif, aucun impact fonctionnel.
 
-**Prochaine étape** : présenter ces cinq points à l'utilisateur (probablement lors de la revue du
-logo définitif, dont l'intégration est le préalable à AD.2) pour arbitrage avant tout développement.
+**Prochaine étape** : présenter ces cinq points à l'utilisateur pour arbitrage avant tout
+développement — le logo étant désormais intégré, plus aucun n'est bloqué par une donnée manquante.
 
 ---
 ## 3. Hors périmètre (assumé)
