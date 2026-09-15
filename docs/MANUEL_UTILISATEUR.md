@@ -1,4 +1,4 @@
-# Manuel utilisateur — Application Patrimoine
+# Manuel utilisateur — Lumen
 
 ## Prise en main
 

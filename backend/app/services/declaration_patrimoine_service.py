@@ -85,7 +85,7 @@ def _pied_de_page(canvas, doc) -> None:
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawString(2 * cm, 1.3 * cm, f"Généré le {date.today().strftime('%d/%m/%Y')} par Application Patrimoine")
+    canvas.drawString(2 * cm, 1.3 * cm, f"Généré le {date.today().strftime('%d/%m/%Y')} par Lumen")
     canvas.drawRightString(A4[0] - 2 * cm, 1.3 * cm, f"Page {doc.page}")
     canvas.restoreState()
 

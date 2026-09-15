@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
     scheduler_service.shutdown_scheduler()
 
 
-app = FastAPI(title="Application Patrimoine API", lifespan=lifespan)
+app = FastAPI(title="Lumen API", lifespan=lifespan)
 
 # Origines autorisées : les deux ports de dev par défaut, ou `PATRIMOINE_CORS_ORIGINS`
 # (liste séparée par des virgules) pour un déploiement Docker où le frontend n'est pas

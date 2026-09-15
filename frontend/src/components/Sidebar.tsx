@@ -28,7 +28,7 @@ export default function Sidebar() {
       <div className="flex items-center px-1 pb-3">
         <Link
           to="/"
-          aria-label="Application Patrimoine"
+          aria-label="Lumen"
           className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink"
         >
           <span

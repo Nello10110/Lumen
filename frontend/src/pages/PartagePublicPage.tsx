@@ -240,7 +240,7 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
         </Card>
       )}
 
-      <p className="text-center text-xs text-texte-attenue">Vue en lecture seule, générée par Application Patrimoine.</p>
+      <p className="text-center text-xs text-texte-attenue">Vue en lecture seule, générée par Lumen.</p>
     </div>
   )
 }

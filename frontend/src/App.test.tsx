@@ -58,7 +58,7 @@ describe('App — barre latérale (backlog 2.K.2)', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByRole('link', { name: 'Application Patrimoine' })).toHaveAttribute('href', '/')
+    expect(await screen.findByRole('link', { name: 'Lumen' })).toHaveAttribute('href', '/')
   })
 
   it('affiche les écrans de consultation, mais pas les écrans d\'administration', async () => {

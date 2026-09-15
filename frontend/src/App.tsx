@@ -38,7 +38,7 @@ function useTitreDocument() {
   const location = useLocation()
   useEffect(() => {
     const route = ROUTES.find((r) => matchPath({ path: r.path, end: true }, location.pathname))
-    document.title = route ? `${route.titre} · Application Patrimoine` : 'Application Patrimoine'
+    document.title = route ? `${route.titre} · Lumen` : 'Lumen'
   }, [location.pathname])
 }
 

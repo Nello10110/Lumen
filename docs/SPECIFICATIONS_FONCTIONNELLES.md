@@ -1,4 +1,4 @@
-# Spécifications fonctionnelles — Application Patrimoine
+# Spécifications fonctionnelles — Lumen
 
 ## 1. Périmètre
 

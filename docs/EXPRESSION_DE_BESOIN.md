@@ -1,4 +1,4 @@
-# Expression de besoin — Application Patrimoine
+# Expression de besoin — Lumen
 
 **Version** 1.0 · **Date** 21/08/2026 · **Auteur** Paul C. · **Statut** validée, prête pour lancement des développements
 

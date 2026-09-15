@@ -34,8 +34,8 @@ jobs:
           context: ./backend
           push: true
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-backend:latest
-            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-backend:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/lumen-backend:latest
+            ghcr.io/${{ env.OWNER_LC }}/lumen-backend:${{ github.sha }}
 
       - name: Build et push frontend
         uses: docker/build-push-action@v6
@@ -43,5 +43,5 @@ jobs:
           context: ./frontend
           push: true
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-frontend:latest
-            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-frontend:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/lumen-frontend:latest
+            ghcr.io/${{ env.OWNER_LC }}/lumen-frontend:${{ github.sha }}

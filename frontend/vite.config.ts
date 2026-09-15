@@ -36,8 +36,8 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Application Patrimoine',
-        short_name: 'Patrimoine',
+        name: 'Lumen',
+        short_name: 'Lumen',
         description: "Suivi et gestion de portefeuille boursier, analyse de patrimoine et suivi d'objectifs financiers.",
         lang: 'fr',
         start_url: '/',

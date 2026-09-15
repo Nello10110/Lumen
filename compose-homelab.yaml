@@ -17,7 +17,7 @@
 
 services:
   backend:
-    image: ghcr.io/nello10110/application-patrimoine-backend:latest
+    image: ghcr.io/nello10110/lumen-backend:latest
     environment:
       PATRIMOINE_DB: /app/data/patrimoine.db
       # Lues depuis un fichier `.env` place a cote de ce compose (ignore par git),
@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ghcr.io/nello10110/application-patrimoine-frontend:latest
+    image: ghcr.io/nello10110/lumen-frontend:latest
     depends_on:
       - backend
     ports:

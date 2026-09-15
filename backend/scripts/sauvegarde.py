@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sauvegarde et restauration de la base SQLite d'Application Patrimoine (LOT 7.6).
+"""Sauvegarde et restauration de la base SQLite de Lumen (LOT 7.6).
 
 `patrimoine.db` contient l'intégralité de l'historique financier personnel de
 l'utilisateur, sans sauvegarde automatique ni procédure de restauration testée
@@ -291,7 +291,7 @@ def _construire_analyseur() -> argparse.ArgumentParser:
     analyseur = argparse.ArgumentParser(
         prog="sauvegarde.py",
         description=(
-            "Sauvegarde et restauration de la base SQLite d'Application Patrimoine. Sans "
+            "Sauvegarde et restauration de la base SQLite de Lumen. Sans "
             "--restaurer, effectue une sauvegarde à chaud (cohérente même "
             "application démarrée) puis applique la rétention. Avec --restaurer, "
             "remplace la base courante par le fichier indiqué, après l'avoir "

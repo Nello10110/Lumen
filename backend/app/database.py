@@ -29,7 +29,7 @@ logger = logging.getLogger("patrimoine.database")
 
 _RACINE_BACKEND = Path(__file__).resolve().parent.parent
 _NOM_BASE = "patrimoine.db"
-# Nom porté par la base avant que le projet ne soit renommé « Application Patrimoine ».
+# Nom porté par la base avant que le projet ne soit renommé « Application Patrimoine » (aujourd'hui « Lumen »).
 _NOM_BASE_HISTORIQUE = "portfolio.db"
 
 

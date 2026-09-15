@@ -1,4 +1,4 @@
-# Backlog — Application Patrimoine
+# Backlog — Lumen
 
 ## 0. Où on en était, où on va
 
@@ -112,7 +112,7 @@ pas conjoncturels, et chacun est une occasion :
 
 ### 1.3 Positionnement retenu
 
-| Axe | Finary | Cible Application Patrimoine |
+| Axe | Finary | Cible Lumen |
 |---|---|---|
 | Modèle économique | 0 € limité à 2-3 synchronisations, Lite ≈ 55 €/an, Plus ≈ 150 €/an, Pro ≈ 350 €/an | Gratuit, open source, auto-hébergé |
 | Donnée | Cloud, agrégation via prestataire régulé | 100 % local, hors requêtes de cotation |
@@ -1807,7 +1807,7 @@ GHCR, cohérent avec le dépôt GitHub déjà privé (confirmé par `gh repo vie
 authentification unique (`docker login ghcr.io`, jeton personnel `read:packages`) sur le homelab.
 
 Livré : `.github/workflows/docker-publish.yml` (construit et pousse les deux images sur
-`ghcr.io/nello10110/application-patrimoine-{backend,frontend}` à chaque push sur `main`, tags
+`ghcr.io/nello10110/lumen-{backend,frontend}` à chaque push sur `main`, tags
 `latest` + SHA du commit pour un rollback manuel possible ; conversion du nom du propriétaire en
 minuscules, exigée par GHCR) ; `compose-homelab.yaml` (même structure que `compose-exemple.yaml`,
 `image:` au lieu de `build:`, ports sans IP hôte précisée donc `0.0.0.0`). Syntaxe validée
@@ -3633,6 +3633,75 @@ routes `/holdings/{ticker}/...`) migré vers `holding_id` — précédent déjà
 `/patrimoine/:holdingId` (plus `:ticker`), `HoldingDetail`/`CategoryCompositionItem` gagnent un champ
 `id`. Confirmé sans impact : données de marché (`MarketDataCache`, `SerieCours`...), partagées par
 ticker quel que soit le compte qui le détient.
+
+---
+
+### AD. Identité « Lumen » — accroches, animations, easter eggs (proposé, 15/09/2026)
+
+Renommage décidé par l'utilisateur le 15/09/2026 : le projet s'appelle désormais **Lumen** (toutes
+les mentions d'« Application Patrimoine » retirées du code, des docs, des images Docker — livré le
+jour même, cf. commit correspondant). Le nom porte une intention explicite de l'utilisateur : « la
+lumière et la transparence des finances du foyer ». Les points ci-dessous sont des **propositions**
+pour prolonger ce nom au-delà du simple libellé — aucun n'est développé, tous attendent la
+validation de l'utilisateur avant tout code (contrairement au reste de ce backlog, où `proposé`
+n'existe normalement pas comme statut).
+
+#### AD.1 — `proposé` (15/09/2026) — Phrase d'accroche
+
+Le README et la page de connexion n'ont aujourd'hui qu'un nom, sans accroche. Trois pistes, toutes
+filant la métaphore lumière/transparence sans tomber dans le jeu de mots forcé :
+
+- *« Lumen — la lumière sur votre patrimoine. »* (la plus directe, double sens assumé : faire la
+  lumière sur ses comptes, littéralement)
+- *« Faites la lumière sur vos finances. »* (verbe d'action, ton compagnon plutôt que produit)
+- *« Votre patrimoine, en pleine lumière. »* (insiste sur la transparence plutôt que la découverte)
+
+À placer sous le titre sur la page de connexion (`LoginPage.tsx`) et en tête du README. Décision
+utilisateur nécessaire : laquelle, ou aucune.
+
+#### AD.2 — `proposé` (15/09/2026) — Logo réactif à la santé du patrimoine
+
+Idée la plus structurante des trois : le nom « Lumen » (unité de flux lumineux) se prête à un logo
+qui ne serait pas statique. Le SVG de la sidebar (`Sidebar.tsx`) gagnerait un halo/glow CSS dont
+l'intensité et la teinte suivraient la variation du patrimoine net sur la période affichée — vert et
+lumineux quand ça monte, terne quand ça baisse, sans jamais devenir alarmant (pas de rouge agressif,
+l'app n'est pas là pour stresser). Techniquement : un `filter: drop-shadow(...)` animé en fonction du
+signe/de l'amplitude de la variation déjà calculée pour le tableau de bord, `prefers-reduced-motion`
+respecté (halo fixe, pas de pulsation, pour qui le demande). Effort `S` une fois le SVG final fourni.
+Nécessite le logo définitif (en attente) avant tout code.
+
+#### AD.3 — `proposé` (15/09/2026) — Micro-textes thématiques
+
+Quelques emplacements où un texte générique pourrait porter la métaphore sans effort de lecture
+supplémentaire :
+
+- État vide du portefeuille (aucune ligne) : *« Ajoutez votre première ligne pour allumer votre
+  patrimoine. »*
+- Page de partage public (déjà « Vue en lecture seule, générée par Lumen ») : inchangée, déjà sobre.
+- Bouton de rafraîchissement manuel des cours (tooltip) : *« Rallumer les cours. »*
+- Écran 404 / route inconnue : *« Aucune lumière par ici — retour au tableau de bord. »*
+
+Volontairement peu nombreux : la metaphore doit rester un clin d'œil ponctuel, pas un habillage
+systématique qui fatiguerait à l'usage quotidien d'un outil de suivi financier sérieux.
+
+#### AD.4 — `proposé` (15/09/2026) — Animation de premier chargement
+
+Le splashscreen/chargement initial (avant montage React, cf. script anti-flash de `index.html`)
+pourrait remplacer un spinner générique par une animation courte (< 600 ms) d'allumage — un point
+lumineux qui grandit doucement jusqu'au logo plein, plutôt qu'un cercle qui tourne. Cohérent avec le
+thème, mais discutable : c'est aussi l'écran le plus vu (à chaque ouverture), donc le risque de
+lassitude est réel. À valider en priorité basse, après AD.1/AD.2.
+
+#### AD.5 — `proposé` (15/09/2026) — Easter egg
+
+Un seul, discret, pour ne pas transformer un outil financier sérieux en jouet : cliquer 5 fois de
+suite sur le logo de la sidebar dans un délai court affiche un petit fait amusant en toast — par
+exemple *« Un lumen, c'est le flux lumineux d'une bougie à un mètre. Votre patrimoine, lui, n'a pas
+d'unité SI — mais on garde le nom. »* Sans persistance, sans easter egg en cascade (pas de Konami
+code ni de mode caché) : un seul niveau, purement décoratif, aucun impact fonctionnel.
+
+**Prochaine étape** : présenter ces cinq points à l'utilisateur (probablement lors de la revue du
+logo définitif, dont l'intégration est le préalable à AD.2) pour arbitrage avant tout développement.
 
 ---
 ## 3. Hors périmètre (assumé)

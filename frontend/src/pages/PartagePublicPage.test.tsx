@@ -104,7 +104,7 @@ describe('PartagePublicPage', () => {
 
     renderPage()
 
-    await screen.findByText('Vue en lecture seule, générée par Application Patrimoine.')
+    await screen.findByText('Vue en lecture seule, générée par Lumen.')
     expect(screen.queryByText('Patrimoine net')).not.toBeInTheDocument()
   })
 

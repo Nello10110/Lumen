@@ -1,4 +1,4 @@
-# Bilan du chantier — Application Patrimoine
+# Bilan du chantier — Lumen
 
 Chantier d'audit et de refonte mené du 18 au 19/08/2026. Ce document remplace la note de reprise
 rédigée en cours de route : **le chantier est terminé, les six lots sont livrés.**
