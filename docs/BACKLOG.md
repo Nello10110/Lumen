@@ -3837,18 +3837,19 @@ purement décoratif — la seule des cinq pistes où le jeu de mots pourrait l'e
 
 ---
 
-### AG. Rendre la finance accessible et agréable — nouvelle direction (proposé, 15/09/2026)
+### AG. Rendre la finance accessible et agréable — nouvelle direction (validé, 15/09/2026)
 
 Mandat élargi de l'utilisateur, au-delà de la seule identité visuelle : *« On est sur un truc de
 patrimoine mais je veux orienter ça pour les jeunes et rendre la finance agréable. Arrêter le côté
 élitiste et rendre accessible. »* — *« tu peux aller assez loin dans les trucs beaux, originaux,
 esthétiques et fun. »* Neuf pistes, volontairement plus audacieuses que §§ AD/AF, groupées par angle
-d'attaque. Aucune développée — brainstorm ouvert, présenté à l'utilisateur pour tri avant tout
-développement. Garde-fou explicite conservé malgré le ton plus audacieux : rien qui ressemble à de la
-gamification de trading (aucune incitation à transacter plus), rien de social/cloud (l'application
-reste 100 % locale — cf. principe fondateur, § 0).
+d'attaque. **Les neuf validées en bloc par l'utilisateur** (« Tu peux tout ajouter à la backlog c'est
+top ») — aucune écartée, aucune priorisée à ce stade : toutes à développer, ordre à définir avec
+l'utilisateur avant de commencer. Garde-fou explicite conservé malgré le ton plus audacieux : rien qui
+ressemble à de la gamification de trading (aucune incitation à transacter plus), rien de social/cloud
+(l'application reste 100 % locale — cf. principe fondateur, § 0).
 
-#### AG.1 — `proposé` (15/09/2026) — Mode « langage simple »
+#### AG.1 — `validé` (15/09/2026) — Mode « langage simple »
 
 La piste la plus directement anti-élitiste : un bouton bascule qui remplace le jargon (XIRR, TWR,
 drawdown, quotité...) par du langage courant partout dans l'application, avec un lien « en savoir
@@ -3856,7 +3857,7 @@ plus » qui déplie le terme technique pour qui le veut. Le glossaire existant (
 `AidePage.tsx`) en serait la première source. Effort réel non trivial (chaque écran financier à
 auditer), mais c'est la fonctionnalité qui répond le plus frontalement à la demande.
 
-#### AG.2 — `proposé` (15/09/2026) — Chiffres traduits en équivalents concrets
+#### AG.2 — `validé` (15/09/2026) — Chiffres traduits en équivalents concrets
 
 Un pourcentage ou un montant abstrait parle peu à qui n'est pas déjà à l'aise avec la finance. À
 côté (jamais à la place) du chiffre : une traduction concrète — *« ça représente 3 mois de loyer »*,
@@ -3864,14 +3865,14 @@ côté (jamais à la place) du chiffre : une traduction concrète — *« ça re
 (loyer, dépense récurrente) plutôt que des moyennes nationales anonymes, pour rester honnête et
 personnel plutôt que vaguement moralisateur.
 
-#### AG.3 — `proposé` (15/09/2026) — Célébrations discrètes aux jalons
+#### AG.3 — `validé` (15/09/2026) — Célébrations discrètes aux jalons
 
 Un jalon franchi (premier import réussi, premier objectif atteint, une année de suivi complète) —
 une micro-animation ponctuelle et sobre (pas de confettis plein écran façon appli de courtage), un
 message chaleureux, jamais répété pour le même jalon. Aucune pression à en refaire un autre : ce
 sont des accusés de réception, pas des paliers à grinder.
 
-#### AG.4 — `proposé` (15/09/2026) — Badges personnels, jamais sociaux
+#### AG.4 — `validé` (15/09/2026) — Badges personnels, jamais sociaux
 
 Une petite galerie privée dans Réglages (« Premier import », « 3 mois de suivi sans interruption »,
 « Premier objectif atteint »...) — strictement personnelle, jamais partageable ni comparée à qui que
@@ -3879,7 +3880,7 @@ ce soit (l'application n'a pas de notion de classement, et ça doit le rester). 
 régularité, jamais le volume investi ou le risque pris — pour ne jamais dériver vers une incitation
 à « faire plus ».
 
-#### AG.5 — `proposé` (15/09/2026) — Ambiance visuelle qui respire la santé du patrimoine
+#### AG.5 — `validé` (15/09/2026) — Ambiance visuelle qui respire la santé du patrimoine
 
 Extension du halo du logo (§ AD.2) : le fond à halos déjà présent sur toute l'application (`body`,
 refonte « liquid glass ») pourrait très légèrement teinter sa chaleur selon la tendance générale du
@@ -3887,7 +3888,7 @@ patrimoine — un effet d'ambiance, jamais un indicateur chiffré déguisé, à 
 qu'un thème qui change de couleur franchement. Risque réel de trop en faire ; à essayer avec
 retenue, réversible si ça distrait plus que ça n'apaise.
 
-#### AG.6 — `proposé` (15/09/2026) — Simulateur reformulé en histoires
+#### AG.6 — `validé` (15/09/2026) — Simulateur reformulé en histoires
 
 Le Simulateur existant (FIRE, achat/location) présente déjà un résultat, mais façon feuille de
 calcul. Une première phrase en langage humain avant le détail chiffré — *« Avec 50 € de plus par
@@ -3895,7 +3896,7 @@ mois, tu prendrais ta retraite 8 mois plus tôt »* — le tableau détaillé re
 en dessous pour qui veut vérifier. Rend le simulateur utilisable sans comprendre immédiatement tous
 ses paramètres.
 
-#### AG.7 — `proposé` (15/09/2026) — Mode découverte avec données fictives
+#### AG.7 — `validé` (15/09/2026) — Mode découverte avec données fictives
 
 Avant d'importer ses vraies données, pouvoir explorer l'application avec un foyer fictif préremplit
 (actions, immobilier, budget) — baisse la barrière à l'entrée réelle constatée sur ce type d'outil
@@ -3903,7 +3904,7 @@ Avant d'importer ses vraies données, pouvoir explorer l'application avec un foy
 données proche de `seed_e2e.py`, chargé à la demande dans un foyer de démonstration, jamais mélangé
 aux vraies données.
 
-#### AG.8 — `proposé` (15/09/2026) — Illustrations légères sur les états vides
+#### AG.8 — `validé` (15/09/2026) — Illustrations légères sur les états vides
 
 Les états vides (`EtatVide`) sont aujourd'hui du texte seul. Une petite illustration au trait, dans
 le bleu de marque, cohérente avec l'esthétique « verre liquide » du logo — jamais des photos stock,
@@ -3911,7 +3912,7 @@ jamais un style enfantin qui déprécierait le sérieux de l'outil. Effort non n
 illustrations à produire), à réserver aux 2-3 écrans les plus vus en premier (Portefeuille,
 Patrimoine, tableau de bord).
 
-#### AG.9 — `proposé` (15/09/2026) — Glossaire réécrit par analogies
+#### AG.9 — `validé` (15/09/2026) — Glossaire réécrit par analogies
 
 Le « Petit glossaire » existant (`AidePage.tsx`) définit chaque terme techniquement. Une réécriture
 par analogie concrète en tête de chaque définition, avant la définition formelle qui reste
@@ -3919,8 +3920,8 @@ disponible pour qui la veut — ex. XIRR : *« Comme un taux d'intérêt qui tie
 exact où tu as versé chaque euro, pas juste du début et de la fin. »* Faible effort, fort effet sur
 la perception d'accessibilité — piste à prioriser haut si l'utilisateur en retient peu.
 
-**Prochaine étape** : présenter ces neuf pistes à l'utilisateur pour tri, en parallèle des cinq
-pistes déjà validées (§ AF) — développement à planifier ensemble une fois le tri fait.
+**Prochaine étape** : 14 pistes validées au total (§ AF + § AG), aucune développée — ordre de
+développement à définir avec l'utilisateur avant de commencer.
 
 ---
 ## 3. Hors périmètre (assumé)
