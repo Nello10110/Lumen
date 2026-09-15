@@ -25,6 +25,7 @@ vi.mock('../components/RevenusPassifsCard', () => ({ default: () => <div /> }))
 vi.mock('../components/QualiteDonneesCard', () => ({ default: () => <div /> }))
 vi.mock('../components/CoutGestionCard', () => ({ default: () => <div /> }))
 vi.mock('../components/SimulateurAchatLocationCard', () => ({ default: () => <div>SIMULATEUR_MOCK</div> }))
+vi.mock('../components/SimulateurProjectionSection', () => ({ default: () => <div>PROJECTION_MOCK</div> }))
 vi.mock('../components/EvolutionFinanciereCard', () => ({ default: () => <div>EVOLUTION_MOCK</div> }))
 
 vi.mock('../hooks/usePreferencesAffichage', () => ({
@@ -187,6 +188,25 @@ describe('AnalysePage — onglet Achat vs location (simulateur résidence princi
     renderPage('/analyse?onglet=simulateur')
 
     expect(await screen.findByText('SIMULATEUR_MOCK')).toBeInTheDocument()
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+  })
+})
+
+describe('AnalysePage — onglet Simulateur (projection/FIRE, déplacé depuis Objectifs le 16/09/2026)', () => {
+  it('bascule vers Simulateur', async () => {
+    renderPage()
+    await screen.findByText('Score de diversification')
+
+    fireEvent.click(screen.getByRole('tab', { name: /Simulateur/ }))
+
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+    expect(await screen.findByText('PROJECTION_MOCK')).toBeInTheDocument()
+  })
+
+  it("ouvre directement Simulateur quand l'URL le demande", async () => {
+    renderPage('/analyse?onglet=projection')
+
+    expect(await screen.findByText('PROJECTION_MOCK')).toBeInTheDocument()
     expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
   })
 })

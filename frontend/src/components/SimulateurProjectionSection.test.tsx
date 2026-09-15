@@ -4,24 +4,17 @@ import { api } from '../api/client'
 import type { JonctionPatrimoine, PatrimoineNet, PerformanceSummary } from '../api/types'
 import { formatEuro } from '../utils/format'
 import { agregerParAnnee, calculerTrajectoire, calculerTrajectoireMensuelle } from '../utils/interetsComposes'
-import SimulateurPage from './SimulateurPage'
+import SimulateurProjectionSection from './SimulateurProjectionSection'
 
 vi.mock('../api/client', () => ({
   api: {
     getPatrimoineNet: vi.fn(),
     getPerformance: vi.fn(),
     getJonctionPatrimoine: vi.fn(),
-    // Objectifs suivis (backlog 2.O.1/2.O.2) : `ObjectifsSuivisSection`, montée en
-    // tête de cette page, les appelle au chargement — non testés ici (couverts par
-    // `ObjectifsSuivisSection.test.tsx`), résolution neutre.
-    listObjectifs: vi.fn(),
-    listHoldings: vi.fn(),
-    listDetenteurs: vi.fn(),
-    getIndicateursSituation: vi.fn(),
   },
 }))
 
-// Contrôles transverses (backlog 2.K.3) : `SimulateurPage` lit
+// Contrôles transverses (backlog 2.K.3) : `SimulateurProjectionSection` lit
 // `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
 vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
@@ -95,35 +88,23 @@ function jonctionPatrimoine(overrides: Partial<JonctionPatrimoine> = {}): Joncti
   }
 }
 
-describe('SimulateurPage', () => {
+describe('SimulateurProjectionSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoineNet())
     vi.mocked(api.getPerformance).mockResolvedValue(performance())
     vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine())
-    vi.mocked(api.listObjectifs).mockResolvedValue([])
-    vi.mocked(api.listHoldings).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getIndicateursSituation).mockResolvedValue({
-      matelas_securite_mois: null,
-      taux_endettement_pct: null,
-      part_immobilisee_pct: null,
-      epargne_disponible: 0,
-      depenses_mensuelles_moyennes: null,
-      mensualites_totales: 0,
-      revenus_nets_mensuels_moyens: null,
-    })
   })
 
   it('préremplit le capital de départ avec le patrimoine net actuel', async () => {
-    render(<SimulateurPage />)
+    render(<SimulateurProjectionSection />)
 
     await waitFor(() => expect(api.getPatrimoineNet).toHaveBeenCalledTimes(1))
     expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000)
   })
 
   it('recalcule instantanément la valeur finale au changement de rendement (aucun appel réseau)', async () => {
-    render(<SimulateurPage />)
+    render(<SimulateurProjectionSection />)
     await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
     fireEvent.change(screen.getByLabelText('Rendement annuel moyen (%)'), { target: { value: '7' } })
@@ -134,7 +115,7 @@ describe('SimulateurPage', () => {
   })
 
   it("changer l'horizon relance le calcul avec la nouvelle durée", async () => {
-    render(<SimulateurPage />)
+    render(<SimulateurProjectionSection />)
     await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
     fireEvent.click(screen.getByRole('button', { name: '10 ans' }))
@@ -144,7 +125,7 @@ describe('SimulateurPage', () => {
   })
 
   it('un capital modifié fait apparaître un bouton pour revenir au patrimoine net actuel', async () => {
-    render(<SimulateurPage />)
+    render(<SimulateurProjectionSection />)
     await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
     fireEvent.change(screen.getByLabelText('Capital de départ (€)'), { target: { value: '50000' } })
@@ -157,7 +138,7 @@ describe('SimulateurPage', () => {
 
   it("un échec de chargement du patrimoine net n'empêche pas d'utiliser le calculateur", async () => {
     vi.mocked(api.getPatrimoineNet).mockRejectedValue(new Error('panne simulée'))
-    render(<SimulateurPage />)
+    render(<SimulateurProjectionSection />)
 
     await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).not.toBeDisabled())
     fireEvent.change(screen.getByLabelText('Capital de départ (€)'), { target: { value: '1000' } })
@@ -170,7 +151,7 @@ describe('SimulateurPage', () => {
 
   it("un échec de chargement du patrimoine net affiche une erreur avec action de reprise (backlog 2.K.5)", async () => {
     vi.mocked(api.getPatrimoineNet).mockRejectedValueOnce(new Error('panne simulée'))
-    render(<SimulateurPage />)
+    render(<SimulateurProjectionSection />)
 
     await screen.findByText(/n'a pas pu être préchargé/)
     const bouton = screen.getByRole('button', { name: 'Réessayer' })
@@ -183,14 +164,14 @@ describe('SimulateurPage', () => {
 
   describe('FIRE', () => {
     it("n'affiche aucun résultat tant qu'aucune dépense cible n'est saisie", async () => {
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       expect(screen.getByText('Renseigne une dépense annuelle cible pour voir le résultat.')).toBeInTheDocument()
     })
 
     it('saisir une dépense cible calcule et affiche le résultat FIRE', async () => {
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       fireEvent.change(screen.getByLabelText('Dépense annuelle cible (€)'), { target: { value: '40000' } })
@@ -199,7 +180,7 @@ describe('SimulateurPage', () => {
     })
 
     it('indépendance déjà atteinte affiche "Déjà atteinte"', async () => {
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       fireEvent.change(screen.getByLabelText('Capital de départ (€)'), { target: { value: '2000000' } })
@@ -209,7 +190,7 @@ describe('SimulateurPage', () => {
     })
 
     it("indépendance non atteinte dans l'horizon affiche un message explicite", async () => {
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       fireEvent.change(screen.getByLabelText('Capital de départ (€)'), { target: { value: '0' } })
@@ -222,7 +203,7 @@ describe('SimulateurPage', () => {
 
   describe('Détail par période', () => {
     it('affiche le tableau annuel par défaut, avec une ligne par année (dont le départ) et les vraies années calendaires', async () => {
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       fireEvent.change(screen.getByLabelText('Versement mensuel (€)'), { target: { value: '100' } })
@@ -239,7 +220,7 @@ describe('SimulateurPage', () => {
     })
 
     it('bascule vers le détail mensuel, avec le mois et l\'année calendaires réels', async () => {
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       fireEvent.click(screen.getByRole('button', { name: '5 ans' }))
@@ -255,21 +236,21 @@ describe('SimulateurPage', () => {
   describe('Intérêts déjà obtenus', () => {
     it('préremplit le champ avec le gain/perte de la rentabilité, plafonné à 0 si négatif', async () => {
       vi.mocked(api.getPerformance).mockResolvedValue(performance({ gain_perte_total: 1500 }))
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(1500))
     })
 
     it('une moins-value (gain négatif) préremplit le champ à 0, jamais un nombre négatif', async () => {
       vi.mocked(api.getPerformance).mockResolvedValue(performance({ gain_perte_total: -300 }))
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(0))
     })
 
     it("répartit le capital de départ entre versé et intérêts cumulés dès l'état initial du tableau", async () => {
       vi.mocked(api.getPerformance).mockResolvedValue(performance({ gain_perte_total: 1500 }))
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(1500))
 
       const table = await screen.findByRole('table')
@@ -282,13 +263,13 @@ describe('SimulateurPage', () => {
   describe('Versement mensuel suggéré (backlog 2.N.4)', () => {
     it('préremplit le versement mensuel avec la suggestion issue du budget observé', async () => {
       vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: 350 }))
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(350))
     })
 
     it('ne touche pas au versement (reste à 0) si aucune suggestion disponible', async () => {
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(0)
@@ -296,7 +277,7 @@ describe('SimulateurPage', () => {
 
     it('ne préremplit pas avec une suggestion nulle ou négative', async () => {
       vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: -50 }))
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(0)
@@ -304,7 +285,7 @@ describe('SimulateurPage', () => {
 
     it('un versement modifié fait apparaître un bouton pour revenir au versement observé', async () => {
       vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: 350 }))
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(350))
 
       fireEvent.change(screen.getByLabelText('Versement mensuel (€)'), { target: { value: '600' } })
@@ -317,7 +298,7 @@ describe('SimulateurPage', () => {
 
     it("un échec de préchargement du versement observé n'empêche pas d'utiliser le calculateur, avec action de reprise", async () => {
       vi.mocked(api.getJonctionPatrimoine).mockRejectedValueOnce(new Error('panne simulée'))
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
 
       await screen.findByText(/versement observé sur le budget n'a pas pu être précalculé/)
       expect(screen.getByLabelText('Versement mensuel (€)')).not.toBeDisabled()
@@ -334,7 +315,7 @@ describe('SimulateurPage', () => {
       vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
         jonctionPatrimoine({ versement_mensuel_suggere: 350, versement_mensuel_epargne_declare: 200 }),
       )
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(550))
       expect(screen.getByText(/350 €.*observés sur le budget/)).toBeInTheDocument()
@@ -345,7 +326,7 @@ describe('SimulateurPage', () => {
       vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
         jonctionPatrimoine({ versement_mensuel_suggere: null, versement_mensuel_epargne_declare: 150 }),
       )
-      render(<SimulateurPage />)
+      render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(150))
     })

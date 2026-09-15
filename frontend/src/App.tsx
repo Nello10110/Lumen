@@ -167,7 +167,12 @@ function AppAuthentifiee() {
                 {/* L'écran Dividendes est devenu l'onglet Revenus d'`Analyse`
                     (07/09/2026) : l'ancienne URL y mène directement. */}
                 <Route path="/dividendes" element={<Navigate to="/analyse?onglet=revenus" replace />} />
-                <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
+                {/* Le Simulateur (projection/FIRE) est devenu l'onglet « Simulateur »
+                    d'`Analyse` (16/09/2026, retour utilisateur : il n'avait pas sa
+                    place sur `/objectifs`, aux côtés des objectifs suivis, avec
+                    lesquels il ne partageait aucune donnée) : l'ancienne URL y mène
+                    directement, à la place de son ancienne cible `/objectifs`. */}
+                <Route path="/simulateur" element={<Navigate to="/analyse?onglet=projection" replace />} />
                 {/* Backlog § AD.3 (15/09/2026) : jusqu'ici une URL inconnue tombait sur
                     un cadre vide, sans message — cette route capture tout ce qu'aucune
                     route ci-dessus n'a intercepté (React Router : matché en dernier

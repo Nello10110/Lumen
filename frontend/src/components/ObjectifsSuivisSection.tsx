@@ -360,7 +360,7 @@ export default function ObjectifsSuivisSection() {
         <h2 className="text-[22px] font-semibold tracking-title text-ink">Objectifs suivis</h2>
         <p className="mt-1 text-sm text-texte-attenue">
           Un objectif = un montant cible, une échéance, et les actifs dont la valeur mesure la progression réelle — distinct
-          du simulateur ci-dessous, qui projette sans rien conserver.
+          du Simulateur (onglet dédié d'Analyse), qui projette sans rien conserver.
         </p>
       </div>
 

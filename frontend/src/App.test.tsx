@@ -16,7 +16,7 @@ vi.mock('./pages/HoldingDetailPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ImportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ReglagesPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/AidePage', () => ({ default: () => <div /> }))
-vi.mock('./pages/SimulateurPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/ObjectifsPage', () => ({ default: () => <div /> }))
 
 vi.mock('./api/client', () => ({
   api: {

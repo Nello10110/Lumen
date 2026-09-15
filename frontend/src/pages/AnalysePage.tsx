@@ -9,24 +9,26 @@ import CoutGestionCard from '../components/CoutGestionCard'
 import EtatErreur from '../components/EtatErreur'
 import EvolutionFinanciereCard from '../components/EvolutionFinanciereCard'
 import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
-import { IconDividendes, IconEvolution, IconMaison, IconPatrimoine } from '../components/icons'
+import { IconDividendes, IconEvolution, IconMaison, IconObjectifs, IconPatrimoine } from '../components/icons'
 import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PerformanceCard from '../components/PerformanceCard'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
 import RevenusSection from '../components/RevenusSection'
 import SimulateurAchatLocationCard from '../components/SimulateurAchatLocationCard'
+import SimulateurProjectionSection from '../components/SimulateurProjectionSection'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
-type OngletKey = 'portefeuille' | 'evolution' | 'revenus' | 'simulateur'
+type OngletKey = 'portefeuille' | 'evolution' | 'revenus' | 'simulateur' | 'projection'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconPatrimoine }[] = [
   { key: 'portefeuille', label: 'Portefeuille', Icone: IconPatrimoine },
   { key: 'evolution', label: 'Évolution', Icone: IconEvolution },
   { key: 'revenus', label: 'Revenus', Icone: IconDividendes },
   { key: 'simulateur', label: 'Achat vs location', Icone: IconMaison },
+  { key: 'projection', label: 'Simulateur', Icone: IconObjectifs },
 ]
 
 const ONGLET_PAR_DEFAUT: OngletKey = 'portefeuille'
@@ -44,12 +46,19 @@ const ONGLET_PAR_DEFAUT: OngletKey = 'portefeuille'
  * (retour utilisateur du 13/09/2026 — le graphique héros du tableau de bord, mais
  * filtrable par classe d'actif/établissement/compte et sur une fourchette de dates
  * précise, cf. `EvolutionFinanciereCard`), **Revenus** (ce qu'il rapporte sans qu'on
- * le vende) et **Achat vs location**. Sélection portée par l'URL (`?onglet=…`, même
- * patron que `ReglagesPage`) : un lien direct vers un onglet précis reste possible
- * et le retour navigateur le restitue.
+ * le vende), **Achat vs location** et **Simulateur** (projection de patrimoine et
+ * indépendance financière, `SimulateurProjectionSection` — retour utilisateur du
+ * 16/09/2026 : vivait jusqu'ici fusionné avec les objectifs suivis sur `/objectifs`,
+ * sans jamais en partager la moindre donnée ; déplacé ici, à côté de son cousin
+ * « et si... » Achat vs location. La clé d'onglet `simulateur` désigne toujours ce
+ * dernier — antérieure à ce déplacement — pas le nouvel onglet Simulateur, dont la
+ * clé est `projection`). Sélection portée par l'URL (`?onglet=…`, même patron que
+ * `ReglagesPage`) : un lien direct vers un onglet précis reste possible et le retour
+ * navigateur le restitue.
  *
  * L'ancienne URL `/dividendes` redirige ici (cf. `App.tsx`) — les marque-pages
- * survivent au renommage. */
+ * survivent au renommage. Depuis le 16/09/2026, `/simulateur` y redirige aussi
+ * (`?onglet=projection`), à la place de son ancienne cible `/objectifs`. */
 export default function AnalysePage() {
   const { montantsMasques } = usePreferencesAffichage()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -159,6 +168,12 @@ export default function AnalysePage() {
       {onglet === 'simulateur' && (
         <div id="panneau-simulateur" role="tabpanel" aria-labelledby="onglet-simulateur">
           <SimulateurAchatLocationCard />
+        </div>
+      )}
+
+      {onglet === 'projection' && (
+        <div id="panneau-projection" role="tabpanel" aria-labelledby="onglet-projection">
+          <SimulateurProjectionSection />
         </div>
       )}
 

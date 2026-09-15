@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Area, AreaChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
-import Card from '../components/Card'
-import EtatErreur from '../components/EtatErreur'
-import ObjectifsSuivisSection from '../components/ObjectifsSuivisSection'
-import { SkeletonTexte } from '../components/Skeleton'
-import StatTile from '../components/StatTile'
+import Card from './Card'
+import EtatErreur from './EtatErreur'
+import { SkeletonTexte } from './Skeleton'
+import StatTile from './StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { ChartFrame } from '../components/ChartFrame'
+import { ChartFrame } from './ChartFrame'
 import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 import { dateVersISO, formatEuro } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel } from '../utils/interetsComposes'
-import { SegmentedControl } from '../components/Controls'
+import { SegmentedControl } from './Controls'
 
 const DUREES = [5, 10, 20, 30] as const
 type Vue = 'annuelle' | 'mensuelle'
@@ -46,15 +45,6 @@ function libelleMoisAnnee(offset: number): string {
   return `${annee} ${nomMois.charAt(0).toUpperCase()}${nomMois.slice(1)}`
 }
 
-/** Simulateur de patrimoine, indépendance financière (FIRE) et calculateur
- * d'intérêts composés générique — une seule page plutôt que deux (Simulateur et
- * Outils, fusionnées) : les deux ne différaient que par la source du capital de
- * départ (patrimoine net réel vs saisi librement), pas par le calcul lui-même.
- * Le capital de départ est préempli avec le patrimoine net actuel (`GET
- * /api/patrimoine/net`, seul appel réseau de la page) mais reste modifiable, pour
- * couvrir aussi bien « où en sera mon patrimoine réel » que « et si je plaçais
- * 10 000€ à 6% ». Tout le reste (projection, tableau de détail, FIRE) est calculé
- * côté client (`utils/interetsComposes.ts`), avec mise à jour instantanée. */
 /** Hypothèse réglée au curseur (maquette de la refonte : « les hypothèses se
  * règlent au curseur, plus dans un formulaire de quatre champs numériques »).
  *
@@ -123,7 +113,26 @@ function CurseurHypothese({
   )
 }
 
-export default function SimulateurPage() {
+/** Simulateur de patrimoine, indépendance financière (FIRE) et calculateur
+ * d'intérêts composés générique — une seule section plutôt que deux (Simulateur et
+ * Outils, fusionnées) : les deux ne différaient que par la source du capital de
+ * départ (patrimoine net réel vs saisi librement), pas par le calcul lui-même.
+ * Le capital de départ est préempli avec le patrimoine net actuel (`GET
+ * /api/patrimoine/net`, seul appel réseau de la section) mais reste modifiable,
+ * pour couvrir aussi bien « où en sera mon patrimoine réel » que « et si je
+ * plaçais 10 000€ à 6% ». Tout le reste (projection, tableau de détail, FIRE) est
+ * calculé côté client (`utils/interetsComposes.ts`), avec mise à jour instantanée.
+ *
+ * Onglet « Simulateur » de l'écran Analyse (retour utilisateur du 16/09/2026 : « le
+ * simulateur n'a pas trop sa place dans Objectifs ») — vivait auparavant sur
+ * `/objectifs`, fusionné avec les objectifs suivis (`ObjectifsSuivisSection`,
+ * backlog B.1). Les deux ne partageaient que l'écran, jamais une donnée : le
+ * déplacement ici, à côté de son cousin « Achat vs location »
+ * (`SimulateurAchatLocationCard`, même famille de question « et si... »), ne
+ * casse rien côté Objectifs, qui garde ses objectifs suivis seuls sur `/objectifs`
+ * (`pages/ObjectifsPage.tsx`). L'ancienne URL `/simulateur` redirige désormais ici
+ * (`App.tsx`). */
+export default function SimulateurProjectionSection() {
   const { montantsMasques } = usePreferencesAffichage()
   const [capital, setCapital] = useState('')
   const [patrimoineNetActuel, setPatrimoineNetActuel] = useState<number | null>(null)
@@ -271,18 +280,11 @@ export default function SimulateurPage() {
 
   return (
     <div className="space-y-[14px]">
-      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Objectifs</h1>
-
-      <ObjectifsSuivisSection />
-
-      <div className="border-t border-bordure pt-6">
-        <h2 className="text-[22px] font-semibold tracking-title text-ink">Simulateur</h2>
-        <p className="mt-1 text-sm text-texte-attenue">
-          Projette un capital dans le temps — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
-          jamais de façon aussi régulière dans la réalité. Préempli avec ton patrimoine net actuel, mais librement modifiable
-          pour tester n'importe quel autre scénario.
-        </p>
-      </div>
+      <p className="text-sm text-texte-attenue">
+        Projette un capital dans le temps — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
+        jamais de façon aussi régulière dans la réalité. Préempli avec ton patrimoine net actuel, mais librement modifiable
+        pour tester n'importe quel autre scénario.
+      </p>
 
       <Card title="Hypothèses">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -560,11 +562,11 @@ export default function SimulateurPage() {
 
         {!depenseCible && <p className="mt-4 text-sm text-texte-attenue">Renseigne une dépense annuelle cible pour voir le résultat.</p>}
 
-        {/* Chiffre héros de l'écran Objectifs (maquette de la refonte) : l'ANNÉE
-            d'indépendance, pas le nombre d'années — « 2048 » se situe dans une vie,
-            « dans 22 ans » se compte. Les deux sont donnés, l'année en tête.
-            Affiché seulement quand une dépense cible est renseignée : sans elle, il
-            n'y a pas d'objectif, donc pas de date à annoncer. */}
+        {/* Chiffre héros (maquette de la refonte) : l'ANNÉE d'indépendance, pas le
+            nombre d'années — « 2048 » se situe dans une vie, « dans 22 ans » se
+            compte. Les deux sont donnés, l'année en tête. Affiché seulement quand
+            une dépense cible est renseignée : sans elle, il n'y a pas d'objectif,
+            donc pas de date à annoncer. */}
         {fire && depenseCible && (
           <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="text-[13px] font-medium text-ink3">Indépendance financière atteinte en</span>

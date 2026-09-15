@@ -3955,6 +3955,27 @@ toute l'application. Jamais en continu : seulement au changement réel de valeur
 signal plutôt que du bruit visuel permanent. Effort `S`.
 
 ---
+
+### AI. Simulateur déplacé d'Objectifs vers Analyse (16/09/2026)
+
+Retour utilisateur direct : « le simulateur n'a pas trop sa place dans Objectifs ». Depuis le
+20/08/2026 (§ B.1), `/objectifs` fusionnait deux sujets qui ne partageaient pourtant aucune
+donnée : les objectifs suivis (`ObjectifsSuivisSection`, ce qui est réellement enregistré et
+tracé) et le Simulateur (projection de patrimoine et indépendance financière FIRE, une pure
+question « et si... »). Or Analyse porte déjà cette même famille de questions avec son onglet
+« Achat vs location » (`SimulateurAchatLocationCard`, § M.3).
+
+#### AI.1 — `traité` (16/09/2026) — Le Simulateur rejoint Analyse comme cinquième onglet
+
+Extrait de `SimulateurPage.tsx` (supprimée) vers un nouveau composant
+`components/SimulateurProjectionSection.tsx`, monté comme onglet « Simulateur » d'Analyse
+(`onglet=projection` dans l'URL — la clé `simulateur` désignait déjà « Achat vs location » avant ce
+lot, conservée telle quelle pour ne pas casser ses marque-pages). `/objectifs` (nouvelle
+`pages/ObjectifsPage.tsx`, quelques lignes) ne porte plus que les objectifs suivis. L'ancienne URL
+`/simulateur` redirige désormais vers `/analyse?onglet=projection` au lieu de `/objectifs`. Aucune
+donnée ni endpoint touché des deux côtés : un pur déplacement d'écran. Effort `XS`.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
