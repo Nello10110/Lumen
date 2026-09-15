@@ -37,11 +37,34 @@ const AIDE_MONTANTS_MASQUES =
 
 // Icônes seules : trois positions doivent tenir dans une barre qui reste sur une
 // seule ligne. Le libellé complet reste accessible par l'infobulle et le nom ARIA.
-const OPTIONS_THEME: { valeur: Theme; libelle: React.ReactNode; aide: string }[] = [
-  { valeur: 'clair', libelle: <IconSoleil className="h-4 w-4" />, aide: 'Thème clair' },
-  { valeur: 'sombre', libelle: <IconLune className="h-4 w-4" />, aide: 'Éclipse (thème sombre)' },
-  { valeur: 'systeme', libelle: <IconEcran className="h-4 w-4" />, aide: 'Suivre le système' },
-]
+const ICONES_THEME: Record<Theme, (props: { className?: string }) => React.JSX.Element> = {
+  clair: IconSoleil,
+  sombre: IconLune,
+  systeme: IconEcran,
+}
+const AIDE_THEME: Record<Theme, string> = { clair: 'Thème clair', sombre: 'Éclipse (thème sombre)', systeme: 'Suivre le système' }
+
+// Construite à chaque rendu (plutôt qu'une constante au niveau module, comme
+// avant le correctif du 16/09/2026) : la micro-interaction § AF.2 a besoin de
+// connaître le thème ACTIF pour ne remonter (et donc rejouer l'animation CSS,
+// `key={theme}`) que l'icône qui vient de le devenir — jamais les deux autres,
+// qui restent statiques. Même correctif que `BasculeTheme.tsx`, qui l'appliquait
+// déjà correctement : cette barre-ci (desktop, `BarreControles.tsx`) en était
+// restée à une icône figée, sans que les tests (qui ne vérifient qu'un nom de
+// classe CSS, jamais son effet visuel réel) ne le signalent.
+function optionsTheme(themeActif: Theme): { valeur: Theme; libelle: React.ReactNode; aide: string }[] {
+  return (['clair', 'sombre', 'systeme'] as const).map((valeur) => {
+    const Icone = ICONES_THEME[valeur]
+    const actif = valeur === themeActif
+    return {
+      valeur,
+      libelle: (
+        <Icone key={actif ? `actif-${themeActif}` : valeur} className={`h-4 w-4 ${actif ? 'animate-lumen-bascule-theme' : ''}`} />
+      ),
+      aide: AIDE_THEME[valeur],
+    }
+  })
+}
 
 /** Barre de contrôles transverses (backlog 2.K.3/2.L.1), persistante et visible sur
  * tous les écrans (montée une seule fois dans `App.tsx`, en tête de `<main>`) —
@@ -127,7 +150,7 @@ export default function BarreControles() {
           l'application garde son mode « système », que la maquette ne prévoyait pas —
           cf. `hooks/useTheme.ts`. Icônes seules pour tenir sur une ligne. */}
       <SegmentedControl
-        options={OPTIONS_THEME}
+        options={optionsTheme(theme)}
         valeur={theme}
         onChange={setTheme}
         taille="sm"

@@ -106,6 +106,32 @@ describe('BarreControles — Période retirée (refonte « liquid glass », éta
   })
 })
 
+describe('BarreControles — micro-interaction sur la bascule de thème (backlog § AF.2)', () => {
+  // Correctif du 16/09/2026 : l'animation n'était posée que sur `BasculeTheme.tsx`
+  // (menu « Plus » mobile), jamais sur CETTE barre — le seul sélecteur de thème
+  // visible en desktop, restée à une icône figée sans que rien ne le signale (une
+  // classe CSS peut très bien être vérifiée par un test sans que la règle
+  // correspondante existe, ni que le bon composant la porte). Vérifie ici les deux
+  // à la fois : que l'icône qui VIENT de devenir active porte la classe, et
+  // qu'aucune des deux autres ne la porte jamais.
+  it("seule l'icône du thème qui vient d'être choisi porte la classe d'animation", () => {
+    renderBarre()
+    const clair = screen.getByRole('button', { name: 'Thème clair' })
+    const eclipse = screen.getByRole('button', { name: 'Éclipse (thème sombre)' })
+    const systeme = screen.getByRole('button', { name: 'Suivre le système' })
+
+    // Thème par défaut ('systeme') : aucune icône ne vient de changer, donc aucune
+    // n'est animée — l'animation marque un CHANGEMENT, pas un état.
+    expect(clair.querySelector('svg')?.getAttribute('class')).not.toContain('animate-lumen-bascule-theme')
+
+    fireEvent.click(eclipse)
+
+    expect(eclipse.querySelector('svg')?.getAttribute('class')).toContain('animate-lumen-bascule-theme')
+    expect(clair.querySelector('svg')?.getAttribute('class')).not.toContain('animate-lumen-bascule-theme')
+    expect(systeme.querySelector('svg')?.getAttribute('class')).not.toContain('animate-lumen-bascule-theme')
+  })
+})
+
 describe('BarreControles — pilule de contexte retirée (07/09/2026)', () => {
   // Retour utilisateur : « on a le nom de la page qui est rappelée, je ne vois pas
   // l'intérêt ». L'item actif de la barre latérale et le titre de la page le disent

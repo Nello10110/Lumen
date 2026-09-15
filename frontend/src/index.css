@@ -314,3 +314,72 @@ summary,
     animation: none;
   }
 }
+
+/* Backlog § AH.1 (15/09/2026) — flash lumineux à la connexion : dégradé radial
+   blanc-bleu qui s'estompe, une seule fois par session (`utils/flashConnexion.ts`),
+   jamais un effet répété. Radial plutôt qu'un simple aplat blanc : la lumière
+   semble jaillir du centre de l'écran plutôt que couvrir un carré plat. */
+.lumen-flash-connexion {
+  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #cfe0ff 42%, transparent 72%);
+}
+@keyframes lumen-flash-connexion {
+  0% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.animate-lumen-flash-connexion {
+  animation: lumen-flash-connexion 450ms ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-lumen-flash-connexion {
+    display: none;
+  }
+}
+
+/* Backlog § AH.2 (15/09/2026) — balayage lumineux au rafraîchissement des cours
+   (`PositionsTable.tsx`) : chaque ligne s'"allume" brièvement au moment précis où
+   sa nouvelle cotation arrive, dans l'ordre réel de traitement du backend. */
+@keyframes lumen-balayage-ligne {
+  0% {
+    background-color: rgba(37, 116, 240, 0.16);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.animate-lumen-balayage-ligne {
+  animation: lumen-balayage-ligne 700ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-lumen-balayage-ligne {
+    animation: none;
+  }
+}
+
+/* Backlog § AH.3 (15/09/2026) — le chiffre héros du tableau de bord qui respire
+   à chaque mise à jour réelle de sa valeur (`PatrimoineNetCard.tsx`), jamais en
+   continu : un halo qui grandit puis se stabilise, même esprit que le halo du
+   logo (§ AD.2) mais nettement plus marqué sur l'élément le plus regardé de toute
+   l'application. */
+@keyframes lumen-respire {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(37, 116, 240, 0));
+  }
+  40% {
+    filter: drop-shadow(0 0 16px rgba(37, 116, 240, 0.35));
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(37, 116, 240, 0));
+  }
+}
+.animate-lumen-respire {
+  animation: lumen-respire 900ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-lumen-respire {
+    animation: none;
+  }
+}
