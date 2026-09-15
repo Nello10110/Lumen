@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth'
 import { PrimaryButton, SecondaryButton } from '../components/Controls'
 import { Field, Input } from '../components/Field'
 import { GlassPanel } from '../components/GlassPanel'
+import LumenMark from '../components/LumenMark'
 
 type Mode = 'connexion' | 'creation'
 
@@ -106,12 +107,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-6">
       <GlassPanel niveau="hero" className="w-full max-w-[400px] rounded-[26px] px-7 py-[30px]">
         <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="flex h-11 w-11 items-center justify-center rounded-control bg-[image:var(--accent-grad)] text-lg font-bold text-white shadow-accent"
-          >
-            P
-          </span>
+          <LumenMark className="h-11 w-11 shrink-0" />
           <div>
             <h1 className="text-[26px] font-semibold tracking-title text-ink">
               {mode === 'connexion' ? 'Bon retour' : 'Créer un compte'}

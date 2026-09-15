@@ -2,6 +2,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang } from '../layout/routes'
 import { GlassPanel } from './GlassPanel'
+import LumenMark from './LumenMark'
 import MenuCompte from './MenuCompte'
 import PaletteRecherche from './PaletteRecherche'
 
@@ -31,13 +32,8 @@ export default function Sidebar() {
           aria-label="Lumen"
           className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink"
         >
-          <span
-            aria-hidden="true"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-control bg-[image:var(--accent-grad)] text-sm font-bold text-white shadow-accent"
-          >
-            P
-          </span>
-          <span className="truncate">Patrimoine</span>
+          <LumenMark className="h-7 w-7 shrink-0" />
+          <span className="truncate">Lumen</span>
         </Link>
       </div>
 
