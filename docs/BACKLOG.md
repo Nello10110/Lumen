@@ -3787,6 +3787,54 @@ comportement inchangé par rapport à avant ce lot côté disponibilité (« Cot
 mais plus jamais de substitution erronée.
 
 ---
+
+### AF. Identité « Lumen » — nouvelles pistes (proposé, 15/09/2026)
+
+Le Lot 16 (§ AD) épuisé, cinq nouvelles pistes proposées à l'utilisateur suite à sa demande (« Proposes
+moi en plus quand tu auras fini ») — même statut `proposé` qu'AD à l'origine : aucune développée,
+toutes en attente d'arbitrage, même retenue générale (peu nombreuses, jamais d'habillage systématique).
+
+#### AF.1 — `proposé` (15/09/2026) — Filigrane discret sur les documents exportés
+
+Le relevé PDF et la déclaration de patrimoine (`declaration_patrimoine_service.py`) portent déjà
+« Généré le [date] par Lumen » en pied de page. Un filigrane très léger (opacité ~3-5 %, l'emblème
+seul, pas le mot-symbole) en fond de chaque page renforcerait l'identité d'un document destiné à
+être partagé (banque, notaire) sans gêner la lecture. Effort `S` (reportlab sait poser une image en
+fond de page).
+
+#### AF.2 — `proposé` (15/09/2026) — Micro-interaction sur la bascule de thème
+
+Le bouton clair/sombre/système change de thème instantanément. Une courte transition « interrupteur »
+(200-300 ms, un fondu ou une légère rotation de l'icône) au moment du basculement, `prefers-reduced-motion`
+respecté (bascule instantanée pour qui le demande). Discutable : gain marginal pour un geste déjà
+fluide — à valider en priorité basse.
+
+#### AF.3 — `proposé` (15/09/2026) — Première étape de l'assistant de bienvenue
+
+`WelcomeWizard.tsx` (assistant de configuration initiale) ouvre sur un « Bienvenue » générique.
+Compléter par une variante de la tagline (ex. *« Bienvenue — configurons ensemble votre lumière sur
+vos finances. »*) sur cette seule première étape, jamais répétée sur les suivantes.
+
+#### AF.4 — `proposé` (15/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
+
+Au-delà d'un certain nombre de jours sans rafraîchissement réussi (`market_data_refresh`, déjà
+horodaté en base), un encart discret dans Réglages ou le tableau de bord : *« Vos cours dorment
+depuis N jours — les rallumer ? »*, avec le bouton de rafraîchissement déjà existant. Réutilise une
+donnée déjà en base (`ScheduledJobConfig.dernier_succes` ou équivalent) ; à vérifier avant de
+développer.
+
+#### AF.5 — `proposé` (15/09/2026) — Renommer « Sombre » en « Éclipse » dans le sélecteur de thème
+
+Clin d'œil optionnel sur le sélecteur clair/sombre/système (`hooks/useTheme.ts`, `MenuCompte.tsx`) —
+« Éclipse » plutôt que « Sombre ». **Réserve explicite** : un libellé moins immédiatement clair
+qu'un mot déjà universellement compris (« Sombre ») a un coût réel d'utilisabilité pour un gain
+purement décoratif — la seule des cinq pistes où le jeu de mots pourrait l'emporter sur la clarté.
+À ne retenir que si l'utilisateur la trouve vraiment à son goût.
+
+**Prochaine étape** : présenter ces cinq pistes à l'utilisateur pour arbitrage avant tout
+développement, comme pour le Lot 16.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
