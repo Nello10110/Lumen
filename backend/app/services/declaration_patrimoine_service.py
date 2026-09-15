@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from ..models import Detenteur, Holding, Loan
 from . import analysis_service, budget_service, detenteurs_service, loan_service, objectifs_service, preferences_service
 from .csv_export import formater_nombre
+from .pdf_watermark import dessiner_filigrane
 
 _COULEUR_FILET = colors.HexColor("#e2e8f0")
 
@@ -81,7 +82,10 @@ def _table(lignes: list[tuple[str, str]] | list[tuple[str, str, str]], largeurs:
 def _pied_de_page(canvas, doc) -> None:
     """Pagination (exigence explicite du backlog 2.Q.2) : numéro de page en bas,
     absent du relevé PDF existant (§ D.1) — un document tenant sur une page n'en
-    avait pas besoin, une déclaration détaillée multi-pages si."""
+    avait pas besoin, une déclaration détaillée multi-pages si. Filigrane (§ AF.1,
+    15/09/2026) : appelé en premier, donc dessiné derrière le pied de page et tout
+    le reste du contenu de la page."""
+    dessiner_filigrane(canvas, doc)
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#64748b"))

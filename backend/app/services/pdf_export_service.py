@@ -18,8 +18,22 @@ from sqlalchemy.orm import Session
 from . import analysis_service, patrimoine_service, performance_service
 from .analysis_service import COMPTE_SANS_ANNOTATION
 from .csv_export import formater_nombre
+from .pdf_watermark import dessiner_filigrane
 
 _COULEUR_FILET = colors.HexColor("#e2e8f0")  # slate-200, cohérent avec l'identité visuelle du frontend
+
+
+def _pied_de_page(canvas, doc) -> None:
+    """Filigrane + attribution en pied de page (backlog § AF.1, 15/09/2026) — même
+    patron que `declaration_patrimoine_service._pied_de_page`, sans numéro de page
+    (ce document tient toujours sur une seule page, contrairement à la déclaration
+    paramétrable)."""
+    dessiner_filigrane(canvas, doc)
+    canvas.saveState()
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#64748b"))
+    canvas.drawString(2 * cm, 1.3 * cm, f"Généré le {date.today().strftime('%d/%m/%Y')} par Lumen")
+    canvas.restoreState()
 
 
 def _avec_separateurs_milliers(nombre: str) -> str:
@@ -121,5 +135,5 @@ def generer_pdf_patrimoine(db: Session, user_id: int) -> bytes:
         elements.append(Paragraph("Répartition par compte", styles["Heading2"]))
         elements.append(_table_deux_colonnes([(c["compte"], _euros(c["valeur"])) for c in comptes]))
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=_pied_de_page, onLaterPages=_pied_de_page)
     return tampon.getvalue()
