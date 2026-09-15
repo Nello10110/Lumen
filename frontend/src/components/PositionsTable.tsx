@@ -440,6 +440,12 @@ interface PositionsTableProps {
   etablissements?: Etablissement[]
   /** À appeler quand un compte a été créé à la volée depuis l'édition en ligne. */
   onComptesModifies?: () => void
+  /** Balayage lumineux au rafraîchissement des cours (backlog § AH.2, 15/09/2026) —
+   * identifiants des lignes qui viennent de recevoir leur nouvelle cotation à
+   * l'instant, fournis par la page (`PortefeuillePage.tsx`) à partir de la
+   * progression réelle du rafraîchissement (`positions_traitees`, pas un ordre
+   * décoratif). Absent hors rafraîchissement. */
+  lignesEnCoursAllumage?: Set<number>
 }
 
 export default function PositionsTable({
@@ -450,6 +456,7 @@ export default function PositionsTable({
   comptes: comptesFournis,
   etablissements: etablissementsFournis,
   onComptesModifies,
+  lignesEnCoursAllumage,
 }: PositionsTableProps) {
   const { montantsMasques } = usePreferencesAffichage()
   // Table ou cartes (backlog 2.K.4) : rendu conditionnel en JS, pas en CSS pur —
@@ -703,7 +710,9 @@ export default function PositionsTable({
                   if (enEdition) return
                   onSelectHolding(h.id)
                 }}
-                className="cursor-pointer hover:bg-surface-elevee"
+                className={`cursor-pointer hover:bg-surface-elevee ${
+                  lignesEnCoursAllumage?.has(h.id) ? 'animate-lumen-balayage-ligne' : ''
+                }`}
               >
                 <td className="py-2 pr-4 font-medium text-texte">
                   {/* Le ticker porte le contrôle d'ouverture de la fiche : c'est ce

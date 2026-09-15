@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Compte, Holding, Loan } from '../api/types'
 import { simulerLargeurEcran } from '../test/matchMedia'
@@ -1028,6 +1028,62 @@ describe('PortefeuillePage', () => {
       // `LoansCard` est mocké dans ce fichier (voir en tête) : son propre appel à
       // `listHoldings` est couvert par `LoansCard.test.tsx`, pas ici.
       expect(vi.mocked(api.listComptes)).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('balayage lumineux au rafraîchissement (backlog § AH.2)', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("chaque ligne s'allume au moment où sa cotation arrive, puis s'éteint seule", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', quantite: 10, market_data: marketData({ ticker: 'AAA' }) }),
+        holding({ id: 2, ticker: 'BBB', quantite: 5, market_data: marketData({ ticker: 'BBB' }) }),
+      ])
+      vi.mocked(api.refreshMarketData).mockResolvedValue({ en_cours: true } as never)
+      vi.mocked(api.getRefreshStatus)
+        // Sondage initial, juste après le déclenchement (`declencher`, cf.
+        // `useRafraichissementCours`) : rien de traité pour l'instant.
+        .mockResolvedValueOnce({ en_cours: true, positions_traitees: 0, positions_total: 2, demarre_le: null, termine_le: null, statut: null, message: null })
+        // Premier sondage périodique (2 s) : la première ligne (AAA, id 1) vient
+        // d'être traitée.
+        .mockResolvedValueOnce({ en_cours: true, positions_traitees: 1, positions_total: 2, demarre_le: null, termine_le: null, statut: null, message: null })
+        // Second sondage : la seconde ligne (BBB, id 2) vient d'être traitée, et le
+        // rafraîchissement se termine.
+        .mockResolvedValueOnce({ en_cours: false, positions_traitees: 2, positions_total: 2, demarre_le: null, termine_le: null, statut: 'ok', message: null })
+
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      const ligneAAA = await screen.findByRole('row', { name: /AAA/ })
+      const ligneBBB = screen.getByRole('row', { name: /BBB/ })
+      expect(ligneAAA.className).not.toContain('animate-lumen-balayage-ligne')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Rafraîchir' }))
+      // Sondage initial (juste après le déclenchement, cf. `useRafraichissementCours.declencher`)
+      // : une chaîne de promesses, pas un minuteur — plusieurs purges de la file de
+      // micro-tâches sont nécessaires pour la laisser aller à son terme.
+      await vi.waitFor(() => expect(api.getRefreshStatus).toHaveBeenCalledTimes(1))
+
+      // Premier sondage périodique : AAA s'allume, BBB pas encore.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      expect(ligneAAA.className).toContain('animate-lumen-balayage-ligne')
+      expect(ligneBBB.className).not.toContain('animate-lumen-balayage-ligne')
+
+      // Second sondage : BBB s'allume à son tour.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      expect(ligneBBB.className).toContain('animate-lumen-balayage-ligne')
+
+      // Les deux s'éteignent seules après 700 ms (jamais en continu).
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(700)
+      })
+      expect(ligneAAA.className).not.toContain('animate-lumen-balayage-ligne')
+      expect(ligneBBB.className).not.toContain('animate-lumen-balayage-ligne')
     })
   })
 })

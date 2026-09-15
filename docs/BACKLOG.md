@@ -3796,26 +3796,25 @@ super cool, on va les faire ») — statut relevé à `validé` : toutes à dév
 campagne d'idéation ouverte le même jour (§ AG) plutôt qu'immédiatement, à la demande explicite de
 l'utilisateur (« on va continuer à chercher des idées supplémentaires »).
 
-#### AF.1 — `validé` (15/09/2026) — Filigrane discret sur les documents exportés
+#### AF.1 — `traité` (15/09/2026) — Filigrane discret sur les documents exportés
 
-Le relevé PDF et la déclaration de patrimoine (`declaration_patrimoine_service.py`) portent déjà
-« Généré le [date] par Lumen » en pied de page. Un filigrane très léger (opacité ~3-5 %, l'emblème
-seul, pas le mot-symbole) en fond de chaque page renforcerait l'identité d'un document destiné à
-être partagé (banque, notaire) sans gêner la lecture. Effort `S` (reportlab sait poser une image en
-fond de page).
+L'emblème Lumen (silhouette seule, sans le mot-symbole) posé en fond de chaque page du relevé PDF et
+de la déclaration de patrimoine, à 3,5 % d'opacité (nouveau `pdf_watermark.py`, dessiné avant le
+contenu de la page via le callback `onFirstPage`/`onLaterPages` de reportlab). Opacité ajustée après
+inspection visuelle d'un PDF réel (6 % jugé trop présent pour un filigrane, ramené à 3,5 %).
 
-#### AF.2 — `validé` (15/09/2026) — Micro-interaction sur la bascule de thème
+#### AF.2 — `traité` (15/09/2026) — Micro-interaction sur la bascule de thème
 
-Le bouton clair/sombre/système change de thème instantanément. Une courte transition « interrupteur »
-(200-300 ms, un fondu ou une légère rotation de l'icône) au moment du basculement, `prefers-reduced-motion`
-respecté (bascule instantanée pour qui le demande). Discutable : gain marginal pour un geste déjà
-fluide — à valider en priorité basse.
+L'icône du sélecteur clair/sombre/système marque désormais le changement par une courte animation
+(220 ms, fondu + légère rotation, `animate-lumen-bascule-theme` dans `index.css`), déclenchée par
+remontage de l'icône (`key={theme}`) à chaque bascule. `prefers-reduced-motion` désactive
+l'animation (icône remplacée instantanément).
 
-#### AF.3 — `validé` (15/09/2026) — Première étape de l'assistant de bienvenue
+#### AF.3 — `traité` (15/09/2026) — Première étape de l'assistant de bienvenue
 
-`WelcomeWizard.tsx` (assistant de configuration initiale) ouvre sur un « Bienvenue » générique.
-Compléter par une variante de la tagline (ex. *« Bienvenue — configurons ensemble votre lumière sur
-vos finances. »*) sur cette seule première étape, jamais répétée sur les suivantes.
+`EtapeBienvenue.tsx` (première étape de `WelcomeWizard.tsx`, hors rejeu) ouvre désormais sur
+*« Bienvenue — faisons la lumière sur tes finances, ensemble. »*, jamais répétée sur les étapes
+suivantes.
 
 #### AF.4 — `validé` (15/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
 
@@ -3825,15 +3824,13 @@ depuis N jours — les rallumer ? »*, avec le bouton de rafraîchissement déj�
 donnée déjà en base (`ScheduledJobConfig.dernier_succes` ou équivalent) ; à vérifier avant de
 développer.
 
-#### AF.5 — `validé` (15/09/2026) — Renommer « Sombre » en « Éclipse » dans le sélecteur de thème
+#### AF.5 — `traité` (15/09/2026) — Renommer « Sombre » en « Éclipse » dans le sélecteur de thème
 
-Clin d'œil optionnel sur le sélecteur clair/sombre/système (`hooks/useTheme.ts`, `MenuCompte.tsx`) —
-« Éclipse » plutôt que « Sombre ». **Réserve explicite** : un libellé moins immédiatement clair
-qu'un mot déjà universellement compris (« Sombre ») a un coût réel d'utilisabilité pour un gain
-purement décoratif — la seule des cinq pistes où le jeu de mots pourrait l'emporter sur la clarté.
-À ne retenir que si l'utilisateur la trouve vraiment à son goût.
+Le sélecteur clair/sombre/système (`BasculeTheme.tsx`, `BarreControles.tsx`) affiche désormais
+« Éclipse » à la place de « Sombre » (libellé accessible conservé pour l'aide : « Éclipse (thème
+sombre) »).
 
-**Prochaine étape** : développement à planifier après § AG ci-dessous.
+**Prochaine étape** : AF.4 reste à développer (§ AG ci-dessous entièrement traité en parallèle).
 
 ---
 
@@ -3912,16 +3909,16 @@ jamais un style enfantin qui déprécierait le sérieux de l'outil. Effort non n
 illustrations à produire), à réserver aux 2-3 écrans les plus vus en premier (Portefeuille,
 Patrimoine, tableau de bord).
 
-#### AG.9 — `validé` (15/09/2026) — Glossaire réécrit par analogies
+#### AG.9 — `traité` (15/09/2026) — Glossaire réécrit par analogies
 
-Le « Petit glossaire » existant (`AidePage.tsx`) définit chaque terme techniquement. Une réécriture
-par analogie concrète en tête de chaque définition, avant la définition formelle qui reste
-disponible pour qui la veut — ex. XIRR : *« Comme un taux d'intérêt qui tiendrait compte du moment
-exact où tu as versé chaque euro, pas juste du début et de la fin. »* Faible effort, fort effet sur
-la perception d'accessibilité — piste à prioriser haut si l'utilisateur en retient peu.
+Le « Petit glossaire » (`AidePage.tsx`) — XIRR, TER, Drawdown, Volatilité — ouvre désormais chaque
+définition par une analogie concrète avant le texte technique, qui reste disponible en entier juste
+après (ex. XIRR : *« Comme un taux d'intérêt qui tiendrait compte du moment exact où vous avez versé
+chaque euro, pas juste du début et de la fin. »*).
 
-**Prochaine étape** : 17 pistes validées au total (§ AF + § AG + § AH), aucune développée — ordre de
-développement à définir avec l'utilisateur avant de commencer.
+**Prochaine étape** : 17 pistes validées au total (§ AF + § AG + § AH). Restent à développer : AF.4,
+et huit pistes AG (AG.1 à AG.8, plus large effort — mode langage simple, équivalents concrets,
+célébrations, badges, ambiance visuelle, simulateur en histoires, mode découverte, illustrations).
 
 ---
 
@@ -3934,26 +3931,22 @@ proposition : jamais en boucle continue, toujours déclenchées par un vrai év�
 rafraîchissement, changement de valeur) — c'est ce qui évite le piège du gadget qui lasse vite.
 `prefers-reduced-motion` désactive les trois (élément final visible immédiatement, sans l'animation).
 
-#### AH.1 — `validé` (15/09/2026) — Flash lumineux à la connexion
+#### AH.1 — `traité` (15/09/2026) — Flash lumineux à la connexion
 
-Juste avant que le tableau de bord n'apparaisse après connexion : un éclair bleu-blanc traverse
-l'écran en un quart de seconde (façon flash photo, doux, pas agressif), le tableau de bord se
-révélant à travers cette lumière plutôt qu'après elle. Ne survient qu'une fois par session — l'effet
-peut donc être plus marqué qu'un élément croisé 50 fois par jour, sans jamais lasser. Techniquement :
-un calque blanc en fondu-enchaîné rapide (`mix-blend-mode`), 100 % CSS, aucun impact sur le reste de
-l'application. Effort `S`.
+Un calque blanc-bleuté en fondu-enchaîné (450 ms, `animate-lumen-flash-connexion`) traverse l'écran
+juste après une connexion réussie, le tableau de bord se révélant à travers. Ne survient qu'une fois
+par session : `LoginPage.tsx` arme un signal `sessionStorage` (`utils/flashConnexion.ts`) que
+`App.tsx` consomme une seule fois à l'arrivée sur l'écran authentifié — nécessaire car `LoginPage` est
+démonté avant que l'écran cible n'existe pour recevoir un état React direct.
 
-#### AH.2 — `validé` (15/09/2026) — Balayage lumineux au rafraîchissement des cours
+#### AH.2 — `traité` (15/09/2026) — Balayage lumineux au rafraîchissement des cours
 
-Pendant un rafraîchissement, un fin rayon de lumière descend le tableau du Portefeuille ligne par
-ligne, chaque ligne s'« allumant » brièvement au moment précis où sa nouvelle cotation arrive — rend
-visible, littéralement, ce que le texte du bouton promet déjà (« Rallumer les cours », § AD.3). Le
-plus haut rapport effet/effort des trois : coup de cœur explicite pour développement en priorité.
-Techniquement : le balayage suit l'ordre réel de traitement de `refresh_tickers` (déjà séquentiel
-côté backend, cf. `on_progression`), pas un ordre décoratif indépendant de la vraie progression.
-Effort `M`.
+Pendant un rafraîchissement, chaque ligne du tableau Portefeuille s'« allume » brièvement
+(`animate-lumen-balayage-ligne`, 700 ms) au moment précis où `positions_traitees` progresse dans
+`useRafraichissementCours` — l'ordre suit donc le traitement réel de `refresh_tickers`, jamais un
+ordre décoratif indépendant.
 
-#### AH.3 — `validé` (15/09/2026) — Le chiffre héros qui respire à la mise à jour
+#### AH.3 — `traité` (15/09/2026) — Le chiffre héros qui respire à la mise à jour
 
 Le grand chiffre du patrimoine net (tableau de bord) pulse une fois avec un halo qui grandit puis se
 stabilise au moment où sa valeur change réellement (nouveau rafraîchissement, nouvelle donnée) —

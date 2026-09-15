@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Compte, Etablissement, Holding } from '../api/types'
@@ -206,9 +206,46 @@ export default function PortefeuillePage() {
   const { etat: etatRafraichissement, enCours: refreshing, erreur: erreurRafraichissement, declencher } =
     useRafraichissementCours(() => load())
 
+  // Balayage lumineux (backlog § AH.2, 15/09/2026) : suit la progression RÉELLE du
+  // rafraîchissement (`positions_traitees`, sondé toutes les 2 s par
+  // `useRafraichissementCours`), pas un ordre décoratif indépendant. Limite
+  // assumée : la granularité du sondage (2 s) empêche un balayage ligne par ligne
+  // parfaitement continu — les lignes s'allument par petits groupes plutôt qu'une
+  // à la fois pour un grand portefeuille traité en quelques secondes, ce qui reste
+  // fidèle à la progression réelle, juste moins fin qu'un flux continu.
+  const idsSnapshotRafraichissement = useRef<number[]>([])
+  const positionsTraiteesPrecedentes = useRef(0)
+  const [lignesEnCoursAllumage, setLignesEnCoursAllumage] = useState<Set<number>>(new Set())
+
   function handleRefresh() {
+    // Capturé AVANT le déclenchement : c'est l'ordre dans lequel le backend a de
+    // bonnes chances d'avoir traité les positions, puisque `holdings` vient de la
+    // même requête `GET /api/portfolio/holdings` que celle qui alimente
+    // `refresh_tickers` côté backend. Les lignes s'allument par identifiant, pas
+    // par position visuelle — un tri de colonne actif pendant le rafraîchissement
+    // ne fait donc jamais s'allumer la mauvaise ligne.
+    idsSnapshotRafraichissement.current = holdings.map((h) => h.id)
+    positionsTraiteesPrecedentes.current = 0
     declencher(() => api.refreshMarketData())
   }
+
+  useEffect(() => {
+    const traitees = etatRafraichissement?.positions_traitees ?? 0
+    if (traitees <= positionsTraiteesPrecedentes.current) return
+    const nouvellementTraitees = idsSnapshotRafraichissement.current.slice(positionsTraiteesPrecedentes.current, traitees)
+    positionsTraiteesPrecedentes.current = traitees
+    if (nouvellementTraitees.length === 0) return
+
+    setLignesEnCoursAllumage((precedent) => new Set([...precedent, ...nouvellementTraitees]))
+    const minuteur = setTimeout(() => {
+      setLignesEnCoursAllumage((precedent) => {
+        const suivant = new Set(precedent)
+        nouvellementTraitees.forEach((id) => suivant.delete(id))
+        return suivant
+      })
+    }, 700)
+    return () => clearTimeout(minuteur)
+  }, [etatRafraichissement?.positions_traitees])
 
   async function confirmerSuppression() {
     if (!confirmSuppression) return
@@ -415,6 +452,7 @@ export default function PortefeuillePage() {
             comptes={comptes}
             etablissements={etablissements}
             onComptesModifies={chargerComptes}
+            lignesEnCoursAllumage={lignesEnCoursAllumage}
           />
         )}
 

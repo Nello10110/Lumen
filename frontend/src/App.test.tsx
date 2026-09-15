@@ -54,6 +54,41 @@ beforeEach(() => {
   vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0 })
 })
 
+describe('App — flash lumineux à la connexion (backlog § AH.1)', () => {
+  it('apparaît une fois quand le signal a été armé (connexion venant de réussir), puis disparaît seul', async () => {
+    sessionStorage.setItem('patrimoine:flash-connexion', '1')
+
+    const { container } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('link', { name: 'Lumen' }) // l'app authentifiée a bien fini de monter
+    // `waitFor` plutôt qu'une assertion synchrone : l'effet qui consomme le signal
+    // se déclenche après le rendu où `user` devient vrai, potentiellement un tick
+    // après que `findByRole` a déjà résolu sur ce même rendu.
+    await waitFor(() => expect(container.querySelector('.lumen-flash-connexion')).not.toBeNull())
+    // Consommé dès la première lecture : n'est plus armé pour la suite de la session.
+    expect(sessionStorage.getItem('patrimoine:flash-connexion')).toBeNull()
+
+    // Minuteur réel (500 ms, cf. App.tsx) plutôt que des faux timers : ces derniers
+    // entrent en conflit avec l'attente réelle déjà faite par `findByRole` ci-dessus.
+    await waitFor(() => expect(container.querySelector('.lumen-flash-connexion')).toBeNull(), { timeout: 1000 })
+  })
+
+  it("n'apparaît jamais sur un chargement silencieux (jeton déjà présent, rien n'a été armé)", async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('link', { name: 'Lumen' })
+    expect(container.querySelector('.lumen-flash-connexion')).toBeNull()
+  })
+})
+
 describe('App — barre latérale (backlog 2.K.2)', () => {
   it('le logo "Patrimoine" est un lien vers la synthèse', async () => {
     render(

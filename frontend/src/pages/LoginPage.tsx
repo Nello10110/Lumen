@@ -10,6 +10,7 @@ import { PrimaryButton, SecondaryButton } from '../components/Controls'
 import { Field, Input } from '../components/Field'
 import { GlassPanel } from '../components/GlassPanel'
 import LumenMark from '../components/LumenMark'
+import { armerFlashConnexion } from '../utils/flashConnexion'
 
 type Mode = 'connexion' | 'creation'
 
@@ -94,6 +95,10 @@ export default function LoginPage() {
     try {
       if (mode === 'connexion') await login(username, password)
       else await register(username, password)
+      // Backlog § AH.1 (15/09/2026) : armé seulement après un succès — un échec de
+      // connexion ne doit jamais provoquer de flash au prochain essai réussi qui,
+      // lui, n'a pas eu lieu MAINTENANT.
+      armerFlashConnexion()
     } catch (err) {
       setError((err as Error).message)
     } finally {

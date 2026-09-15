@@ -199,7 +199,15 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
           vert d'ancienne version faisait lire « +79 000 € » là où la variation, elle,
           est portée par le badge juste en dessous — seul endroit où une couleur de
           signe veut dire quelque chose. */}
-      <p className="text-heros text-ink">{formatEuro(principale.valeur, 0, montantsMasques)}</p>
+      {/* Respire à chaque changement réel de valeur (backlog § AH.3, 15/09/2026) :
+          `key={principale.valeur}` force React à remonter l'élément quand la valeur
+          change (nouvelle donnée, ou lentille Net/Brut/Financier changée), ce qui
+          relance l'animation CSS (`animate-lumen-respire`, `index.css`) — jamais en
+          continu, seulement sur un vrai changement, comme pour la bascule de thème
+          (§ AF.2, même patron). */}
+      <p key={principale.valeur} className="text-heros text-ink animate-lumen-respire">
+        {formatEuro(principale.valeur, 0, montantsMasques)}
+      </p>
       {delta !== null && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {variationPct !== null && (

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router-dom'
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
@@ -17,6 +17,7 @@ import { PAGE_COMPONENTS } from './layout/pageComponents'
 import { ROUTES } from './layout/routes'
 import LoginPage from './pages/LoginPage'
 import PageIntrouvablePage from './pages/PageIntrouvablePage'
+import { consommerFlashConnexion } from './utils/flashConnexion'
 
 // `/partage/:token` (backlog 2.Q.1) est une page publique, jamais dans `ROUTES`
 // (réservé aux écrans de l'application authentifiée) : lazy-chargée séparément de
@@ -52,6 +53,28 @@ function AppAuthentifiee() {
   const { user, loading } = useAuth()
   useTitreDocument()
 
+  // Flash lumineux à la connexion (backlog § AH.1, 15/09/2026) : consomme le signal
+  // posé par `LoginPage` (`armerFlashConnexion`) dès que `user` devient vrai — donc
+  // exactement une fois par connexion réussie, jamais au chargement silencieux d'un
+  // onglet déjà authentifié (`consommerFlashConnexion` renvoie alors `false`, rien
+  // n'ayant été armé). Recalculé à chaque changement de `user`, mais la clé
+  // `sessionStorage` étant retirée dès la première lecture, un second déclenchement
+  // sur le même `user` (ex. un `refetchUser` après édition du profil) ne redéclenche
+  // jamais le flash.
+  const [flashConnexion, setFlashConnexion] = useState(false)
+  useEffect(() => {
+    if (!user || !consommerFlashConnexion()) return
+    setFlashConnexion(true)
+    const minuteur = setTimeout(() => setFlashConnexion(false), 500)
+    return () => clearTimeout(minuteur)
+  }, [user])
+  const flash = flashConnexion && (
+    <div
+      aria-hidden="true"
+      className="lumen-flash-connexion animate-lumen-flash-connexion pointer-events-none fixed inset-0 z-[100]"
+    />
+  )
+
   if (loading) {
     // Backlog § AD.4 (15/09/2026) : un point lumineux qui grandit jusqu'au logo
     // plein (< 600 ms, `animate-lumen-allumage` posée dans `index.css`), plutôt
@@ -71,17 +94,30 @@ function AppAuthentifiee() {
   // membre/invité, créé par lui via `POST /household-members`, n'a jamais besoin de
   // le voir. `onboarding_termine` (`UserParametre`, cf. `preferences_service.py`)
   // reste `False` tant que l'assistant n'a pas été terminé ou explicitement passé.
-  if (user.role === 'proprietaire' && !user.onboarding_termine) return <WelcomeWizard />
+  if (user.role === 'proprietaire' && !user.onboarding_termine)
+    return (
+      <>
+        {flash}
+        <WelcomeWizard />
+      </>
+    )
   // Écran de rattrapage bloquant (revue du 03/09/2026, compte obligatoire sur une
   // ligne financière) : `proprietaire` ET `membre` peuvent tous deux créer des
   // lignes sans compte (`_peut_ecrire` côté backend), donc tous deux doivent voir
   // ce gate — contrairement à l'onboarding ci-dessus, réservé au propriétaire. Un
   // `invite`, lecture seule, ne peut rien y corriger : jamais bloqué par un état
   // qu'il ne peut pas changer lui-même.
-  if (user.role !== 'invite' && user.holdings_sans_compte > 0) return <RattrapageComptes />
+  if (user.role !== 'invite' && user.holdings_sans_compte > 0)
+    return (
+      <>
+        {flash}
+        <RattrapageComptes />
+      </>
+    )
 
   return (
     <PreferencesAffichageProvider>
+      {flash}
       {/* Coque de la refonte « liquid glass » (étape 3) : la racine ne défile jamais
           et laisse voir le fond à halos porté par `<body>` (plus de `bg-surface-elevee`
           opaque par-dessus). Les panneaux flottent dessus, séparés de 14 px. */}
