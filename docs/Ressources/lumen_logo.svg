@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-labelledby="title desc">
+  <title id="title">Lumen — logo</title>
+  <desc id="desc">Logo minimaliste bleu monochrome avec effet verre liquide et mot-symbole Lumen.</desc>
+  <defs>
+    <linearGradient id="blueGlass" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#A9CEFF"/>
+      <stop offset="0.45" stop-color="#4D8DFF"/>
+      <stop offset="1" stop-color="#1761E8"/>
+    </linearGradient>
+    <linearGradient id="blueGlass2" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#D5E7FF" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#74AAFF" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#2B74EF" stop-opacity="0.95"/>
+    </linearGradient>
+    <radialGradient id="highlight" cx="35%" cy="25%" r="75%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.62"/>
+      <stop offset="0.28" stop-color="#B9D7FF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#2B74EF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+
+  <!-- Liquid-glass emblem -->
+  <g transform="translate(600 150)">
+    <path d="M-210 420 C-210 255 -165 105 -65 20 C-12 -25 50 -6 52 55 L52 314 C52 356 75 378 111 360 C170 330 232 325 267 355 C317 397 286 469 226 505 C156 548 60 555 -28 550 C-132 544 -210 502 -210 420Z" fill="url(#blueGlass)"/>
+    <path d="M-150 403 C-152 283 -117 132 -46 66 C-12 35 20 44 20 88 L20 325 C20 382 -8 424 -52 451 C-92 475 -128 462 -150 403Z" fill="url(#blueGlass2)"/>
+    <path d="M55 355 C112 332 198 329 240 356 C268 374 250 414 214 440 C170 472 109 492 55 483 C27 478 19 450 30 421 C41 392 47 374 55 355Z" fill="url(#blueGlass2)"/>
+    <path d="M-177 431 C-123 500 -13 526 92 507 C173 493 240 455 260 402 C272 453 216 505 139 532 C32 570 -91 556 -162 496 C-184 477 -192 454 -177 431Z" fill="#2B74EF" fill-opacity="0.34"/>
+    <ellipse cx="-74" cy="126" rx="105" ry="65" fill="url(#highlight)" transform="rotate(-28 -74 126)"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="600" y="835" text-anchor="middle"
+        font-family="Inter, SF Pro Display, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="188" font-weight="650" letter-spacing="-7" fill="#2873F0">Lumen</text>
+</svg>
