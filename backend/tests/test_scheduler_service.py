@@ -379,17 +379,23 @@ def test_cours_historiques_present_dans_jobs():
 
 
 def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
-    """Vérifie les trois choses qui comptent : les titres détenus sont bien couverts,
-    le rafraîchissement est FORCÉ (le job ne doit pas être bloqué par le délai de
-    fraîcheur, sinon il ne sert à rien), et un actif non cotable n'y entre pas."""
+    """Vérifie les choses qui comptent : les titres détenus sont bien couverts, le
+    rafraîchissement est FORCÉ (le job ne doit pas être bloqué par le délai de
+    fraîcheur, sinon il ne sert à rien), un actif non cotable n'y entre pas, et
+    (15/09/2026) une CRYPTO n'y entre plus non plus — `resolve_ticker` (Yahoo) ne
+    doit même plus être appelé pour elle, cf. `coinmarketcap_service`."""
     from app.services import cours_service, market_data_service
 
     appels: list[tuple[str, bool]] = []
-    monkeypatch.setattr(
-        market_data_service,
-        "resolve_ticker",
-        lambda db, identifiant, asset_class: None if identifiant.startswith("BRICKS-") else f"{identifiant}.RES",
-    )
+
+    def _resolve(db, identifiant, asset_class):
+        if identifiant.startswith("BRICKS-"):
+            return None
+        if asset_class == "CRYPTO":
+            raise AssertionError("resolve_ticker (Yahoo) ne doit jamais être appelé pour une CRYPTO")
+        return f"{identifiant}.RES"
+
+    monkeypatch.setattr(market_data_service, "resolve_ticker", _resolve)
     monkeypatch.setattr(
         cours_service, "rafraichir", lambda db, ticker, forcer=False: appels.append((ticker, forcer))
     )
@@ -399,6 +405,7 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
         db.query(Holding).delete()
         db.add(Holding(user_id=1, ticker="AAA", quantite=1.0, type_actif="STOCK"))
         db.add(Holding(user_id=1, ticker="BRICKS-ABC", quantite=1.0, type_actif="BOND"))
+        db.add(Holding(user_id=1, ticker="PKN", quantite=100.0, type_actif="CRYPTO"))
         db.commit()
     finally:
         db.close()
@@ -415,6 +422,7 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
 
     assert ("AAA.RES", True) in appels
     assert not any(t.startswith("BRICKS-") for t, _ in appels)
+    assert not any(t.startswith("PKN") for t, _ in appels)
 
 
 def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):

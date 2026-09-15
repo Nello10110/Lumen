@@ -364,21 +364,36 @@ def test_refresh_tickers_fund_echec_justetf_aucun_repli_yfinance(db, monkeypatch
     assert cache.prix_actuel is None
 
 
-def test_refresh_tickers_stock_et_crypto_ignorent_justetf(db, monkeypatch):
-    """Comportement `STOCK`/`CRYPTO` totalement inchangé : toujours `fetch_one`
-    (yfinance), `justetf_service.fetch_price` jamais sollicité pour ces types."""
+def test_refresh_tickers_stock_ignore_justetf_et_coinmarketcap(db, monkeypatch):
+    """Comportement `STOCK` inchangé : toujours `fetch_one` (yfinance), ni
+    `justetf_service.fetch_price` ni `coinmarketcap_service.fetch_price` ne
+    doivent être sollicités pour lui."""
+
+    def _fetch_price_interdit(*args, **kwargs):
+        raise AssertionError("aucune des deux sources dédiées ne doit être appelée pour un STOCK")
+
+    monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", _fetch_price_interdit)
+    monkeypatch.setattr(market_data_service.coinmarketcap_service, "fetch_price", _fetch_price_interdit)
+
+    resultats = market_data_service.refresh_tickers(db, [("AAPL", "STOCK")])
+
+    assert resultats == [{"ticker": "AAPL", "erreur": "Cotation indisponible (titre non coté ou non reconnu)"}]
+
+
+def test_refresh_tickers_crypto_ignore_justetf(db, monkeypatch):
+    """Symétrique : `justetf_service.fetch_price` ne doit jamais être sollicité
+    pour une CRYPTO (15/09/2026, cf. `coinmarketcap_service`) — comportement déjà
+    verrouillé côté « pas de yfinance » par les tests du bloc dédié plus bas."""
 
     def _fetch_price_interdit(*args, **kwargs):
         raise AssertionError("justetf_service.fetch_price ne doit être appelé que pour asset_class == 'FUND'")
 
     monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", _fetch_price_interdit)
+    monkeypatch.setattr(market_data_service.coinmarketcap_service, "fetch_price", lambda symbol: None)
 
-    resultats = market_data_service.refresh_tickers(db, [("AAPL", "STOCK"), ("BTC", "CRYPTO")])
+    resultats = market_data_service.refresh_tickers(db, [("BTC", "CRYPTO")])
 
-    assert resultats == [
-        {"ticker": "AAPL", "erreur": "Cotation indisponible (titre non coté ou non reconnu)"},
-        {"ticker": "BTC", "erreur": "Cotation indisponible (titre non coté ou non reconnu)"},
-    ]
+    assert resultats == [{"ticker": "BTC", "erreur": "Cotation indisponible (CoinMarketCap)"}]
 
 
 def test_refresh_tickers_temporise_aussi_entre_deux_appels_justetf(db, monkeypatch):
@@ -748,3 +763,102 @@ def test_un_echec_ordinaire_reste_reessaye(db, monkeypatch):
     market_data_service.resolve_ticker(db, "FR0000000000", "STOCK")
 
     assert appels["n"] == 1
+
+
+# ---------------------------------------------------------------------------
+# 15/09/2026 — retour utilisateur : une crypto Ledger "PKN" résolvait à tort vers
+# l'action polonaise Orlen S.A. (ticker Yahoo "PKN.WA") — `resolve_ticker` se
+# rabattait sur le premier résultat de `yf.Search`, quel que soit son type, quand
+# aucun résultat ne correspondait au type attendu. Corrigé : plus jamais de
+# substitution d'une classe d'actif par une autre quand une préférence est connue
+# (`QUOTE_TYPES_BY_ASSET_CLASS`). Le prix crypto vient désormais de CoinMarketCap
+# (`coinmarketcap_service`), jamais de Yahoo Finance — cf. bloc suivant.
+# ---------------------------------------------------------------------------
+
+
+class _FauxSearchTypeNonPrefere:
+    """Reproduit exactement l'incident : Yahoo ne renvoie AUCUN résultat du type
+    attendu, seulement un résultat d'une tout autre nature partageant le symbole."""
+
+    def __init__(self, *args, **kwargs):
+        self.quotes = [{"symbol": "PKN.WA", "quoteType": "EQUITY", "longname": "Orlen S.A."}]
+
+
+def test_resolve_ticker_ne_substitue_plus_jamais_une_classe_dactif_par_une_autre(db, monkeypatch):
+    """Non-régression exacte de l'incident PKN -> Orlen S.A."""
+    monkeypatch.setattr(market_data_service.yf, "Search", lambda *a, **k: _FauxSearchTypeNonPrefere())
+
+    assert market_data_service.resolve_ticker(db, "PKN", "CRYPTO") is None
+
+    cached = db.get(TickerResolution, "PKN")
+    assert cached is not None
+    assert cached.ticker_resolu is None
+    assert cached.echec_structurel is False  # échec ORDINAIRE : réessayé chaque jour, pas définitif
+
+
+def test_resolve_ticker_asset_class_inconnue_garde_lancien_repli(db, monkeypatch):
+    """Le repli « premier résultat, quel qu'il soit » reste légitime quand on ne
+    sait pas quoi chercher (`asset_class` absent de `QUOTE_TYPES_BY_ASSET_CLASS`,
+    ex. une saisie manuelle sans classe déclarée) — rien à violer, aucune
+    préférence n'est connue."""
+    monkeypatch.setattr(market_data_service.yf, "Search", lambda *a, **k: _FauxSearchTypeNonPrefere())
+
+    assert market_data_service.resolve_ticker(db, "PKN", None) == "PKN.WA"
+
+
+# ---------------------------------------------------------------------------
+# 15/09/2026 — cours de référence d'une crypto via CoinMarketCap (pas yfinance,
+# sans repli en cas d'échec — même décision qu'à 2.4 pour justETF)
+# ---------------------------------------------------------------------------
+
+
+def test_refresh_tickers_crypto_utilise_coinmarketcap_pas_yfinance(db, monkeypatch):
+    def _fetch_one_interdit(*args, **kwargs):
+        raise AssertionError("fetch_one (yfinance) ne doit jamais être appelé pour une CRYPTO")
+
+    def _search_interdit(*args, **kwargs):
+        raise AssertionError("yf.Search ne doit jamais être sollicité pour résoudre une CRYPTO")
+
+    monkeypatch.setattr(market_data_service, "fetch_one", _fetch_one_interdit)
+    monkeypatch.setattr(market_data_service.yf, "Search", _search_interdit)
+    monkeypatch.setattr(
+        market_data_service.coinmarketcap_service, "fetch_price", lambda symbol: {"prix_actuel": 61234.56, "nom": "Bitcoin"}
+    )
+
+    resultats = market_data_service.refresh_tickers(db, [("BTC", "CRYPTO")])
+
+    assert resultats == [
+        {"ticker": "BTC", "nom": "Bitcoin", "prix_actuel": pytest.approx(61234.56), "devise": "EUR", "erreur": None}
+    ]
+    cache = db.get(MarketDataCache, "BTC")
+    assert cache is not None
+    assert cache.nom == "Bitcoin"
+    assert cache.prix_actuel == pytest.approx(61234.56)
+    assert cache.devise == "EUR"
+    assert cache.secteur is None
+    assert cache.pays is None
+    assert cache.erreur is None
+    # Aucune ligne de résolution Yahoo écrite : CoinMarketCap travaille directement
+    # sur le symbole, sans passer par `resolve_ticker`.
+    assert db.get(TickerResolution, "BTC") is None
+
+
+def test_refresh_tickers_crypto_echec_coinmarketcap_aucun_repli_yfinance(db, monkeypatch):
+    """Même décision qu'à 2.4 pour justETF : un échec CoinMarketCap affiche
+    « cotation indisponible », sans jamais retomber sur yfinance — c'est
+    précisément ce repli qui causait l'incident PKN -> Orlen S.A."""
+
+    def _fetch_one_interdit(*args, **kwargs):
+        raise AssertionError("fetch_one (yfinance) ne doit jamais être appelé, même après un échec CoinMarketCap")
+
+    monkeypatch.setattr(market_data_service, "fetch_one", _fetch_one_interdit)
+    monkeypatch.setattr(market_data_service.coinmarketcap_service, "fetch_price", lambda symbol: None)
+
+    resultats = market_data_service.refresh_tickers(db, [("PKN", "CRYPTO")])
+
+    assert resultats == [{"ticker": "PKN", "erreur": "Cotation indisponible (CoinMarketCap)"}]
+    cache = db.get(MarketDataCache, "PKN")
+    assert cache is not None
+    assert cache.erreur == "Cotation indisponible (CoinMarketCap)"
+    assert cache.prix_actuel is None
+    assert cache.nom is None

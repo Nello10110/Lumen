@@ -227,6 +227,13 @@ def _compute_portfolio_history(
     for (symbol, _compte_id), state in positions.items():
         if not state.shares_history or symbol in price_series:
             continue
+        # CRYPTO exclue (15/09/2026, cf. `coinmarketcap_service`) : plus de ticker
+        # Yahoo à résoudre pour elle, et CoinMarketCap ne fournit pas d'historique
+        # sur son plan gratuit — la courbe du portefeuille retombe sur
+        # `prix_revient_moyen` pour ces points (`_value_at` ci-dessous, comme pour
+        # toute autre position sans série connue), jamais sur un titre sans rapport.
+        if state.asset_class == "CRYPTO":
+            continue
         ticker_resolu = market_data_service.resolve_ticker(db, symbol, state.asset_class)
         if ticker_resolu is None:
             continue
@@ -375,6 +382,13 @@ def compute_holding_price_history(db: Session, holding_id: int, user_id: int) ->
 def _compute_holding_price_history(db: Session, holding_id: int, user_id: int) -> dict | None:
     holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == user_id).first()
     if holding is None:
+        return None
+
+    # CRYPTO n'a plus de ticker Yahoo à résoudre depuis le 15/09/2026 (cf.
+    # `coinmarketcap_service`) — CoinMarketCap ne fournit pas d'historique sur son
+    # plan gratuit, donc pas de courbe de prix pour une crypto pour l'instant
+    # (`None`, jamais une donnée d'un titre sans rapport comme avant ce correctif).
+    if holding.type_actif == "CRYPTO":
         return None
 
     ticker_resolu = market_data_service.resolve_ticker(db, holding.ticker, holding.type_actif)

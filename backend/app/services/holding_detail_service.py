@@ -69,8 +69,18 @@ def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | N
         for t in top_holdings
     ]
 
-    ticker_resolu = market_data_service.resolve_ticker(db, ticker, holding.type_actif)
-    extra = market_data_service.fetch_holding_extra_info(ticker_resolu, holding.type_actif)
+    # CRYPTO exclue (correctif du 15/09/2026, cf. `coinmarketcap_service`) : sa
+    # cotation ne vient plus de Yahoo Finance, et l'appeler quand même ici pour un
+    # "émetteur"/"résumé" qui n'a pas de sens pour une crypto risquait exactement le
+    # bug d'origine — une crypto au ticker ambigu (ex. "PKN") affichant le résumé
+    # d'un titre coté sans rapport (Orlen S.A.). `emetteur`/`resume` restent `None`
+    # pour une crypto, ce qui est le comportement correct (aucun concept d'émetteur
+    # pour une cryptomonnaie dans ce modèle de données).
+    if holding.type_actif == "CRYPTO":
+        extra: dict = {}
+    else:
+        ticker_resolu = market_data_service.resolve_ticker(db, ticker, holding.type_actif)
+        extra = market_data_service.fetch_holding_extra_info(ticker_resolu, holding.type_actif)
     emetteur = extra.get("emetteur")
     if not emetteur and holding.type_actif == "FUND":
         # Repli pour les cotations à données pauvres (ex. secondaire allemande sans

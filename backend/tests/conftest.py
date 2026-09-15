@@ -16,6 +16,10 @@
   (ou `market_data_refresh.demarrer_rafraichissement`, cf. ci-dessous)
   ou `justetf_service.refresh_all` sur un ticker `FUND` sans monkeypatch explicite
   ferait un vrai appel réseau vers justetf.com.
+- `no_network_coinmarketcap` (autouse) : même principe, côté `requests.get` — seul
+  point d'entrée réseau de `coinmarketcap_service` (`fetch_price`, 15/09/2026).
+  Sans elle, tout test exerçant `refresh_tickers` sur un ticker `CRYPTO` sans
+  monkeypatch explicite ferait un vrai appel réseau vers l'API CoinMarketCap.
 - `reinitialiser_limite_rafraichissement_manuel` (autouse) : remet à zéro l'état
   mémoire du délai minimal entre rafraîchissements manuels (LOT 7.5) entre chaque
   test, pour qu'un test n'hérite pas d'un rafraîchissement déclenché par un test
@@ -42,7 +46,7 @@ from app.auth import get_current_user
 from app.database import Base, get_db
 from app.main import app
 from app.models import Compte, Holding, Transaction, User
-from app.services import justetf_service, market_data_refresh
+from app.services import coinmarketcap_service, justetf_service, market_data_refresh
 
 _compteur_transaction_id = itertools.count(1)
 _compteur_compte_nom = itertools.count(1)
@@ -161,6 +165,15 @@ def no_network_justetf(monkeypatch):
     HTTP particulier, JSON inattendu...) monkeypatche `requests.get` lui-même, ce
     qui prime naturellement sur ce défaut."""
     monkeypatch.setattr(justetf_service.requests, "get", _requests_get_bloque)
+
+
+@pytest.fixture(autouse=True)
+def no_network_coinmarketcap(monkeypatch):
+    """Même principe que `no_network_justetf`, côté `coinmarketcap_service`
+    (15/09/2026) — seul point d'entrée réseau : `requests.get` dans `fetch_price`.
+    Sans elle, tout test exerçant `refresh_tickers` sur un ticker `CRYPTO` sans
+    monkeypatch explicite ferait un vrai appel réseau vers l'API CoinMarketCap."""
+    monkeypatch.setattr(coinmarketcap_service.requests, "get", _requests_get_bloque)
 
 
 @pytest.fixture(autouse=True)

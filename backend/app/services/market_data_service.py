@@ -65,7 +65,7 @@ from ..models import (
     MarketDataCache,
     TickerResolution,
 )
-from . import justetf_service
+from . import coinmarketcap_service, justetf_service
 from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
 
 QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
@@ -204,9 +204,23 @@ def resolve_ticker(db: Session, identifiant: str, asset_class: str | None) -> st
     except Exception:
         resultats = []
 
-    preferes = QUOTE_TYPES_BY_ASSET_CLASS.get(asset_class or "", set())
-    match = next((q for q in resultats if q.get("quoteType") in preferes), None) or (
-        resultats[0] if resultats else None
+    # Bug corrigé le 15/09/2026 (retour utilisateur : une crypto Ledger "PKN" a
+    # résolu vers l'action polonaise Orlen S.A., ticker Yahoo PKN.WA — même
+    # symbole, classe d'actif totalement différente). `QUOTE_TYPES_BY_ASSET_CLASS`
+    # documente pour STOCK/FUND/CRYPTO/BOND les types Yahoo qu'un résultat DOIT
+    # avoir pour être accepté — mais l'ancien code, quand AUCUN résultat ne
+    # correspondait, se rabattait quand même sur `resultats[0]`, substituant
+    # silencieusement un titre d'une autre classe. Distinction désormais faite
+    # entre « on sait ce qu'on cherche, Yahoo n'a rien trouvé de ce type » (aucune
+    # préférence connue → toujours `None`, jamais un ticker d'une autre nature) et
+    # « on ne sait pas ce qu'on cherche » (`asset_class` absent du dictionnaire,
+    # ex. `None` pour une saisie manuelle sans classe déclarée — là, prendre le
+    # premier résultat reste le seul repli possible, comme avant ce correctif).
+    preferes = QUOTE_TYPES_BY_ASSET_CLASS.get(asset_class or "")
+    match = (
+        next((q for q in resultats if q.get("quoteType") in preferes), None)
+        if preferes
+        else (resultats[0] if resultats else None)
     )
     if match:
         ticker_resolu = match.get("symbol")
@@ -507,6 +521,7 @@ def refresh_tickers(
     now = datetime.now(UTC)
     seen: set[str] = set()
     seen_justetf: set[str] = set()
+    seen_coinmarketcap: set[str] = set()
     fx_cache: dict[str, float | None] = {}
     stock_info_cache: dict[str, dict] = {}
     total = len(items)
@@ -527,7 +542,13 @@ def refresh_tickers(
             time.sleep(DELAI_ENTRE_APPELS_SECONDES)
         seen.add(identifiant)
 
-        ticker_resolu = resolve_ticker(db, identifiant, asset_class)
+        # `resolve_ticker` cherche un ticker YAHOO — inutile, et potentiellement
+        # coûteux en appels réseau pour rien, pour une classe d'actif dont le prix
+        # ne vient plus de Yahoo Finance (FUND -> justETF depuis 2.4, CRYPTO ->
+        # CoinMarketCap depuis le 15/09/2026 ci-dessous). Appelé quand même pour
+        # FUND : la composition (look-through) s'appuie encore sur `yfinance` en
+        # repli quand justETF ne couvre pas l'ETF, cf. `_composition_justetf_ou_yfinance`.
+        ticker_resolu = None if asset_class == "CRYPTO" else resolve_ticker(db, identifiant, asset_class)
 
         # 2.4/Increment 9 — le cours de référence d'un ETF vient désormais de
         # l'API JSON justETF, pas de yfinance : plus robuste (contrat d'API stable
@@ -552,6 +573,26 @@ def refresh_tickers(
                 }
             else:
                 data = {"ticker": identifiant, "erreur": "Cotation indisponible (justETF)"}
+        elif asset_class == "CRYPTO":
+            # Retour utilisateur du 15/09/2026 (cf. docstring de
+            # `coinmarketcap_service`) : une crypto au ticker Yahoo ambigu (ex.
+            # "PKN") pouvait résoudre vers un titre coté sans rapport. Même
+            # politique que justETF ci-dessus, appliquée à la crypto : source
+            # unique, spécialisée, sans repli sur Yahoo Finance en cas d'échec.
+            if seen_coinmarketcap and coinmarketcap_service.DELAI_ENTRE_APPELS_COINMARKETCAP_SECONDES:
+                time.sleep(coinmarketcap_service.DELAI_ENTRE_APPELS_COINMARKETCAP_SECONDES)
+            seen_coinmarketcap.add(identifiant)
+            cotation = coinmarketcap_service.fetch_price(identifiant)
+            if cotation is not None:
+                data = {
+                    "ticker": identifiant,
+                    "nom": cotation["nom"],
+                    "prix_actuel": cotation["prix_actuel"],
+                    "devise": "EUR",
+                    "erreur": None,
+                }
+            else:
+                data = {"ticker": identifiant, "erreur": "Cotation indisponible (CoinMarketCap)"}
         else:
             data = fetch_one(identifiant, ticker_resolu, fx_cache)
         results.append(data)

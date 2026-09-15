@@ -141,6 +141,25 @@ def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(
     assert resultat_chaud == resultat_froid
 
 
+def test_holding_price_history_crypto_ne_resout_jamais_via_yahoo(db, monkeypatch):
+    """15/09/2026 : CoinMarketCap (source désormais exclusive du prix d'une
+    crypto, cf. `coinmarketcap_service`) ne fournit pas d'historique sur son plan
+    gratuit — une crypto n'a donc pas de courbe pour l'instant (`None`), mais ne
+    doit plus jamais interroger Yahoo Finance pour tenter d'en obtenir une (c'est
+    cette résolution qui causait l'incident PKN -> Orlen S.A.)."""
+
+    def _resolve_interdit(*args, **kwargs):
+        raise AssertionError("resolve_ticker (Yahoo) ne doit jamais être appelé pour une CRYPTO")
+
+    monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", _resolve_interdit)
+
+    h = Holding(user_id=ID_UTILISATEUR_TEST, ticker="PKN", quantite=100.0, prix_revient_moyen=0.4, type_actif="CRYPTO")
+    db.add(h)
+    db.commit()
+
+    assert compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST) is None
+
+
 def test_holding_price_history_recharge_la_serie_quand_elle_est_perimee(db, monkeypatch):
     """Remplace l'ancien test d'expiration du cache JSON de résultat, supprimé avec lui
     (§ AB.2) : c'est désormais la SÉRIE en base qui porte la fraîcheur, et elle seule."""
@@ -186,6 +205,25 @@ def test_portfolio_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(db, 
     resultat_chaud = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
 
     assert resultat_chaud == resultat_froid
+
+
+def test_portfolio_history_crypto_ne_resout_jamais_via_yahoo(db, monkeypatch):
+    """Même garde que `compute_holding_price_history` ci-dessus, pour le graphique
+    du portefeuille entier : une position CRYPTO retombe sur `prix_revient_moyen`
+    (comme toute position sans série connue) sans jamais interroger Yahoo Finance."""
+
+    def _resolve_interdit(*args, **kwargs):
+        raise AssertionError("resolve_ticker (Yahoo) ne doit jamais être appelé pour une CRYPTO")
+
+    monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", _resolve_interdit)
+
+    make_transaction(
+        db, transaction_id="t1", symbol="PKN", shares=100.0, amount=-40.0, asset_class="CRYPTO", datetime_utc=datetime(2024, 1, 1)
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
+    assert resultat  # au moins un point de la grille hebdomadaire — pas d'exception
 
 
 class _FauxTickerAvecDeviseUSD(_FauxTickerAvecHistorique):

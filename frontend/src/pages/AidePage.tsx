@@ -269,7 +269,7 @@ export default function AidePage() {
         <div className="space-y-3 text-sm text-texte">
           <p>
             <span className="font-medium text-texte">Yahoo Finance</span> fournit les cours des
-            actions/cryptos et une partie de la composition des fonds, rafraîchis automatiquement (cadence réglable dans
+            actions et une partie de la composition des fonds, rafraîchis automatiquement (cadence réglable dans
             Réglages).
           </p>
           <p>
@@ -277,6 +277,12 @@ export default function AidePage() {
             des ETF ainsi que leur composition géographique/sectorielle détaillée et leur description, sous une autorisation
             spécifique obtenue par l’utilisateur — traité avec beaucoup d’égards (rafraîchissement peu fréquent, pour ne pas
             solliciter leur service à l’excès).
+          </p>
+          <p>
+            <span className="font-medium text-texte">CoinMarketCap</span> fournit le cours des
+            cryptomonnaies (depuis le 15/09/2026, à la place de Yahoo Finance — plus fiable pour cette famille d’actifs).
+            Nécessite une clé d’API gratuite configurée par l’exploitant ; sans elle, les lignes crypto affichent « Cotation
+            indisponible ».
           </p>
           <p>
             Aucune donnée n’est envoyée à l’extérieur : l’application tourne entièrement en local, sur votre machine. Elle
