@@ -5,7 +5,7 @@ import { seedData } from './seed-data'
 test.describe('Fiche détaillée d\'une position', () => {
   test('E2E-LIVRETA : onglets, historique de valorisation, ajout d\'un point', async ({ page }) => {
     const { holdings, comptes } = seedData()
-    await page.goto(`/patrimoine/${holdings.livret.ticker}`)
+    await page.goto(`/patrimoine/${holdings.livret.id}`)
     await expect(page.getByRole('heading', { name: holdings.livret.ticker })).toBeVisible()
 
     // Badge de compte rattaché (écran Comptes, backlog X.4) — ce livret a son propre
@@ -57,7 +57,7 @@ test.describe('Fiche détaillée d\'une position', () => {
 
   test('E2E-APPART : onglet Paramètres affiche les caractéristiques immobilières', async ({ page }) => {
     const { holdings } = seedData()
-    await page.goto(`/patrimoine/${holdings.appartement.ticker}`)
+    await page.goto(`/patrimoine/${holdings.appartement.id}`)
     await expect(page.getByRole('heading', { name: holdings.appartement.ticker })).toBeVisible()
     await expect(page.getByText('Cashflow et rentabilité')).toBeVisible()
 

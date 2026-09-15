@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { cardByTitle, positionsTable } from './helpers'
+import { seedData } from './seed-data'
 
 /**
  * Recette du 02/09/2026 (demande utilisateur avant démonstration) : simule les
@@ -200,7 +201,8 @@ test.describe('Ergonomie — le guidage promis est réellement présent à l\'é
   })
 
   test('« Part détenue » et « Part nette » sont expliquées sur la fiche d\'un actif', async ({ page }) => {
-    await page.goto('/patrimoine/E2EAAPL')
+    const { holdings } = seedData()
+    await page.goto(`/patrimoine/${holdings.aapl.id}`)
     await page.getByRole('tab', { name: 'Analyse' }).click()
     await expect(page.getByText('Détenteurs')).toBeVisible()
 

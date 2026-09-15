@@ -85,10 +85,17 @@ test.describe('Portefeuille', () => {
   })
 
   test('ouvre la fiche détaillée en modale au clic sur une ligne', async ({ page }) => {
+    // Le titre affiché privilégie le nom résolu par les données de marché (`nom ??
+    // ticker`) : "Apple E2E", posé en fixture `MarketDataCache` par le script de
+    // seed, prime sur "E2EAAPL" — et apparaît en DEUX endroits du DOM (le titre de
+    // la boîte de dialogue, et le grand intitulé de `HoldingDetailContent` qu'elle
+    // englobe), d'où l'assertion sur le rôle `dialog` lui-même (nom accessible via
+    // `aria-labelledby`, cf. `Modale.tsx`) plutôt que sur un `heading` ambigu.
     await positionsTable(page).getByText('E2EAAPL').click()
-    await expect(page.getByRole('heading', { name: 'E2EAAPL' })).toBeVisible()
+    const dialogue = page.getByRole('dialog', { name: 'Apple E2E' })
+    await expect(dialogue).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Aperçu' })).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(page.getByRole('heading', { name: 'E2EAAPL' })).not.toBeVisible()
+    await expect(dialogue).not.toBeVisible()
   })
 })

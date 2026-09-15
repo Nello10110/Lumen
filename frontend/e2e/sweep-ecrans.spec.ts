@@ -84,7 +84,7 @@ test('les fiches détaillées (position, compte) s\'affichent sans erreur consol
   const { holdings, comptes } = seedData()
   const erreurs = collecterErreursConsole(page)
 
-  await page.goto(`/patrimoine/${holdings.appartement.ticker}`)
+  await page.goto(`/patrimoine/${holdings.appartement.id}`)
   await expect(page.getByRole('heading', { name: holdings.appartement.ticker })).toBeVisible()
   // Les trois onglets de la fiche, chacun montant des composants distincts.
   for (const onglet of ['Analyse', 'Paramètres', 'Aperçu']) {

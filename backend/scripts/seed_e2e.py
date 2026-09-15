@@ -138,7 +138,7 @@ def _creer_immobilier(client: httpx.Client) -> tuple[int, str, int]:
     h = holding.json()
 
     detail = client.put(
-        f"/api/portfolio/holdings/{h['ticker']}/immobilier",
+        f"/api/portfolio/holdings/{h['id']}/immobilier",
         json={
             "type_location": "nue",
             "loyer_mensuel": 1200.0,
@@ -156,7 +156,7 @@ def _creer_immobilier(client: httpx.Client) -> tuple[int, str, int]:
     # posée à la création — exerce le tableau/graphique d'historique.
     for jours, valeur in ((700, 290000.0), (365, 295000.0)):
         pt = client.put(
-            f"/api/portfolio/holdings/{h['ticker']}/valorisation",
+            f"/api/portfolio/holdings/{h['id']}/valorisation",
             json={"valeur": valeur, "date": _iso_il_y_a(jours)},
         )
         pt.raise_for_status()
@@ -185,7 +185,7 @@ def _creer_epargne(client: httpx.Client) -> tuple[int, str, int]:
 
     for jours, valeur in ((400, 12000.0), (150, 13500.0)):
         pt = client.put(
-            f"/api/portfolio/holdings/{h['ticker']}/valorisation",
+            f"/api/portfolio/holdings/{h['id']}/valorisation",
             json={"valeur": valeur, "date": _iso_il_y_a(jours)},
         )
         pt.raise_for_status()
@@ -193,10 +193,10 @@ def _creer_epargne(client: httpx.Client) -> tuple[int, str, int]:
     return h["id"], h["ticker"], h["compte"]["id"]
 
 
-def _repartir_quotites(client: httpx.Client, ticker_aapl: str, ticker_appart: str, alice_id: int, bob_id: int) -> None:
-    for ticker, part_alice, part_bob in ((ticker_aapl, 60.0, 40.0), (ticker_appart, 50.0, 50.0)):
+def _repartir_quotites(client: httpx.Client, holding_aapl_id: int, holding_appart_id: int, alice_id: int, bob_id: int) -> None:
+    for holding_id, part_alice, part_bob in ((holding_aapl_id, 60.0, 40.0), (holding_appart_id, 50.0, 50.0)):
         r = client.put(
-            f"/api/portfolio/holdings/{ticker}/quotites",
+            f"/api/portfolio/holdings/{holding_id}/quotites",
             json={"quotites": [{"detenteur_id": alice_id, "quotite_pct": part_alice}, {"detenteur_id": bob_id, "quotite_pct": part_bob}]},
         )
         r.raise_for_status()
@@ -430,7 +430,7 @@ def main() -> None:
     holding_appart_id, ticker_appart, compte_immobilier_id = _creer_immobilier(client)
     holding_livret_id, ticker_livret, compte_livret_id = _creer_epargne(client)
     _rattacher_etablissement(client, compte_pea_id, etablissement_id)
-    _repartir_quotites(client, ticker_aapl, ticker_appart, alice_id, bob_id)
+    _repartir_quotites(client, holding_aapl_id, holding_appart_id, alice_id, bob_id)
     _repartir_quotites_compte(client, compte_pea_id, alice_id, bob_id)
     loan_id = _creer_emprunt(client, holding_appart_id)
     _importer_transactions(client)
