@@ -279,10 +279,10 @@ export default function AidePage() {
             solliciter leur service à l’excès).
           </p>
           <p>
-            <span className="font-medium text-texte">CoinMarketCap</span> fournit le cours des
+            <span className="font-medium text-texte">CoinGecko</span> fournit le cours des
             cryptomonnaies (depuis le 15/09/2026, à la place de Yahoo Finance — plus fiable pour cette famille d’actifs).
-            Nécessite une clé d’API gratuite configurée par l’exploitant ; sans elle, les lignes crypto affichent « Cotation
-            indisponible ».
+            Nécessite une clé d’API gratuite (sans carte bancaire) configurée par l’exploitant ; sans elle, les lignes crypto
+            affichent « Cotation indisponible ».
           </p>
           <p>
             Aucune donnée n’est envoyée à l’extérieur : l’application tourne entièrement en local, sur votre machine. Elle

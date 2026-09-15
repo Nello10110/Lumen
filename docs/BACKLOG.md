@@ -3713,7 +3713,7 @@ développement — le logo étant désormais intégré, plus aucun n'est bloqué
 
 ---
 
-### AE. Cours des cryptomonnaies via CoinMarketCap (Lot 15, 15/09/2026)
+### AE. Cours des cryptomonnaies via CoinGecko (Lot 15, 15/09/2026)
 
 Retour utilisateur : une crypto détenue sur Ledger, ticker « PKN », affichait le prix et le nom de
 l'action polonaise **Orlen S.A.** (« Polski Koncern Naftowy Orlen », ticker Yahoo `PKN.WA`) — même
@@ -3723,7 +3723,15 @@ qui mélange actions/ETF/crypto dans un même espace de noms) puis filtre par ty
 attendu (`QUOTE_TYPES_BY_ASSET_CLASS`) — mais quand AUCUN résultat de ce type n'existait, le code se
 rabattait quand même sur le premier résultat trouvé, quel que soit son type, substituant
 silencieusement un titre d'une tout autre nature. Demande explicite de l'utilisateur : que
-l'actualisation des cryptomonnaies se fasse via CoinMarketCap plutôt que Yahoo Finance.
+l'actualisation des cryptomonnaies se fasse via un service dédié plutôt que Yahoo Finance.
+
+**Revu le même jour** : CoinMarketCap, choisi initialement (implémenté, testé, déployé), exige une
+carte bancaire dès l'inscription même pour son plan gratuit — signalé par l'utilisateur. Remplacé
+par **CoinGecko** avant toute autre annonce : plan « Demo » gratuit vérifié sans carte bancaire,
+10 000 crédits/mois, 100 requêtes/minute, et bonus non exploité ici (AE.3) — il couvre aussi plus de
+petits jetons que CoinMarketCap et offre un peu d'historique gratuit (CoinMarketCap n'en offre
+aucun). AE.1 (correctif racine, indépendant du fournisseur) inchangé ; AE.2/AE.3 ci-dessous
+décrivent l'implémentation CoinGecko finale.
 
 #### AE.1 — `majeur` · `S` · `P0` · `traité` (15/09/2026) — Correctif racine : `resolve_ticker` ne substitue plus jamais une classe d'actif par une autre
 
@@ -3731,24 +3739,25 @@ Distinction posée dans `resolve_ticker` entre « on sait ce qu'on cherche, Yaho
 ce type » (aucune préférence connue → toujours `None`, jamais un ticker d'une autre nature) et « on
 ne sait pas ce qu'on cherche » (`asset_class` absent de `QUOTE_TYPES_BY_ASSET_CLASS`, ex. une saisie
 manuelle sans classe déclarée — là, le premier résultat reste le seul repli possible, comportement
-inchangé). Ce correctif, à lui seul et indépendamment de CoinMarketCap ci-dessous, protège aussi les
-autres points d'appel de `resolve_ticker` qui existaient déjà pour une crypto (fiche détaillée,
-historique de cours, job planifié de remplissage) — désormais neutralisés pour CRYPTO par AE.2/AE.3
-plutôt que de continuer à dépendre de ce filet de sécurité seul.
+inchangé). Ce correctif, à lui seul et indépendamment du fournisseur crypto choisi ci-dessous,
+protège aussi les autres points d'appel de `resolve_ticker` qui existaient déjà pour une crypto
+(fiche détaillée, historique de cours, job planifié de remplissage) — désormais neutralisés pour
+CRYPTO par AE.2/AE.3 plutôt que de continuer à dépendre de ce filet de sécurité seul.
 
-#### AE.2 — `majeur` · `M` · `P0` · `traité` (15/09/2026) — Nouveau service `coinmarketcap_service`, cours de référence d'une crypto
+#### AE.2 — `majeur` · `M` · `P0` · `traité` (15/09/2026) — Nouveau service `coingecko_service`, cours de référence d'une crypto
 
-Nouveau module `backend/app/services/coinmarketcap_service.py`, même patron que
-`justetf_service.py` (2.4) : `fetch_price(symbol)` interroge l'API JSON officielle
-(`/v2/cryptocurrency/quotes/latest`, `convert=EUR` demandé explicitement — pas de conversion de
-change à faire côté application), authentifiée par `PATRIMOINE_COINMARKETCAP_API_KEY` (clé absente
-→ aucun appel réseau, `None` immédiat). `market_data_service.refresh_tickers` gagne une branche
+Nouveau module `backend/app/services/coingecko_service.py`, même patron que `justetf_service.py`
+(2.4) : `fetch_price(symbol)` interroge `GET /coins/markets` de l'API CoinGecko (`vs_currency=eur`
+demandé explicitement — pas de conversion de change à faire côté application), authentifiée par
+`PATRIMOINE_COINGECKO_API_KEY` (clé « Demo », gratuite, sans carte bancaire ; absente → aucun appel
+réseau, `None` immédiat). `market_data_service.refresh_tickers` gagne une branche
 `asset_class == "CRYPTO"` parallèle à celle de `FUND` : cours ET nom viennent désormais de
-CoinMarketCap, plus jamais de `fetch_one`/yfinance. **Même décision qu'à 2.4 pour justETF, appliquée
-ici** : aucun repli sur Yahoo Finance en cas d'échec CoinMarketCap (`erreur="Cotation indisponible
-(CoinMarketCap)"`) — c'est précisément ce repli-là, version « n'importe quel résultat », qui causait
-l'incident. Plusieurs jetons pouvant partager un symbole sur CoinMarketCap aussi (jetons
-« meme »/clones), la correspondance retenue est celle au `cmc_rank` le plus bas (la plus établie).
+CoinGecko, plus jamais de `fetch_one`/yfinance. **Même décision qu'à 2.4 pour justETF, appliquée
+ici** : aucun repli sur Yahoo Finance en cas d'échec CoinGecko (`erreur="Cotation indisponible
+(CoinGecko)"`) — c'est précisément ce repli-là, version « n'importe quel résultat », qui causait
+l'incident. Plusieurs jetons pouvant partager un symbole sur CoinGecko aussi (jetons
+« meme »/clones), la correspondance retenue est celle au `market_cap_rank` le plus bas (la plus
+établie).
 
 #### AE.3 — `mineur` · `S` · `P1` · `traité` (15/09/2026) — Crypto exclue des trois autres usages de `resolve_ticker`
 
@@ -3759,21 +3768,24 @@ l'incident. Plusieurs jetons pouvant partager un symbole sur CoinMarketCap aussi
 (ex. le résumé d'Orlen S.A. affiché sur la fiche d'une crypto). Les quatre exclus désormais
 explicitement pour `type_actif == "CRYPTO"`, avant même l'appel réseau : `emetteur`/`resume` restent
 `None` (aucun concept d'émetteur pour une crypto dans ce modèle de données) et la courbe de prix
-d'une crypto reste vide pour l'instant — **limite assumée** : l'API CoinMarketCap gratuite ne fournit
-pas d'historique, seulement le cours du jour ; la position retombe sur `prix_revient_moyen`, comme
-toute position sans série connue, jamais sur les données d'un titre sans rapport.
+d'une crypto reste vide pour l'instant — **limite assumée, hors périmètre de ce lot** : CoinGecko
+fournit pourtant un peu d'historique gratuitement (jusqu'à un an, contrairement à CoinMarketCap qui
+n'en offre aucun), mais son intégration n'a volontairement pas été faite ici ; la position retombe
+sur `prix_revient_moyen`, comme toute position sans série connue, jamais sur les données d'un titre
+sans rapport. Piste laissée pour un futur lot si le besoin se confirme.
 
 **Vérification** : régression exacte de l'incident verrouillée par test (`yf.Search` ne renvoyant
 qu'un résultat `EQUITY` pour une recherche `CRYPTO` → `resolve_ticker` renvoie `None`, jamais le
-ticker de l'action). Nouveau `tests/test_coinmarketcap_service.py` (10 tests, même style que
+ticker de l'action). `tests/test_coingecko_service.py` (10 tests, même style que
 `test_justetf_service.py`), tests ajoutés dans `test_market_data_service.py`,
 `test_holding_detail_service.py` (nouveau fichier), `test_historical_performance_service.py`,
 `test_scheduler_service.py`. Backend complet, `ruff check app/ scripts/`, propres.
 
-**Configuration requise côté exploitant** : `PATRIMOINE_COINMARKETCAP_API_KEY` (clé gratuite,
-plan « Basic », 10 000 crédits/mois — `pro.coinmarketcap.com`), documentée dans `.env.exemple` et
-`docs/MANUEL_EXPLOITATION.md` § 4/9. Sans elle, comportement inchangé par rapport à avant ce lot
-côté disponibilité (« Cotation indisponible »), mais plus jamais de substitution erronée.
+**Configuration requise côté exploitant** : `PATRIMOINE_COINGECKO_API_KEY` (clé « Demo » gratuite,
+sans carte bancaire, 10 000 crédits/mois — `coingecko.com/en/api/pricing`, bouton « Start for
+Free »), documentée dans `.env.exemple` et `docs/MANUEL_EXPLOITATION.md` § 4/9. Sans elle,
+comportement inchangé par rapport à avant ce lot côté disponibilité (« Cotation indisponible »),
+mais plus jamais de substitution erronée.
 
 ---
 ## 3. Hors périmètre (assumé)
@@ -3849,7 +3861,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3, Z.4, Z.5 | — | `L` | **Livré** 03/09/2026 (6/6) |
 | **Lot 13 — Modèle des séries de cours** | AB.1, AB.2, AB.3, AB.4, AB.5, AB.6 | — | `L` | **Livré** 14/09/2026 (6/6) |
 | **Lot 14 — Provenance par compte du grand livre** | AC.1, AC.2, AC.3 | — | `L` | **Livré** 14/09/2026 (3/3) |
-| **Lot 15 — Cours des cryptomonnaies via CoinMarketCap** | AE.1, AE.2, AE.3 | — | `M` | **Livré** 15/09/2026 (3/3) |
+| **Lot 15 — Cours des cryptomonnaies via CoinGecko** | AE.1, AE.2, AE.3 | — | `M` | **Livré** 15/09/2026 (3/3) |
 
 **Pourquoi cet ordre.**
 

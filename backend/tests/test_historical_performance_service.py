@@ -142,11 +142,11 @@ def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(
 
 
 def test_holding_price_history_crypto_ne_resout_jamais_via_yahoo(db, monkeypatch):
-    """15/09/2026 : CoinMarketCap (source désormais exclusive du prix d'une
-    crypto, cf. `coinmarketcap_service`) ne fournit pas d'historique sur son plan
-    gratuit — une crypto n'a donc pas de courbe pour l'instant (`None`), mais ne
-    doit plus jamais interroger Yahoo Finance pour tenter d'en obtenir une (c'est
-    cette résolution qui causait l'incident PKN -> Orlen S.A.)."""
+    """15/09/2026 : CoinGecko (source désormais exclusive du prix d'une crypto,
+    cf. `coingecko_service`) n'est pas branché pour l'historique (hors périmètre
+    de ce correctif) — une crypto n'a donc pas de courbe pour l'instant (`None`),
+    mais ne doit plus jamais interroger Yahoo Finance pour tenter d'en obtenir une
+    (c'est cette résolution qui causait l'incident PKN -> Orlen S.A.)."""
 
     def _resolve_interdit(*args, **kwargs):
         raise AssertionError("resolve_ticker (Yahoo) ne doit jamais être appelé pour une CRYPTO")

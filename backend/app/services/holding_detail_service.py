@@ -69,7 +69,7 @@ def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | N
         for t in top_holdings
     ]
 
-    # CRYPTO exclue (correctif du 15/09/2026, cf. `coinmarketcap_service`) : sa
+    # CRYPTO exclue (correctif du 15/09/2026, cf. `coingecko_service`) : sa
     # cotation ne vient plus de Yahoo Finance, et l'appeler quand même ici pour un
     # "émetteur"/"résumé" qui n'a pas de sens pour une crypto risquait exactement le
     # bug d'origine — une crypto au ticker ambigu (ex. "PKN") affichant le résumé

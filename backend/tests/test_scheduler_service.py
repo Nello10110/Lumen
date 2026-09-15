@@ -383,7 +383,7 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
     rafraîchissement est FORCÉ (le job ne doit pas être bloqué par le délai de
     fraîcheur, sinon il ne sert à rien), un actif non cotable n'y entre pas, et
     (15/09/2026) une CRYPTO n'y entre plus non plus — `resolve_ticker` (Yahoo) ne
-    doit même plus être appelé pour elle, cf. `coinmarketcap_service`."""
+    doit même plus être appelé pour elle, cf. `coingecko_service`."""
     from app.services import cours_service, market_data_service
 
     appels: list[tuple[str, bool]] = []

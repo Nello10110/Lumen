@@ -184,7 +184,7 @@ def _run_cours_historiques() -> None:
         tickers: set[str] = set()
         for holding in db.query(Holding).all():
             # CRYPTO exclue (15/09/2026) : plus de ticker Yahoo pour elle, cf.
-            # `coinmarketcap_service`.
+            # `coingecko_service`.
             if holding.type_actif == "CRYPTO":
                 continue
             resolu = market_data_service.resolve_ticker(db, holding.ticker, holding.type_actif)

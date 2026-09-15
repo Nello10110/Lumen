@@ -364,16 +364,16 @@ def test_refresh_tickers_fund_echec_justetf_aucun_repli_yfinance(db, monkeypatch
     assert cache.prix_actuel is None
 
 
-def test_refresh_tickers_stock_ignore_justetf_et_coinmarketcap(db, monkeypatch):
+def test_refresh_tickers_stock_ignore_justetf_et_coingecko(db, monkeypatch):
     """Comportement `STOCK` inchangé : toujours `fetch_one` (yfinance), ni
-    `justetf_service.fetch_price` ni `coinmarketcap_service.fetch_price` ne
+    `justetf_service.fetch_price` ni `coingecko_service.fetch_price` ne
     doivent être sollicités pour lui."""
 
     def _fetch_price_interdit(*args, **kwargs):
         raise AssertionError("aucune des deux sources dédiées ne doit être appelée pour un STOCK")
 
     monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", _fetch_price_interdit)
-    monkeypatch.setattr(market_data_service.coinmarketcap_service, "fetch_price", _fetch_price_interdit)
+    monkeypatch.setattr(market_data_service.coingecko_service, "fetch_price", _fetch_price_interdit)
 
     resultats = market_data_service.refresh_tickers(db, [("AAPL", "STOCK")])
 
@@ -382,18 +382,18 @@ def test_refresh_tickers_stock_ignore_justetf_et_coinmarketcap(db, monkeypatch):
 
 def test_refresh_tickers_crypto_ignore_justetf(db, monkeypatch):
     """Symétrique : `justetf_service.fetch_price` ne doit jamais être sollicité
-    pour une CRYPTO (15/09/2026, cf. `coinmarketcap_service`) — comportement déjà
+    pour une CRYPTO (15/09/2026, cf. `coingecko_service`) — comportement déjà
     verrouillé côté « pas de yfinance » par les tests du bloc dédié plus bas."""
 
     def _fetch_price_interdit(*args, **kwargs):
         raise AssertionError("justetf_service.fetch_price ne doit être appelé que pour asset_class == 'FUND'")
 
     monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", _fetch_price_interdit)
-    monkeypatch.setattr(market_data_service.coinmarketcap_service, "fetch_price", lambda symbol: None)
+    monkeypatch.setattr(market_data_service.coingecko_service, "fetch_price", lambda symbol: None)
 
     resultats = market_data_service.refresh_tickers(db, [("BTC", "CRYPTO")])
 
-    assert resultats == [{"ticker": "BTC", "erreur": "Cotation indisponible (CoinMarketCap)"}]
+    assert resultats == [{"ticker": "BTC", "erreur": "Cotation indisponible (CoinGecko)"}]
 
 
 def test_refresh_tickers_temporise_aussi_entre_deux_appels_justetf(db, monkeypatch):
@@ -771,8 +771,8 @@ def test_un_echec_ordinaire_reste_reessaye(db, monkeypatch):
 # rabattait sur le premier résultat de `yf.Search`, quel que soit son type, quand
 # aucun résultat ne correspondait au type attendu. Corrigé : plus jamais de
 # substitution d'une classe d'actif par une autre quand une préférence est connue
-# (`QUOTE_TYPES_BY_ASSET_CLASS`). Le prix crypto vient désormais de CoinMarketCap
-# (`coinmarketcap_service`), jamais de Yahoo Finance — cf. bloc suivant.
+# (`QUOTE_TYPES_BY_ASSET_CLASS`). Le prix crypto vient désormais de CoinGecko
+# (`coingecko_service`), jamais de Yahoo Finance — cf. bloc suivant.
 # ---------------------------------------------------------------------------
 
 
@@ -807,12 +807,12 @@ def test_resolve_ticker_asset_class_inconnue_garde_lancien_repli(db, monkeypatch
 
 
 # ---------------------------------------------------------------------------
-# 15/09/2026 — cours de référence d'une crypto via CoinMarketCap (pas yfinance,
+# 15/09/2026 — cours de référence d'une crypto via CoinGecko (pas yfinance,
 # sans repli en cas d'échec — même décision qu'à 2.4 pour justETF)
 # ---------------------------------------------------------------------------
 
 
-def test_refresh_tickers_crypto_utilise_coinmarketcap_pas_yfinance(db, monkeypatch):
+def test_refresh_tickers_crypto_utilise_coingecko_pas_yfinance(db, monkeypatch):
     def _fetch_one_interdit(*args, **kwargs):
         raise AssertionError("fetch_one (yfinance) ne doit jamais être appelé pour une CRYPTO")
 
@@ -822,7 +822,7 @@ def test_refresh_tickers_crypto_utilise_coinmarketcap_pas_yfinance(db, monkeypat
     monkeypatch.setattr(market_data_service, "fetch_one", _fetch_one_interdit)
     monkeypatch.setattr(market_data_service.yf, "Search", _search_interdit)
     monkeypatch.setattr(
-        market_data_service.coinmarketcap_service, "fetch_price", lambda symbol: {"prix_actuel": 61234.56, "nom": "Bitcoin"}
+        market_data_service.coingecko_service, "fetch_price", lambda symbol: {"prix_actuel": 61234.56, "nom": "Bitcoin"}
     )
 
     resultats = market_data_service.refresh_tickers(db, [("BTC", "CRYPTO")])
@@ -838,27 +838,27 @@ def test_refresh_tickers_crypto_utilise_coinmarketcap_pas_yfinance(db, monkeypat
     assert cache.secteur is None
     assert cache.pays is None
     assert cache.erreur is None
-    # Aucune ligne de résolution Yahoo écrite : CoinMarketCap travaille directement
+    # Aucune ligne de résolution Yahoo écrite : CoinGecko travaille directement
     # sur le symbole, sans passer par `resolve_ticker`.
     assert db.get(TickerResolution, "BTC") is None
 
 
-def test_refresh_tickers_crypto_echec_coinmarketcap_aucun_repli_yfinance(db, monkeypatch):
-    """Même décision qu'à 2.4 pour justETF : un échec CoinMarketCap affiche
+def test_refresh_tickers_crypto_echec_coingecko_aucun_repli_yfinance(db, monkeypatch):
+    """Même décision qu'à 2.4 pour justETF : un échec CoinGecko affiche
     « cotation indisponible », sans jamais retomber sur yfinance — c'est
     précisément ce repli qui causait l'incident PKN -> Orlen S.A."""
 
     def _fetch_one_interdit(*args, **kwargs):
-        raise AssertionError("fetch_one (yfinance) ne doit jamais être appelé, même après un échec CoinMarketCap")
+        raise AssertionError("fetch_one (yfinance) ne doit jamais être appelé, même après un échec CoinGecko")
 
     monkeypatch.setattr(market_data_service, "fetch_one", _fetch_one_interdit)
-    monkeypatch.setattr(market_data_service.coinmarketcap_service, "fetch_price", lambda symbol: None)
+    monkeypatch.setattr(market_data_service.coingecko_service, "fetch_price", lambda symbol: None)
 
     resultats = market_data_service.refresh_tickers(db, [("PKN", "CRYPTO")])
 
-    assert resultats == [{"ticker": "PKN", "erreur": "Cotation indisponible (CoinMarketCap)"}]
+    assert resultats == [{"ticker": "PKN", "erreur": "Cotation indisponible (CoinGecko)"}]
     cache = db.get(MarketDataCache, "PKN")
     assert cache is not None
-    assert cache.erreur == "Cotation indisponible (CoinMarketCap)"
+    assert cache.erreur == "Cotation indisponible (CoinGecko)"
     assert cache.prix_actuel is None
     assert cache.nom is None

@@ -35,10 +35,10 @@ services:
       PATRIMOINE_OIDC_CLAIM_USERNAME: ${PATRIMOINE_OIDC_CLAIM_USERNAME:-}
       PATRIMOINE_OIDC_CLAIM_EMAIL: ${PATRIMOINE_OIDC_CLAIM_EMAIL:-}
       PATRIMOINE_OIDC_CLAIM_NOM: ${PATRIMOINE_OIDC_CLAIM_NOM:-}
-      # Cours des cryptomonnaies via CoinMarketCap (facultative, 15/09/2026) --
-      # absente = "Cotation indisponible (CoinMarketCap)" sur les lignes CRYPTO,
+      # Cours des cryptomonnaies via CoinGecko (facultative, 15/09/2026) --
+      # absente = "Cotation indisponible (CoinGecko)" sur les lignes CRYPTO,
       # rien d'autre n'est affecte. Voir docs/MANUEL_EXPLOITATION.md section 4/9.
-      PATRIMOINE_COINMARKETCAP_API_KEY: ${PATRIMOINE_COINMARKETCAP_API_KEY:-}
+      PATRIMOINE_COINGECKO_API_KEY: ${PATRIMOINE_COINGECKO_API_KEY:-}
     volumes:
       - patrimoine_data:/app/data
       - patrimoine_sauvegardes:/app/sauvegardes

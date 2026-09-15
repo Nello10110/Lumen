@@ -65,7 +65,7 @@ from ..models import (
     MarketDataCache,
     TickerResolution,
 )
-from . import coinmarketcap_service, justetf_service
+from . import coingecko_service, justetf_service
 from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
 
 QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
@@ -521,7 +521,7 @@ def refresh_tickers(
     now = datetime.now(UTC)
     seen: set[str] = set()
     seen_justetf: set[str] = set()
-    seen_coinmarketcap: set[str] = set()
+    seen_coingecko: set[str] = set()
     fx_cache: dict[str, float | None] = {}
     stock_info_cache: dict[str, dict] = {}
     total = len(items)
@@ -545,7 +545,7 @@ def refresh_tickers(
         # `resolve_ticker` cherche un ticker YAHOO — inutile, et potentiellement
         # coûteux en appels réseau pour rien, pour une classe d'actif dont le prix
         # ne vient plus de Yahoo Finance (FUND -> justETF depuis 2.4, CRYPTO ->
-        # CoinMarketCap depuis le 15/09/2026 ci-dessous). Appelé quand même pour
+        # CoinGecko depuis le 15/09/2026 ci-dessous). Appelé quand même pour
         # FUND : la composition (look-through) s'appuie encore sur `yfinance` en
         # repli quand justETF ne couvre pas l'ETF, cf. `_composition_justetf_ou_yfinance`.
         ticker_resolu = None if asset_class == "CRYPTO" else resolve_ticker(db, identifiant, asset_class)
@@ -575,14 +575,14 @@ def refresh_tickers(
                 data = {"ticker": identifiant, "erreur": "Cotation indisponible (justETF)"}
         elif asset_class == "CRYPTO":
             # Retour utilisateur du 15/09/2026 (cf. docstring de
-            # `coinmarketcap_service`) : une crypto au ticker Yahoo ambigu (ex.
+            # `coingecko_service`) : une crypto au ticker Yahoo ambigu (ex.
             # "PKN") pouvait résoudre vers un titre coté sans rapport. Même
             # politique que justETF ci-dessus, appliquée à la crypto : source
             # unique, spécialisée, sans repli sur Yahoo Finance en cas d'échec.
-            if seen_coinmarketcap and coinmarketcap_service.DELAI_ENTRE_APPELS_COINMARKETCAP_SECONDES:
-                time.sleep(coinmarketcap_service.DELAI_ENTRE_APPELS_COINMARKETCAP_SECONDES)
-            seen_coinmarketcap.add(identifiant)
-            cotation = coinmarketcap_service.fetch_price(identifiant)
+            if seen_coingecko and coingecko_service.DELAI_ENTRE_APPELS_COINGECKO_SECONDES:
+                time.sleep(coingecko_service.DELAI_ENTRE_APPELS_COINGECKO_SECONDES)
+            seen_coingecko.add(identifiant)
+            cotation = coingecko_service.fetch_price(identifiant)
             if cotation is not None:
                 data = {
                     "ticker": identifiant,
@@ -592,7 +592,7 @@ def refresh_tickers(
                     "erreur": None,
                 }
             else:
-                data = {"ticker": identifiant, "erreur": "Cotation indisponible (CoinMarketCap)"}
+                data = {"ticker": identifiant, "erreur": "Cotation indisponible (CoinGecko)"}
         else:
             data = fetch_one(identifiant, ticker_resolu, fx_cache)
         results.append(data)
