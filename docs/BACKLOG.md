@@ -4215,6 +4215,37 @@ jamais faire apparaître un montant absent du total non filtré). Le tableau de 
 (`PortfolioHistoryChart`, portefeuille entier) n'est pas concerné : il reste sciemment financier seul.
 
 ---
+
+### AN. Rentabilité gonflée par une migration de custody Trade Republic (17/09/2026)
+
+#### AN.1 — `majeur` · `S` · `traité` (17/09/2026) — Paires FREE_RECEIPT retrait+ajout corrompent le coût de revient
+
+Retour utilisateur avec export réel à l'appui : écarts massifs entre Trade Republic et Lumen sur une
+ligne (rentabilité affichée à +4936 % contre +21,66 % réel) et sur le total du compte-titres (9673 €
+contre 8246 € réel). Cause racine confirmée en import isolant l'ISIN concerné : ce courtier journalise
+certaines migrations internes de custody (ex. re-bascule de la représentation des fractions d'un ISIN —
+observé en lot sur plusieurs dizaines de lignes le 30/01/2025 dans l'export fourni) comme DEUX lignes
+`FREE_RECEIPT` consécutives par titre — un retrait suivi de quelques millisecondes d'un ajout de la
+MÊME quantité — jamais une seule ligne neutre. `portfolio_reconstruction._apply_transaction` n'avait
+aucune branche dédiée à `FREE_RECEIPT` : le retrait tombait dans la branche générique « retrait sans
+contrepartie » (perte réalisée, coût moyen retiré) et l'ajout dans la branche « titres reçus gratuitement »
+(coût nul) — le nombre de titres détenus ne changeait pas au final, mais le coût de revient, lui, était
+amputé à tort, produisant un prix de revient moyen artificiellement bas et donc une rentabilité
+affichée délirante sur toute ligne touchée par cette migration.
+
+Nouvelle fonction `_neutraliser_paires_free_receipt` (appelée avant `_trier_pour_reconstruction`, dans
+`compute_positions` ET `compute_position`) : détecte, par `(symbol, compte_id)`, un retrait `FREE_RECEIPT`
+suivi dans l'heure d'un ajout `FREE_RECEIPT` de quantité EXACTEMENT opposée, et retire purement et
+simplement la paire du grand livre rejoué — ni gain, ni perte, ni changement de quantité, le comportement
+strictement correct pour ce non-événement économique. Un `FREE_RECEIPT` isolé (ex. les petits gains
+crypto hebdomadaires observés dans le même export, toujours positifs seuls) reste traité comme un vrai
+don de titres à coût nul, comportement inchangé. Vérifié sur l'export réel fourni : import isolé,
+recalcul de la position concernée exactement égal à une resommation manuelle des 145 lignes `BUY` de
+l'ISIN (1,576691 titres, 917,22 € de coût) — plus aucune ligne à rendement aberrant (> 300 %) sur les 49
+positions reconstruites, total du compte-titres resserré de 9673 € à 8344 € (le résidu restant tient à
+l'absence de rafraîchissement de cours en environnement de test isolé, pas à la reconstruction elle-même).
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
