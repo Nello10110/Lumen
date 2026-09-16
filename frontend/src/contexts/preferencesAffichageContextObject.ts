@@ -15,6 +15,12 @@ export interface PreferencesAffichageContextValue {
   // patrimoine et le Rapport — cf. docstring de `utils/periode.ts`.
   periode: Periode
   setPeriode: (periode: Periode) => void
+  // Mode « langage simple » (backlog § AG.1, 16/09/2026) : remplace le jargon
+  // financier (XIRR, TWR, drawdown...) par sa formulation en langage courant, là
+  // où `LabelAdaptatif` est utilisé — un terme technique reste toujours accessible
+  // derrière un lien « en savoir plus », jamais supprimé.
+  langageSimple: boolean
+  toggleLangageSimple: () => void
 }
 
 export const PreferencesAffichageContext = createContext<PreferencesAffichageContextValue | null>(null)

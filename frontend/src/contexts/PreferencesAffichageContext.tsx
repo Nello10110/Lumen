@@ -6,6 +6,7 @@ const CLE_LENTILLE = 'patrimoine:lentille'
 const CLE_MONTANTS_MASQUES = 'patrimoine:montants-masques'
 const CLE_DETENTEUR = 'patrimoine:detenteur-id'
 const CLE_PERIODE = 'patrimoine:periode'
+const CLE_LANGAGE_SIMPLE = 'patrimoine:langage-simple'
 const LENTILLES: Lentille[] = ['net', 'brut', 'financier']
 
 function lentilleStockee(): Lentille {
@@ -17,6 +18,11 @@ function lentilleStockee(): Lentille {
 function montantsMasquesStockes(): boolean {
   if (typeof window === 'undefined') return false
   return window.localStorage.getItem(CLE_MONTANTS_MASQUES) === '1'
+}
+
+function langageSimpleStocke(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.localStorage.getItem(CLE_LANGAGE_SIMPLE) === '1'
 }
 
 function detenteurIdStocke(): number | null {
@@ -65,6 +71,7 @@ export function PreferencesAffichageProvider({ children }: { children: ReactNode
   const [montantsMasques, setMontantsMasques] = useState<boolean>(() => montantsMasquesStockes())
   const [detenteurId, setDetenteurIdState] = useState<number | null>(() => detenteurIdStocke())
   const [periode, setPeriodeState] = useState<Periode>(() => periodeStockee())
+  const [langageSimple, setLangageSimple] = useState<boolean>(() => langageSimpleStocke())
 
   const setLentille = useCallback((suivante: Lentille) => {
     setLentilleState(suivante)
@@ -90,6 +97,14 @@ export function PreferencesAffichageProvider({ children }: { children: ReactNode
     })
   }, [])
 
+  const toggleLangageSimple = useCallback(() => {
+    setLangageSimple((avant) => {
+      const suivant = !avant
+      window.localStorage.setItem(CLE_LANGAGE_SIMPLE, suivant ? '1' : '0')
+      return suivant
+    })
+  }, [])
+
   // Raccourci clavier Ctrl/⌘+Maj+M — ignoré si le focus est sur un champ de saisie,
   // pour ne jamais interférer avec un raccourci de traitement de texte du navigateur
   // ou de l'utilisateur pendant une saisie.
@@ -107,7 +122,18 @@ export function PreferencesAffichageProvider({ children }: { children: ReactNode
 
   return (
     <PreferencesAffichageContext.Provider
-      value={{ lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId, periode, setPeriode }}
+      value={{
+        lentille,
+        setLentille,
+        montantsMasques,
+        toggleMontantsMasques,
+        detenteurId,
+        setDetenteurId,
+        periode,
+        setPeriode,
+        langageSimple,
+        toggleLangageSimple,
+      }}
     >
       {children}
     </PreferencesAffichageContext.Provider>
