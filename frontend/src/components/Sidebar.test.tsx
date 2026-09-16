@@ -28,7 +28,7 @@ describe('Sidebar (backlog 2.K.2)', () => {
   it('affiche les écrans de consultation avec leur URL', () => {
     renderSidebar()
     expect(screen.getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
-    expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
+    expect(screen.getByRole('link', { name: /^Actifs$/ })).toHaveAttribute('href', '/patrimoine')
     expect(screen.getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
     expect(screen.getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(screen.getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
@@ -45,7 +45,7 @@ describe('Sidebar (backlog 2.K.2)', () => {
   // (`bg-[image:var(--accent-grad)]`), les inactifs n'ont plus de fond du tout.
   it('marque comme actif le lien correspondant à la route courante', () => {
     renderSidebar('/patrimoine')
-    expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveClass('bg-[image:var(--accent-grad)]')
+    expect(screen.getByRole('link', { name: /^Actifs$/ })).toHaveClass('bg-[image:var(--accent-grad)]')
     expect(screen.getByRole('link', { name: /Synthèse/ })).not.toHaveClass('bg-[image:var(--accent-grad)]')
   })
 

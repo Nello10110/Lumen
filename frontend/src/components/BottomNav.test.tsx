@@ -37,7 +37,7 @@ describe('BottomNav (backlog 2.K.4)', () => {
     const nav = screen.getByRole('navigation', { name: 'Navigation principale (mobile)' })
     expect(nav).toHaveClass('h-16') // 64px, largement au-dessus des 44px requis
     expect(within(nav).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
-    expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
+    expect(within(nav).getByRole('link', { name: /^Actifs$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(nav).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
     expect(within(nav).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(nav).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
@@ -47,16 +47,16 @@ describe('BottomNav (backlog 2.K.4)', () => {
   it('marque comme actif le lien correspondant à la route courante', () => {
     renderNav(utilisateur(), '/patrimoine')
 
-    expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveClass('text-accent')
+    expect(screen.getByRole('link', { name: /^Actifs$/ })).toHaveClass('text-accent')
     expect(screen.getByRole('link', { name: /Synthèse/ })).not.toHaveClass('text-accent')
   })
 
-  it('invité : seuls Synthèse/Patrimoine/Comptes en direct (rôle restreint, backlog 2.L.2), "Plus" reste présent', () => {
+  it('invité : seuls Synthèse/Actifs/Comptes en direct (rôle restreint, backlog 2.L.2), "Plus" reste présent', () => {
     renderNav(utilisateur({ role: 'invite' }))
 
     const nav = screen.getByRole('navigation', { name: 'Navigation principale (mobile)' })
     expect(within(nav).getByRole('link', { name: /Synthèse/ })).toBeInTheDocument()
-    expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: /^Actifs$/ })).toBeInTheDocument()
     expect(within(nav).getByRole('link', { name: /Comptes/ })).toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: /Analyse/ })).not.toBeInTheDocument()
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()

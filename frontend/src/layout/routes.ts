@@ -55,7 +55,10 @@ export type RouteMeta = {
  * développeur. */
 export const ROUTES: RouteMeta[] = [
   { path: '/', titre: 'Synthèse', navLabel: 'Synthèse', icone: IconSynthese, rang: 'consultation' },
-  { path: '/patrimoine', titre: 'Patrimoine', navLabel: 'Patrimoine', icone: IconPatrimoine, rang: 'consultation' },
+  // `titre`/`navLabel` renommés « Actifs » le 16/09/2026 (demande directe) — l'URL
+  // `/patrimoine` reste inchangée, seul le libellé affiché change (« patrimoine
+  // net » ailleurs dans l'app désigne un concept distinct, non renommé).
+  { path: '/patrimoine', titre: 'Actifs', navLabel: 'Actifs', icone: IconPatrimoine, rang: 'consultation' },
   // `:holdingId` (revu le 14/09/2026, pas `:ticker`) : deux lignes peuvent
   // désormais partager un ticker (une par compte) — un ticker seul ne peut plus
   // désambiguïser laquelle afficher, cf. `App.tsx::RedirectionTicker`.

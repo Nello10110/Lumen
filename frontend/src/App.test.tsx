@@ -208,7 +208,7 @@ describe('App — barre latérale (backlog 2.K.2)', () => {
     // reprend les 4 premiers écrans de consultation, d'où l'ambiguïté sinon.
     const barreLaterale = await screen.findByRole('navigation', { name: 'Navigation principale' })
     expect(within(barreLaterale).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
-    expect(within(barreLaterale).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
+    expect(within(barreLaterale).getByRole('link', { name: /^Actifs$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(barreLaterale).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(barreLaterale).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
 
@@ -230,7 +230,7 @@ describe('App — navigation inférieure mobile (backlog 2.K.4)', () => {
 
     const navMobile = await screen.findByRole('navigation', { name: 'Navigation principale (mobile)' })
     expect(within(navMobile).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
-    expect(within(navMobile).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
+    expect(within(navMobile).getByRole('link', { name: /^Actifs$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(navMobile).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
     expect(within(navMobile).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     // Rapport ne tient pas dans les 4 entrées directes : rangé derrière "Plus",

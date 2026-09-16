@@ -354,7 +354,7 @@ Organisé en deux temps, du plus important au reste — le chiffre, puis la cour
 
 ## Sur mobile
 
-- **Barre du bas** : Synthèse, Patrimoine, Comptes, Analyse, puis **« Plus »** — qui ouvre une
+- **Barre du bas** : Synthèse, Actifs, Comptes, Analyse, puis **« Plus »** — qui ouvre une
   feuille avec les autres écrans (Budget, Rapport, Salaire, Import, Réglages, Aide), le thème et la
   déconnexion. La feuille se ferme de trois façons : le bouton, un appui n'importe où sur le fond, ou
   un **glissement vers le bas**.

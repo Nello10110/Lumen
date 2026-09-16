@@ -138,7 +138,7 @@ describe('PaletteRecherche (backlog 2.K.2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Recherche/ }))
 
     expect(screen.getByText('Synthèse')).toBeInTheDocument()
-    expect(screen.getByText('Patrimoine')).toBeInTheDocument()
+    expect(screen.getByText('Actifs')).toBeInTheDocument()
   })
 
   it('filtre les positions par ticker ou nom, insensible à la casse', async () => {

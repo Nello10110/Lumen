@@ -23,7 +23,7 @@ import { seedData } from './seed-data'
  * choix d'affichage, pas une anomalie. */
 const ROUTES_A_BALAYER: { chemin: string; titre: string }[] = [
   { chemin: '/', titre: 'Synthèse' },
-  { chemin: '/patrimoine', titre: 'Patrimoine' },
+  { chemin: '/patrimoine', titre: 'Actifs' },
   { chemin: '/comptes', titre: 'Comptes' },
   { chemin: '/analyse', titre: 'Analyse' },
   { chemin: '/budget', titre: 'Budget' },
