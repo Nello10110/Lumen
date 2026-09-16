@@ -38,7 +38,11 @@ test.describe('Comptes (backlog X.1)', () => {
   }) => {
     const { attendu, comptes } = seedData()
 
-    await page.getByText(comptes.livret.nom).click()
+    // `getByRole('button', ...)` plutôt que `getByText` : le nom du compte apparaît
+    // désormais aussi dans le graphique "Plus-value par compte" (revue du
+    // 05/09/2026) — seule la ligne cliquable de la liste porte le rôle `button`,
+    // même patron que le test "compte multi-lignes" juste en dessous.
+    await page.getByRole('button', { name: new RegExp(`^${comptes.livret.nom}`) }).click()
 
     const modale = page.getByRole('dialog')
     await expect(modale.getByRole('heading', { name: comptes.livret.nom }).first()).toBeVisible()
@@ -69,16 +73,23 @@ test.describe('Comptes (backlog X.1)', () => {
     // définie une fois pour les 2 lignes plutôt que ligne par ligne) — le seed a
     // déjà posé 60/40 Alice/Bob au niveau du compte (`_repartir_quotites_compte`).
     await expect(modale.getByRole('heading', { name: 'Répartition entre détenteurs' })).toBeVisible()
-    await expect(modale.getByText(/S'applique à TOUTES les lignes de ce compte/)).toBeVisible()
+    // `.*remplace la répartition` (pas juste le préfixe commun) : la carte
+    // "Classification géographique et sectorielle" (§ AP.3) affiche désormais un
+    // paragraphe quasi identique ("S'applique à TOUTES les lignes de ce compte...
+    // — remplace la DÉCLARATION..."), ambigu pour un simple préfixe.
+    await expect(modale.getByText(/S'applique à TOUTES les lignes de ce compte.*remplace la répartition/)).toBeVisible()
 
     // Soumission réelle (pas juste l'affichage) : remplace la répartition 60/40
     // seedée par 70/30, confirme le message de succès — prouve que "Enregistrer"
-    // appelle bien `PUT /comptes/{id}/quotites` depuis l'IHM. `.last()` sur le
-    // bouton : la carte "Informations" plus haut dans la modale a elle aussi son
-    // propre bouton "Enregistrer" — celui de la répartition vient après dans le DOM.
+    // appelle bien `PUT /comptes/{id}/quotites` depuis l'IHM. `exact: true` + `.last()` :
+    // la carte "Informations" plus haut dans la modale a elle aussi son propre
+    // bouton "Enregistrer" (celui de la répartition vient après dans le DOM) — et
+    // depuis § AP.3, "Enregistrer la zone"/"Enregistrer le secteur" contiennent
+    // aussi le mot "Enregistrer" (match par sous-chaîne sans `exact`), sans quoi
+    // `.last()` sélectionnerait à tort le bouton de la classification.
     await modale.getByLabel('Alice').fill('70')
     await modale.getByLabel('Bob').fill('30')
-    await modale.getByRole('button', { name: 'Enregistrer' }).last().click()
+    await modale.getByRole('button', { name: 'Enregistrer', exact: true }).last().click()
     await expect(modale.getByText('Répartition appliquée à toutes les lignes du compte.')).toBeVisible()
   })
 
