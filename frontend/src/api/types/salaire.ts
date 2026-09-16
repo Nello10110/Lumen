@@ -30,6 +30,13 @@ export interface SalaireResume extends SalaireIn {
   net_apres_impot_mensuel_moyen: number | null
 }
 
+// Une ligne du détail par compte du montant investi (demande directe du 16/09/2026).
+export interface InvestissementCompte {
+  compte_id: number | null
+  compte_nom: string | null
+  montant: number
+}
+
 // Agrégat de toutes les entrées d'une année — le taux d'épargne du foyer.
 export interface SyntheseAnnee {
   annee: number
@@ -38,6 +45,7 @@ export interface SyntheseAnnee {
   toutes_les_entrees_ont_un_taux_imposition: boolean
   montant_investi_annee: number
   taux_epargne_pct: number | null
+  investissement_par_compte: InvestissementCompte[]
 }
 
 export interface SalaireDonnees {

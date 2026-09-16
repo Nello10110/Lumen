@@ -36,6 +36,7 @@ import type {
   HouseholdMemberInput,
   ImportPreview,
   IndicateursSituation,
+  InvestissementMensuelMoyen,
   JonctionPatrimoine,
   ImportResult,
   Jalon,
@@ -363,6 +364,10 @@ export const api = {
   importBricksConfirm: (payload: BricksImportConfirmInput) =>
     request<BricksImportResult>('/transactions/import-bricks', { method: 'POST', body: JSON.stringify(payload) }),
   getPerformance: () => request<PerformanceSummary>('/performance'),
+  // Moyenne mensuelle du montant réellement investi sur les 12 derniers mois
+  // glissants (demande directe du 16/09/2026) — préremplit le versement mensuel
+  // du Simulateur.
+  getInvestissementMensuelMoyen: () => request<InvestissementMensuelMoyen>('/performance/investissement-mensuel-moyen'),
   // `filtre` (graphique filtrable de l'écran Analyse, retour utilisateur du
   // 13/09/2026) : `compteId`/`etablissementId` mutuellement exclusifs côté serveur
   // (400 sinon), combinables avec `typeActif`. Omis : comportement inchangé (même

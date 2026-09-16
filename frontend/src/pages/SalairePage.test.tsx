@@ -54,6 +54,7 @@ function synthese(overrides: Partial<SyntheseAnnee> = {}): SyntheseAnnee {
     toutes_les_entrees_ont_un_taux_imposition: true,
     montant_investi_annee: 2700,
     taux_epargne_pct: 10,
+    investissement_par_compte: [],
     ...overrides,
   }
 }
@@ -205,6 +206,40 @@ describe('SalairePage', () => {
 
     await screen.findByText('15.0 %') // moyenne (10+20)/2
     expect(screen.getByRole('cell', { name: new RegExp(String(ANNEE - 1)) })).toBeInTheDocument()
+  })
+
+  // Demande directe du 16/09/2026 : affiché sous le taux d'épargne.
+  it("affiche le détail d'investissement par compte sous le taux d'épargne", async () => {
+    vi.mocked(api.getSalaires).mockResolvedValue(
+      donnees({
+        entrees: [entree()],
+        syntheses: [
+          synthese({
+            investissement_par_compte: [
+              { compte_id: 1, compte_nom: 'PEA', montant: 1800 },
+              { compte_id: null, compte_nom: null, montant: 200 },
+            ],
+          }),
+        ],
+      }),
+    )
+
+    render(<SalairePage />)
+
+    await screen.findByText('Détail par compte')
+    expect(screen.getByText('PEA')).toBeInTheDocument()
+    expect(screen.getByText('Sans compte')).toBeInTheDocument()
+    expect(screen.getByText('1 800 €')).toBeInTheDocument()
+    expect(screen.getByText('200 €')).toBeInTheDocument()
+  })
+
+  it("n'affiche pas le détail par compte quand rien n'a été investi cette année", async () => {
+    vi.mocked(api.getSalaires).mockResolvedValue(donnees({ entrees: [entree()], syntheses: [synthese({ investissement_par_compte: [] })] }))
+
+    render(<SalairePage />)
+
+    await screen.findByText('Salaire principal')
+    expect(screen.queryByText('Détail par compte')).not.toBeInTheDocument()
   })
 
   it("affiche le nom de la personne associée à côté du salaire", async () => {

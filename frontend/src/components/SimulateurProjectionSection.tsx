@@ -17,8 +17,11 @@ type Vue = 'annuelle' | 'mensuelle'
 
 /** Bornes des 3 derniers mois glissants, jusqu'à aujourd'hui — même fenêtre que les
  * autres signaux observés du budget (dépenses récurrentes de l'écran Budget,
- * backlog 2.N.2/2.N.4), pour que « versement suggéré » corresponde à une période
- * assez récente pour rester représentative sans dépendre d'un seul mois isolé. */
+ * backlog 2.N.2/2.N.4). `GET /api/budget/jonction-patrimoine` les exige mais ne
+ * s'en sert plus que pour `versement_mensuel_epargne_declare` (un état courant,
+ * pas une moyenne sur la période) depuis que le versement mensuel du Simulateur
+ * lui-même est préempli sur 12 mois glissants d'investissement réel (§ AK, cf.
+ * `chargerVersementSuggere`), pas sur ce budget à 3 mois. */
 function bornesTroisDerniersMois(): { dateDebut: string; dateFin: string } {
   const fin = new Date()
   const debut = new Date(fin.getFullYear(), fin.getMonth() - 2, 1)
@@ -192,8 +195,9 @@ export default function SimulateurProjectionSection() {
   const [rendementObserve, setRendementObserve] = useState<number | null>(null)
   const [versementSuggere, setVersementSuggere] = useState<number | null>(null)
   // Versement mensuel déclaré sur les comptes Épargne (backlog 2.S.1) — ADDITIONNÉ à
-  // `versementSuggere` (dérivé du Budget, 2.N.4), jamais fusionné en une seule
-  // hypothèse opaque : la légende sous le champ détaille les deux sources séparément.
+  // `versementSuggere` (moyenne investie sur 12 mois glissants, § AK), jamais
+  // fusionné en une seule hypothèse opaque : la légende sous le champ détaille les
+  // deux sources séparément.
   const [versementEpargneDeclare, setVersementEpargneDeclare] = useState(0)
   const [erreurVersement, setErreurVersement] = useState<string | null>(null)
 
@@ -219,7 +223,7 @@ export default function SimulateurProjectionSection() {
   // du Tableau de bord) — reste des champs facultatifs et modifiables. Le
   // rendement observé (`rendement_annualise_pct`, money-weighted/XIRR) remplace
   // l'hypothèse arbitraire de 5 % par la performance RÉELLE de ce portefeuille,
-  // même principe que le versement mensuel préempli plus bas (backlog 2.N.4) —
+  // même principe que le versement mensuel préempli plus bas (§ AK) —
   // `null`/négatif/absent (pas encore d'historique exploitable) : le champ garde
   // son défaut de 5 %, jamais bloquant. Une moins-value éventuelle (négative)
   // n'a pas de sens pour « intérêts déjà obtenus » et devient 0. Même
@@ -239,20 +243,24 @@ export default function SimulateurProjectionSection() {
       .catch((err) => setErreurInterets(err.message))
   }
 
-  // Préremplit « Versement mensuel » avec le versement observé sur le budget réel
-  // des 3 derniers mois (backlog 2.N.4, `GET /api/budget/jonction-patrimoine`) —
-  // remplace l'hypothèse arbitraire par une donnée mesurée, sans empêcher de la
-  // modifier ensuite. `undefined`/erreur/valeur nulle : le champ garde sa valeur
-  // par défaut ('0'), jamais bloquant comme les deux préchargements ci-dessus.
+  // Préremplit « Versement mensuel » avec la moyenne réellement investie sur les 12
+  // derniers mois glissants (`GET /api/performance/investissement-mensuel-moyen`,
+  // demande directe du 16/09/2026 — « la vraie simulation sur la base du passé » :
+  // remplace l'ancienne estimation de reste à vivre budgétaire sur 3 mois, qui
+  // reflétait ce qu'il RESTAIT à investir plutôt que ce qui a été RÉELLEMENT
+  // investi) ADDITIONNÉE aux versements mensuels déclarés sur les comptes Épargne
+  // (backlog 2.S.1, `GET /api/budget/jonction-patrimoine`, jamais fusionnés en une
+  // seule hypothèse opaque — la légende sous le champ détaille les deux sources
+  // séparément). `undefined`/erreur/valeur nulle : le champ garde sa valeur par
+  // défaut ('0'), jamais bloquant comme les deux préchargements ci-dessus.
   function chargerVersementSuggere() {
     setErreurVersement(null)
     const { dateDebut, dateFin } = bornesTroisDerniersMois()
-    api
-      .getJonctionPatrimoine(dateDebut, dateFin)
-      .then((j) => {
-        setVersementEpargneDeclare(j.versement_mensuel_epargne_declare)
-        const suggereBudget = j.versement_mensuel_suggere !== null && j.versement_mensuel_suggere > 0 ? j.versement_mensuel_suggere : 0
-        const total = suggereBudget + j.versement_mensuel_epargne_declare
+    Promise.all([api.getInvestissementMensuelMoyen(), api.getJonctionPatrimoine(dateDebut, dateFin)])
+      .then(([investissement, jonction]) => {
+        setVersementEpargneDeclare(jonction.versement_mensuel_epargne_declare)
+        const investiMoyen = investissement.montant !== null && investissement.montant > 0 ? investissement.montant : 0
+        const total = investiMoyen + jonction.versement_mensuel_epargne_declare
         if (total > 0) {
           setVersementSuggere(total)
           setVersement(String(Math.round(total)))
@@ -425,13 +433,14 @@ export default function SimulateurProjectionSection() {
         </div>
 
         <p className="mt-3 text-xs text-texte-attenue">
-          « Versement mensuel » (backlog 2.N.4 + 2.S.1) : préempli avec le versement moyen réellement observé sur le budget
-          des 3 derniers mois (entrées − sorties) ADDITIONNÉ aux versements mensuels déclarés sur les comptes Épargne
-          (assurance-vie, PER...) — plutôt qu'une hypothèse saisie à la main — librement modifiable.
+          « Versement mensuel » : préempli avec la moyenne réellement investie sur les 12 derniers mois glissants (achats
+          de titres réels) ADDITIONNÉE aux versements mensuels déclarés sur les comptes Épargne (assurance-vie, PER...) —
+          plutôt qu'une hypothèse saisie à la main — librement modifiable.
           {versementSuggere !== null && (
             <>
               {' '}
-              Détail : {formatEuro(versementSuggere - versementEpargneDeclare, 0, montantsMasques)} observés sur le budget +{' '}
+              Détail : {formatEuro(versementSuggere - versementEpargneDeclare, 0, montantsMasques)} investis en moyenne
+              sur les 12 derniers mois +{' '}
               {formatEuro(versementEpargneDeclare, 0, montantsMasques)} déclarés sur l'Épargne.
             </>
           )}
@@ -439,7 +448,7 @@ export default function SimulateurProjectionSection() {
         {erreurVersement && (
           <div className="mt-2">
             <EtatErreur
-              message={`Le versement observé sur le budget n'a pas pu être précalculé (${erreurVersement}). Le champ reste modifiable à la main.`}
+              message={`Le montant réellement investi n'a pas pu être précalculé (${erreurVersement}). Le champ reste modifiable à la main.`}
               onReessayer={chargerVersementSuggere}
             />
           </div>

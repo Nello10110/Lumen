@@ -50,6 +50,13 @@ export interface PerformanceSummary {
   premiere_transaction: string | null
 }
 
+// Moyenne mensuelle du montant réellement investi sur les 12 derniers mois
+// glissants (demande directe du 16/09/2026) — préremplit le versement mensuel du
+// Simulateur. `null` si rien n'a été investi sur la fenêtre.
+export interface InvestissementMensuelMoyen {
+  montant: number | null
+}
+
 export interface CoutGestionConsolide {
   valeur_fonds: number
   valeur_fonds_avec_ter_connu: number

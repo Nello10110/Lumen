@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { JonctionPatrimoine, PatrimoineNet, PerformanceSummary } from '../api/types'
+import type { InvestissementMensuelMoyen, JonctionPatrimoine, PatrimoineNet, PerformanceSummary } from '../api/types'
 import { formatEuro } from '../utils/format'
 import { agregerParAnnee, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle } from '../utils/interetsComposes'
 import SimulateurProjectionSection from './SimulateurProjectionSection'
@@ -11,6 +11,7 @@ vi.mock('../api/client', () => ({
     getPatrimoineNet: vi.fn(),
     getPerformance: vi.fn(),
     getJonctionPatrimoine: vi.fn(),
+    getInvestissementMensuelMoyen: vi.fn(),
   },
 }))
 
@@ -88,12 +89,17 @@ function jonctionPatrimoine(overrides: Partial<JonctionPatrimoine> = {}): Joncti
   }
 }
 
+function investissementMensuelMoyen(overrides: Partial<InvestissementMensuelMoyen> = {}): InvestissementMensuelMoyen {
+  return { montant: null, ...overrides }
+}
+
 describe('SimulateurProjectionSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoineNet())
     vi.mocked(api.getPerformance).mockResolvedValue(performance())
     vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine())
+    vi.mocked(api.getInvestissementMensuelMoyen).mockResolvedValue(investissementMensuelMoyen())
   })
 
   it('préremplit le capital de départ avec le patrimoine net actuel', async () => {
@@ -300,23 +306,23 @@ describe('SimulateurProjectionSection', () => {
     })
   })
 
-  describe('Versement mensuel suggéré (backlog 2.N.4)', () => {
-    it('préremplit le versement mensuel avec la suggestion issue du budget observé', async () => {
-      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: 350 }))
+  describe('Versement mensuel suggéré — moyenne investie sur 12 mois glissants (§ AK)', () => {
+    it('préremplit le versement mensuel avec la moyenne réellement investie sur 12 mois', async () => {
+      vi.mocked(api.getInvestissementMensuelMoyen).mockResolvedValue(investissementMensuelMoyen({ montant: 350 }))
       render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(350))
     })
 
-    it('ne touche pas au versement (reste à 0) si aucune suggestion disponible', async () => {
+    it('ne touche pas au versement (reste à 0) si aucune moyenne disponible', async () => {
       render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
       expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(0)
     })
 
-    it('ne préremplit pas avec une suggestion nulle ou négative', async () => {
-      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: -50 }))
+    it('ne préremplit pas avec une moyenne nulle ou négative', async () => {
+      vi.mocked(api.getInvestissementMensuelMoyen).mockResolvedValue(investissementMensuelMoyen({ montant: -50 }))
       render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
@@ -324,7 +330,7 @@ describe('SimulateurProjectionSection', () => {
     })
 
     it('un versement modifié fait apparaître un bouton pour revenir au versement observé', async () => {
-      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: 350 }))
+      vi.mocked(api.getInvestissementMensuelMoyen).mockResolvedValue(investissementMensuelMoyen({ montant: 350 }))
       render(<SimulateurProjectionSection />)
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(350))
 
@@ -337,13 +343,13 @@ describe('SimulateurProjectionSection', () => {
     })
 
     it("un échec de préchargement du versement observé n'empêche pas d'utiliser le calculateur, avec action de reprise", async () => {
-      vi.mocked(api.getJonctionPatrimoine).mockRejectedValueOnce(new Error('panne simulée'))
+      vi.mocked(api.getInvestissementMensuelMoyen).mockRejectedValueOnce(new Error('panne simulée'))
       render(<SimulateurProjectionSection />)
 
-      await screen.findByText(/versement observé sur le budget n'a pas pu être précalculé/)
+      await screen.findByText(/montant réellement investi n'a pas pu être précalculé/)
       expect(screen.getByLabelText('Versement mensuel (€)')).not.toBeDisabled()
 
-      vi.mocked(api.getJonctionPatrimoine).mockResolvedValueOnce(jonctionPatrimoine({ versement_mensuel_suggere: 200 }))
+      vi.mocked(api.getInvestissementMensuelMoyen).mockResolvedValueOnce(investissementMensuelMoyen({ montant: 200 }))
       fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(200))
@@ -351,21 +357,18 @@ describe('SimulateurProjectionSection', () => {
   })
 
   describe('Versement mensuel — addition avec l’Épargne (backlog 2.S.1)', () => {
-    it('additionne le versement suggéré par le budget et le versement déclaré sur les comptes Épargne', async () => {
-      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
-        jonctionPatrimoine({ versement_mensuel_suggere: 350, versement_mensuel_epargne_declare: 200 }),
-      )
+    it('additionne la moyenne investie sur 12 mois et le versement déclaré sur les comptes Épargne', async () => {
+      vi.mocked(api.getInvestissementMensuelMoyen).mockResolvedValue(investissementMensuelMoyen({ montant: 350 }))
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_epargne_declare: 200 }))
       render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(550))
-      expect(screen.getByText(/350 €.*observés sur le budget/)).toBeInTheDocument()
+      expect(screen.getByText(/350 €.*investis en moyenne/)).toBeInTheDocument()
       expect(screen.getByText(/200 €.*déclarés sur l'Épargne/)).toBeInTheDocument()
     })
 
-    it("préremplit avec le seul montant déclaré sur l'Épargne si aucun versement observé sur le budget", async () => {
-      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
-        jonctionPatrimoine({ versement_mensuel_suggere: null, versement_mensuel_epargne_declare: 150 }),
-      )
+    it("préremplit avec le seul montant déclaré sur l'Épargne si aucune moyenne investie disponible", async () => {
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_epargne_declare: 150 }))
       render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(150))

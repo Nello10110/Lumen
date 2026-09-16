@@ -435,6 +435,30 @@ export default function SalairePage() {
                   <StatTile label="Revenu net total" value={formatEuro(syntheseAnnee.net_total_annuel, 0, montantsMasques)} />
                   <StatTile label="Investi cette année" value={formatEuro(syntheseAnnee.montant_investi_annee, 0, montantsMasques)} />
                 </div>
+
+                {/* Détail par compte (demande directe du 16/09/2026) — même source
+                    que « Investi cette année » ci-dessus, ventilée par
+                    `Transaction.compte_id` ; absent si rien n'a été investi cette
+                    année, plutôt qu'un tableau vide. */}
+                {syntheseAnnee.investissement_par_compte.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-texte-attenue">
+                      Détail par compte
+                    </p>
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {syntheseAnnee.investissement_par_compte.map((ligne) => (
+                          <tr key={ligne.compte_id ?? 'sans-compte'} className="border-b border-bordure last:border-0">
+                            <td className="py-1.5 text-texte-attenue">{ligne.compte_nom ?? 'Sans compte'}</td>
+                            <td className="py-1.5 text-right font-medium text-texte">
+                              {formatEuro(ligne.montant, 0, montantsMasques)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 

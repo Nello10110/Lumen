@@ -3,7 +3,7 @@
 // réexporter, pour qu'aucun `import type { X } from '../api/types'` existant
 // n'ait à changer.
 
-export type { AnalysisResponse, BenchmarkOption, CategoryCompositionItem, CategoryCompositionResponse, ComparaisonBenchmark, ComparaisonBenchmarkPoint, CoutGestionConsolide, DividendeLigne, DividendeMois, HoldingPriceHistoryResponse, HoldingPricePoint, MetriquesAvancees, PerformanceSummary, PortfolioHistoryPoint, PortfolioHistoryResponse, QualiteDonnees, RevenusPassifsProjetes, RiskIndicators } from './types/analyse'
+export type { AnalysisResponse, BenchmarkOption, CategoryCompositionItem, CategoryCompositionResponse, ComparaisonBenchmark, ComparaisonBenchmarkPoint, CoutGestionConsolide, DividendeLigne, DividendeMois, HoldingPriceHistoryResponse, HoldingPricePoint, InvestissementMensuelMoyen, MetriquesAvancees, PerformanceSummary, PortfolioHistoryPoint, PortfolioHistoryResponse, QualiteDonnees, RevenusPassifsProjetes, RiskIndicators } from './types/analyse'
 export type { AccessLogEntry, AuthResponse, AuthUser, HouseholdMember, HouseholdMemberInput, OidcStatus, Role, Session } from './types/authentification'
 export type { BudgetCible, BudgetColumnMapping, BudgetImportResult, BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation, RegleReapplicationResult, RepartitionSortieItem } from './types/budget'
 export type { Detenteur, QuotiteDetenteurItem, QuotiteEntree, TypeDetenteur } from './types/detenteurs'
@@ -13,4 +13,4 @@ export type { DeclarationPatrimoineInput, LienPartage, LienPartageInput, Partage
 export type { ExpositionConsolidee, FundTopHoldingItem, HoldingDetail, HoldingImmobilier, HoldingImmobilierInput, IndicateursSituation, Loan, LoanInput, LoanUpdateInput, PatrimoineHistoryPoint, PatrimoineHistoryResponse, PatrimoineNet } from './types/patrimoine'
 export type { MouvementRapport, RapportEpargnePeriode, RapportPeriode, RepartitionEpargneLigne } from './types/rapport'
 export type { EtatRafraichissement, Jalon, Preferences, PreferencesUpdateResponse, ScheduledJob, ZoneGeographiqueInfo } from './types/reglages'
-export type { SalaireDonnees, SalaireIn, SalaireResume, SyntheseAnnee } from './types/salaire'
+export type { InvestissementCompte, SalaireDonnees, SalaireIn, SalaireResume, SyntheseAnnee } from './types/salaire'
