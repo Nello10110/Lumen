@@ -19,7 +19,6 @@ def _creer(db, **overrides):
         inclure_repartition=True,
         inclure_performance=True,
         inclure_budget=False,
-        inclure_objectifs=False,
         masquer_valeurs=False,
         code=None,
     )
@@ -130,7 +129,6 @@ def test_compute_payload_sections_desactivees_sont_none(db):
     assert payload["exposition"] is None
     assert payload["performance"] is None
     assert payload["budget"] is None
-    assert payload["objectifs"] is None
 
 
 def test_compute_payload_sections_activees_sont_renseignees(db):

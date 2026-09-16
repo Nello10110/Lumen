@@ -277,22 +277,6 @@ def _importer_transactions(client: httpx.Client) -> None:
     r.raise_for_status()
 
 
-def _creer_objectif(client: httpx.Client, holding_livret_id: int) -> int:
-    r = client.post(
-        "/api/objectifs/",
-        json={
-            "nom": "Fonds d'urgence E2E",
-            "type": "precaution",
-            "montant_cible": 20000.0,
-            "echeance": (datetime.now(UTC) + timedelta(days=700)).date().isoformat(),
-            "rendement_hypothese_pct": 2.0,
-            "holding_ids": [holding_livret_id],
-        },
-    )
-    r.raise_for_status()
-    return r.json()["id"]
-
-
 def _creer_salaires(client: httpx.Client) -> None:
     annee = datetime.now(UTC).year
     for payload in (
@@ -434,7 +418,6 @@ def main() -> None:
     _repartir_quotites_compte(client, compte_pea_id, alice_id, bob_id)
     loan_id = _creer_emprunt(client, holding_appart_id)
     _importer_transactions(client)
-    objectif_id = _creer_objectif(client, holding_livret_id)
     _creer_salaires(client)
     _importer_budget(client)
     client.close()
@@ -458,7 +441,6 @@ def main() -> None:
             "livret": {"id": compte_livret_id, "nom": "Livret A E2E"},
         },
         "loan_id": loan_id,
-        "objectif_id": objectif_id,
         "attendu": {
             "valeur_financiere": VALEUR_FINANCIER_ATTENDUE,
             "patrimoine_net": PATRIMOINE_NET_ATTENDU,

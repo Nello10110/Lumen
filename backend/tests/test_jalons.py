@@ -1,19 +1,19 @@
 """Verrouille `services/jalons_service.py` et `routers/jalons.py` (backlog
-§§ AG.3/AG.4) : évaluation des quatre jalons, persistance de la célébration
+§§ AG.3/AG.4) : évaluation des trois jalons, persistance de la célébration
 (jamais rejouée), isolation entre comptes de connexion (IDOR)."""
 
 from datetime import datetime, timedelta
 
 from app.models import User
 
-from .conftest import ID_UTILISATEUR_TEST, basculer_utilisateur, make_holding, make_transaction
+from .conftest import ID_UTILISATEUR_TEST, basculer_utilisateur, make_transaction
 
 
 def test_aucun_jalon_atteint_par_defaut(client):
     reponse = client.get("/api/jalons/")
     assert reponse.status_code == 200
     corps = reponse.json()
-    assert len(corps) == 4
+    assert len(corps) == 3
     assert all(j["atteint"] is False for j in corps)
     assert all(j["nouveau"] is False for j in corps)
 
@@ -42,22 +42,6 @@ def test_trois_mois_et_un_an_de_suivi_selon_l_anciennete_du_compte(client, db):
     un_an = next(j for j in corps if j["id"] == "un_an_suivi")
     assert trois_mois["atteint"] is True
     assert un_an["atteint"] is False
-
-
-def test_premier_objectif_atteint(client, db):
-    # Cible déjà dépassée dès la création (valeur du livret rattaché très
-    # supérieure au montant cible) : le diagnostic calculé à la volée doit être
-    # "atteint" sans qu'aucune transaction ni ancienneté ne soit nécessaire.
-    h = make_holding(db, ticker="LIVRETX", quantite=1, prix_revient_moyen=5000.0, type_actif="REGULATED_SAVINGS", valeur_estimee=5000.0)
-    client.post(
-        "/api/objectifs/",
-        json={"nom": "Cible triviale", "montant_cible": 1.0, "echeance": "2028-01-01", "holding_ids": [h.id]},
-    )
-
-    corps = client.get("/api/jalons/").json()
-    jalon = next(j for j in corps if j["id"] == "premier_objectif_atteint")
-    assert jalon["atteint"] is True
-    assert jalon["date_atteint"] is None  # jamais de date exacte pour ce jalon précis
 
 
 def test_marquer_celebre_rend_le_jalon_non_nouveau_sans_en_changer_l_etat(client, db):

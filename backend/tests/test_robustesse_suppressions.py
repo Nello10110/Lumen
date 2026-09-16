@@ -141,23 +141,19 @@ def test_supprimer_un_actif_rattache_a_un_emprunt_laisse_lemprunt_coherent(clien
     _verifier_ecrans_agreges_repondent(client)
 
 
-def test_supprimer_un_actif_ne_laisse_aucune_reference_pendante_dans_les_5_tables_qui_le_referencent(client, db):
-    """`holdings.id` est référencé par 5 tables (`loans`, `holding_immobilier_details`,
-    `holding_valuation_history`, `quotites_holdings`, `objectif_actifs`). Ce test les
-    couvre TOUTES d'un coup : une nouvelle table qui référencerait `holdings` sans
-    nettoyage à la suppression le fera échouer, plutôt que de laisser la régression
-    apparaître en démonstration."""
-    from app.models import HoldingImmobilierDetail, HoldingValuationHistory, ObjectifActif
+def test_supprimer_un_actif_ne_laisse_aucune_reference_pendante_dans_les_4_tables_qui_le_referencent(client, db):
+    """`holdings.id` est référencé par 4 tables (`loans`, `holding_immobilier_details`,
+    `holding_valuation_history`, `quotites_holdings`). Ce test les couvre TOUTES d'un
+    coup : une nouvelle table qui référencerait `holdings` sans nettoyage à la
+    suppression le fera échouer, plutôt que de laisser la régression apparaître en
+    démonstration."""
+    from app.models import HoldingImmobilierDetail, HoldingValuationHistory
 
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", valeur_estimee=300000.0)
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
     client.put(f"/api/portfolio/holdings/{h.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]})
     client.put(f"/api/portfolio/holdings/{h.id}/immobilier", json={"type_location": "nue", "loyer_mensuel": 1000.0})
     client.put(f"/api/portfolio/holdings/{h.id}/valorisation", json={"valeur": 310000.0, "date": "2025-01-01"})
-    client.post(
-        "/api/objectifs/",
-        json={"nom": "Objectif", "montant_cible": 500000.0, "echeance": "2030-01-01", "holding_ids": [h.id]},
-    )
     loan = Loan(
         user_id=ID_UTILISATEUR_TEST,
         libelle="Prêt",
@@ -177,34 +173,11 @@ def test_supprimer_un_actif_ne_laisse_aucune_reference_pendante_dans_les_5_table
     assert db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding_id).count() == 0
     assert db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id == holding_id).count() == 0
     assert db.query(HoldingValuationHistory).filter(HoldingValuationHistory.holding_id == holding_id).count() == 0
-    assert db.query(ObjectifActif).filter(ObjectifActif.holding_id == holding_id).count() == 0
     # L'emprunt, lui, SURVIT (il reste dû) mais détaché — jamais supprimé en cascade.
     assert db.query(Loan).filter(Loan.holding_id == holding_id).count() == 0
     assert db.get(Loan, loan.id) is not None
 
     _verifier_ecrans_agreges_repondent(client)
-
-
-def test_supprimer_un_actif_rattache_a_un_objectif_laisse_lobjectif_lisible(client, db):
-    h = make_holding(db, ticker="LIVRETA", type_actif="REGULATED_SAVINGS", valeur_estimee=10000.0)
-    objectif = client.post(
-        "/api/objectifs/",
-        json={
-            "nom": "Fonds d'urgence",
-            "type": "precaution",
-            "montant_cible": 20000.0,
-            "echeance": "2030-01-01",
-            "holding_ids": [h.id],
-        },
-    ).json()
-
-    assert client.delete(f"/api/portfolio/holdings/{h.id}").status_code == 200
-
-    # L'objectif reste consultable, sans référence pendante.
-    detail = client.get(f"/api/objectifs/{objectif['id']}")
-    assert detail.status_code == 200
-    assert all(a["holding_id"] != h.id for a in detail.json()["actifs_rattaches"])
-    assert client.get("/api/objectifs/").status_code == 200
 
 
 def test_supprimer_un_actif_rattache_a_un_compte_laisse_le_compte_lisible(client, db):
@@ -263,7 +236,7 @@ def test_tous_les_ecrans_agreges_repondent_sur_un_foyer_entierement_vide(client)
     assert client.get("/api/performance").status_code == 200
     assert client.get("/api/analysis/cout-gestion").status_code == 200
     assert client.get("/api/patrimoine/historique").status_code == 200
-    assert client.get("/api/objectifs/situation/indicateurs").status_code == 200
+    assert client.get("/api/analysis/indicateurs-situation").status_code == 200
 
 
 def test_les_ecrans_agreges_restent_lisibles_apres_suppression_du_dernier_actif(client, db):

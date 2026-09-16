@@ -1,7 +1,8 @@
 """Calculateur brut/net + taux d'épargne annuel du foyer. Plusieurs entrées `Salaire`
 possibles par année (un revenu par conjoint, par exemple), chacune avec son propre taux
 d'imposition. Réservé au propriétaire (protection au niveau `include_router` dans
-`main.py`, même niveau de sensibilité que les Objectifs) : donnée de revenu personnel."""
+`main.py`, même niveau de sensibilité que les indicateurs de situation) : donnée de
+revenu personnel."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

@@ -5,7 +5,7 @@ actif par actif de ce qui figure au document, filtrage par détenteur, et repris
 profil (revenus/dépenses/taux d'imposition) pour le taux d'endettement et le reste
 à vivre attendus par un prêteur. Réutilise telles quelles les fonctions de calcul
 déjà exposées ailleurs (`analysis_service`, `detenteurs_service`, `loan_service`,
-`objectifs_service`, `budget_service`) — ce module ne fait que sélectionner et
+`patrimoine_service`, `budget_service`) — ce module ne fait que sélectionner et
 mettre en forme, jamais de nouveau calcul métier."""
 
 from datetime import date, datetime
@@ -19,7 +19,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from sqlalchemy.orm import Session
 
 from ..models import Detenteur, Holding, Loan
-from . import analysis_service, budget_service, detenteurs_service, loan_service, objectifs_service, preferences_service
+from . import analysis_service, budget_service, detenteurs_service, loan_service, patrimoine_service, preferences_service
 from .csv_export import formater_nombre
 from .pdf_watermark import dessiner_filigrane
 
@@ -213,7 +213,7 @@ def generer_pdf_declaration(
     if inclure_profil:
         elements.append(Spacer(1, 0.5 * cm))
         elements.append(Paragraph("Profil emprunteur", styles["Heading2"]))
-        indicateurs = objectifs_service.compute_indicateurs_situation(db, user_id)
+        indicateurs = patrimoine_service.compute_indicateurs_situation(db, user_id)
         aujourdhui = date.today()
         jonction = budget_service.compute_jonction_patrimoine(
             db, user_id, aujourdhui.replace(day=1).isoformat(), aujourdhui.isoformat()

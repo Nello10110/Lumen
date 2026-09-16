@@ -1,7 +1,7 @@
 """Jalons personnels — célébrations et galerie de badges (backlog §§ AG.3/AG.4).
 Enregistré `_proprietaire_seul` dans `main.py` : reflète l'engagement du
-propriétaire du foyer avec l'application (imports, ancienneté, objectifs),
-jamais exposé à un membre/invité du même foyer."""
+propriétaire du foyer avec l'application (imports, ancienneté), jamais exposé
+à un membre/invité du même foyer."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

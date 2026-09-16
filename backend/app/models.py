@@ -46,7 +46,7 @@ ORIGINE_RECONSTRUIT = "reconstruit"
 # Leur valeur vient de `Holding.valeur_estimee`, saisie et mise à jour manuellement par
 # l'utilisateur, jamais de `MarketDataCache`. En conséquence, ils sont exclus :
 # - du rafraîchissement des cours (`market_data_service.refresh_tickers`) ;
-# - du look-through géo/sectoriel, des objectifs et de la carte Rentabilité boursière
+# - du look-through géo/sectoriel et de la carte Rentabilité boursière
 #   (`routers/analysis.py`, `services/performance_service.compute_performance`), qui
 #   restent le périmètre du seul portefeuille FINANCIER, inchangé ;
 # et inclus dans le patrimoine net global (`services/patrimoine_service.py`), qui est
@@ -970,74 +970,6 @@ class BudgetCible(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
-TYPE_OBJECTIF_FIRE = "fire"
-TYPE_OBJECTIF_PRECAUTION = "precaution"
-TYPE_OBJECTIF_IMMOBILIER = "immobilier"
-TYPE_OBJECTIF_REMBOURSEMENT = "remboursement"
-TYPE_OBJECTIF_PERSONNALISE = "personnalise"
-TYPES_OBJECTIF = {
-    TYPE_OBJECTIF_FIRE,
-    TYPE_OBJECTIF_PRECAUTION,
-    TYPE_OBJECTIF_IMMOBILIER,
-    TYPE_OBJECTIF_REMBOURSEMENT,
-    TYPE_OBJECTIF_PERSONNALISE,
-}
-
-
-class Objectif(Base):
-    """Objectif suivi dans le temps (backlog 2.O.1) — distinct du simulateur
-    (§ B.1/B.2), qui projette à la volée sans rien conserver. `valeur_a_la_creation`
-    est un instantané figé au moment de la création (jamais recalculé) : ancre
-    réelle du début de la « trajectoire réelle », en complément de la valeur
-    actuelle recalculée à chaque lecture (`services/objectifs_service.py`)."""
-
-    __tablename__ = "objectifs"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    nom: Mapped[str] = mapped_column(String)
-    type: Mapped[str] = mapped_column(String, default=TYPE_OBJECTIF_PERSONNALISE)
-    montant_cible: Mapped[float] = mapped_column(Float)
-    echeance: Mapped[str] = mapped_column(String)  # "YYYY-MM-DD"
-    # Taux annuel hypothèse (%) utilisé pour la contribution mensuelle nécessaire —
-    # 0 par défaut (le plus conservateur : aucun rendement supposé), librement
-    # modifiable plutôt qu'ajouter un second champ de saisie séparé.
-    rendement_hypothese_pct: Mapped[float] = mapped_column(Float, default=0.0)
-    valeur_a_la_creation: Mapped[float] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-
-
-class ObjectifActif(Base):
-    """Actif(s) du portefeuille rattaché(s) à un objectif — leur valeur actuelle
-    cumulée EST la progression réelle de l'objectif (backlog 2.O.1), pas de
-    registre de versements séparé : réutilise la valorisation déjà en place plutôt
-    que d'en construire une nouvelle. `holding_id` est une vraie FK (même choix que
-    `QuotiteHolding`) : hérite de sa même limite connue, un rattachement sur un
-    actif reconstruit depuis le grand livre (§ 3.1) ne survit pas à un ré-import
-    qui recrée les lignes `origine=reconstruit` avec de nouveaux `id`."""
-
-    __tablename__ = "objectif_actifs"
-    __table_args__ = (UniqueConstraint("objectif_id", "holding_id", name="uq_objectif_actif"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    objectif_id: Mapped[int] = mapped_column(ForeignKey("objectifs.id"), index=True)
-    holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), index=True)
-
-
-class ObjectifContributeur(Base):
-    """Détenteur(s) contributeur(s) d'un objectif (backlog 2.O.1) — purement
-    informatif à ce stade (affiché sur la fiche de l'objectif), ne restreint aucun
-    calcul de progression, qui reste toujours sur la valeur totale des actifs
-    rattachés (pas de quotité par contributeur sur un objectif)."""
-
-    __tablename__ = "objectif_contributeurs"
-    __table_args__ = (UniqueConstraint("objectif_id", "detenteur_id", name="uq_objectif_contributeur"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    objectif_id: Mapped[int] = mapped_column(ForeignKey("objectifs.id"), index=True)
-    detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
-
-
 class AccessLogEntry(Base):
     """Journal d'accès (2.L.2), consultable dans Réglages par le propriétaire —
     alimente aussi le calcul de verrouillage temporaire (`auth_service.verrouillage_actif`),
@@ -1061,7 +993,7 @@ class LienPartage(Base):
     """Lien de partage révocable en lecture seule (backlog 2.Q.1) — premier point
     d'accès PUBLIC de l'application, sans authentification. Surface volontairement
     restreinte à des sections agrégées (patrimoine net, exposition consolidée,
-    rentabilité, budget, objectifs) : jamais le détail position par position, les
+    rentabilité, budget) : jamais le détail position par position, les
     transactions, ni les libellés de compte — même un lien deviné/fuité n'expose
     donc jamais autant qu'un compte `invite` authentifié. Gestion (création/liste/
     révocation) réservée à `ROLE_PROPRIETAIRE`, comme les autres réglages de
@@ -1070,9 +1002,9 @@ class LienPartage(Base):
 
     `detenteur_id` (`None` = foyer entier) ne filtre que la section patrimoine net
     (seul calcul qui le supporte aujourd'hui, cf. `patrimoine_service.compute_patrimoine_net`)
-    — budget/objectifs/exposition consolidée restent toujours vue foyer complète
-    quand activés à côté d'un détenteur, limite assumée et signalée à la création
-    du lien plutôt que silencieuse. `code_hash` (même format `pbkdf2_sha256$...`
+    — budget/exposition consolidée restent toujours vue foyer complète quand
+    activés à côté d'un détenteur, limite assumée et signalée à la création du
+    lien plutôt que silencieuse. `code_hash` (même format `pbkdf2_sha256$...`
     que `User.password_hash`, cf. `auth_service.hash_password`) : `None` si aucun
     code n'est exigé pour consulter ce lien."""
 
@@ -1087,7 +1019,6 @@ class LienPartage(Base):
     inclure_repartition: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     inclure_performance: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     inclure_budget: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
-    inclure_objectifs: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     masquer_valeurs: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     code_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

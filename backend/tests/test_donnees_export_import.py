@@ -12,7 +12,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models import Compte, Detenteur, Etablissement, Holding, LienPartage, Loan, Objectif, PerimetreInvite, QuotiteHolding, Salaire, User
+from app.models import Compte, Detenteur, Etablissement, Holding, LienPartage, Loan, PerimetreInvite, QuotiteHolding, Salaire, User
 from app.services import donnees_service
 
 from .conftest import (
@@ -29,7 +29,7 @@ from .conftest import (
 def _peupler_foyer(client, db) -> dict:
     """Un foyer représentatif : au moins une ligne dans chaque famille de données,
     et surtout des RELATIONS croisées (compte→établissement, ligne→compte,
-    quotité→ligne+détenteur, emprunt→ligne, objectif→ligne+détenteur)."""
+    quotité→ligne+détenteur, emprunt→ligne)."""
     etablissement = client.post("/api/comptes/etablissements", json={"nom": "Banque Test"}).json()
     compte = client.post("/api/comptes", json={"nom": "PEA", "etablissement_id": etablissement["id"]}).json()
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
@@ -72,10 +72,6 @@ def _peupler_foyer(client, db) -> dict:
     client.put(f"/api/loans/{loan['id']}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]})
 
     client.post(
-        "/api/objectifs/",
-        json={"nom": "Objectif", "montant_cible": 500000.0, "echeance": "2032-01-01", "holding_ids": [maison["id"]]},
-    )
-    client.post(
         "/api/salaire/",
         json={
             "annee": 2026,
@@ -100,7 +96,7 @@ def test_export_produit_un_document_complet_et_versionne(client, db):
     assert document["format"] == donnees_service.FORMAT
     assert document["version"] == donnees_service.VERSION
     contenu = donnees_service.resume(document)
-    for table in ("etablissements", "comptes", "detenteurs", "holdings", "loans", "objectifs", "salaires", "transactions"):
+    for table in ("etablissements", "comptes", "detenteurs", "holdings", "loans", "salaires", "transactions"):
         assert contenu.get(table, 0) > 0, f"{table} absente de l'export"
 
 
@@ -180,10 +176,6 @@ def test_aller_retour_preserve_les_relations_entre_tables(client, db):
     loan = db.query(Loan).one()
     assert loan.holding_id == maison.id
 
-    # Objectif → la bonne ligne rattachée
-    objectif = client.get("/api/objectifs/").json()[0]
-    assert [a["ticker"] for a in objectif["actifs_rattaches"]] == ["MAISON"]
-
     # Fiche immobilier et historique de valorisation suivent leur ligne
     fiche = client.get(f"/api/portfolio/holdings/{maison.id}/detail").json()
     assert fiche["immobilier"]["loyer_mensuel"] == 1200.0
@@ -255,10 +247,10 @@ def test_un_export_dun_foyer_est_importable_dans_un_autre(client, db):
 @pytest.mark.parametrize(
     "document",
     [
-        pytest.param({"format": "autre-chose", "version": 1, "donnees": {}}, id="format-etranger"),
+        pytest.param({"format": "autre-chose", "version": donnees_service.VERSION, "donnees": {}}, id="format-etranger"),
         pytest.param({"format": donnees_service.FORMAT, "version": 999, "donnees": {}}, id="version-incompatible"),
-        pytest.param({"format": donnees_service.FORMAT, "version": 1}, id="donnees-absentes"),
-        pytest.param({"format": donnees_service.FORMAT, "version": 1, "donnees": []}, id="donnees-mal-typees"),
+        pytest.param({"format": donnees_service.FORMAT, "version": donnees_service.VERSION}, id="donnees-absentes"),
+        pytest.param({"format": donnees_service.FORMAT, "version": donnees_service.VERSION, "donnees": []}, id="donnees-mal-typees"),
         pytest.param("pas un objet", id="pas-un-objet"),
     ],
 )
@@ -372,7 +364,6 @@ def test_les_dates_survivent_a_laller_retour(client, db):
     [
         ("detenteurs", "type", "administrateur"),
         ("holdings", "origine", "n_importe_quoi"),
-        ("objectifs", "type", "domination_mondiale"),
         ("salaires", "periodicite", "hebdomadaire"),
     ],
 )
@@ -430,7 +421,6 @@ def test_reinitialiser_foyer_efface_tout_le_patrimoine(client, db):
     assert db.query(Etablissement).filter(Etablissement.user_id == ID_UTILISATEUR_TEST).count() == 0
     assert db.query(Detenteur).filter(Detenteur.user_id == ID_UTILISATEUR_TEST).count() == 0
     assert db.query(Loan).filter(Loan.user_id == ID_UTILISATEUR_TEST).count() == 0
-    assert db.query(Objectif).filter(Objectif.user_id == ID_UTILISATEUR_TEST).count() == 0
     assert db.query(Salaire).filter(Salaire.user_id == ID_UTILISATEUR_TEST).count() == 0
 
 

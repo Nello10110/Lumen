@@ -26,7 +26,6 @@ def _serialiser(lien: LienPartage) -> LienPartageOut:
         inclure_repartition=lien.inclure_repartition,
         inclure_performance=lien.inclure_performance,
         inclure_budget=lien.inclure_budget,
-        inclure_objectifs=lien.inclure_objectifs,
         masquer_valeurs=lien.masquer_valeurs,
         code_requis=lien.code_hash is not None,
         created_at=lien.created_at,

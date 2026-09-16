@@ -1,5 +1,5 @@
 """Schémas Pydantic (requêtes/réponses de l'API). Organisés dans l'ordre d'apparition
-des routeurs qui les utilisent : portefeuille, marché, objectifs, analyse, transactions,
+des routeurs qui les utilisent : portefeuille, marché, analyse, transactions,
 rentabilité, historique, fiche détaillée.
 
 Les contraintes de saisie (LOT 3.2) sont posées ici, sur les schémas, plutôt que par
@@ -103,20 +103,12 @@ from .export import (  # noqa: F401
 from .jalons import (  # noqa: F401
     JalonOut,
 )
-from .objectifs import (  # noqa: F401
-    ActifRattacheOut,
-    ContributeurObjectifOut,
-    ObjectifCreate,
-    ObjectifDetail,
-    TrajectoirePoint,
-)
 from .partage import (  # noqa: F401
     LienPartageCreate,
     LienPartageOut,
     PartageAccesRequest,
     PartageBudget,
     PartageExposition,
-    PartageObjectif,
     PartagePatrimoineNet,
     PartagePayload,
     PartagePerformance,

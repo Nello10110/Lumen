@@ -6,7 +6,7 @@ propres tables (`LienPartage`, `PartageAcces`) : un lien public n'a ni compte ni
 identifiant utilisateur à verrouiller, seulement un jeton.
 
 Surface volontairement restreinte à des sections AGRÉGÉES (patrimoine net,
-exposition consolidée, rentabilité, budget, objectifs) — jamais le détail position
+exposition consolidée, rentabilité, budget) — jamais le détail position
 par position, les transactions, ni les libellés de compte. `masquer_valeurs`
 convertit chaque montant en pourcentage plutôt que de l'omettre silencieusement :
 la forme de la répartition reste visible, jamais son échelle."""
@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from ..models import LienPartage, PartageAcces
-from . import auth_service, budget_service, objectifs_service, patrimoine_service, performance_service
+from . import auth_service, budget_service, patrimoine_service, performance_service
 
 SEUIL_TENTATIVES = 5
 FENETRE_VERROUILLAGE_MINUTES = 15
@@ -40,7 +40,6 @@ def creer_lien(
     inclure_repartition: bool,
     inclure_performance: bool,
     inclure_budget: bool,
-    inclure_objectifs: bool,
     masquer_valeurs: bool,
     code: str | None,
 ) -> LienPartage:
@@ -53,7 +52,6 @@ def creer_lien(
         inclure_repartition=inclure_repartition,
         inclure_performance=inclure_performance,
         inclure_budget=inclure_budget,
-        inclure_objectifs=inclure_objectifs,
         masquer_valeurs=masquer_valeurs,
         code_hash=auth_service.hash_password(code) if code else None,
         expires_at=_maintenant_naif() + timedelta(days=duree_jours),
@@ -210,21 +208,5 @@ def compute_payload(db: Session, lien: LienPartage) -> dict:
         }
     else:
         payload["budget"] = None
-
-    if lien.inclure_objectifs:
-        details = objectifs_service.list_objectifs_detail(db, lien.user_id)
-        payload["objectifs"] = [
-            {
-                "nom": o["nom"],
-                "type": o["type"],
-                "echeance": o["echeance"],
-                "progression_pct": o["progression_pct"],
-                "diagnostic": o["diagnostic"],
-                "retard_mois": o["retard_mois"],
-            }
-            for o in details
-        ]
-    else:
-        payload["objectifs"] = None
 
     return payload

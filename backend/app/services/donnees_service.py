@@ -48,7 +48,6 @@ from ..models import (
     ORIGINE_MANUEL,
     ORIGINE_RECONSTRUIT,
     TYPES_DETENTEUR_VALIDES,
-    TYPES_OBJECTIF,
     BudgetCible,
     CategorieBudget,
     Compte,
@@ -60,9 +59,6 @@ from ..models import (
     LienPartage,
     Loan,
     MouvementBancaire,
-    Objectif,
-    ObjectifActif,
-    ObjectifContributeur,
     PerimetreInvite,
     QuotiteHolding,
     QuotiteLoan,
@@ -80,7 +76,7 @@ FORMAT = "patrimoine-export"
 # retirée, sémantique changée). L'ajout d'une table ou d'une colonne optionnelle
 # reste compatible : `_importer_table` ignore les colonnes inconnues et laisse les
 # colonnes absentes à leur défaut.
-VERSION = 1
+VERSION = 2
 
 
 class FichierExportInvalideError(ValueError):
@@ -161,19 +157,6 @@ TABLES: list[TableExportee] = [
             "periodicite": frozenset(salaire_service.PERIODICITES_VALIDES),
             "statut": frozenset(salaire_service.STATUTS_VALIDES),
         },
-    ),
-    TableExportee("objectifs", Objectif, valeurs_autorisees={"type": frozenset(TYPES_OBJECTIF)}),
-    TableExportee(
-        "objectif_actifs",
-        ObjectifActif,
-        references={"objectif_id": "objectifs", "holding_id": "holdings"},
-        scope_par="objectif_id",
-    ),
-    TableExportee(
-        "objectif_contributeurs",
-        ObjectifContributeur,
-        references={"objectif_id": "objectifs", "detenteur_id": "detenteurs"},
-        scope_par="objectif_id",
     ),
     # `parent_id` est auto-référent (sous-catégories) : l'import fait deux passes,
     # cf. `_importer_table`.

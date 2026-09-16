@@ -272,44 +272,6 @@ def test_valorisation_sur_un_holding_inexistant_est_refusee(client):
 
 
 # ---------------------------------------------------------------------------
-# Objectifs
-# ---------------------------------------------------------------------------
-
-
-def _payload_objectif(**overrides) -> dict:
-    echeance = (datetime.now() + timedelta(days=365)).date().isoformat()
-    return {"nom": "Objectif", "type": "personnalise", "montant_cible": 10000.0, "echeance": echeance, **overrides}
-
-
-def test_objectif_montant_cible_negatif_refuse(client):
-    assert client.post("/api/objectifs/", json=_payload_objectif(montant_cible=-100)).status_code in REFUS
-
-
-def test_objectif_nom_vide_refuse(client):
-    assert client.post("/api/objectifs/", json=_payload_objectif(nom="   ")).status_code in REFUS
-
-
-def test_objectif_echeance_illisible_refusee(client):
-    """`echeance` est typée `str` côté schéma : une chaîne non-date doit être
-    refusée à la saisie, jamais propagée jusqu'au calcul de trajectoire."""
-    assert client.post("/api/objectifs/", json=_payload_objectif(echeance="pas-une-date")).status_code in REFUS
-
-
-def test_objectif_echeance_passee_refusee(client):
-    """Un objectif déjà échu ne peut produire aucune trajectoire exploitable
-    (contribution mensuelle nécessaire = division par un nombre de mois nul ou
-    négatif)."""
-    hier = (datetime.now() - timedelta(days=1)).date().isoformat()
-    assert client.post("/api/objectifs/", json=_payload_objectif(echeance=hier)).status_code in REFUS
-
-
-def test_objectif_avec_holding_dun_autre_foyer_refuse(client, db):
-    h_b = make_holding(db, ticker="BBB", user_id=ID_UTILISATEUR_B)
-    reponse = client.post("/api/objectifs/", json=_payload_objectif(holding_ids=[h_b.id]))
-    assert reponse.status_code in REFUS | {404}
-
-
-# ---------------------------------------------------------------------------
 # Salaire
 # ---------------------------------------------------------------------------
 

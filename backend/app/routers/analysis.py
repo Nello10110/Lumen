@@ -4,20 +4,31 @@ qualité des données, détail de composition d'une catégorie."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import User
+from ..models import ROLE_PROPRIETAIRE, User
 from ..schemas import (
     AllocationBreakdownItem,
     AnalysisResponse,
     CategoryCompositionResponse,
     CoutGestionConsolide,
+    IndicateursSituation,
     QualiteDonnees,
     RiskIndicators,
 )
-from ..services import analysis_service, auth_service
+from ..services import analysis_service, auth_service, patrimoine_service
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
+
+
+@router.get("/indicateurs-situation", response_model=IndicateursSituation, dependencies=[Depends(require_role(ROLE_PROPRIETAIRE))])
+def get_indicateurs_situation(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Matelas de sécurité, taux d'endettement, part du patrimoine immobilisée
+    (backlog 2.O.2) — réservé au propriétaire (comme les autres réglages de
+    sécurité financière), alors que le reste de cet écran est ouvert au
+    `membre` (routeur enregistré `_pas_invite` dans `main.py`) : restriction
+    posée ici, par route, plutôt qu'en déplaçant tout le routeur."""
+    return patrimoine_service.compute_indicateurs_situation(db, auth_service.id_foyer(current_user))
 
 
 @router.get("/composition", response_model=CategoryCompositionResponse)

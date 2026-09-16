@@ -20,7 +20,6 @@ from ..models import (
     HoldingImmobilierDetail,
     HoldingValuationHistory,
     Loan,
-    ObjectifActif,
     QuotiteHolding,
     User,
 )
@@ -637,18 +636,17 @@ def delete_holding(holding_id: int, db: Session = Depends(get_db), current_user:
 
 
 def _detacher_references_avant_suppression(db: Session, holding: Holding) -> None:
-    """Nettoie les 5 tables qui référencent `holdings.id` (recette du 02/09/2026).
+    """Nettoie les 4 tables qui référencent `holdings.id` (recette du 02/09/2026).
 
     Aucune de ces relations n'est déclarée avec un `cascade` SQLAlchemy : sans ce
     nettoyage explicite, supprimer une ligne laissait des lignes filles pendantes —
     quotités rattachées à un actif disparu (répartition fantôme dans les calculs de
-    part détenue/nette), historique de valorisation et fiche immobilier orphelins,
-    rattachement d'objectif vers un actif inexistant.
+    part détenue/nette), historique de valorisation et fiche immobilier orphelins.
 
     Deux traitements distincts, selon ce que la donnée fille REPRÉSENTE :
 
     - Ce qui n'a de sens que par l'actif (quotités, historique de valorisation,
-      fiche immobilier, rattachement à un objectif) disparaît avec lui.
+      fiche immobilier) disparaît avec lui.
     - Un `Loan`, lui, SURVIT : un emprunt reste dû même si le bien qu'il finançait
       sort du patrimoine (vente, erreur de saisie). Il est seulement détaché —
       même doctrine que `comptes_service.delete_compte`, où un rattachement retombe
@@ -657,5 +655,4 @@ def _detacher_references_avant_suppression(db: Session, holding: Holding) -> Non
     db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).delete()
     db.query(HoldingValuationHistory).filter(HoldingValuationHistory.holding_id == holding.id).delete()
     db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id == holding.id).delete()
-    db.query(ObjectifActif).filter(ObjectifActif.holding_id == holding.id).delete()
     db.query(Loan).filter(Loan.holding_id == holding.id).update({"holding_id": None})

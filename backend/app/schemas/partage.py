@@ -19,7 +19,6 @@ class LienPartageCreate(BaseModel):
     inclure_repartition: bool = True
     inclure_performance: bool = True
     inclure_budget: bool = False
-    inclure_objectifs: bool = False
     masquer_valeurs: bool = False
     code: str | None = None
 
@@ -62,7 +61,6 @@ class LienPartageOut(BaseModel):
     inclure_repartition: bool
     inclure_performance: bool
     inclure_budget: bool
-    inclure_objectifs: bool
     masquer_valeurs: bool
     code_requis: bool
     created_at: datetime
@@ -116,15 +114,6 @@ class PartageBudget(BaseModel):
     repartition_sorties: list[PartageRepartitionItem]
 
 
-class PartageObjectif(BaseModel):
-    nom: str
-    type: str
-    echeance: str
-    progression_pct: float | None
-    diagnostic: str
-    retard_mois: int | None
-
-
 class PartagePayload(BaseModel):
     """Réponse de `POST /api/partage/public/{token}` — jamais les schémas internes
     tels quels (cf. `services/partage_service.compute_payload`)."""
@@ -136,4 +125,3 @@ class PartagePayload(BaseModel):
     exposition: PartageExposition | None
     performance: PartagePerformance | None
     budget: PartageBudget | None
-    objectifs: list[PartageObjectif] | None

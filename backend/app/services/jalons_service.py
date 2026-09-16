@@ -1,11 +1,11 @@
-"""Jalons personnels (backlog §§ AG.3/AG.4, 16/09/2026) — quatre jalons partagés
+"""Jalons personnels (backlog §§ AG.3/AG.4, 16/09/2026) — trois jalons partagés
 entre deux usages : une célébration ponctuelle à l'instant où l'un est franchi
 (AG.3, jamais répétée pour le même jalon) et une petite galerie privée dans
 Réglages (AG.4, badges obtenus ET à venir). Strictement personnels, jamais
 sociaux : aucune comparaison entre comptes, aucune notion de classement — et
 volontairement centrés sur la RÉGULARITÉ du suivi (un premier import, une
-durée de suivi, un objectif atteint), jamais sur le volume investi ou le risque
-pris, pour ne jamais dériver vers une incitation à « faire plus ».
+durée de suivi), jamais sur le volume investi ou le risque pris, pour ne jamais
+dériver vers une incitation à « faire plus ».
 
 Chaque jalon est une donnée DÉRIVÉE (recalculée à chaque appel depuis les
 données déjà en base), sauf le fait qu'il ait déjà été célébré une fois : cette
@@ -22,7 +22,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Transaction, User, UserParametre
-from . import objectifs_service
 
 _CLE_JALONS_CELEBRES = "jalons_celebres"
 _SEPARATEUR = ","
@@ -30,16 +29,14 @@ _SEPARATEUR = ","
 PREMIER_IMPORT = "premier_import"
 TROIS_MOIS_SUIVI = "trois_mois_suivi"
 UN_AN_SUIVI = "un_an_suivi"
-PREMIER_OBJECTIF_ATTEINT = "premier_objectif_atteint"
 
 _TITRES: dict[str, tuple[str, str]] = {
     PREMIER_IMPORT: ("Premier import", "Au moins une transaction importée dans le grand livre."),
     TROIS_MOIS_SUIVI: ("3 mois de suivi", "Le compte existe depuis au moins 3 mois."),
     UN_AN_SUIVI: ("Une année de suivi complète", "Le compte existe depuis au moins un an."),
-    PREMIER_OBJECTIF_ATTEINT: ("Premier objectif atteint", "Au moins un objectif suivi a atteint son montant cible."),
 }
 
-_ORDRE_JALONS = [PREMIER_IMPORT, TROIS_MOIS_SUIVI, UN_AN_SUIVI, PREMIER_OBJECTIF_ATTEINT]
+_ORDRE_JALONS = [PREMIER_IMPORT, TROIS_MOIS_SUIVI, UN_AN_SUIVI]
 
 
 @dataclass
@@ -77,19 +74,11 @@ def _anciennete_compte(db: Session, user_id: int) -> datetime | None:
     return user.created_at if user is not None else None
 
 
-def _premier_objectif_atteint(db: Session, user_id: int) -> bool:
-    # Le diagnostic « atteint » n'est jamais persisté (recalculé à la lecture, cf.
-    # `objectifs_service.compute_detail`) : pas de date exacte de franchissement
-    # disponible pour ce jalon précis, seulement son état actuel.
-    return any(o["diagnostic"] == "atteint" for o in objectifs_service.list_objectifs_detail(db, user_id))
-
-
 def evaluer_jalons(db: Session, user_id: int) -> list[JalonStatut]:
     deja_celebres = _jalons_celebres(db, user_id)
 
     premiere_transaction = _premiere_transaction(db, user_id)
     anciennete = _anciennete_compte(db, user_id)
-    objectif_atteint = _premier_objectif_atteint(db, user_id)
 
     def _jours_depuis(reference: datetime | None) -> float | None:
         if reference is None:
@@ -108,7 +97,6 @@ def evaluer_jalons(db: Session, user_id: int) -> list[JalonStatut]:
         PREMIER_IMPORT: (premiere_transaction is not None, premiere_transaction.date() if premiere_transaction else None),
         TROIS_MOIS_SUIVI: (trois_mois_atteint, date_anciennete if trois_mois_atteint else None),
         UN_AN_SUIVI: (un_an_atteint, date_anciennete if un_an_atteint else None),
-        PREMIER_OBJECTIF_ATTEINT: (objectif_atteint, None),
     }
 
     resultats = []

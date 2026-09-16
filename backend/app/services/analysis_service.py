@@ -27,8 +27,8 @@ def holdings_financiers(db: Session, user_id: int) -> list[Holding]:
     """Portefeuille FINANCIER seul (actions/ETF/crypto/obligations/private equity, ou
     type non renseigné) — exclut l'immobilier/SCPI/assurance-vie/PER (Phase 1 de
     `docs/ROADMAP.md`, cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`), qui n'entrent ni
-    dans le look-through géo/sectoriel, ni dans les objectifs, ni dans la rentabilité
-    boursière (`performance_service.compute_performance`) — ils entrent en revanche
+    dans le look-through géo/sectoriel, ni dans la rentabilité boursière
+    (`performance_service.compute_performance`) — ils entrent en revanche
     dans le patrimoine net (`services/patrimoine_service.py`), qui n'utilise pas cette
     fonction et reste sur `db.query(Holding).filter(Holding.user_id == user_id).all()`.
 

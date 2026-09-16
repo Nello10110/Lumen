@@ -2,8 +2,8 @@
 *toutes* les lignes du portefeuille (financier + immobilier/épargne, cf.
 `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) moins les emprunts (`Loan`). Distinct
 d'`analysis_service`/`performance_service`, qui restent volontairement scopés au seul
-portefeuille financier (look-through géo/sectoriel, objectifs, rentabilité boursière —
-cf. leur exclusion de ces nouveaux types d'actifs) : le patrimoine net est une vue
+portefeuille financier (look-through géo/sectoriel, rentabilité boursière — cf. leur
+exclusion de ces nouveaux types d'actifs) : le patrimoine net est une vue
 supplémentaire, pas un remplacement de ces écrans existants.
 
 Filtre détenteur (backlog 2.L.1/2.K.3) : `detenteur_id=None` (défaut) reste la vue
@@ -14,11 +14,17 @@ n'apparaît alors dans la vue d'AUCUN détenteur individuel (seulement dans la v
 foyer) — cohérent avec la règle « pas de quotité saisie = 100 % foyer implicite »."""
 
 from dataclasses import replace
+from datetime import date
 
 from sqlalchemy.orm import Session
 
-from ..models import TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Loan
-from . import analysis_service, detenteurs_service, loan_service
+from ..models import TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS, TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Loan
+from . import analysis_service, budget_service, detenteurs_service, loan_service
+
+# Types "liquides" au sens du matelas de sécurité (backlog 2.O.2) : disponibles
+# sans délai ni pénalité, contrairement au reste de `TYPES_ACTIF_PATRIMOINE_MANUEL`
+# (immobilier, assurance-vie, PER... — tous ont un coût ou un délai de sortie).
+TYPES_LIQUIDES = {TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS}
 
 # Libellés affichés pour la répartition par classe d'actif (nouvelle dimension, cf.
 # ROADMAP § Phase 1 — ne remplace pas le look-through géo/sectoriel existant, qui n'a
@@ -313,3 +319,52 @@ def compute_composition_categorie_consolidee(db: Session, user_id: int, dimensio
 
     valeur_totale = sum(ligne["valeur"] for ligne in lignes)
     return {"type": dimension, "categorie": categorie, "valeur_totale": round(valeur_totale, 2), "lignes": lignes}
+
+
+# ---------------------------------------------------------------------------
+# Indicateurs de situation (backlog 2.O.2) — anciennement `objectifs_service.py`,
+# déplacés ici le 16/09/2026 avec le retrait du suivi d'objectifs (backlog § AJ,
+# retour utilisateur : la fonctionnalité avait perdu son intérêt, ces indicateurs
+# de santé financière restent en revanche pertinents indépendamment de tout
+# objectif suivi).
+# ---------------------------------------------------------------------------
+
+
+def compute_indicateurs_situation(db: Session, user_id: int) -> dict:
+    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    valued = analysis_service.value_holdings(holdings)
+
+    epargne_disponible = sum(v.valeur for v in valued if v.holding.type_actif in TYPES_LIQUIDES)
+    actifs_non_liquides = sum(
+        v.valeur for v in valued if v.holding.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL and v.holding.type_actif not in TYPES_LIQUIDES
+    )
+
+    patrimoine = compute_patrimoine_net(db, user_id)
+    patrimoine_brut = patrimoine["actifs_totaux"]
+
+    aujourdhui = date.today()
+    date_fin = aujourdhui.isoformat()
+    mois = aujourdhui.month - 2
+    annee = aujourdhui.year
+    while mois <= 0:
+        mois += 12
+        annee -= 1
+    date_debut = date(annee, mois, 1)
+    summary = budget_service.compute_summary(db, user_id, date_debut.isoformat(), date_fin)
+
+    nb_mois = 3.0
+    depenses_mensuelles = summary["sorties"] / nb_mois if summary["sorties"] > 0 else None
+    revenus_nets_mensuels = summary["entrees"] / nb_mois if summary["entrees"] > 0 else None
+
+    loans = db.query(Loan).filter(Loan.user_id == user_id).all()
+    mensualites_totales = sum(loan.mensualite for loan in loans)
+
+    return {
+        "matelas_securite_mois": round(epargne_disponible / depenses_mensuelles, 1) if depenses_mensuelles else None,
+        "taux_endettement_pct": round(mensualites_totales / revenus_nets_mensuels * 100, 1) if revenus_nets_mensuels else None,
+        "part_immobilisee_pct": round(actifs_non_liquides / patrimoine_brut * 100, 1) if patrimoine_brut > 0 else None,
+        "epargne_disponible": round(epargne_disponible, 2),
+        "depenses_mensuelles_moyennes": round(depenses_mensuelles, 2) if depenses_mensuelles else None,
+        "mensualites_totales": round(mensualites_totales, 2),
+        "revenus_nets_mensuels_moyens": round(revenus_nets_mensuels, 2) if revenus_nets_mensuels else None,
+    }
