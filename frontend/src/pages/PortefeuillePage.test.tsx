@@ -705,6 +705,16 @@ describe('PortefeuillePage', () => {
     })
   })
 
+  describe('illustration sur le vide global (backlog § AG.8)', () => {
+    it("l'état vide global (aucune position) porte une illustration, jamais celui du filtre sans résultat", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      const { container } = render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      await screen.findByText('Ajoutez votre première ligne pour allumer votre patrimoine.')
+      expect(container.querySelector('svg[class*="opacity-[0.08]"]')).not.toBeNull()
+    })
+  })
+
   describe('filtres — feuille glissante mobile (backlog 2.K.4)', () => {
     function deuxPositions() {
       return [

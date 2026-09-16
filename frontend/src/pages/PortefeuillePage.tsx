@@ -433,7 +433,7 @@ export default function PortefeuillePage() {
         {loading ? (
           <SkeletonTexte lignes={5} />
         ) : holdings.length === 0 ? (
-          <EtatVide titre="Ajoutez votre première ligne pour allumer votre patrimoine." />
+          <EtatVide titre="Ajoutez votre première ligne pour allumer votre patrimoine." illustration />
         ) : lignesFiltrees.length === 0 ? (
           <EtatVide
             titre="Aucune position ne correspond à ce filtre."

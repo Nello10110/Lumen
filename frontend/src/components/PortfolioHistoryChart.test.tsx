@@ -28,6 +28,8 @@ function renderChart(
         setDetenteurId: vi.fn(),
         periode: contexte.periode ?? PERIODE_DEFAUT,
         setPeriode: contexte.setPeriode ?? vi.fn(),
+        langageSimple: false,
+        toggleLangageSimple: vi.fn(),
       }}
     >
       <PortfolioHistoryChart points={null} loading={false} error={null} onRetry={vi.fn()} stacked={false} {...props} />
@@ -51,6 +53,8 @@ function renderControles(contexte: { periode?: Periode; setPeriode?: (p: Periode
         setDetenteurId: vi.fn(),
         periode: contexte.periode ?? PERIODE_DEFAUT,
         setPeriode: contexte.setPeriode ?? vi.fn(),
+        langageSimple: false,
+        toggleLangageSimple: vi.fn(),
       }}
     >
       <ControlesCourbe stacked={false} onStackedChange={onStackedChange} />

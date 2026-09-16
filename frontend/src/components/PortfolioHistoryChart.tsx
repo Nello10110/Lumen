@@ -174,7 +174,7 @@ export default function PortfolioHistoryChart({
         </>
       )}
       {errorActif && <EtatErreur message={errorActif} onReessayer={onRetryActif} />}
-      {!loadingActif && !errorActif && data.length === 0 && <EtatVide titre="Pas encore d'historique disponible." />}
+      {!loadingActif && !errorActif && data.length === 0 && <EtatVide titre="Pas encore d'historique disponible." illustration />}
 
       {!loadingActif && !errorActif && data.length > 0 && (
         <>
