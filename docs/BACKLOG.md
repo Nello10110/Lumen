@@ -3899,17 +3899,25 @@ mois, tu prendrais ta retraite N mois plus tôt »* — calculée sur le même m
 le reste, jamais une formule séparée qui pourrait diverger. Absente si l'indépendance est déjà
 atteinte (rien à accélérer) ou si la différence arrondit à zéro mois.
 
-#### AG.7 — `validé` (15/09/2026) — Mode découverte avec données fictives
+#### AG.7 — `différé` (16/09/2026) — Mode découverte avec données fictives
 
 Avant d'importer ses vraies données, pouvoir explorer l'application avec un foyer fictif préremplit
 (actions, immobilier, budget) — baisse la barrière à l'entrée réelle constatée sur ce type d'outil
 (« je dois tout comprendre et tout saisir avant de voir si ça me plaît »). Techniquement : un jeu de
 données proche de `seed_e2e.py`, chargé à la demande dans un foyer de démonstration, jamais mélangé
-aux vraies données. **Seule des 17 pistes restée en attente** (16/09/2026) : contrairement aux huit
-autres (des composants d'affichage), celle-ci implique un endpoint public non authentifié capable de
-créer un compte — un profil de risque (surface d'abus, croissance de la base) suffisamment différent
-pour mériter un arbitrage explicite avec l'utilisateur avant de coder, pas une simple exécution du
-mandat général « réalise-les toutes ».
+aux vraies données. Seule des 17 pistes restée en attente d'arbitrage (16/09/2026) : contrairement
+aux seize autres (des composants d'affichage), celle-ci implique un endpoint public non authentifié
+capable de créer un compte — un profil de risque (surface d'abus, croissance de la base) suffisamment
+différent pour mériter un arbitrage explicite avant de coder, pas une simple exécution du mandat
+général « réalise-les toutes ».
+
+**Différé le 16/09/2026** : arbitrage rendu par l'utilisateur — « pas urgent pour le moment »,
+explicitement rattaché à un scénario futur non engagé (« ça sera peut-être à faire si on décide de
+transformer le logiciel en SaaS »). Tant que l'application reste un usage personnel/foyer
+auto-hébergé (principe fondateur, § 0), la barrière à l'entrée qu'AG.7 cherche à baisser concerne un
+public que ce déploiement n'a pas. À reprendre si ce principe change, pas avant — les deux pistes
+esquissées (compte de démo unique réamorcé à chaque visite, vs. compte jetable à purge automatique)
+restent posées ci-dessus pour ce moment-là.
 
 #### AG.8 — `traité` (16/09/2026) — Illustrations légères sur les états vides
 
@@ -3927,8 +3935,9 @@ définition par une analogie concrète avant le texte technique, qui reste dispo
 après (ex. XIRR : *« Comme un taux d'intérêt qui tiendrait compte du moment exact où vous avez versé
 chaque euro, pas juste du début et de la fin. »*).
 
-**16/09/2026** : 16 des 17 pistes validées (§ AF + § AG + § AH) traitées. Seule reste AG.7 (mode
-découverte), en attente d'un arbitrage explicite avec l'utilisateur — cf. § AG.7 ci-dessus.
+**16/09/2026** : 16 des 17 pistes validées (§ AF + § AG + § AH) traitées. AG.7 (mode découverte)
+différée — pas de besoin tant que l'application reste un usage personnel auto-hébergé, cf. § AG.7
+ci-dessus.
 
 ---
 
