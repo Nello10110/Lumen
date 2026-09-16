@@ -4246,6 +4246,36 @@ positions reconstruites, total du compte-titres resserré de 9673 € à 8344 �
 l'absence de rafraîchissement de cours en environnement de test isolé, pas à la reconstruction elle-même).
 
 ---
+
+### AO. Lignes Bricks.co non catégorisées géographiquement (17/09/2026)
+
+#### AO.1 — `mineur` · `XS` · `traité` (17/09/2026) — Repli Europe pour les lignes Bricks.co dans la répartition géographique
+
+Retour utilisateur direct : « les investissements de Bricks.co sont tous des investissements européens,
+mais ils sont marqués comme non catégorisés ». Cause racine : `Holding.type_actif` d'une ligne Bricks.co
+est `BOND` (pas `PRIVATE_FUND` ni un type manuel) et ses symboles synthétiques
+(`bricks_import.symbol_pour_bien`, préfixe `BRICKS-`) sont volontairement exclus de toute résolution de
+marché (`market_data_service.PREFIXES_SYMBOLES_INTERNES`, backlog § AB.4 — Bricks.co crée à lui seul
+≈145 tickers de ce genre) : `Holding.market_data` reste donc toujours `None`, et
+`analysis_service.value_holdings` n'avait aucun repli pour cette branche — `region` restait `None`,
+classée `NON_CATEGORISE` par `categorie_propre_a_la_ligne`/`breakdown_with_lookthrough`.
+
+Nouvelle constante nommée `bricks_import.PREFIXE_SYMBOLE` (`"BRICKS-"`, remplace la chaîne littérale
+dupliquée dans `symbol_pour_bien`), importée dans `analysis_service.py` : dans `value_holdings`, quand
+`region` reste `None` après lecture de `market_data` ET que le ticker porte ce préfixe, repli explicite
+sur `ZONE_EUROPE` — un fait structurel de la plateforme (elle n'investit QUE dans de l'immobilier
+français/européen), pas une supposition ligne par ligne comme le serait le pays de domiciliation d'un
+ETF (cf. le garde-fou déjà en place pour `type_actif == "FUND"`, juste au-dessus dans
+`categorie_propre_a_la_ligne`). Volontairement scopé au préfixe Bricks plutôt qu'à
+`PREFIXES_SYMBOLES_INTERNES` dans son ensemble (généraliste, pourrait un jour porter un préfixe non
+européen) pour ne jamais étendre silencieusement ce repli à un futur symbole interne d'une autre
+origine. Se propage automatiquement à tout consommateur de `value_holdings` sans modification
+supplémentaire — la répartition géographique de l'écran Analyse (Portefeuille) ET l'exposition
+consolidée tous actifs (`patrimoine_service.compute_exposition_consolidee`, § P.1) partagent la même
+fonction. Repli lisible malgré tout si `market_data` porte un jour une région mesurée pour un tel
+symbole (cas non observé en pratique) : elle prime sur le repli structurel.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
