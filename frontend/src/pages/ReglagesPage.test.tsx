@@ -37,6 +37,15 @@ function ouvrirOnglet(nom: string) {
   fireEvent.click(screen.getByRole('tab', { name: nom }))
 }
 
+// Langage simple (backlog § AG.1) : préférence purement client (localStorage),
+// jamais backend — `ReglagesPage` lit `usePreferencesAffichage()` directement,
+// même patron de double que les autres pages qui n'en testent pas la mécanique
+// (déjà couverte par `PreferencesAffichageContext`), seulement son câblage ici.
+const toggleLangageSimpleMock = vi.fn()
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ langageSimple: false, toggleLangageSimple: toggleLangageSimpleMock }),
+}))
+
 // Ce fichier ne verrouille que la section "Personnes et sociétés" (backlog 2.L.1) —
 // le reste de la page (préférences, tâches planifiées, export) est hors de son objet.
 // Sessions/journal d'accès/comptes du foyer (backlog 2.L.2) : hors de l'objet de ce
@@ -88,6 +97,9 @@ vi.mock('../api/client', () => ({
     listLiensPartage: vi.fn().mockResolvedValue([]),
     createLienPartage: vi.fn(),
     revokeLienPartage: vi.fn(),
+    // Badges (backlog § AG.4) : `BadgesCard`, montée dans son propre onglet —
+    // stub neutre par défaut (aucun jalon), les tests dédiés le surchargent.
+    listJalons: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -643,5 +655,48 @@ describe('ReglagesPage — Assistant de bienvenue (welcome board)', () => {
 
     await vi.waitFor(() => expect(screen.queryByRole('heading', { name: 'Configuration initiale' })).not.toBeInTheDocument())
     expect(completeOnboarding).not.toHaveBeenCalled()
+  })
+})
+
+describe('ReglagesPage — bascule « Langage simple » (backlog § AG.1)', () => {
+  it('affiche son état courant et déclenche la bascule au clic', async () => {
+    renderReglages()
+    ouvrirOnglet('Général')
+
+    const bouton = await screen.findByRole('button', { name: 'Langage simple' })
+    expect(bouton).toHaveTextContent('Désactivé')
+    expect(bouton).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(bouton)
+    expect(toggleLangageSimpleMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('ReglagesPage — galerie de badges (backlog § AG.4)', () => {
+  it('affiche chaque jalon avec son état (obtenu ou non) et sa date', async () => {
+    vi.mocked(api.listJalons).mockResolvedValue([
+      { id: 'premier_import', titre: 'Premier import', description: 'Un premier import réussi.', atteint: true, date_atteint: '2026-06-01', nouveau: false },
+      { id: 'un_an_suivi', titre: 'Une année de suivi complète', description: 'Un an.', atteint: false, date_atteint: null, nouveau: false },
+    ])
+    renderReglages()
+    ouvrirOnglet('Badges')
+
+    await screen.findByText('Premier import')
+    expect(screen.getByText(/Obtenu le/)).toBeInTheDocument()
+    expect(screen.getByText('Une année de suivi complète')).toBeInTheDocument()
+    expect(screen.getByText('Pas encore obtenu')).toBeInTheDocument()
+  })
+
+  it("propose de réessayer si le chargement échoue", async () => {
+    vi.mocked(api.listJalons).mockRejectedValueOnce(new Error('panne simulée'))
+    renderReglages()
+    ouvrirOnglet('Badges')
+
+    await screen.findByText('panne simulée')
+
+    vi.mocked(api.listJalons).mockResolvedValueOnce([])
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    await vi.waitFor(() => expect(screen.queryByText('panne simulée')).not.toBeInTheDocument())
   })
 })

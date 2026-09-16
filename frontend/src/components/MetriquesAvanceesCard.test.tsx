@@ -16,7 +16,7 @@ vi.mock('../api/client', () => ({
 // Même patron que `PortfolioHistoryChart.test.tsx` (feature Net/Brut/Financier) :
 // un vrai `Provider`, pour que les tests de changement de lentille puissent
 // `rerender` avec une valeur différente plutôt que de mocker le hook.
-function providerJsx(lentille: Lentille) {
+function providerJsx(lentille: Lentille, langageSimple = false) {
   return (
     <PreferencesAffichageContext.Provider
       value={{
@@ -28,6 +28,8 @@ function providerJsx(lentille: Lentille) {
         setDetenteurId: vi.fn(),
         periode: { type: 'relative', valeur: 'TOUT' },
         setPeriode: vi.fn(),
+        langageSimple,
+        toggleLangageSimple: vi.fn(),
       }}
     >
       <MetriquesAvanceesCard />
@@ -35,8 +37,8 @@ function providerJsx(lentille: Lentille) {
   )
 }
 
-function renderCard(lentille: Lentille = 'financier') {
-  return render(providerJsx(lentille))
+function renderCard(lentille: Lentille = 'financier', langageSimple = false) {
+  return render(providerJsx(lentille, langageSimple))
 }
 
 function metriques(overrides: Partial<MetriquesAvancees> = {}): MetriquesAvancees {
@@ -134,6 +136,37 @@ describe('MetriquesAvanceesCard', () => {
 // ça devrait pour comparer réellement le portefeuille financier » — la carte doit
 // respecter la lentille Net/Brut/Financier transverse, pas rester figée sur
 // "financier".
+describe('MetriquesAvanceesCard — mode langage simple (backlog § AG.1)', () => {
+  it('affiche les libellés techniques par défaut (préférence désactivée)', async () => {
+    vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques())
+    vi.mocked(api.listBenchmarks).mockResolvedValue([])
+
+    renderCard('financier', false)
+
+    await screen.findByText('+12.5%')
+    expect(screen.getByText('TWR cumulé')).toBeInTheDocument()
+    expect(screen.getByText('Volatilité annualisée')).toBeInTheDocument()
+    expect(screen.getByText('Perte maximale (drawdown)')).toBeInTheDocument()
+    expect(screen.queryByText('Régularité du parcours')).not.toBeInTheDocument()
+  })
+
+  it('remplace les libellés par le langage courant quand la préférence est active, terme technique dépliable', async () => {
+    vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques())
+    vi.mocked(api.listBenchmarks).mockResolvedValue([])
+
+    renderCard('financier', true)
+    await screen.findByText('+12.5%')
+
+    expect(screen.getByText('Régularité du parcours')).toBeInTheDocument()
+    expect(screen.getByText('Pire chute essuyée')).toBeInTheDocument()
+    expect(screen.queryByText('Volatilité annualisée')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'terme technique' })[0])
+    expect(screen.queryByText('Performance du placement (cumulée)')).not.toBeInTheDocument()
+    expect(screen.getByText('TWR cumulé')).toBeInTheDocument()
+  })
+})
+
 describe('MetriquesAvanceesCard — lentille Net/Brut/Financier', () => {
   beforeEach(() => vi.clearAllMocks())
 

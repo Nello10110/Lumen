@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ScheduledJob } from '../api/types'
+import BadgesCard from '../components/BadgesCard'
 import Card from '../components/Card'
-import { CLASSES_BOUTON_PRIMAIRE, CLASSES_BOUTON_SECONDAIRE, SecondaryButton, SegmentedControl } from '../components/Controls'
+import { CLASSES_BOUTON_PRIMAIRE, CLASSES_BOUTON_SECONDAIRE, Pill, SecondaryButton, SegmentedControl } from '../components/Controls'
 import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal'
 import DetenteursCard from '../components/DetenteursCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import FoyerCard from '../components/FoyerCard'
 import GestionFoyerCard from '../components/GestionFoyerCard'
-import { IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
+import { IconBadge, IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
 import JobCard from '../components/JobCard'
 import JournalAccesCard from '../components/JournalAccesCard'
 import WelcomeWizard from '../components/onboarding/WelcomeWizard'
@@ -20,8 +21,9 @@ import SauvegardeDonneesCard from '../components/SauvegardeDonneesCard'
 import SessionsCard from '../components/SessionsCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import { useAuth } from '../hooks/useAuth'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 
-type OngletKey = 'general' | 'detenteurs' | 'securite' | 'partage' | 'automatisations'
+type OngletKey = 'general' | 'detenteurs' | 'securite' | 'partage' | 'automatisations' | 'badges'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconReglages }[] = [
   { key: 'general', label: 'Général', Icone: IconReglages },
@@ -29,6 +31,10 @@ const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconReglages }[] =
   { key: 'securite', label: 'Comptes & sécurité', Icone: IconBouclier },
   { key: 'partage', label: 'Partage', Icone: IconPartage },
   { key: 'automatisations', label: 'Automatisations', Icone: IconHorloge },
+  // Backlog § AG.4 (16/09/2026) — dernier onglet : une galerie personnelle, pas un
+  // réglage à proprement parler, mais réservée au propriétaire comme le reste de
+  // cette page (§ /api/jalons, `_proprietaire_seul` dans `main.py`).
+  { key: 'badges', label: 'Badges', Icone: IconBadge },
 ]
 
 const ONGLET_PAR_DEFAUT: OngletKey = 'general'
@@ -47,6 +53,7 @@ const ONGLET_PAR_DEFAUT: OngletKey = 'general'
  * § I.3). */
 export default function ReglagesPage() {
   const { user } = useAuth()
+  const { langageSimple, toggleLangageSimple } = usePreferencesAffichage()
   const [searchParams, setSearchParams] = useSearchParams()
   const ongletParam = searchParams.get('onglet') as OngletKey | null
   const onglet = ONGLETS.some((o) => o.key === ongletParam) ? (ongletParam as OngletKey) : ONGLET_PAR_DEFAUT
@@ -131,6 +138,19 @@ export default function ReglagesPage() {
           )}
           <FoyerCard />
           <PreferencesCard />
+          {/* Backlog § AG.1 (16/09/2026) — mode « langage simple » : préférence
+              purement d'affichage, jamais backend (`usePreferencesAffichage`, même
+              patron que « Masquer les montants »), donc pas de chargement réseau
+              ici contrairement à `PreferencesCard` juste au-dessus. */}
+          <Card title="Langage simple">
+            <p className="mb-4 text-sm text-texte">
+              Remplace le jargon financier (TWR, volatilité, drawdown...) par sa formulation en langage courant, avec le
+              terme technique toujours accessible derrière un lien « terme technique ».
+            </p>
+            <Pill actif={langageSimple} onClick={toggleLangageSimple} ariaLabel="Langage simple">
+              {langageSimple ? 'Activé' : 'Désactivé'}
+            </Pill>
+          </Card>
           <Card title="Exporter">
             <p className="mb-4 text-sm text-texte">
               Fichiers CSV compatibles Excel (séparateur point-virgule, décimale virgule), téléchargés directement par le
@@ -211,6 +231,12 @@ export default function ReglagesPage() {
           {jobs.map((job) => (
             <JobCard key={job.job_key} job={job} onChange={updateJobInState} />
           ))}
+        </div>
+      )}
+
+      {onglet === 'badges' && (
+        <div className="space-y-[14px]">
+          <BadgesCard />
         </div>
       )}
 

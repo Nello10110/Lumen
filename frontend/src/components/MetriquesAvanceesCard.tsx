@@ -6,6 +6,7 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Label, Select } from './Field'
+import LabelAdaptatif from './LabelAdaptatif'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatPct } from '../utils/format'
@@ -110,21 +111,29 @@ export default function MetriquesAvanceesCard() {
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
-              <Label>TWR cumulé</Label>
+              <Label>
+                <LabelAdaptatif simple="Performance du placement (cumulée)" technique="TWR cumulé" />
+              </Label>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(metriques.twr_cumule_pct)}</p>
             </div>
             <div>
-              <Label>TWR annualisé</Label>
+              <Label>
+                <LabelAdaptatif simple="Performance du placement (par an)" technique="TWR annualisé" />
+              </Label>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(metriques.twr_annualise_pct)}</p>
             </div>
             <div>
-              <Label>Volatilité annualisée</Label>
+              <Label>
+                <LabelAdaptatif simple="Régularité du parcours" technique="Volatilité annualisée" />
+              </Label>
               <p className="mt-1 text-xl font-semibold text-texte">
                 {metriques.volatilite_annualisee_pct !== null ? `${metriques.volatilite_annualisee_pct}%` : '—'}
               </p>
             </div>
             <div>
-              <Label>Perte maximale (drawdown)</Label>
+              <Label>
+                <LabelAdaptatif simple="Pire chute essuyée" technique="Perte maximale (drawdown)" />
+              </Label>
               <p className="mt-1 text-xl font-semibold text-negatif">
                 {metriques.max_drawdown_pct !== null ? `${metriques.max_drawdown_pct}%` : '—'}
               </p>

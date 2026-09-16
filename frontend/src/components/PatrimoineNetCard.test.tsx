@@ -52,6 +52,8 @@ function renderCard(
         setDetenteurId: vi.fn(),
         periode,
         setPeriode: vi.fn(),
+        langageSimple: false,
+        toggleLangageSimple: vi.fn(),
       }}
     >
       <PatrimoineNetCard historiquePortefeuille={historiquePortefeuille} historiquePatrimoine={historiquePatrimoine} />
@@ -104,6 +106,8 @@ describe('PatrimoineNetCard', () => {
           setDetenteurId: vi.fn(),
           periode: PERIODE_DEFAUT,
           setPeriode: vi.fn(),
+          langageSimple: false,
+          toggleLangageSimple: vi.fn(),
         }}
       >
         <PatrimoineNetCard />

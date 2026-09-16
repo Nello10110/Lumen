@@ -38,6 +38,8 @@ function renderCard() {
         setDetenteurId: vi.fn(),
         periode: PERIODE_DEFAUT,
         setPeriode: vi.fn(),
+        langageSimple: false,
+        toggleLangageSimple: vi.fn(),
       }}
     >
       <RevenusPassifsCard />
