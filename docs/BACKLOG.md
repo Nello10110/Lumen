@@ -4556,6 +4556,26 @@ composant, jamais entre deux lots. La courbe CSS elle-même (`@keyframes lumen-b
 en 12% du temps puis redescend en fondu sur le reste d'une durée bien plus généreuse (1400ms, contre
 700ms), pour un allumage qui semble respirer plutôt que couper.
 
+#### AU.1 — `mineur` · `S` · `traité` (17/09/2026) — Retrait du type « société » des détenteurs
+
+Retour utilisateur direct, en suite d'une question de cadrage (« au niveau des personnes on peut
+ajouter des sociétés, est-ce que c'est toujours pertinent ? ») : `Detenteur.type` (`"personne"` |
+`"societe"`, depuis L.1, 21/08/2026) s'est révélé **purement déclaratif** — jamais lu par le calcul des
+quotités, les filtres, le partage, la déclaration de patrimoine ni aucun autre traitement, uniquement
+affiché en suffixe du nom (« Alice (Personne) »). Confirmé qu'aucune société n'était en réalité
+déclarée. Décision : retrait complet plutôt qu'un simple masquage — cohérent avec la préférence déjà
+exprimée pour une fonctionnalité qui a perdu son intérêt.
+
+Colonne `type` supprimée du modèle `Detenteur` (migration Alembic `51b2a3201f9a`, `DROP COLUMN`),
+schémas Pydantic (`DetenteurCreate`/`DetenteurUpdate`) et export/import de données (`donnees_service`,
+qui ignore déjà silencieusement une colonne inconnue à l'import — un ancien fichier d'export conservant
+`type` continue donc de s'importer sans erreur). Frontend : sélecteur Personne/Société retiré du
+formulaire d'ajout (`DetenteursCard.tsx`), libellé de type retiré de la liste, `AjoutDetenteurModale.tsx`
+simplifié (elle ne créait de toute façon que des personnes). Carte renommée « Personnes et sociétés » →
+« Personnes », copie mise à jour partout où « société » apparaissait à propos des détenteurs
+(`BarreControles.tsx`, `DetenteursSection.tsx`, `EtapeDetenteurs.tsx`, `SauvegardeDonneesCard.tsx`,
+`docs/MANUEL_UTILISATEUR.md`).
+
 ---
 ## 3. Hors périmètre (assumé)
 
