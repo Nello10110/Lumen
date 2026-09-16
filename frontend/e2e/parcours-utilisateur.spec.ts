@@ -89,7 +89,7 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
   test('créer deux détenteurs du même nom est refusé (ils seraient indiscernables)', async ({ page }) => {
     await page.goto('/reglages')
     await page.getByRole('tab', { name: 'Détenteurs' }).click()
-    const carte = cardByTitle(page, 'Personnes et sociétés')
+    const carte = cardByTitle(page, 'Personnes')
 
     const nom = `Homonyme ${Date.now().toString().slice(-6)}`
     await carte.getByPlaceholder('Alice').fill(nom)

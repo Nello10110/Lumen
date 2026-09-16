@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { cardByTitle } from './helpers'
 
 test.describe('Réglages', () => {
   test.beforeEach(async ({ page }) => {
@@ -9,9 +10,12 @@ test.describe('Réglages', () => {
   test('onglet Détenteurs liste Alice et Bob', async ({ page }) => {
     await page.getByRole('tab', { name: 'Détenteurs' }).click()
     // "Alice"/"Bob" seuls sont ambigus : ce sont aussi des <option> du sélecteur de
-    // détenteur du formulaire de quotités plus bas sur le même onglet.
-    await expect(page.getByText('Alice (Personne)')).toBeVisible()
-    await expect(page.getByText('Bob (Personne)')).toBeVisible()
+    // détenteur du formulaire de quotités plus bas sur le même onglet — scopé à la
+    // carte "Personnes" (retrait du suffixe "(Personne)"/"(Société)" le 17/09/2026,
+    // § AU.1 : le type de détenteur n'existe plus).
+    const carte = cardByTitle(page, 'Personnes')
+    await expect(carte.getByText('Alice', { exact: true })).toBeVisible()
+    await expect(carte.getByText('Bob', { exact: true })).toBeVisible()
   })
 
   test('onglet Comptes & sécurité : crée un membre du foyer, modifie son rôle puis le supprime', async ({ page }) => {
