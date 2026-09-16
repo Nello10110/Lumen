@@ -129,6 +129,7 @@ def etat_rafraichissement() -> EtatRafraichissement:
 def _executer_rafraichissement(
     items: list[tuple[str, str | None]],
     on_termine: Callable[[EtatRafraichissement], None] | None,
+    forcer_non_cotables: bool = False,
 ) -> None:
     """Corps du fil de fond. Ouvre sa propre session SQLAlchemy : celle de la
     requête HTTP qui a déclenché ce rafraîchissement est refermée dès la réponse
@@ -143,7 +144,9 @@ def _executer_rafraichissement(
                 _etat.positions_traitees = traitees
                 _etat.positions_total = total_
 
-        market_data_service.refresh_tickers(db, items, on_progression=_sur_progression)
+        market_data_service.refresh_tickers(
+            db, items, on_progression=_sur_progression, forcer_non_cotables=forcer_non_cotables
+        )
 
         # Le cache d'historique du portefeuille (LOT 4.5) est valable 24h : sans
         # cette invalidation, le graphique d'évolution du tableau de bord resterait
@@ -181,6 +184,7 @@ def _executer_rafraichissement(
 def demarrer_rafraichissement(
     items: list[tuple[str, str | None]],
     on_termine: Callable[[EtatRafraichissement], None] | None = None,
+    forcer_non_cotables: bool = False,
 ) -> EtatRafraichissement:
     """Lance `market_data_service.refresh_tickers(items)` dans un fil dédié et rend
     la main immédiatement — voir la section ci-dessus pour le pourquoi.
@@ -193,7 +197,11 @@ def demarrer_rafraichissement(
     `on_termine`, optionnel, est appelé (dans le fil de fond, une fois l'état
     final déterminé) avec une copie de cet état final. Utilisé par
     `scheduler_service.run_job_now` (LOT 4B) pour répercuter le résultat dans
-    `ScheduledJobConfig`, consulté par la page Réglages."""
+    `ScheduledJobConfig`, consulté par la page Réglages.
+
+    `forcer_non_cotables` : voir la docstring de `market_data_service.refresh_tickers`
+    — `False` par défaut pour tous les déclenchements habituels (bouton Portefeuille,
+    planification automatique), `True` réservé au bouton dédié de Réglages."""
     global _thread_courant
     with _verrou_etat:
         if _etat.en_cours:
@@ -208,7 +216,10 @@ def demarrer_rafraichissement(
         etat_depart = replace(_etat)
 
     thread = threading.Thread(
-        target=_executer_rafraichissement, args=(items, on_termine), daemon=True, name="rafraichissement-cours"
+        target=_executer_rafraichissement,
+        args=(items, on_termine, forcer_non_cotables),
+        daemon=True,
+        name="rafraichissement-cours",
     )
     _thread_courant = thread
     thread.start()

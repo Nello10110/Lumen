@@ -32,6 +32,15 @@ import { formatDateHeure, parseDateApi } from '../utils/format'
 // `PositionsTable`, un état de la session en cours, pas une préférence durable.
 const CLE_DEFILEMENT = 'patrimoine:portefeuille-defilement'
 
+// Balayage lumineux au rafraîchissement des cours (retour utilisateur du
+// 16/09/2026, §AT.x) : quand plusieurs lignes arrivent dans le même sondage,
+// elles s'allument l'une après l'autre plutôt que toutes en même temps.
+const DELAI_ENTRE_ALLUMAGES_MS = 90
+// Doit correspondre à la durée de `@keyframes lumen-balayage-ligne` (index.css) :
+// c'est cette durée, pas un compte à rebours indépendant, qui détermine quand
+// retirer la classe d'animation d'une ligne.
+const DUREE_ALLUMAGE_MS = 1400
+
 /** Onglets de catégorie — factorisés (backlog 2.K.4) : rendus à l'identique dans la
  * barre desktop inline et dans la feuille glissante mobile, un seul état source
  * (`categorie`, porté par l'URL, cf. composant parent). */
@@ -206,16 +215,33 @@ export default function PortefeuillePage() {
   const { etat: etatRafraichissement, enCours: refreshing, erreur: erreurRafraichissement, declencher } =
     useRafraichissementCours(() => load())
 
-  // Balayage lumineux (backlog § AH.2, 15/09/2026) : suit la progression RÉELLE du
-  // rafraîchissement (`positions_traitees`, sondé toutes les 2 s par
-  // `useRafraichissementCours`), pas un ordre décoratif indépendant. Limite
-  // assumée : la granularité du sondage (2 s) empêche un balayage ligne par ligne
-  // parfaitement continu — les lignes s'allument par petits groupes plutôt qu'une
-  // à la fois pour un grand portefeuille traité en quelques secondes, ce qui reste
-  // fidèle à la progression réelle, juste moins fin qu'un flux continu.
+  // Balayage lumineux (backlog § AH.2, 15/09/2026 ; lissé le 16/09/2026, §AT.x) :
+  // suit la progression RÉELLE du rafraîchissement (`positions_traitees`, sondé
+  // toutes les 600ms par `useRafraichissementCours`), pas un ordre décoratif
+  // indépendant. Retour utilisateur du 16/09/2026 : l'ancienne version allumait
+  // TOUTES les lignes d'un même lot de sondage simultanément ("par paquets") —
+  // désormais, quand plusieurs lignes arrivent dans le même sondage, elles
+  // s'allument l'une après l'autre (`DELAI_ENTRE_ALLUMAGES_MS`), jamais toutes en
+  // même temps, pour un effet de balayage continu plutôt que des à-coups.
   const idsSnapshotRafraichissement = useRef<number[]>([])
   const positionsTraiteesPrecedentes = useRef(0)
   const [lignesEnCoursAllumage, setLignesEnCoursAllumage] = useState<Set<number>>(new Set())
+  // Minuteurs programmés par CE composant depuis son montage, toujours purgés
+  // ensemble (voir l'effet ci-dessous) — jamais un par lot de sondage : un
+  // nettoyage par lot annulerait les extinctions déjà programmées d'un lot
+  // précédent encore en cours d'allumage échelonné, laissant certaines lignes
+  // allumées pour de bon (bug observé en construisant ce correctif, le sondage à
+  // 600ms pouvant désormais déclencher un nouveau lot avant la fin de
+  // l'échelonnement + fondu du précédent).
+  const minuteursAllumage = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+
+  useEffect(() => {
+    const minuteurs = minuteursAllumage.current
+    return () => {
+      minuteurs.forEach((m) => clearTimeout(m))
+      minuteurs.clear()
+    }
+  }, [])
 
   function handleRefresh() {
     // Capturé AVANT le déclenchement : c'est l'ordre dans lequel le backend a de
@@ -236,15 +262,24 @@ export default function PortefeuillePage() {
     positionsTraiteesPrecedentes.current = traitees
     if (nouvellementTraitees.length === 0) return
 
-    setLignesEnCoursAllumage((precedent) => new Set([...precedent, ...nouvellementTraitees]))
-    const minuteur = setTimeout(() => {
-      setLignesEnCoursAllumage((precedent) => {
-        const suivant = new Set(precedent)
-        nouvellementTraitees.forEach((id) => suivant.delete(id))
-        return suivant
-      })
-    }, 700)
-    return () => clearTimeout(minuteur)
+    nouvellementTraitees.forEach((id, index) => {
+      const delaiAllumage = index * DELAI_ENTRE_ALLUMAGES_MS
+      const allumage = setTimeout(() => {
+        minuteursAllumage.current.delete(allumage)
+        setLignesEnCoursAllumage((precedent) => new Set(precedent).add(id))
+      }, delaiAllumage)
+      minuteursAllumage.current.add(allumage)
+
+      const extinction = setTimeout(() => {
+        minuteursAllumage.current.delete(extinction)
+        setLignesEnCoursAllumage((precedent) => {
+          const suivant = new Set(precedent)
+          suivant.delete(id)
+          return suivant
+        })
+      }, delaiAllumage + DUREE_ALLUMAGE_MS)
+      minuteursAllumage.current.add(extinction)
+    })
   }, [etatRafraichissement?.positions_traitees])
 
   async function confirmerSuppression() {

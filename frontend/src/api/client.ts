@@ -432,7 +432,10 @@ export const api = {
   listJobs: () => request<ScheduledJob[]>('/settings/jobs'),
   updateJob: (jobKey: string, payload: { enabled: boolean; intervalle_heures: number }) =>
     request<ScheduledJob>(`/settings/jobs/${jobKey}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  runJobNow: (jobKey: string) => request<ScheduledJob>(`/settings/jobs/${jobKey}/run-now`, { method: 'POST' }),
+  runJobNow: (jobKey: string, forcerNonCotables = false) =>
+    request<ScheduledJob>(`/settings/jobs/${jobKey}/run-now${forcerNonCotables ? '?forcer_non_cotables=true' : ''}`, {
+      method: 'POST',
+    }),
 
   // Réglages (préférences applicatives, LOT 5B)
   getPreferences: () => request<Preferences>('/settings/preferences'),

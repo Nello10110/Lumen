@@ -41,14 +41,19 @@ describe('useRafraichissementCours', () => {
     expect(result.current.erreur).toBeNull()
   })
 
-  it('sonde toutes les 2 secondes tant que le rafraîchissement est en cours, puis appelle onTermine', async () => {
+  it('sonde toutes les 600ms tant que le rafraîchissement est en cours, puis appelle onTermine', async () => {
+    // 600ms (retour utilisateur du 16/09/2026, §AT.x) — resserré depuis 2000ms
+    // pour permettre un allumage plus granulaire des lignes du Portefeuille
+    // (`PortefeuillePage.tsx`) pendant le rafraîchissement.
     vi.mocked(api.getRefreshStatus)
       // Sondage immédiat après le déclenchement.
       .mockResolvedValueOnce(etat({ en_cours: true, positions_traitees: 0, positions_total: 3 }))
-      // Premier sondage périodique (2s plus tard).
+      // Premier sondage périodique (600ms plus tard).
       .mockResolvedValueOnce(etat({ en_cours: true, positions_traitees: 2, positions_total: 3 }))
       // Second sondage périodique : terminé.
-      .mockResolvedValueOnce(etat({ en_cours: false, positions_traitees: 3, positions_total: 3, statut: 'ok' }))
+      .mockResolvedValueOnce(
+        etat({ en_cours: false, positions_traitees: 3, positions_total: 3, statut: 'ok', termine_le: '2026-09-16T10:00:00Z' }),
+      )
 
     const onTermine = vi.fn()
     const { result } = renderHook(() => useRafraichissementCours(onTermine))
@@ -64,7 +69,7 @@ describe('useRafraichissementCours', () => {
     expect(api.getRefreshStatus).toHaveBeenCalledTimes(1)
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000)
+      await vi.advanceTimersByTimeAsync(600)
     })
     expect(api.getRefreshStatus).toHaveBeenCalledTimes(2)
     expect(result.current.etat?.positions_traitees).toBe(2)
@@ -72,7 +77,7 @@ describe('useRafraichissementCours', () => {
     expect(onTermine).not.toHaveBeenCalled()
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000)
+      await vi.advanceTimersByTimeAsync(600)
     })
     expect(api.getRefreshStatus).toHaveBeenCalledTimes(3)
     expect(result.current.enCours).toBe(false)

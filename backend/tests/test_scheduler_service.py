@@ -117,7 +117,7 @@ def test_run_job_now_ne_bloque_pas_et_renvoie_la_config_actuelle(db, monkeypatch
     demarre = threading.Event()
     liberer = threading.Event()
 
-    def refresh_tickers_bloquant(db, items, on_progression=None):
+    def refresh_tickers_bloquant(db, items, on_progression=None, forcer_non_cotables=False):
         demarre.set()
         assert liberer.wait(timeout=5)
         return []
@@ -136,12 +136,31 @@ def test_run_job_now_ne_bloque_pas_et_renvoie_la_config_actuelle(db, monkeypatch
     attendre_fin_rafraichissement_arriere_plan()
 
 
+def test_run_job_now_transmet_forcer_non_cotables_a_refresh_tickers(db, monkeypatch):
+    """Retour utilisateur du 16/09/2026 (§AT.x) : le bouton dédié de Réglages doit
+    pouvoir réintégrer les symboles internes (`BRICKS-*`) dans le rafraîchissement —
+    `run_job_now(..., forcer_non_cotables=True)` doit le répercuter jusqu'à
+    `refresh_tickers`."""
+    make_holding(db, ticker="AAA", quantite=1.0)
+    appels = []
+    monkeypatch.setattr(
+        market_data_service,
+        "refresh_tickers",
+        lambda db, items, on_progression=None, forcer_non_cotables=False: appels.append(forcer_non_cotables) or [],
+    )
+
+    scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH, forcer_non_cotables=True)
+    attendre_fin_rafraichissement_arriere_plan()
+
+    assert appels == [True]
+
+
 def test_run_job_now_repercute_le_resultat_dans_scheduled_job_config(db, monkeypatch):
     """Une fois le rafraîchissement terminé, le statut doit apparaître dans
     `ScheduledJobConfig` (lu par la page Réglages via `GET /api/settings/jobs`),
     exactement comme pour le job planifié."""
     make_holding(db, ticker="AAA", quantite=1.0)
-    monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None: [])
+    monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None, forcer_non_cotables=False: [])
 
     scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH)
     attendre_fin_rafraichissement_arriere_plan()
@@ -157,7 +176,7 @@ def test_run_job_now_refuse_si_un_rafraichissement_est_deja_en_cours(db, monkeyp
     demarre = threading.Event()
     liberer = threading.Event()
 
-    def refresh_tickers_bloquant(db, items, on_progression=None):
+    def refresh_tickers_bloquant(db, items, on_progression=None, forcer_non_cotables=False):
         demarre.set()
         assert liberer.wait(timeout=5)
         return []
@@ -180,7 +199,7 @@ def test_route_run_now_202_puis_409_si_deja_en_cours(client, db, monkeypatch):
     demarre = threading.Event()
     liberer = threading.Event()
 
-    def refresh_tickers_bloquant(db, items, on_progression=None):
+    def refresh_tickers_bloquant(db, items, on_progression=None, forcer_non_cotables=False):
         demarre.set()
         assert liberer.wait(timeout=5)
         return []
@@ -196,6 +215,24 @@ def test_route_run_now_202_puis_409_si_deja_en_cours(client, db, monkeypatch):
 
     liberer.set()
     attendre_fin_rafraichissement_arriere_plan()
+
+
+def test_route_run_now_transmet_forcer_non_cotables_en_query(client, db, monkeypatch):
+    make_holding(db, ticker="AAA", quantite=1.0)
+    appels = []
+    monkeypatch.setattr(
+        market_data_service,
+        "refresh_tickers",
+        lambda db, items, on_progression=None, forcer_non_cotables=False: appels.append(forcer_non_cotables) or [],
+    )
+
+    reponse = client.post(
+        f"/api/settings/jobs/{scheduler_service.MARKET_DATA_REFRESH}/run-now?forcer_non_cotables=true"
+    )
+    assert reponse.status_code == 202
+    attendre_fin_rafraichissement_arriere_plan()
+
+    assert appels == [True]
 
 
 # ---------------------------------------------------------------------------

@@ -1058,7 +1058,7 @@ describe('PortefeuillePage', () => {
         // Sondage initial, juste après le déclenchement (`declencher`, cf.
         // `useRafraichissementCours`) : rien de traité pour l'instant.
         .mockResolvedValueOnce({ en_cours: true, positions_traitees: 0, positions_total: 2, demarre_le: null, termine_le: null, statut: null, message: null })
-        // Premier sondage périodique (2 s) : la première ligne (AAA, id 1) vient
+        // Premier sondage périodique (600ms) : la première ligne (AAA, id 1) vient
         // d'être traitée.
         .mockResolvedValueOnce({ en_cours: true, positions_traitees: 1, positions_total: 2, demarre_le: null, termine_le: null, statut: null, message: null })
         // Second sondage : la seconde ligne (BBB, id 2) vient d'être traitée, et le
@@ -1076,25 +1076,68 @@ describe('PortefeuillePage', () => {
       // micro-tâches sont nécessaires pour la laisser aller à son terme.
       await vi.waitFor(() => expect(api.getRefreshStatus).toHaveBeenCalledTimes(1))
 
-      // Premier sondage périodique : AAA s'allume, BBB pas encore.
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(2000)
-      })
-      expect(ligneAAA.className).toContain('animate-lumen-balayage-ligne')
+      // Premier sondage périodique (600ms, cf. `useRafraichissementCoursEtat`) :
+      // AAA s'allume, BBB pas encore (sa cotation n'est pas encore arrivée à ce
+      // stade — un fait structurel). `waitFor` plutôt qu'un `advanceTimersByTimeAsync`
+      // ponctuel : sous timers hybrides (`shouldAdvanceTime: true`), le temps réel
+      // qui s'écoule pendant les micro-tâches asynchrones fait dériver le temps
+      // simulé de façon peu prévisible — `waitFor` retente jusqu'à ce que la
+      // condition soit vraie plutôt que de viser un instant précis.
+      await waitFor(() => expect(ligneAAA.className).toContain('animate-lumen-balayage-ligne'), { timeout: 2000 })
       expect(ligneBBB.className).not.toContain('animate-lumen-balayage-ligne')
 
       // Second sondage : BBB s'allume à son tour.
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(2000)
-      })
-      expect(ligneBBB.className).toContain('animate-lumen-balayage-ligne')
+      await waitFor(() => expect(ligneBBB.className).toContain('animate-lumen-balayage-ligne'), { timeout: 2000 })
 
-      // Les deux s'éteignent seules après 700 ms (jamais en continu).
+      // Les deux s'éteignent seules après 1400ms (jamais en continu) — chacune un
+      // seul événement, puisque `positions_traitees` n'a avancé que d'une ligne à
+      // la fois ici (pas de lot à échelonner à tester dans ce cas).
+      await waitFor(
+        () => {
+          expect(ligneAAA.className).not.toContain('animate-lumen-balayage-ligne')
+          expect(ligneBBB.className).not.toContain('animate-lumen-balayage-ligne')
+        },
+        { timeout: 3000 },
+      )
+    })
+
+    it("retour utilisateur du 16/09/2026 : plusieurs lignes traitées dans le MÊME sondage s'allument l'une après l'autre, pas toutes au même instant", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', quantite: 10, market_data: marketData({ ticker: 'AAA' }) }),
+        holding({ id: 2, ticker: 'BBB', quantite: 5, market_data: marketData({ ticker: 'BBB' }) }),
+      ])
+      vi.mocked(api.refreshMarketData).mockResolvedValue({ en_cours: true } as never)
+      vi.mocked(api.getRefreshStatus)
+        .mockResolvedValueOnce({ en_cours: true, positions_traitees: 0, positions_total: 2, demarre_le: null, termine_le: null, statut: null, message: null })
+        // Un seul sondage rapporte les DEUX lignes traitées d'un coup (portefeuille
+        // traité plus vite que l'intervalle de sondage) : avant ce correctif, les
+        // deux s'allumaient au même instant ("par paquets") — désormais échelonnées
+        // (`DELAI_ENTRE_ALLUMAGES_MS` dans `PortefeuillePage.tsx`), vérifié ici en
+        // observant les délais réellement programmés plutôt qu'une fenêtre de temps
+        // étroite (fragile sous timers hybrides `shouldAdvanceTime`).
+        .mockResolvedValueOnce({ en_cours: false, positions_traitees: 2, positions_total: 2, demarre_le: null, termine_le: null, statut: 'ok', message: null })
+
+      const setTimeoutSpy = vi.spyOn(window, 'setTimeout')
+
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByRole('row', { name: /AAA/ })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Rafraîchir' }))
+      await vi.waitFor(() => expect(api.getRefreshStatus).toHaveBeenCalledTimes(1))
+
       await act(async () => {
         await vi.advanceTimersByTimeAsync(700)
       })
-      expect(ligneAAA.className).not.toContain('animate-lumen-balayage-ligne')
-      expect(ligneBBB.className).not.toContain('animate-lumen-balayage-ligne')
+
+      // Parmi les délais programmés pour l'allumage des deux lignes (< 200ms,
+      // pour exclure l'intervalle de sondage à 600ms et les extinctions à
+      // 1400ms+), au moins deux valeurs DIFFÉRENTES apparaissent : les deux
+      // lignes ne se sont pas allumées au même instant.
+      const delaisAllumage = setTimeoutSpy.mock.calls
+        .map(([, delai]) => delai)
+        .filter((d): d is number => typeof d === 'number' && d < 200)
+      expect(new Set(delaisAllumage).size).toBeGreaterThan(1)
     })
   })
 })

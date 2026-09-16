@@ -508,6 +508,7 @@ def refresh_tickers(
     db: Session,
     items: list[tuple[str, str | None]],
     on_progression: Callable[[int, int], None] | None = None,
+    forcer_non_cotables: bool = False,
 ) -> list[dict]:
     """items: liste de (identifiant, asset_class) — asset_class peut être None (saisie manuelle).
 
@@ -516,7 +517,19 @@ def refresh_tickers(
     `len(items)` — pour permettre à l'appelant (`demarrer_rafraichissement`) de
     publier une progression consultable pendant qu'un rafraîchissement complet
     (potentiellement plusieurs dizaines de secondes voire plus d'une minute) tourne
-    en tâche de fond."""
+    en tâche de fond.
+
+    `forcer_non_cotables` (retour utilisateur du 16/09/2026, §AT.x) : par défaut,
+    un symbole fabriqué par l'application (`PREFIXES_SYMBOLES_INTERNES`, ex. les
+    ~145 lignes synthétiques `BRICKS-*`) est sauté sans même être compté dans la
+    temporisation réseau — ces symboles ne correspondront JAMAIS à un titre coté,
+    inutile de gaspiller `DELAI_ENTRE_APPELS_SECONDES` dessus à chaque
+    rafraîchissement. `True` réintègre ces lignes dans le passage habituel
+    (elles resteront de toute façon en échec, `resolve_ticker` le sait déjà via
+    `echec_structurel`) — pensé pour un bouton dédié, explicite, plutôt que le
+    comportement par défaut. Les classes d'actif à saisie manuelle
+    (`TYPES_ACTIF_PATRIMOINE_MANUEL`) restent sautées inconditionnellement : pour
+    elles, aucune intégration fournisseur n'existe, forcer n'aurait aucun sens."""
     results = []
     now = datetime.now(UTC)
     seen: set[str] = set()
@@ -533,6 +546,14 @@ def refresh_tickers(
         # pas de ticker. Sauté avant même la déduplication `seen`/la temporisation, qui
         # n'ont de sens que pour des identifiants effectivement interrogés en réseau.
         if not identifiant or identifiant in seen or asset_class in TYPES_ACTIF_PATRIMOINE_MANUEL:
+            if on_progression:
+                on_progression(index, total)
+            continue
+        # Symbole interne (ex. `BRICKS-*`) : jamais cotable, cf. docstring de
+        # `refresh_tickers` ci-dessus. Sauté par défaut, avant la déduplication
+        # `seen`/la temporisation réseau puisqu'aucun appel n'aurait lieu de toute
+        # façon (`resolve_ticker` le sait déjà via `echec_structurel`).
+        if not forcer_non_cotables and identifiant.startswith(PREFIXES_SYMBOLES_INTERNES):
             if on_progression:
                 on_progression(index, total)
             continue

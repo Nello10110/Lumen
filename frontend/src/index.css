@@ -356,9 +356,20 @@ summary,
 
 /* Backlog § AH.2 (15/09/2026) — balayage lumineux au rafraîchissement des cours
    (`PositionsTable.tsx`) : chaque ligne s'"allume" brièvement au moment précis où
-   sa nouvelle cotation arrive, dans l'ordre réel de traitement du backend. */
+   sa nouvelle cotation arrive, dans l'ordre réel de traitement du backend.
+
+   Retour utilisateur du 16/09/2026 (§AT.x) : l'ancienne version passait de pleine
+   opacité à transparent en 700ms linéaire — perçue comme un "cut" plutôt qu'une
+   animation. Montée rapide (0 -> 12%) puis descente longue et douce (12% -> 100%,
+   `ease-out`) sur une durée bien plus généreuse (1400ms) : la ligne semble
+   s'allumer puis s'éteindre en douceur, jamais couper net. `PortefeuillePage.tsx`
+   (`DUREE_ALLUMAGE_MS`) programme le retrait de la classe en cohérence avec cette
+   même durée. */
 @keyframes lumen-balayage-ligne {
   0% {
+    background-color: transparent;
+  }
+  12% {
     background-color: rgba(37, 116, 240, 0.16);
   }
   100% {
@@ -366,7 +377,7 @@ summary,
   }
 }
 .animate-lumen-balayage-ligne {
-  animation: lumen-balayage-ligne 700ms ease-out;
+  animation: lumen-balayage-ligne 1400ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-lumen-balayage-ligne {

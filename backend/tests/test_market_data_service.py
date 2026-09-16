@@ -198,6 +198,40 @@ def test_refresh_tickers_saute_le_patrimoine_valorise_manuellement(db, monkeypat
     assert any(r.get("ticker") == "AAA" for r in resultats)
 
 
+def test_refresh_tickers_saute_par_defaut_les_symboles_internes(db, monkeypatch):
+    """Retour utilisateur du 16/09/2026 (§AT.x) : un symbole `BRICKS-*` ne sera
+    JAMAIS cotable — inutile de le passer par la temporisation réseau à chaque
+    rafraîchissement. Sauté par défaut, sans même appeler `resolve_ticker`."""
+    appels_resolve = []
+    monkeypatch.setattr(
+        market_data_service,
+        "resolve_ticker",
+        lambda db, identifiant, asset_class: appels_resolve.append(identifiant) or None,
+    )
+
+    resultats = market_data_service.refresh_tickers(db, [("BRICKS-AAAA", "BOND"), ("AAA", "STOCK")])
+
+    assert appels_resolve == ["AAA"]
+    assert db.get(MarketDataCache, "BRICKS-AAAA") is None
+    assert any(r.get("ticker") == "AAA" for r in resultats)
+
+
+def test_refresh_tickers_forcer_non_cotables_reintegre_les_symboles_internes(db, monkeypatch):
+    """`forcer_non_cotables=True` (bouton dédié de Réglages) réintègre les lignes
+    `BRICKS-*` dans le passage habituel — elles restent en échec, mais sont de
+    nouveau interrogées si l'utilisateur le demande explicitement."""
+    appels_resolve = []
+    monkeypatch.setattr(
+        market_data_service,
+        "resolve_ticker",
+        lambda db, identifiant, asset_class: appels_resolve.append(identifiant) or None,
+    )
+
+    market_data_service.refresh_tickers(db, [("BRICKS-AAAA", "BOND"), ("AAA", "STOCK")], forcer_non_cotables=True)
+
+    assert appels_resolve == ["BRICKS-AAAA", "AAA"]
+
+
 def test_refresh_manuel_second_appel_immediat_refuse_en_429(client, db):
     make_holding(db, ticker="AAA", quantite=1.0)
 

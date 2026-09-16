@@ -33,6 +33,13 @@ const JOB_DESCRIPTIONS: Record<string, string> = {
 // l'intervalle une première fois.
 const INTERVAL_OPTIONS = [1, 6, 12, 24, 48, 168]
 
+// Retour utilisateur du 16/09/2026 : les lignes structurellement non cotables (ex.
+// les positions Bricks.co, symbole interne `BRICKS-*`) sont désormais sautées par
+// défaut à chaque rafraîchissement — ce bouton, réservé à ce job précis, permet de
+// les réinterroger explicitement (utile après une évolution de leur cotabilité).
+const TITRE_FORCER_NON_COTABLES =
+  "Réinterroge aussi les positions habituellement sautées (ex. Bricks.co) car connues comme jamais cotables. Rarement utile — surtout en cas de doute."
+
 export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: ScheduledJob) => void }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,9 +88,9 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
     }
   }
 
-  function handleRunNow() {
+  function handleRunNow(forcerNonCotables = false) {
     setError(null)
-    declencher(() => api.runJobNow(job.job_key))
+    declencher(() => api.runJobNow(job.job_key, forcerNonCotables))
   }
 
   const libelleRunNow =
@@ -117,9 +124,15 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
           </select>
         </label>
 
-        <SecondaryButton onClick={handleRunNow} disabled={running} className="ml-auto">
+        <SecondaryButton onClick={() => handleRunNow(false)} disabled={running} className="ml-auto">
           {running ? libelleRunNow : 'Lancer maintenant'}
         </SecondaryButton>
+
+        {job.job_key === 'market_data_refresh' && (
+          <SecondaryButton onClick={() => handleRunNow(true)} disabled={running} title={TITRE_FORCER_NON_COTABLES}>
+            Forcer aussi les cotations indisponibles
+          </SecondaryButton>
+        )}
       </div>
 
       <div className="mt-4 border-t border-bordure pt-3 text-xs text-texte-attenue">

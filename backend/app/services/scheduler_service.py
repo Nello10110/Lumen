@@ -299,7 +299,7 @@ def update_job_config(db: Session, job_key: str, enabled: bool, intervalle_heure
     return config
 
 
-def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
+def run_job_now(db: Session, job_key: str, forcer_non_cotables: bool = False) -> ScheduledJobConfig:
     """Déclenche `job_key` sans bloquer la requête HTTP (LOT 4B).
 
     Le job planifié (`_run_market_data_refresh`, exécuté par APScheduler dans son
@@ -337,7 +337,11 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
     rafraîchissement terminé (`GET /api/market-data/refresh/status` ne redevient
     `en_cours=False` qu'à ce moment-là) pour voir `derniere_execution`/`dernier_statut`
     évoluer. Lève `market_data_refresh.RafraichissementDejaEnCoursError` si un
-    rafraîchissement est déjà en cours ; dans ce cas rien n'est démarré ni modifié."""
+    rafraîchissement est déjà en cours ; dans ce cas rien n'est démarré ni modifié.
+
+    `forcer_non_cotables` (retour utilisateur du 16/09/2026) : n'a de sens que pour
+    `MARKET_DATA_REFRESH` (voir `market_data_service.refresh_tickers`) ; ignoré sans
+    effet pour tout autre `job_key`, qui ne connaît pas ce concept."""
     if job_key not in JOBS:
         raise KeyError(job_key)
 
@@ -357,7 +361,9 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
             finally:
                 db_statut.close()
 
-        market_data_refresh.demarrer_rafraichissement(items, on_termine=_sur_fin)
+        market_data_refresh.demarrer_rafraichissement(
+            items, on_termine=_sur_fin, forcer_non_cotables=forcer_non_cotables
+        )
     else:  # branche générique (ex. JUSTETF_REFRESH), cf. docstring ci-dessus
         JOBS[job_key]()
 

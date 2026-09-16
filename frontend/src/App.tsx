@@ -8,6 +8,7 @@ import CelebrationJalon from './components/CelebrationJalon'
 import EnTeteMobile from './components/EnTeteMobile'
 import LumenMark from './components/LumenMark'
 import MiseAJourDisponible from './components/MiseAJourDisponible'
+import RafraichissementCoursIndicateur from './components/RafraichissementCoursIndicateur'
 import { SkeletonTexte } from './components/Skeleton'
 import { useAppliquerTheme } from './hooks/useTheme'
 import Sidebar from './components/Sidebar'
@@ -15,6 +16,7 @@ import RattrapageComptes from './components/onboarding/RattrapageComptes'
 import WelcomeWizard from './components/onboarding/WelcomeWizard'
 import { AuthProvider } from './contexts/AuthContext'
 import { PreferencesAffichageProvider } from './contexts/PreferencesAffichageContext'
+import { RafraichissementCoursProvider } from './contexts/RafraichissementCoursContext'
 import { useAuth } from './hooks/useAuth'
 import { PAGE_COMPONENTS } from './layout/pageComponents'
 import { ROUTES } from './layout/routes'
@@ -153,82 +155,85 @@ function AppAuthentifiee() {
 
   return (
     <PreferencesAffichageProvider>
-      {flash}
-      {celebration}
-      {ambiance}
-      {/* Coque de la refonte « liquid glass » (étape 3) : la racine ne défile jamais
-          et laisse voir le fond à halos porté par `<body>` (plus de `bg-surface-elevee`
-          opaque par-dessus). Les panneaux flottent dessus, séparés de 14 px. */}
-      <div className="flex h-screen gap-[14px] overflow-hidden p-[14px]">
-        <Sidebar />
+      <RafraichissementCoursProvider>
+        {flash}
+        {celebration}
+        {ambiance}
+        <RafraichissementCoursIndicateur />
+        {/* Coque de la refonte « liquid glass » (étape 3) : la racine ne défile jamais
+            et laisse voir le fond à halos porté par `<body>` (plus de `bg-surface-elevee`
+            opaque par-dessus). Les panneaux flottent dessus, séparés de 14 px. */}
+        <div className="flex h-screen gap-[14px] overflow-hidden p-[14px]">
+          <Sidebar />
 
-        {/* `min-w-0` : sans lui, un tableau large (Patrimoine) force la colonne à
-            s'élargir au lieu de défiler à l'intérieur — le défaut `min-width:auto`
-            d'un enfant flex. */}
-        <main className="flex min-w-0 flex-1 flex-col gap-[14px]">
-          {/* Deux en-têtes exclusifs, jamais montés en même temps : la barre de
-              contrôles desktop est `hidden md:flex`, `EnTeteMobile` est `md:hidden`.
-              Même partage que `Sidebar`/`BottomNav` — la maquette mobile ne réduit pas
-              la barre desktop, elle la remplace. */}
-          <BarreControles />
-          <EnTeteMobile />
-          {/* Seule cette zone défile (`min-h-0` : sans lui, un enfant flex refuse de
-              devenir plus petit que son contenu, et c'est la page entière qui
-              défilerait — ce que la coque interdit). La barre de contrôles reste donc
-              visible sans `position: sticky`.
-              `pb-24` (backlog 2.K.4, < 768 px) : marge sous le contenu pour ne jamais
-              le laisser passer sous `BottomNav`, fixe en bas de l'écran sur mobile. */}
-          {/* Aucune largeur maximale ici (retour utilisateur du 07/09/2026 : « la
-              fenêtre au milieu prend tout l'espace sur les maquettes, pas sur le
-              site »). Le `max-w-6xl` qui traînait plafonnait le contenu à 1152 px et
-              le centrait : invisible sur un écran de 1440 px, mais il laissait 500 px
-              de vide à droite au-delà. La maquette, elle, donne `flex: 1` à la colonne
-              de contenu — les panneaux vont jusqu'au bord, et ce sont EUX qui se
-              donnent une largeur maximale quand leur contenu le demande (Réglages en
-              colonne de 760 px, Connexion en 400 px). */}
-          <div className="min-h-0 flex-1 overflow-y-auto pb-24 md:pb-0">
-            <Suspense fallback={<SkeletonTexte />}>
-              <Routes>
-                {ROUTES.map((r) => {
-                  const Composant = PAGE_COMPONENTS[r.path]
-                  return Composant ? <Route key={r.path} path={r.path} element={<Composant />} /> : null
-                })}
+          {/* `min-w-0` : sans lui, un tableau large (Patrimoine) force la colonne à
+              s'élargir au lieu de défiler à l'intérieur — le défaut `min-width:auto`
+              d'un enfant flex. */}
+          <main className="flex min-w-0 flex-1 flex-col gap-[14px]">
+            {/* Deux en-têtes exclusifs, jamais montés en même temps : la barre de
+                contrôles desktop est `hidden md:flex`, `EnTeteMobile` est `md:hidden`.
+                Même partage que `Sidebar`/`BottomNav` — la maquette mobile ne réduit pas
+                la barre desktop, elle la remplace. */}
+            <BarreControles />
+            <EnTeteMobile />
+            {/* Seule cette zone défile (`min-h-0` : sans lui, un enfant flex refuse de
+                devenir plus petit que son contenu, et c'est la page entière qui
+                défilerait — ce que la coque interdit). La barre de contrôles reste donc
+                visible sans `position: sticky`.
+                `pb-24` (backlog 2.K.4, < 768 px) : marge sous le contenu pour ne jamais
+                le laisser passer sous `BottomNav`, fixe en bas de l'écran sur mobile. */}
+            {/* Aucune largeur maximale ici (retour utilisateur du 07/09/2026 : « la
+                fenêtre au milieu prend tout l'espace sur les maquettes, pas sur le
+                site »). Le `max-w-6xl` qui traînait plafonnait le contenu à 1152 px et
+                le centrait : invisible sur un écran de 1440 px, mais il laissait 500 px
+                de vide à droite au-delà. La maquette, elle, donne `flex: 1` à la colonne
+                de contenu — les panneaux vont jusqu'au bord, et ce sont EUX qui se
+                donnent une largeur maximale quand leur contenu le demande (Réglages en
+                colonne de 760 px, Connexion en 400 px). */}
+            <div className="min-h-0 flex-1 overflow-y-auto pb-24 md:pb-0">
+              <Suspense fallback={<SkeletonTexte />}>
+                <Routes>
+                  {ROUTES.map((r) => {
+                    const Composant = PAGE_COMPONENTS[r.path]
+                    return Composant ? <Route key={r.path} path={r.path} element={<Composant />} /> : null
+                  })}
 
-                <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
-                <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />
-                {/* Feature d'objectifs de répartition annuelle retirée (25/08/2026) —
-                    cette ancienne URL redirige vers le Tableau de bord plutôt que de
-                    disparaître, même logique que les autres redirections ci-dessus.
-                    `/analyse`, qui redirigeait ici pour la même raison, est redevenue
-                    un écran à part entière le 07/09/2026. */}
-                <Route path="/repartition" element={<Navigate to="/" replace />} />
-                {/* L'écran Dividendes est devenu l'onglet Revenus d'`Analyse`
-                    (07/09/2026) : l'ancienne URL y mène directement. */}
-                <Route path="/dividendes" element={<Navigate to="/analyse?onglet=revenus" replace />} />
-                {/* Le Simulateur (projection/FIRE) est devenu l'onglet « Simulateur »
-                    d'`Analyse` (16/09/2026, retour utilisateur : il n'avait pas sa
-                    place sur `/objectifs`, aux côtés du suivi d'objectifs, avec
-                    lequel il ne partageait aucune donnée) : l'ancienne URL y mène
-                    directement. */}
-                <Route path="/simulateur" element={<Navigate to="/analyse?onglet=projection" replace />} />
-                {/* Suivi d'objectifs retiré (16/09/2026, retour utilisateur : la
-                    fonctionnalité avait perdu son intérêt, cf. `docs/BACKLOG.md`
-                    § AJ) — les indicateurs de situation qui vivaient sur cette
-                    page ont rejoint l'onglet Portefeuille d'`Analyse`, l'ancienne
-                    URL y mène donc plutôt que de disparaître. */}
-                <Route path="/objectifs" element={<Navigate to="/analyse" replace />} />
-                {/* Backlog § AD.3 (15/09/2026) : jusqu'ici une URL inconnue tombait sur
-                    un cadre vide, sans message — cette route capture tout ce qu'aucune
-                    route ci-dessus n'a intercepté (React Router : matché en dernier
-                    recours, quel que soit l'ordre de déclaration). */}
-                <Route path="*" element={<PageIntrouvablePage />} />
-              </Routes>
-            </Suspense>
-          </div>
-        </main>
+                  <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
+                  <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />
+                  {/* Feature d'objectifs de répartition annuelle retirée (25/08/2026) —
+                      cette ancienne URL redirige vers le Tableau de bord plutôt que de
+                      disparaître, même logique que les autres redirections ci-dessus.
+                      `/analyse`, qui redirigeait ici pour la même raison, est redevenue
+                      un écran à part entière le 07/09/2026. */}
+                  <Route path="/repartition" element={<Navigate to="/" replace />} />
+                  {/* L'écran Dividendes est devenu l'onglet Revenus d'`Analyse`
+                      (07/09/2026) : l'ancienne URL y mène directement. */}
+                  <Route path="/dividendes" element={<Navigate to="/analyse?onglet=revenus" replace />} />
+                  {/* Le Simulateur (projection/FIRE) est devenu l'onglet « Simulateur »
+                      d'`Analyse` (16/09/2026, retour utilisateur : il n'avait pas sa
+                      place sur `/objectifs`, aux côtés du suivi d'objectifs, avec
+                      lequel il ne partageait aucune donnée) : l'ancienne URL y mène
+                      directement. */}
+                  <Route path="/simulateur" element={<Navigate to="/analyse?onglet=projection" replace />} />
+                  {/* Suivi d'objectifs retiré (16/09/2026, retour utilisateur : la
+                      fonctionnalité avait perdu son intérêt, cf. `docs/BACKLOG.md`
+                      § AJ) — les indicateurs de situation qui vivaient sur cette
+                      page ont rejoint l'onglet Portefeuille d'`Analyse`, l'ancienne
+                      URL y mène donc plutôt que de disparaître. */}
+                  <Route path="/objectifs" element={<Navigate to="/analyse" replace />} />
+                  {/* Backlog § AD.3 (15/09/2026) : jusqu'ici une URL inconnue tombait sur
+                      un cadre vide, sans message — cette route capture tout ce qu'aucune
+                      route ci-dessus n'a intercepté (React Router : matché en dernier
+                      recours, quel que soit l'ordre de déclaration). */}
+                  <Route path="*" element={<PageIntrouvablePage />} />
+                </Routes>
+              </Suspense>
+            </div>
+          </main>
 
-        <BottomNav />
-      </div>
+          <BottomNav />
+        </div>
+      </RafraichissementCoursProvider>
     </PreferencesAffichageProvider>
   )
 }

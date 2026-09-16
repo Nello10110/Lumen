@@ -61,17 +61,21 @@ def update_job(job_key: str, payload: ScheduledJobUpdate, db: Session = Depends(
 
 
 @router.post("/jobs/{job_key}/run-now", response_model=ScheduledJobOut, status_code=202)
-def run_job_now(job_key: str, db: Session = Depends(get_db)):
+def run_job_now(job_key: str, forcer_non_cotables: bool = False, db: Session = Depends(get_db)):
     """Démarre l'exécution manuelle sans bloquer la requête (LOT 4B) : renvoie
     tout de suite la config actuelle (202, pas encore mise à jour par cette
     exécution). Le frontend suit la progression via
     `GET /api/market-data/refresh/status` (même exécuteur en tâche de fond que le
     bouton "Rafraîchir les cours" du Portefeuille, cf. `scheduler_service.run_job_now`)
     puis rappelle `GET /api/settings/jobs` une fois terminé pour rafraîchir
-    "Dernière exécution"."""
+    "Dernière exécution".
+
+    `forcer_non_cotables` (retour utilisateur du 16/09/2026) : n'a d'effet que pour
+    `job_key="market_data_refresh"` — ignoré sans erreur pour les autres, qui ne
+    connaissent pas ce concept (cf. `scheduler_service.run_job_now`)."""
     if job_key not in scheduler_service.JOBS:
         raise HTTPException(status_code=404, detail="Tâche inconnue")
     try:
-        return scheduler_service.run_job_now(db, job_key)
+        return scheduler_service.run_job_now(db, job_key, forcer_non_cotables=forcer_non_cotables)
     except market_data_refresh.RafraichissementDejaEnCoursError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

@@ -62,7 +62,7 @@ def test_second_demarrage_immediat_refuse_tant_que_le_premier_tourne(monkeypatch
     demarre = threading.Event()
     liberer = threading.Event()
 
-    def refresh_tickers_bloquant(db, items, on_progression=None):
+    def refresh_tickers_bloquant(db, items, on_progression=None, forcer_non_cotables=False):
         demarre.set()
         assert liberer.wait(timeout=5), "le test n'a pas libéré le fil à temps"
         return []
@@ -87,7 +87,7 @@ def test_progression_reportee_au_fil_du_rafraichissement(monkeypatch):
     etape_vue = threading.Event()
     continuer = threading.Event()
 
-    def refresh_tickers_pas_a_pas(db, items, on_progression=None):
+    def refresh_tickers_pas_a_pas(db, items, on_progression=None, forcer_non_cotables=False):
         on_progression(1, len(items))
         etape_vue.set()
         assert continuer.wait(timeout=5), "le test n'a pas laissé la deuxième étape se jouer à temps"
@@ -114,7 +114,7 @@ def test_progression_reportee_au_fil_du_rafraichissement(monkeypatch):
 
 
 def test_erreur_dans_le_fil_reflechie_en_statut_erreur_sans_faire_planter_le_process(monkeypatch):
-    def refresh_tickers_defaillant(db, items, on_progression=None):
+    def refresh_tickers_defaillant(db, items, on_progression=None, forcer_non_cotables=False):
         raise RuntimeError("panne simulée du rafraîchissement en tâche de fond")
 
     monkeypatch.setattr(market_data_service, "refresh_tickers", refresh_tickers_defaillant)
@@ -146,7 +146,7 @@ def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(m
     finally:
         db.close()
 
-    monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None: [])
+    monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None, forcer_non_cotables=False: [])
 
     market_data_refresh.demarrer_rafraichissement([("AAA", "STOCK")])
     attendre_fin_rafraichissement_arriere_plan()
@@ -199,7 +199,7 @@ def test_route_refresh_202_puis_status_puis_409_si_deja_en_cours(client, db, mon
     demarre = threading.Event()
     liberer = threading.Event()
 
-    def refresh_tickers_bloquant(db, items, on_progression=None):
+    def refresh_tickers_bloquant(db, items, on_progression=None, forcer_non_cotables=False):
         demarre.set()
         assert liberer.wait(timeout=5)
         return []
