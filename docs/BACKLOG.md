@@ -4378,6 +4378,41 @@ jamais préchargé depuis les lignes existantes — mêmes raisons que `Quotites
 diverger d'une ligne à l'autre).
 
 ---
+
+### AQ. Rendement annualisé absent pour un PER sans date d'acquisition (17/09/2026)
+
+#### AQ.1 — `mineur` · `S` · `traité` (17/09/2026) — Rendement annualisé dérivé de l'historique de valorisation daté
+
+Retour utilisateur direct : « mes PER dans l'écran plus-value par compte de Compte n'ont pas de
+rendement annualisé affiché, c'est normal ? ». Cause confirmée : `_rendement_pour_ligne`
+(`performance_service.py`) ne calculait un rendement annualisé (XIRR) pour une ligne valorisée
+manuellement (immobilier/épargne/PER...) SANS grand livre de transactions que si `Holding.date_acquisition`
+était explicitement renseignée — un champ séparé, jamais rempli par le mécanisme d'historique de
+valorisation daté (`PUT .../valorisation`). Un PER suivi uniquement via ce second mécanisme (cas déjà
+identifié en § AM.2) restait donc systématiquement sans rendement annualisé, même avec un historique de
+valorisation complet et des versements déclarés.
+
+Nouvelle fonction `immobilier_service.flux_investis_derives` (même ancrage sur le coût d'acquisition que
+`patrimoine_history_service._serie_investie_manuel`/`investi_cumule_derive`, § AM.2 — dupliqué plutôt
+qu'importé pour éviter un cycle entre `performance_service`/`patrimoine_history_service`) : reconstruit
+un flux de trésorerie PAR versement réellement déclaré dans l'historique de valorisation daté, à sa
+vraie date — bien plus fidèle que l'ancien repli `date_acquisition` à UN SEUL flux (qui suppose tout le
+capital investi le même jour), en particulier pour une ligne alimentée progressivement. Essayé AVANT le
+repli `date_acquisition` dans `_rendement_pour_ligne`, mais sans l'exclure : si l'historique ne permet
+aucun résultat exploitable (cas dégénéré observé : tous les versements déclarés à la date du jour même,
+aucun écart de temps entre les flux, `xirr` renvoie `None` par construction faute de solution), le repli
+`date_acquisition` reste tenté ensuite plutôt que de laisser le champ à `None` alors qu'il restait
+calculable par cette autre voie. Chargé par lot (réutilise `historiques_manuels`, déjà batch-loadé pour
+§ AM.2) — aucune requête SQL supplémentaire dans `compute_holding_returns`.
+
+**Limite assumée, à communiquer à l'utilisateur** : si TOUS les points de l'historique d'une ligne
+(y compris le tout dernier versement déclaré) portent la date du jour même où ils ont été saisis — cas
+plausible si le foyer a renseigné tout son historique en une seule séance, avec seule la toute première
+valorisation antidatée — le rendement annualisé reste `None` par ce mécanisme (pas d'écart de temps à
+mesurer) ; renseigner `date_acquisition` sur la ligne reste alors la seule voie pour obtenir une
+estimation, moins précise mais mieux que rien.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
