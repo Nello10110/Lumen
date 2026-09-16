@@ -3879,19 +3879,26 @@ de dépenses courantes », à côté (jamais à la place) du montant cible en eu
 (matelas de sécurité, § O.2), pas une moyenne nationale anonyme. Absent si la donnée manque ou si
 l'objectif est déjà atteint.
 
+**Retiré collatéralement le 16/09/2026** : son seul site d'usage (la carte d'un objectif suivi) a
+disparu avec le retrait du suivi d'objectifs lui-même (§ O.1, cf. § AJ) — rien à relocaliser, la
+fonctionnalité n'a de sens que rattachée à un montant cible, qui n'existe plus.
+
 #### AG.3 — `traité` (16/09/2026) — Célébrations discrètes aux jalons
 
 Nouveau composant `CelebrationJalon.tsx` (même patron que `LumenFaitAmusant.tsx`/
 `MiseAJourDisponible.tsx`) : à la connexion, le premier jalon personnel tout juste franchi (parmi les
-quatre de § AG.4) s'affiche en toast chaleureux, marqué célébré à la fermeture — jamais rejoué pour
-le même jalon. Backend : `services/jalons_service.py`, quatre jalons dérivés des données existantes
-(premier import, 3 mois/1 an de suivi, premier objectif atteint), sans nouvelle table — seule la
-« célébration déjà vue » est persistée.
+jalons de § AG.4) s'affiche en toast chaleureux, marqué célébré à la fermeture — jamais rejoué pour
+le même jalon. Backend : `services/jalons_service.py`, jalons dérivés des données existantes (premier
+import, 3 mois/1 an de suivi), sans nouvelle table — seule la « célébration déjà vue » est persistée.
+
+**16/09/2026 (même jour, cf. § AJ)** : le jalon « premier objectif atteint » (quatrième à la
+livraison initiale) est retiré avec le suivi d'objectifs — trois jalons restent.
 
 #### AG.4 — `traité` (16/09/2026) — Badges personnels, jamais sociaux
 
-Nouvel onglet « Badges » de Réglages (`BadgesCard.tsx`) : galerie des quatre jalons ci-dessus,
-obtenus ET à venir, avec leur date d'obtention — strictement personnelle (aucun endpoint de
+Nouvel onglet « Badges » de Réglages (`BadgesCard.tsx`) : galerie des jalons ci-dessus (trois depuis
+le retrait du quatrième, cf. § AG.3/§ AJ), obtenus ET à venir, avec leur date d'obtention —
+strictement personnelle (aucun endpoint de
 comparaison entre comptes n'existe), jamais un chiffre en euros (valorise la régularité, jamais le
 volume investi). Même source que la célébration (`GET /api/jalons`), jamais d'appel à
 `marquer-célèbre` depuis cet écran.
