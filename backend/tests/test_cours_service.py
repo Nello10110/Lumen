@@ -310,3 +310,89 @@ def test_les_series_sont_partagees_entre_tickers_sans_interference(db, faux_yf):
 
     assert [v for _, v in cours_service.serie_brute(db, "AAA")] == [100.0, 105.0, 110.0]
     assert [v for _, v in cours_service.serie_brute(db, "BBB")] == [7.0]
+
+
+# --- rafraichir_crypto / serie_crypto_en_euros (retour utilisateur du 17/09/2026 :
+# « l'historique de performance n'est pas présent » pour une ligne crypto) --------
+
+
+def test_rafraichir_crypto_persiste_les_points_coingecko(db, monkeypatch):
+    appels = []
+
+    def _fetch(ticker, **kwargs):
+        appels.append(ticker)
+        return [("2024-01-01", 42000.0), ("2024-01-02", 42100.0)]
+
+    monkeypatch.setattr(cours_service.coingecko_service, "fetch_market_chart", _fetch)
+
+    meta = cours_service.rafraichir_crypto(db, "BTC")
+
+    assert appels == ["BTC"]
+    assert meta.devise == "EUR"  # jamais de conversion de change à faire pour une crypto
+    assert meta.premiere_date == "2024-01-01"
+    assert meta.derniere_date == "2024-01-02"
+    assert db.query(CoursHistorique).filter(CoursHistorique.ticker == "BTC").count() == 2
+
+
+def test_serie_crypto_en_euros_ne_convertit_jamais_meme_sans_devise_eur_explicite(db, monkeypatch):
+    """`serie_en_euros` (yfinance) convertirait toute devise non-EUR — `serie_crypto_en_euros`
+    ne doit JAMAIS le faire : la valeur CoinGecko est déjà en euros par construction
+    (`vs_currency=eur`), il n'y a même pas de série de change à aller chercher."""
+    monkeypatch.setattr(cours_service.coingecko_service, "fetch_market_chart", lambda ticker, **k: [("2024-01-01", 42000.0)])
+
+    serie = cours_service.serie_crypto_en_euros(db, "BTC")
+
+    assert serie == [(datetime(2024, 1, 1), 42000.0)]
+
+
+def test_rafraichir_crypto_echec_coingecko_laisse_la_serie_en_letat(db, monkeypatch):
+    """Même garantie que `rafraichir` (yfinance) : une panne réseau ne vide jamais
+    un graphique déjà rempli, on sert ce que la base contient déjà."""
+    appels = {"n": 0}
+
+    def _fetch(ticker, **k):
+        appels["n"] += 1
+        if appels["n"] == 1:
+            return [("2024-01-01", 42000.0)]
+        return None  # panne simulée au rafraîchissement suivant
+
+    monkeypatch.setattr(cours_service.coingecko_service, "fetch_market_chart", _fetch)
+    cours_service.rafraichir_crypto(db, "BTC")
+    meta = db.get(SerieCours, "BTC")
+    meta.derniere_maj = _utcnow() - timedelta(hours=cours_service.DUREE_FRAICHEUR_HEURES + 1)
+    db.commit()
+
+    cours_service.rafraichir_crypto(db, "BTC")
+
+    assert [v for _, v in cours_service._lire(db, "BTC")] == [42000.0]
+
+
+def test_rafraichir_crypto_ne_redemande_rien_avant_expiration_de_la_fraicheur(db, monkeypatch):
+    appels = {"n": 0}
+
+    def _fetch(ticker, **k):
+        appels["n"] += 1
+        return [("2024-01-01", 42000.0)]
+
+    monkeypatch.setattr(cours_service.coingecko_service, "fetch_market_chart", _fetch)
+
+    cours_service.rafraichir_crypto(db, "BTC")
+    cours_service.rafraichir_crypto(db, "BTC")
+    cours_service.rafraichir_crypto(db, "BTC")
+
+    assert appels["n"] == 1
+
+
+def test_rafraichir_crypto_et_rafraichir_yfinance_ne_se_melangent_jamais(db, faux_yf, monkeypatch):
+    """Deux sources distinctes pour deux ticker différents ne doivent jamais
+    interférer — même garde-fou que `test_les_series_sont_partagees_entre_tickers_sans_interference`,
+    pour la paire yfinance/CoinGecko cette fois."""
+    monkeypatch.setattr(cours_service.coingecko_service, "fetch_market_chart", lambda ticker, **k: [("2024-02-01", 42000.0)])
+
+    cours_service.serie_brute(db, "AAA")  # yfinance
+    cours_service.rafraichir_crypto(db, "BTC")  # CoinGecko
+
+    assert [v for _, v in cours_service.serie_brute(db, "AAA")] == [100.0, 105.0, 110.0]
+    assert [v for _, v in cours_service.serie_crypto_en_euros(db, "BTC")] == [42000.0]
+    assert db.get(SerieCours, "AAA").devise == "EUR"
+    assert db.get(SerieCours, "BTC").devise == "EUR"

@@ -228,11 +228,17 @@ def _compute_portfolio_history(
         if not state.shares_history or symbol in price_series:
             continue
         # CRYPTO exclue (15/09/2026, cf. `coingecko_service`) : plus de ticker
-        # Yahoo à résoudre pour elle. Historique CoinGecko non exploité ici (hors
-        # périmètre de ce correctif, cf. docs/BACKLOG.md § AE) — la courbe du
-        # portefeuille retombe sur `prix_revient_moyen` pour ces points (`_value_at`
-        # ci-dessous, comme pour toute autre position sans série connue), jamais sur
-        # un titre sans rapport.
+        # Yahoo à résoudre pour elle. L'historique CoinGecko EST désormais exploité
+        # pour la fiche d'une ligne crypto (`_compute_holding_price_history` plus
+        # bas, `cours_service.rafraichir_crypto`/`serie_crypto_en_euros`, retour
+        # utilisateur du 17/09/2026) mais volontairement PAS ici — cette courbe-ci
+        # est celle du PORTEFEUILLE ENTIER, toutes classes mélangées sur une seule
+        # grille ; y brancher CoinGecko en plus de yfinance reste un chantier séparé
+        # (mêmes questions de crédits/délai d'appel à multiplier par le nombre de
+        # positions, hors périmètre de ce correctif-ci, cf. docs/BACKLOG.md § AE) —
+        # la courbe du portefeuille retombe sur `prix_revient_moyen` pour ces points
+        # (`_value_at` ci-dessous, comme pour toute autre position sans série
+        # connue), jamais sur un titre sans rapport.
         if state.asset_class == "CRYPTO":
             continue
         ticker_resolu = market_data_service.resolve_ticker(db, symbol, state.asset_class)
@@ -386,23 +392,24 @@ def _compute_holding_price_history(db: Session, holding_id: int, user_id: int) -
         return None
 
     # CRYPTO n'a plus de ticker Yahoo à résoudre depuis le 15/09/2026 (cf.
-    # `coingecko_service`) — l'historique CoinGecko (disponible sur son plan
-    # gratuit, contrairement à CoinMarketCap, mais non exploité ici, hors
-    # périmètre de ce correctif) n'est pas branché : pas de courbe de prix pour une
-    # crypto pour l'instant (`None`, jamais une donnée d'un titre sans rapport
-    # comme avant ce correctif).
+    # `coingecko_service`) — source CoinGecko dédiée (retour utilisateur du
+    # 17/09/2026 : l'historique de performance manquait pour ces lignes, § AE.3 du
+    # backlog, délibérément différé à l'époque plutôt que résolu). Jamais de
+    # résolution de ticker Yahoo pour elle, même bypass que partout ailleurs dans
+    # ce module pour cette classe d'actif.
     if holding.type_actif == "CRYPTO":
-        return None
+        series = cours_service.serie_crypto_en_euros(db, holding.ticker.strip().upper())
+    else:
+        ticker_resolu = market_data_service.resolve_ticker(db, holding.ticker, holding.type_actif)
+        if ticker_resolu is None:
+            return None
 
-    ticker_resolu = market_data_service.resolve_ticker(db, holding.ticker, holding.type_actif)
-    if ticker_resolu is None:
-        return None
-
-    # Même série que celle qu'utilise l'historique du portefeuille (backlog § AB.2) :
-    # les deux écrans affichaient la même donnée de marché en la téléchargeant chacun
-    # de son côté. Volatilité et drawdown restent calculés ici, sur place — ce sont
-    # quelques millisecondes sur une série déjà en mémoire.
-    series = cours_service.serie_en_euros(db, ticker_resolu)
+        # Même série que celle qu'utilise l'historique du portefeuille (backlog
+        # § AB.2) : les deux écrans affichaient la même donnée de marché en la
+        # téléchargeant chacun de son côté. Volatilité et drawdown restent
+        # calculés ici, sur place — ce sont quelques millisecondes sur une série
+        # déjà en mémoire.
+        series = cours_service.serie_en_euros(db, ticker_resolu)
     if len(series) < 2:
         return None
 

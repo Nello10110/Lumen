@@ -141,19 +141,45 @@ def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(
     assert resultat_chaud == resultat_froid
 
 
-def test_holding_price_history_crypto_ne_resout_jamais_via_yahoo(db, monkeypatch):
-    """15/09/2026 : CoinGecko (source désormais exclusive du prix d'une crypto,
-    cf. `coingecko_service`) n'est pas branché pour l'historique (hors périmètre
-    de ce correctif) — une crypto n'a donc pas de courbe pour l'instant (`None`),
-    mais ne doit plus jamais interroger Yahoo Finance pour tenter d'en obtenir une
-    (c'est cette résolution qui causait l'incident PKN -> Orlen S.A.)."""
+def test_holding_price_history_crypto_utilise_coingecko_jamais_yahoo(db, monkeypatch):
+    """Retour utilisateur du 17/09/2026 : l'historique de performance manquait pour
+    une ligne crypto (§ AE.3 du backlog, délibérément différé lors du passage à
+    CoinGecko le 15/09/2026, pas résolu) — corrigé en branchant
+    `coingecko_service.fetch_market_chart` dans `cours_service.rafraichir_crypto`.
+    Yahoo Finance ne doit toujours JAMAIS être interrogé pour une crypto (c'est
+    cette résolution qui causait l'incident PKN -> Orlen S.A.)."""
 
     def _resolve_interdit(*args, **kwargs):
         raise AssertionError("resolve_ticker (Yahoo) ne doit jamais être appelé pour une CRYPTO")
 
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", _resolve_interdit)
+    monkeypatch.setattr(
+        historical_performance_service.cours_service.coingecko_service,
+        "fetch_market_chart",
+        lambda ticker, **k: [("2024-01-01", 40000.0), ("2024-01-08", 42000.0), ("2024-01-15", 41000.0)],
+    )
 
     h = Holding(user_id=ID_UTILISATEUR_TEST, ticker="PKN", quantite=100.0, prix_revient_moyen=0.4, type_actif="CRYPTO")
+    db.add(h)
+    db.commit()
+
+    resultat = compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
+
+    assert resultat is not None
+    assert [p["prix"] for p in resultat["points"]] == [40000.0, 42000.0, 41000.0]
+
+
+def test_holding_price_history_crypto_sans_historique_coingecko_renvoie_none(db, monkeypatch):
+    """Garde-fou de non-régression : un échec CoinGecko (clé absente, panne réseau,
+    symbole inconnu) laisse le résultat à `None`, jamais un repli sur Yahoo."""
+
+    def _resolve_interdit(*args, **kwargs):
+        raise AssertionError("resolve_ticker (Yahoo) ne doit jamais être appelé pour une CRYPTO")
+
+    monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", _resolve_interdit)
+    monkeypatch.setattr(historical_performance_service.cours_service.coingecko_service, "fetch_market_chart", lambda ticker, **k: None)
+
+    h = Holding(user_id=ID_UTILISATEUR_TEST, ticker="INTROUVABLE", quantite=100.0, prix_revient_moyen=0.4, type_actif="CRYPTO")
     db.add(h)
     db.commit()
 

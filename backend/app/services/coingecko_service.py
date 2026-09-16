@@ -35,9 +35,17 @@ l'utilisateur qui n'a pas encore créé de clé voit simplement
 plantage, exactement comme un ETF sans couverture justETF. Base d'URL Demo
 (`api.coingecko.com`, en-tête `x-cg-demo-api-key`), distincte de celle des plans
 payants (`pro-api.coingecko.com`, en-tête `x-cg-pro-api-key`) — ne jamais les
-confondre, une clé Demo est refusée sur l'URL Pro et réciproquement."""
+confondre, une clé Demo est refusée sur l'URL Pro et réciproquement.
+
+`fetch_market_chart` (retour utilisateur du 17/09/2026) complète `fetch_price` avec
+l'historique de cours (`/coins/{id}/market_chart`, jusqu'à un an sur le plan Demo)
+— branché dans `cours_service.rafraichir_crypto`, qui alimente `CoursHistorique`
+exactement comme `cours_service.rafraichir` le fait pour yfinance, pour que la
+fiche d'une ligne crypto affiche enfin un historique de performance (cf. § AE.3 du
+backlog, qui documentait ce manque comme délibérément différé, pas résolu)."""
 
 import os
+from datetime import UTC, datetime
 
 import requests
 
@@ -52,26 +60,32 @@ _TIMEOUT_SECONDES = 10
 DELAI_ENTRE_APPELS_COINGECKO_SECONDES = 0.0 if os.environ.get("PATRIMOINE_TESTING") else 0.3
 
 _VARIABLE_API_KEY = "PATRIMOINE_COINGECKO_API_KEY"
-_URL_COTATION = "https://api.coingecko.com/api/v3/coins/markets"
+_URL_BASE = "https://api.coingecko.com/api/v3"
+_URL_COTATION = f"{_URL_BASE}/coins/markets"
+
+# Fenêtre d'historique demandée à `/coins/{id}/market_chart` (retour utilisateur du
+# 17/09/2026 : « l'historique de performance n'est pas présent » pour une ligne
+# crypto) — le plan Demo gratuit couvre jusqu'à un an d'historique quotidien (cf.
+# docstring de module), au-delà l'API renvoie une erreur plutôt qu'une troncature
+# silencieuse ; 365 jours est donc le maximum sûr, pas un choix arbitraire.
+JOURS_HISTORIQUE_MAX = 365
 
 
-def fetch_price(symbol: str) -> dict | None:
-    """Cours EN EUR d'une cryptomonnaie, par son symbole (`vs_currency=eur` demandé
-    explicitement à l'API — comme `justetf_service.fetch_price`, aucune conversion
-    de change à faire côté application, contrairement au pipeline yfinance).
+def _resoudre_meilleure_correspondance(symbol: str) -> dict | None:
+    """`GET /coins/markets`, commun à `fetch_price` et `fetch_market_chart` — la
+    même correspondance symbole -> jeton CoinGecko sert aux deux usages : le prix
+    actuel ET l'identifiant CoinGecko (`id`, ex. `"bitcoin"`) nécessaire à
+    l'historique, que cette réponse porte déjà gratuitement (`fetch_market_chart`
+    n'a donc jamais besoin d'un appel réseau supplémentaire pour résoudre l'`id`).
 
-    Renvoie `{"prix_actuel": float, "nom": str}` sur succès, `None` sur tout échec
-    — clé d'API absente, erreur réseau, statut non 200, symbole inconnu de
-    CoinGecko, JSON inattendu.
-
-    `GET /coins/markets` (plutôt que `/simple/price`) : renvoie pour chaque
-    correspondance un `market_cap_rank` directement exploitable — plusieurs jetons
-    peuvent légitimement partager un même symbole sur CoinGecko aussi (les jetons
-    "meme"/clones sont fréquents), la correspondance retenue est celle au
-    `market_cap_rank` le plus bas (la plus établie/la plus échangée), à défaut la
-    première de la liste. Une ambiguïté résiduelle documentée plutôt que prétendre
-    la résoudre parfaitement — mais sans risque de confondre une crypto avec un
-    titre coté d'une tout autre nature, ce qui est le bug que ce module corrige."""
+    Plusieurs jetons peuvent légitimement partager un même symbole sur CoinGecko
+    (les jetons "meme"/clones sont fréquents) : la correspondance retenue est celle
+    au `market_cap_rank` le plus bas (la plus établie/la plus échangée), à défaut la
+    première de la liste — une ambiguïté résiduelle documentée plutôt que prétendre
+    la résoudre parfaitement, mais sans risque de confondre une crypto avec un titre
+    coté d'une tout autre nature, ce qui est le bug que ce module corrige (cf.
+    docstring de module). `None` sur tout échec — clé d'API absente, erreur réseau,
+    statut non 200, symbole inconnu de CoinGecko, JSON inattendu."""
     cle_api = os.environ.get(_VARIABLE_API_KEY, "").strip()
     if not cle_api:
         return None
@@ -88,14 +102,77 @@ def fetch_price(symbol: str) -> dict | None:
         correspondances = reponse.json()
         if not correspondances:
             return None
-
-        meilleure = min(
+        return min(
             correspondances,
             key=lambda c: c.get("market_cap_rank") if c.get("market_cap_rank") is not None else float("inf"),
         )
-        prix = meilleure.get("current_price")
-        if prix is None:
+    except Exception:
+        return None
+
+
+def fetch_price(symbol: str) -> dict | None:
+    """Cours EN EUR d'une cryptomonnaie, par son symbole (`vs_currency=eur` demandé
+    explicitement à l'API — comme `justetf_service.fetch_price`, aucune conversion
+    de change à faire côté application, contrairement au pipeline yfinance).
+
+    Renvoie `{"prix_actuel": float, "nom": str}` sur succès, `None` sur tout échec
+    — cf. `_resoudre_meilleure_correspondance` pour le détail des cas."""
+    meilleure = _resoudre_meilleure_correspondance(symbol)
+    if meilleure is None:
+        return None
+    prix = meilleure.get("current_price")
+    if prix is None:
+        return None
+    return {"prix_actuel": float(prix), "nom": meilleure.get("name")}
+
+
+def fetch_market_chart(symbol: str, jours: int = JOURS_HISTORIQUE_MAX) -> list[tuple[str, float]] | None:
+    """Historique de cours EN EUR d'une cryptomonnaie, par son symbole — retour
+    utilisateur du 17/09/2026 : l'historique de performance manquait pour toute
+    ligne crypto (jamais branché lors du passage à CoinGecko le 15/09, cf. § AE.3
+    du backlog, délibérément différé faute de temps à l'époque).
+
+    `GET /coins/{id}/market_chart` : pas d'`interval` explicite dans les paramètres
+    — l'API choisit elle-même la granularité selon `days` (quotidienne au-delà de
+    quelques jours), et le plan Demo n'autorise de toute façon plus la sélection
+    manuelle d'intervalle depuis fin 2024 ; la demander produirait une erreur 401
+    plutôt qu'un historique plus fin.
+
+    Renvoie une liste `(date ISO, clôture)` triée par date croissante — même forme
+    que `cours_service._lire`/`_ecrire`, pour s'insérer dans ce module sans
+    transformation. CoinGecko peut renvoyer plusieurs points pour une même journée
+    en fin de fenêtre (granularité horaire résiduelle) : seul le DERNIER point de
+    chaque jour est conservé, même convention que `cours_service._ecrire` pour la
+    semaine en cours d'un ticker yfinance. `None` sur tout échec (mêmes cas que
+    `fetch_price`, plus un identifiant CoinGecko introuvable pour ce symbole ou une
+    réponse sans le moindre point)."""
+    meilleure = _resoudre_meilleure_correspondance(symbol)
+    if meilleure is None:
+        return None
+    identifiant_coingecko = meilleure.get("id")
+    if not identifiant_coingecko:
+        return None
+
+    cle_api = os.environ.get(_VARIABLE_API_KEY, "").strip()
+    if not cle_api:
+        return None
+
+    try:
+        reponse = requests.get(
+            f"{_URL_BASE}/coins/{identifiant_coingecko}/market_chart",
+            headers={"x-cg-demo-api-key": cle_api, "Accept": "application/json"},
+            params={"vs_currency": "eur", "days": jours},
+            timeout=_TIMEOUT_SECONDES,
+        )
+        if reponse.status_code != 200:
             return None
-        return {"prix_actuel": float(prix), "nom": meilleure.get("name")}
+        prix = reponse.json().get("prices")
+        if not prix:
+            return None
+        points: dict[str, float] = {}
+        for timestamp_ms, valeur in prix:
+            date_iso = datetime.fromtimestamp(timestamp_ms / 1000, tz=UTC).date().isoformat()
+            points[date_iso] = float(valeur)
+        return sorted(points.items())
     except Exception:
         return None

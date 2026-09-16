@@ -9,6 +9,7 @@ il réutilise l'exécuteur en tâche de fond de `market_data_refresh`.
 """
 
 import logging
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -20,7 +21,7 @@ from scripts import sauvegarde as sauvegarde_module
 from .. import database
 from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
-from . import backup_service, cours_service, justetf_service, logo_service, market_data_refresh, market_data_service
+from . import backup_service, coingecko_service, cours_service, justetf_service, logo_service, market_data_refresh, market_data_service
 
 logger = logging.getLogger("patrimoine.scheduler")
 
@@ -178,21 +179,36 @@ def _run_cours_historiques() -> None:
 
     Même structure défensive que les jobs ci-dessus : un titre qui échoue n'interrompt
     pas les suivants (`cours_service.rafraichir` ne lève pas), et un échec global est
-    journalisé sans empêcher la prochaine exécution planifiée."""
+    journalisé sans empêcher la prochaine exécution planifiée.
+
+    CRYPTO (retour utilisateur du 17/09/2026, § AE.3 du backlog — délibérément
+    différé lors du passage à CoinGecko le 15/09, pas résolu) : source CoinGecko
+    (`cours_service.rafraichir_crypto`) plutôt que yfinance, jamais de résolution
+    de ticker Yahoo pour elle (cf. `market_data_service.resolve_ticker`, toujours
+    sauté pour cette classe). Boucle séparée, temporisée comme le fait déjà
+    `market_data_service.refresh_tickers` pour le prix courant — deux ressources
+    externes distinctes, chacune son propre rythme d'appel."""
     db = SessionLocal()
     try:
         tickers: set[str] = set()
+        tickers_crypto: set[str] = set()
         for holding in db.query(Holding).all():
-            # CRYPTO exclue (15/09/2026) : plus de ticker Yahoo pour elle, cf.
-            # `coingecko_service`.
             if holding.type_actif == "CRYPTO":
+                if holding.ticker:
+                    tickers_crypto.add(holding.ticker.strip().upper())
                 continue
             resolu = market_data_service.resolve_ticker(db, holding.ticker, holding.type_actif)
             if resolu:
                 tickers.add(resolu)
         for ticker in sorted(tickers):
             cours_service.rafraichir(db, ticker, forcer=True)
-        _record_result(db, COURS_HISTORIQUES, "ok", f"{len(tickers)} série(s) de cours à jour")
+        for index, ticker in enumerate(sorted(tickers_crypto)):
+            if index and coingecko_service.DELAI_ENTRE_APPELS_COINGECKO_SECONDES:
+                time.sleep(coingecko_service.DELAI_ENTRE_APPELS_COINGECKO_SECONDES)
+            cours_service.rafraichir_crypto(db, ticker, forcer=True)
+        _record_result(
+            db, COURS_HISTORIQUES, "ok", f"{len(tickers) + len(tickers_crypto)} série(s) de cours à jour"
+        )
     except Exception as exc:
         db.rollback()
         logger.exception("échec du remplissage planifié des séries de cours")

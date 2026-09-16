@@ -126,3 +126,152 @@ def test_prix_nul_renvoie_none(monkeypatch):
     monkeypatch.setattr(coingecko_service.requests, "get", lambda *a, **k: _FausseReponseJSON(200, corps))
 
     assert coingecko_service.fetch_price("BTC") is None
+
+
+# --- fetch_market_chart (retour utilisateur du 17/09/2026 : « l'historique de
+# performance n'est pas présent » pour une ligne crypto) -----------------------
+
+
+def _reponse_pour(url_marche, url_chart, corps_marche, corps_chart):
+    """Fausse `requests.get` qui distingue les deux appels de `fetch_market_chart`
+    (résolution `/coins/markets` puis `/coins/{id}/market_chart`) par leur URL —
+    même préoccupation que `test_fetch_price_transmet_le_symbole_en_minuscule...`,
+    mais il y a ici deux requêtes à distinguer plutôt qu'une seule."""
+
+    def _get(url, headers, params, timeout):
+        if url == url_marche:
+            return _FausseReponseJSON(200, corps_marche)
+        assert url == url_chart, f"URL inattendue : {url}"
+        return _FausseReponseJSON(200, corps_chart)
+
+    return _get
+
+
+def test_fetch_market_chart_succes_extrait_points_tries_par_date(monkeypatch):
+    monkeypatch.setenv("PATRIMOINE_COINGECKO_API_KEY", "cle-test")
+    corps_marche = _corps_coingecko("BTC", "Bitcoin", 61234.56)
+    # Millisecondes UTC : 2024-01-02, 2024-01-01, 2024-01-03 (volontairement dans
+    # le désordre pour vérifier le tri).
+    corps_chart = {
+        "prices": [
+            [1704153600000, 42100.0],  # 2024-01-02
+            [1704067200000, 42000.0],  # 2024-01-01
+            [1704240000000, 42300.0],  # 2024-01-03
+        ]
+    }
+    monkeypatch.setattr(
+        coingecko_service.requests,
+        "get",
+        _reponse_pour(coingecko_service._URL_COTATION, "https://api.coingecko.com/api/v3/coins/btc/market_chart", corps_marche, corps_chart),
+    )
+
+    resultat = coingecko_service.fetch_market_chart("BTC")
+
+    assert resultat == [("2024-01-01", 42000.0), ("2024-01-02", 42100.0), ("2024-01-03", 42300.0)]
+
+
+def test_fetch_market_chart_reutilise_lidentifiant_resolu_sans_appel_supplementaire(monkeypatch):
+    """L'`id` CoinGecko (`"btc"` ici) vient de la MÊME réponse `/coins/markets` que
+    `fetch_price` — jamais une résolution séparée : exactement deux appels réseau,
+    jamais trois."""
+    monkeypatch.setenv("PATRIMOINE_COINGECKO_API_KEY", "cle-test")
+    appels = []
+
+    def _get(url, headers, params, timeout):
+        appels.append((url, dict(params)))
+        if url == coingecko_service._URL_COTATION:
+            return _FausseReponseJSON(200, _corps_coingecko("BTC", "Bitcoin", 61234.56))
+        return _FausseReponseJSON(200, {"prices": [[1704067200000, 42000.0]]})
+
+    monkeypatch.setattr(coingecko_service.requests, "get", _get)
+
+    coingecko_service.fetch_market_chart("BTC")
+
+    assert len(appels) == 2
+    assert appels[1][0] == "https://api.coingecko.com/api/v3/coins/btc/market_chart"
+    assert appels[1][1] == {"vs_currency": "eur", "days": coingecko_service.JOURS_HISTORIQUE_MAX}
+
+
+def test_fetch_market_chart_garde_le_dernier_point_du_jour_en_cas_de_doublon(monkeypatch):
+    """CoinGecko peut renvoyer plusieurs points pour une même journée en fin de
+    fenêtre (résidu de granularité horaire) — un seul point par jour est conservé,
+    le dernier, même convention que `cours_service._ecrire` pour la semaine en
+    cours d'un ticker yfinance."""
+    monkeypatch.setenv("PATRIMOINE_COINGECKO_API_KEY", "cle-test")
+    corps_chart = {
+        "prices": [
+            [1704067200000, 42000.0],  # 2024-01-01 00:00
+            [1704110400000, 42050.0],  # 2024-01-01 12:00 -> doit primer
+        ]
+    }
+    monkeypatch.setattr(
+        coingecko_service.requests,
+        "get",
+        _reponse_pour(
+            coingecko_service._URL_COTATION,
+            "https://api.coingecko.com/api/v3/coins/btc/market_chart",
+            _corps_coingecko("BTC", "Bitcoin", 61234.56),
+            corps_chart,
+        ),
+    )
+
+    resultat = coingecko_service.fetch_market_chart("BTC")
+
+    assert resultat == [("2024-01-01", 42050.0)]
+
+
+def test_fetch_market_chart_sans_cle_api_ne_tente_aucun_appel_reseau(monkeypatch):
+    monkeypatch.delenv("PATRIMOINE_COINGECKO_API_KEY", raising=False)
+
+    def _appel_interdit(*args, **kwargs):
+        raise AssertionError("aucun appel réseau ne doit avoir lieu sans clé d'API")
+
+    monkeypatch.setattr(coingecko_service.requests, "get", _appel_interdit)
+
+    assert coingecko_service.fetch_market_chart("BTC") is None
+
+
+def test_fetch_market_chart_symbole_inconnu_renvoie_none(monkeypatch):
+    monkeypatch.setenv("PATRIMOINE_COINGECKO_API_KEY", "cle-test")
+    monkeypatch.setattr(coingecko_service.requests, "get", lambda *a, **k: _FausseReponseJSON(200, []))
+
+    assert coingecko_service.fetch_market_chart("INTROUVABLE") is None
+
+
+def test_fetch_market_chart_statut_non_200_sur_market_chart_renvoie_none(monkeypatch):
+    monkeypatch.setenv("PATRIMOINE_COINGECKO_API_KEY", "cle-test")
+
+    def _get(url, headers, params, timeout):
+        if url == coingecko_service._URL_COTATION:
+            return _FausseReponseJSON(200, _corps_coingecko("BTC", "Bitcoin", 61234.56))
+        return _FausseReponseJSON(429, {})  # ex. quota dépassé
+
+    monkeypatch.setattr(coingecko_service.requests, "get", _get)
+
+    assert coingecko_service.fetch_market_chart("BTC") is None
+
+
+def test_fetch_market_chart_reponse_sans_points_renvoie_none(monkeypatch):
+    monkeypatch.setenv("PATRIMOINE_COINGECKO_API_KEY", "cle-test")
+
+    def _get(url, headers, params, timeout):
+        if url == coingecko_service._URL_COTATION:
+            return _FausseReponseJSON(200, _corps_coingecko("BTC", "Bitcoin", 61234.56))
+        return _FausseReponseJSON(200, {"prices": []})
+
+    monkeypatch.setattr(coingecko_service.requests, "get", _get)
+
+    assert coingecko_service.fetch_market_chart("BTC") is None
+
+
+def test_fetch_market_chart_echec_reseau_renvoie_none(monkeypatch):
+    monkeypatch.setenv("PATRIMOINE_COINGECKO_API_KEY", "cle-test")
+
+    def _get(url, headers, params, timeout):
+        if url == coingecko_service._URL_COTATION:
+            return _FausseReponseJSON(200, _corps_coingecko("BTC", "Bitcoin", 61234.56))
+        raise ConnectionError("panne réseau simulée")
+
+    monkeypatch.setattr(coingecko_service.requests, "get", _get)
+
+    assert coingecko_service.fetch_market_chart("BTC") is None

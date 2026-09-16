@@ -382,11 +382,13 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
     """Vérifie les choses qui comptent : les titres détenus sont bien couverts, le
     rafraîchissement est FORCÉ (le job ne doit pas être bloqué par le délai de
     fraîcheur, sinon il ne sert à rien), un actif non cotable n'y entre pas, et
-    (15/09/2026) une CRYPTO n'y entre plus non plus — `resolve_ticker` (Yahoo) ne
-    doit même plus être appelé pour elle, cf. `coingecko_service`."""
+    une CRYPTO passe par CoinGecko (`rafraichir_crypto`, retour utilisateur du
+    17/09/2026 : l'historique de performance manquait pour ces lignes), jamais par
+    yfinance (`rafraichir`) ni par `resolve_ticker` (Yahoo) — cf. `coingecko_service`."""
     from app.services import cours_service, market_data_service
 
     appels: list[tuple[str, bool]] = []
+    appels_crypto: list[tuple[str, bool]] = []
 
     def _resolve(db, identifiant, asset_class):
         if identifiant.startswith("BRICKS-"):
@@ -398,6 +400,9 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
     monkeypatch.setattr(market_data_service, "resolve_ticker", _resolve)
     monkeypatch.setattr(
         cours_service, "rafraichir", lambda db, ticker, forcer=False: appels.append((ticker, forcer))
+    )
+    monkeypatch.setattr(
+        cours_service, "rafraichir_crypto", lambda db, ticker, forcer=False: appels_crypto.append((ticker, forcer))
     )
 
     db = SessionLocal()
@@ -422,7 +427,8 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
 
     assert ("AAA.RES", True) in appels
     assert not any(t.startswith("BRICKS-") for t, _ in appels)
-    assert not any(t.startswith("PKN") for t, _ in appels)
+    assert not any(t.startswith("PKN") for t, _ in appels)  # jamais via yfinance
+    assert appels_crypto == [("PKN", True)]  # via CoinGecko, forcé comme le reste du job
 
 
 def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):

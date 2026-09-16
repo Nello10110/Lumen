@@ -34,10 +34,16 @@ qu'en transit, ou noyée dans des blobs JSON d'agrégats dérivés expirant tout
   • **Une panne réseau ne vide plus un graphique** : à défaut de pouvoir compléter,
     on sert ce que la base contient déjà. Avant, une indisponibilité de Yahoo au
     mauvais moment donnait une courbe vide.
+
+`rafraichir_crypto`/`serie_crypto_en_euros` (retour utilisateur du 17/09/2026) : même
+table, même modèle de fraîcheur/reprise, mais source CoinGecko plutôt que yfinance
+pour une ligne `CRYPTO` — cf. leurs docstrings et celle de `coingecko_service` pour le
+détail. `rafraichir`/`serie_en_euros` restent le chemin yfinance, inchangé.
 """
 
 import bisect
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
@@ -47,6 +53,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models import CoursHistorique, SerieCours
+from . import coingecko_service
 
 logger = logging.getLogger("patrimoine.cours")
 
@@ -156,12 +163,35 @@ def _lire(db: Session, ticker: str) -> TimeSeries:
     return [(datetime.fromisoformat(d), v) for d, v in lignes]
 
 
-def rafraichir(db: Session, ticker: str, forcer: bool = False) -> SerieCours | None:
-    """Complète la série de `ticker` si elle est absente ou périmée, et renvoie ses
-    métadonnées (devise comprise). Ne lève jamais : un échec réseau laisse la série
-    en l'état, et l'appelant sert ce qui est déjà en base.
+def _telecharger_crypto(ticker: str, _depuis: str | None) -> tuple[list[tuple[str, float]], str | None]:
+    """CoinGecko en source pour une ligne `CRYPTO` (retour utilisateur du
+    17/09/2026 : l'historique de performance manquait pour ces lignes, cf. § AE.3
+    du backlog, délibérément différé lors du passage à CoinGecko). `depuis` est
+    ignoré, contrairement à `_telecharger` (yfinance) : `coingecko_service.fetch_market_chart`
+    redemande systématiquement toute la fenêtre disponible (jusqu'à un an sur le
+    plan Demo, cf. sa docstring) — CoinGecko ne facture pas significativement plus
+    cher une fenêtre large (1 crédit par appel quelle que soit `days`), donc la
+    reprise incrémentale de `_telecharger` n'apporterait aucun gain réel ici, pour
+    une complexité supplémentaire (endpoint `/market_chart/range` séparé) qui ne
+    se justifie pas sur le volume d'un portefeuille personnel. `_ecrire` reste
+    idempotent sur un lot qui recouvre des dates déjà connues (remplace, jamais
+    de doublon). Toujours "EUR" comme devise : `vs_currency=eur` est demandé
+    explicitement à l'API, aucune conversion de change à faire en aval."""
+    points = coingecko_service.fetch_market_chart(ticker)
+    if points is None:
+        return [], None
+    return points, "EUR"
 
-    `forcer` : ignore le délai de fraîcheur (job planifié, § AB.5)."""
+
+def _rafraichir_avec(
+    db: Session, ticker: str, forcer: bool, telecharger: Callable[[str, str | None], tuple[list[tuple[str, float]], str | None]]
+) -> SerieCours | None:
+    """Logique commune à `rafraichir` (yfinance) et `rafraichir_crypto` (CoinGecko)
+    — seule la source de téléchargement change, le modèle de fraîcheur/reprise/
+    écriture reste identique quelle que soit la source : fraîcheur, reprise depuis
+    le dernier point connu, écriture, mise à jour des métadonnées, retry sur
+    écriture concurrente. Ne lève jamais : un échec réseau laisse la série en
+    l'état, et l'appelant sert ce qui est déjà en base."""
     meta = db.get(SerieCours, ticker)
     if meta is not None and not forcer:
         seuil = DUREE_FRAICHEUR_ECHEC_HEURES if meta.sans_donnees else DUREE_FRAICHEUR_HEURES
@@ -170,21 +200,22 @@ def rafraichir(db: Session, ticker: str, forcer: bool = False) -> SerieCours | N
 
     # Reprise depuis le dernier point connu, jamais depuis le début : c'est tout
     # l'intérêt du modèle. Un titre suivi depuis des années ne redemande que les
-    # quelques semaines écoulées depuis la dernière visite.
+    # quelques semaines écoulées depuis la dernière visite. Sans effet pour
+    # `_telecharger_crypto`, qui ignore `depuis` (cf. sa docstring).
     depuis = None
     if meta is not None and meta.derniere_date:
         reprise = datetime.fromisoformat(meta.derniere_date) - timedelta(days=RECUL_REPRISE_JOURS)
         depuis = reprise.date().isoformat()
 
-    points, devise = _telecharger(ticker, depuis)
+    points, devise = telecharger(ticker, depuis)
     _ecrire(db, ticker, points)
 
     if meta is None:
         meta = SerieCours(ticker=ticker)
         db.add(meta)
-    # La devise n'est relue que si yfinance vient d'en donner une : une complétion
-    # qui ne ramène aucun point (marché fermé, ticker retiré) ne doit pas effacer une
-    # devise déjà connue.
+    # La devise n'est relue que si la source vient d'en donner une : une complétion
+    # qui ne ramène aucun point (marché fermé, ticker retiré, échec CoinGecko) ne
+    # doit pas effacer une devise déjà connue.
     if devise:
         meta.devise = devise
     premiere, derniere = (
@@ -213,6 +244,22 @@ def rafraichir(db: Session, ticker: str, forcer: bool = False) -> SerieCours | N
         logger.info("cours : écriture concurrente sur %s, la série de l'autre requête fait autorité", ticker)
         return db.get(SerieCours, ticker)
     return meta
+
+
+def rafraichir(db: Session, ticker: str, forcer: bool = False) -> SerieCours | None:
+    """Complète la série de `ticker` (source yfinance) si elle est absente ou
+    périmée, et renvoie ses métadonnées (devise comprise).
+
+    `forcer` : ignore le délai de fraîcheur (job planifié, § AB.5)."""
+    return _rafraichir_avec(db, ticker, forcer, _telecharger)
+
+
+def rafraichir_crypto(db: Session, ticker: str, forcer: bool = False) -> SerieCours | None:
+    """Équivalent de `rafraichir`, source CoinGecko (`_telecharger_crypto`) — pour
+    une ligne `Holding.type_actif == "CRYPTO"` UNIQUEMENT (jamais de mélange de
+    sources pour un même ticker, même politique que `coingecko_service` pour le
+    prix courant)."""
+    return _rafraichir_avec(db, ticker, forcer, _telecharger_crypto)
 
 
 def devise(db: Session, ticker: str) -> str | None:
@@ -273,3 +320,13 @@ def serie_en_euros(db: Session, ticker: str) -> TimeSeries:
             continue
         convertie.append((d, v * taux))
     return convertie
+
+
+def serie_crypto_en_euros(db: Session, ticker: str) -> TimeSeries:
+    """Équivalent de `serie_en_euros`, source CoinGecko (`rafraichir_crypto`) — pour
+    une ligne `Holding.type_actif == "CRYPTO"` UNIQUEMENT. Jamais de conversion de
+    change à faire ici, contrairement à `serie_en_euros` : `vs_currency=eur` est
+    demandé explicitement à CoinGecko, la série est déjà en euros par construction
+    (cf. `coingecko_service.fetch_market_chart`)."""
+    rafraichir_crypto(db, ticker)
+    return _lire(db, ticker)
