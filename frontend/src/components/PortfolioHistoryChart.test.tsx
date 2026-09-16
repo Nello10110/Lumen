@@ -84,10 +84,11 @@ function pointPatrimoine(overrides: Partial<PatrimoineHistoryPoint> = {}): Patri
 }
 
 describe('PortfolioHistoryChart', () => {
-  it('affiche un squelette pendant le chargement', () => {
+  it('affiche l\'attente Lumen pendant le chargement', () => {
     renderChart('financier', { loading: true, points: null })
 
-    expect(screen.getByText(/Calcul de l'historique en cours/)).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: "Chargement de l'historique en cours" })).toBeInTheDocument()
+    expect(screen.getByText(/Lumen fait la lumière sur votre historique/)).toBeInTheDocument()
   })
 
   it('affiche EtatErreur avec Réessayer en cas d\'échec, et appelle onRetry au clic', () => {
@@ -177,7 +178,7 @@ describe('PortfolioHistoryChart — lentille (feature Net/Brut/Financier sur tou
   it('lentille "brut" : utilise l\'état de chargement/erreur de `pointsPatrimoine`, pas de `points`', () => {
     renderChart('brut', { loading: false, error: null, loadingPatrimoine: true, pointsPatrimoine: null })
 
-    expect(screen.getByText(/Calcul de l'historique en cours/)).toBeInTheDocument()
+    expect(screen.getByText(/Lumen fait la lumière sur votre historique/)).toBeInTheDocument()
   })
 })
 
