@@ -333,6 +333,18 @@ export const api = {
   getCompteHoldings: (id: number) => request<Holding[]>(`/comptes/${id}/holdings`),
   setCompteQuotites: (id: number, quotites: QuotiteEntree[]) =>
     request<{ ok: boolean }>(`/comptes/${id}/quotites`, { method: 'PUT', body: JSON.stringify({ quotites }) }),
+  // Zone géographique/secteur par compte (§ AP, retour utilisateur du 17/09/2026) —
+  // même patron que les quotités ci-dessus : une seule action pour tout le compte.
+  setCompteZoneGeo: (id: number, zoneGeo: string | null) =>
+    request<{ ok: boolean; lignes_modifiees: number }>(`/comptes/${id}/zone-geo`, {
+      method: 'PUT',
+      body: JSON.stringify({ zone_geo: zoneGeo }),
+    }),
+  setCompteSecteur: (id: number, secteur: string | null) =>
+    request<{ ok: boolean; lignes_modifiees: number }>(`/comptes/${id}/secteur`, {
+      method: 'PUT',
+      body: JSON.stringify({ secteur }),
+    }),
 
   // Transactions & performance — import du grand livre en deux temps (revue du
   // 03/09/2026, demande directe de l'utilisateur : « il faut qu'à l'import il me

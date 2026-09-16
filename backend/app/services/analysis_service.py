@@ -69,14 +69,24 @@ def value_holdings(holdings: list[Holding]) -> list[ValuedHolding]:
             # (`holdings_financiers`, jamais un actif à `valeur_estimee`).
             valued.append(
                 ValuedHolding(
-                    holding=h, valeur=h.valeur_estimee, region=h.zone_geo or ZONE_EUROPE, pays=None, secteur_label=None, a_des_donnees=True
+                    holding=h,
+                    valeur=h.valeur_estimee,
+                    region=h.zone_geo or ZONE_EUROPE,
+                    pays=None,
+                    # `Holding.secteur` (§ AP.2, retour utilisateur du 17/09/2026) :
+                    # aucun repli implicite ici, contrairement à `zone_geo` juste
+                    # au-dessus — pas de secteur "par défaut" raisonnable à deviner
+                    # pour un immobilier/une assurance-vie, `None` reste `None`
+                    # (non catégorisé) tant que le foyer ne l'a pas déclaré.
+                    secteur_label=h.secteur,
+                    a_des_donnees=True,
                 )
             )
             continue
         md = h.market_data
         prix = md.prix_actuel if md and md.prix_actuel is not None else h.prix_revient_moyen
         a_des_donnees = md is not None and md.erreur is None and md.prix_actuel is not None
-        # `Holding.zone_geo` (retour utilisateur du 17/09/2026, § AO.2 : pouvoir
+        # `Holding.zone_geo` (retour utilisateur du 17/09/2026, § AP.1 : pouvoir
         # corriger à la main la géographie d'un titre) prime désormais sur la région
         # mesurée par `market_data` — une déclaration explicite du foyer l'emporte
         # toujours sur une donnée déduite automatiquement, même quand cette dernière
@@ -98,13 +108,16 @@ def value_holdings(holdings: list[Holding]) -> list[ValuedHolding]:
         # correction automatique plutôt que de la saisir lui-même reste couvert.
         if region is None and h.ticker is not None and h.ticker.startswith(PREFIXE_SYMBOLE_BRICKS):
             region = ZONE_EUROPE
+        # `Holding.secteur` (§ AP.2, même priorité que `zone_geo` ci-dessus) : une
+        # déclaration explicite prime sur le secteur mesuré par `market_data`.
+        secteur_label = h.secteur or (label_for_sector(md.secteur) if md and md.secteur else None)
         valued.append(
             ValuedHolding(
                 holding=h,
                 valeur=(prix or 0) * h.quantite,
                 region=region,
                 pays=md.pays if md else None,
-                secteur_label=label_for_sector(md.secteur) if md and md.secteur else None,
+                secteur_label=secteur_label,
                 a_des_donnees=a_des_donnees,
             )
         )
@@ -132,7 +145,7 @@ def categorie_propre_a_la_ligne(v: ValuedHolding, type_: str) -> str:
     S&P 500 en "Europe" — une erreur bien pire qu'une absence de donnée. Faute de
     composition ET de repli par l'indice suivi, un fonds reste donc explicitement non
     catégorisé géographiquement PAR DÉFAUT — sauf si le foyer a lui-même déclaré une
-    zone sur cette ligne (`Holding.zone_geo`, § AO.2, retour utilisateur du
+    zone sur cette ligne (`Holding.zone_geo`, § AP.1, retour utilisateur du
     17/09/2026 : pouvoir corriger la géographie d'un titre à la main) : une
     déclaration explicite prime alors sur la protection contre le piège de la
     domiciliation, exactement comme pour toute autre ligne (`value_holdings` a déjà

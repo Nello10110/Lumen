@@ -170,16 +170,34 @@ class Holding(Base):
     # philosophie que la valorisation immobilière datée : jamais de mutation
     # silencieuse d'une donnée financière).
     taux_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1,
-    # exposition consolidée tous actifs) : une des 6 zones de `reference_indices`
-    # (jamais une granularité par pays — cohérent avec le zonage déjà utilisé partout
-    # ailleurs dans l'app). Sans objet pour un actif financier, dont la géographie
-    # vient déjà du look-through/de la cotation (`analysis_service.value_holdings`
-    # ignore ce champ dans ce cas). `None` par défaut : `value_holdings` retombe alors
-    # sur `ZONE_EUROPE` (hypothèse la plus probable pour un immobilier/une
-    # assurance-vie française) plutôt que de laisser un "Non catégorisé" qui rendrait
-    # la fonctionnalité inutilisable sur les lignes déjà saisies avant son ajout.
+    # Zone géographique déclarée pour cette ligne (backlog 2.P.1, exposition
+    # consolidée tous actifs) : une des 6 zones de `reference_indices` (jamais une
+    # granularité par pays — cohérent avec le zonage déjà utilisé partout ailleurs
+    # dans l'app). `None` par défaut : pour un actif valorisé manuellement
+    # (immobilier/assurance-vie/PER...), `value_holdings` retombe alors sur
+    # `ZONE_EUROPE` (hypothèse la plus probable pour ce type de foyer) plutôt que de
+    # laisser un "Non catégorisé" qui rendrait la fonctionnalité inutilisable sur les
+    # lignes déjà saisies avant son ajout. Pour un actif financier (action/ETF/
+    # obligation...), `None` laisse la région déduite de la cotation/du look-through
+    # inchangée — mais une valeur explicite PRIME désormais sur cette déduction
+    # automatique (retour utilisateur du 17/09/2026, § AP.1 : pouvoir corriger à
+    # la main la géographie d'un titre, ou de tout un compte en une fois via
+    # `comptes_service.set_zone_geo_compte`, § AP.3) : un fait déclaré par le foyer l'emporte
+    # toujours sur une estimation, y compris pour contourner le piège de la
+    # domiciliation d'un ETF (cf. `analysis_service.categorie_propre_a_la_ligne`).
     zone_geo: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Secteur déclaré pour cette ligne — même principe et même priorité que
+    # `zone_geo` juste au-dessus (retour utilisateur du 17/09/2026, § AP.2), pour un
+    # actif que `market_data`/le look-through ne peut pas classer lui-même
+    # (Bricks.co et toute autre ligne valorisée manuellement ou sans cotation
+    # sectorielle connue). Une des libellés français de
+    # `reference_indices.SECTOR_LABELS` (+ `SECTEUR_AUTRES`) — jamais la clé brute
+    # `yfinance` (`MarketDataCache.secteur`), pour rester directement comparable à
+    # `ValuedHolding.secteur_label` sans traduction supplémentaire à la lecture.
+    # `None` par défaut : contrairement à `zone_geo`, aucun repli implicite (un
+    # actif manuel sans secteur déclaré reste "Non catégorisé", pas de secteur
+    # "par défaut" raisonnable à deviner comme "Europe" l'est pour la géographie).
+    secteur: Mapped[str | None] = mapped_column(String, nullable=True)
     # Versement mensuel récurrent DÉCLARÉ par l'utilisateur (backlog § 2.S.1, écran
     # Épargne) — sans objet en dehors de `TYPES_EPARGNE`. Même philosophie que
     # `taux_pct` : jamais déduit automatiquement (aucune détection depuis le grand

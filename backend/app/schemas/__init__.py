@@ -73,6 +73,8 @@ from .comptes import (  # noqa: F401
     EtablissementLogoUrlInput,
     EtablissementOut,
     EtablissementUpdate,
+    SecteurCompteUpdate,
+    ZoneGeoCompteUpdate,
 )
 from .detenteurs import (  # noqa: F401
     TYPES_DETENTEUR_VALIDES,

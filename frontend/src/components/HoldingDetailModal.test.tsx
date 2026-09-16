@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
     // Détenteurs (backlog 2.L.1) : `HoldingDetailContent` lit `listDetenteurs()` —
     // non testé ici, résolution neutre.
     listDetenteurs: vi.fn().mockResolvedValue([]),
+    updateHolding: vi.fn(),
   },
 }))
 
@@ -39,6 +40,8 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     devise: 'USD',
     secteur: 'Technologie',
     pays: 'États-Unis',
+    zone_geo: null,
+    secteur_declare: null,
     rendement_depuis_achat_pct: 50,
     rendement_annualise_pct: 10,
     emetteur: null,
@@ -109,6 +112,42 @@ describe('HoldingDetailModal — erreur avec action de reprise (backlog 2.K.5)',
     // lever sur cette ambiguïté déjà présente hors de ce test.
     expect(await screen.findAllByText('Apple Inc.')).not.toHaveLength(0)
     expect(api.getHoldingDetail).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe("HoldingDetailModal — l'onglet Paramètres reste ouvert après une sauvegarde (§ AP.1)", () => {
+  it('enregistrer la classification recharge la fiche sans revenir sur Aperçu', async () => {
+    // Retour utilisateur implicite constaté en vérifiant AP.1 : `useHoldingDetail`
+    // remettait `detail` à `null` à CHAQUE `recharger()`, pas seulement au
+    // changement de `holdingId` — le squelette de chargement démontait alors
+    // `HoldingDetailContent` (donc son onglet local) le temps du rafraîchissement,
+    // ramenant systématiquement l'utilisateur sur Aperçu après avoir sauvegardé
+    // depuis Paramètres. Corrigé en scindant l'effet de remise à zéro (lié à
+    // `holdingId` seul) de celui de chargement (lié à `holdingId` ET au compteur
+    // de rechargement) — `detail` garde ses anciennes valeurs pendant le
+    // rafraîchissement déclenché par un simple `recharger()`.
+    vi.mocked(api.getHoldingDetail).mockClear()
+    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ zone_geo: null }))
+    vi.mocked(api.updateHolding).mockResolvedValue({} as never)
+    render(
+      <MemoryRouter>
+        <HoldingDetailModal holdingId={1} onClose={vi.fn()} />
+      </MemoryRouter>,
+    )
+    await screen.findAllByText('Apple Inc.')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Paramètres' }))
+    await screen.findByText('Classification géographique et sectorielle')
+
+    vi.mocked(api.getHoldingDetail).mockResolvedValueOnce(detail({ zone_geo: 'Europe' }))
+    fireEvent.change(screen.getByLabelText('Zone géographique'), { target: { value: 'Europe' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la classification' }))
+
+    await vi.waitFor(() => expect(api.getHoldingDetail).toHaveBeenCalledTimes(2))
+    // Toujours sur Paramètres (pas basculé sur Aperçu) : le formulaire de
+    // classification reste affiché, avec la valeur fraîchement enregistrée.
+    expect(await screen.findByText('Classification géographique et sectorielle')).toBeInTheDocument()
+    expect(screen.getByLabelText('Zone géographique')).toHaveValue('Europe')
   })
 })
 

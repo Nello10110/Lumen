@@ -21,7 +21,11 @@ export default function HoldingDetailPage() {
     else navigate('/patrimoine')
   }
 
-  if (loading) return <SkeletonTexte lignes={5} />
+  // `loading && !detail` (pas `loading` seul) : un `recharger()` (§ AP.1) affiche
+  // à nouveau `loading=true` le temps du rafraîchissement, mais `detail` garde ses
+  // anciennes valeurs entre-temps (cf. `useHoldingDetail`) — démonter la fiche
+  // pour un squelette à ce moment-là ferait perdre l'onglet actuellement ouvert.
+  if (loading && !detail) return <SkeletonTexte lignes={5} />
   if (error) return <EtatErreur message={error} onReessayer={recharger} />
   if (!detail) return null
 
@@ -30,7 +34,7 @@ export default function HoldingDetailPage() {
       <button onClick={handleRetour} className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 text-[13px] text-accent hover:underline md:min-h-0 md:py-3">
         <IconFlecheGauche className="h-4 w-4" /> Patrimoine
       </button>
-      <HoldingDetailContent detail={detail} />
+      <HoldingDetailContent detail={detail} onRecharger={recharger} />
     </div>
   )
 }

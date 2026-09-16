@@ -165,6 +165,63 @@ def test_set_quotites_compte_sur_un_compte_vide_ne_leve_pas(db):
     comptes_service.set_quotites_compte(db, ID_UTILISATEUR_TEST, compte, [(alice_id, 100.0)])  # ne lève pas
 
 
+def test_set_zone_geo_compte_applique_la_meme_zone_a_chaque_ligne(db):
+    """Retour utilisateur du 17/09/2026 (§ AP.3) : « pouvoir éditer sur un compte
+    entier... la géographie », même patron que les quotités — jamais les lignes
+    d'un AUTRE compte."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Bricks", None)
+    h1 = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id)
+    h2 = make_holding(db, ticker="BRICKS-BBB", type_actif="BOND", compte_id=compte.id)
+    autre_compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    h3 = make_holding(db, ticker="CCC", compte_id=autre_compte.id)
+
+    nb = comptes_service.set_zone_geo_compte(db, ID_UTILISATEUR_TEST, compte, "Europe")
+
+    assert nb == 2
+    db.refresh(h1)
+    db.refresh(h2)
+    db.refresh(h3)
+    assert h1.zone_geo == "Europe"
+    assert h2.zone_geo == "Europe"
+    assert h3.zone_geo is None
+
+
+def test_set_zone_geo_compte_none_efface_la_declaration(db):
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Bricks", None)
+    h1 = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id, zone_geo="Europe")
+
+    comptes_service.set_zone_geo_compte(db, ID_UTILISATEUR_TEST, compte, None)
+
+    db.refresh(h1)
+    assert h1.zone_geo is None
+
+
+def test_set_zone_geo_compte_sur_un_compte_vide_ne_leve_pas(db):
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Vide", None)
+
+    assert comptes_service.set_zone_geo_compte(db, ID_UTILISATEUR_TEST, compte, "Europe") == 0
+
+
+def test_set_secteur_compte_applique_le_meme_secteur_a_chaque_ligne(db):
+    """Même mécanique que `set_zone_geo_compte` ci-dessus, pour le secteur (retour
+    utilisateur du 17/09/2026, § AP.3)."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Bricks", None)
+    h1 = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id)
+    h2 = make_holding(db, ticker="BRICKS-BBB", type_actif="BOND", compte_id=compte.id)
+    autre_compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    h3 = make_holding(db, ticker="CCC", compte_id=autre_compte.id)
+
+    nb = comptes_service.set_secteur_compte(db, ID_UTILISATEUR_TEST, compte, "Immobilier")
+
+    assert nb == 2
+    db.refresh(h1)
+    db.refresh(h2)
+    db.refresh(h3)
+    assert h1.secteur == "Immobilier"
+    assert h2.secteur == "Immobilier"
+    assert h3.secteur is None
+
+
 def test_solde_par_compte_couvre_tous_les_types_actif(db):
     """Contrairement à `analysis_service.repartition_par_compte` (portefeuille
     financier seul), `solde_par_compte` doit couvrir aussi l'immobilier/l'épargne —

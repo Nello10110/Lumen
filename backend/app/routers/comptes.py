@@ -18,6 +18,8 @@ from ..schemas import (
     EtablissementUpdate,
     HoldingOut,
     QuotitesUpdate,
+    SecteurCompteUpdate,
+    ZoneGeoCompteUpdate,
 )
 from ..services import (
     analysis_service,
@@ -299,3 +301,33 @@ def set_compte_quotites(compte_id: int, payload: QuotitesUpdate, db: Session = D
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}
+
+
+@router.put("/{compte_id}/zone-geo")
+def set_compte_zone_geo(
+    compte_id: int, payload: ZoneGeoCompteUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)
+):
+    """Applique la même zone géographique à CHAQUE ligne rattachée à ce compte —
+    cf. `comptes_service.set_zone_geo_compte`. `zone_geo=None` efface la
+    déclaration manuelle de chaque ligne (retour à la détection automatique)."""
+    user_id = auth_service.id_foyer(current_user)
+    compte = db.get(Compte, compte_id)
+    if compte is None or compte.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    lignes_modifiees = comptes_service.set_zone_geo_compte(db, user_id, compte, payload.zone_geo)
+    return {"ok": True, "lignes_modifiees": lignes_modifiees}
+
+
+@router.put("/{compte_id}/secteur")
+def set_compte_secteur(
+    compte_id: int, payload: SecteurCompteUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)
+):
+    """Applique le même secteur à CHAQUE ligne rattachée à ce compte — cf.
+    `comptes_service.set_secteur_compte`. `secteur=None` efface la déclaration
+    manuelle de chaque ligne (retour à la détection automatique)."""
+    user_id = auth_service.id_foyer(current_user)
+    compte = db.get(Compte, compte_id)
+    if compte is None or compte.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    lignes_modifiees = comptes_service.set_secteur_compte(db, user_id, compte, payload.secteur)
+    return {"ok": True, "lignes_modifiees": lignes_modifiees}

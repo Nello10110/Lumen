@@ -122,6 +122,27 @@ class CompteOut(CompteBase):
     updated_at: datetime
 
 
+class ZoneGeoCompteUpdate(BaseModel):
+    """Retour utilisateur du 17/09/2026 (§ AP.3) : « pouvoir éditer sur un compte
+    entier (donc tous les actifs qui le composent en même temps) la géographie » —
+    applique la MÊME zone à chaque ligne rattachée au compte en une seule action,
+    même patron que `QuotitesUpdate`. `zone_geo=None` efface la déclaration
+    manuelle sur chaque ligne (retour à la détection automatique, cf.
+    `analysis_service.value_holdings`). Pas de validation contre `ZONES_GEO` ici :
+    ce champ reste un texte libre côté serveur comme `HoldingUpdate.zone_geo`, la
+    liste fermée n'existant que côté frontend (sélecteur)."""
+
+    zone_geo: str | None = None
+
+
+class SecteurCompteUpdate(BaseModel):
+    """Même mécanique que `ZoneGeoCompteUpdate` juste au-dessus, pour le secteur
+    (retour utilisateur du 17/09/2026, § AP.3 : « pouvoir éditer de la même façon
+    la répartition sectorielle »)."""
+
+    secteur: str | None = None
+
+
 class CompteAvecSoldeOut(BaseModel):
     """Un compte avec sa valeur agrégée (`services/comptes_service.solde_par_compte`)
     — écran Comptes uniquement, jamais utilisé pour les routes CRUD nues. `compte`

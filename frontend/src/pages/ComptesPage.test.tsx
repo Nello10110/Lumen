@@ -80,6 +80,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     date_valeur_estimee: '2026-01-01T00:00:00',
     taux_pct: null,
     zone_geo: null,
+    secteur: null,
     versement_mensuel: 200,
     date_acquisition: null,
     ...overrides,

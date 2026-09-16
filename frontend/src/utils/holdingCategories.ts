@@ -103,6 +103,25 @@ export const ZONES_GEO = [
   'Autres zones',
 ]
 
+// Les 11 libellés français de `reference_indices.SECTOR_LABELS` + `SECTEUR_AUTRES`
+// côté backend — mêmes valeurs, dupliquées ici comme `ZONES_GEO` ci-dessus, pour
+// servir de valeur à `Holding.secteur` (§ AP.2, retour utilisateur du 17/09/2026 :
+// « pouvoir éditer... la répartition sectorielle »).
+export const SECTEURS = [
+  "Technologies de l'information",
+  'Financières',
+  'Santé',
+  'Consommation discrétionnaire',
+  'Industrie',
+  'Communication',
+  'Consommation de base',
+  'Énergie',
+  'Matériaux',
+  'Services publics',
+  'Immobilier',
+  'Autres secteurs',
+]
+
 export function libelleTaux(typeActif: string): string {
   return typeActif === 'VEHICLE' ? 'Décote annuelle (%)' : "Taux d'intérêt annuel (%)"
 }

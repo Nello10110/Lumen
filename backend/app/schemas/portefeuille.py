@@ -34,9 +34,12 @@ class HoldingBase(BaseModel):
     # Taux annuel informatif (backlog § 2.M.1) : positif = intérêt attendu (épargne),
     # négatif = décote attendue (véhicule) — cf. `models.Holding.taux_pct`.
     taux_pct: float | None = None
-    # Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1) —
-    # cf. `models.Holding.zone_geo`.
+    # Zone géographique déclarée pour cette ligne (backlog 2.P.1) — cf.
+    # `models.Holding.zone_geo`.
     zone_geo: str | None = None
+    # Secteur déclaré pour cette ligne (§ AP.2, retour utilisateur du 17/09/2026) —
+    # cf. `models.Holding.secteur`.
+    secteur: str | None = None
     # Versement mensuel récurrent déclaré (backlog 2.S.1, écran Épargne) — cf.
     # `models.Holding.versement_mensuel`.
     versement_mensuel: float | None = None
@@ -151,6 +154,7 @@ class HoldingUpdate(BaseModel):
     valeur_estimee: float | None = None
     taux_pct: float | None = None
     zone_geo: str | None = None
+    secteur: str | None = None
     versement_mensuel: float | None = None
     date_acquisition: str | None = None
 
@@ -688,8 +692,22 @@ class HoldingDetail(BaseModel):
     prix_actuel: float | None = None
     valeur: float
     devise: str | None = None
+    # Secteur/pays MESURÉS (`MarketDataCache.secteur`/`.pays`, lecture seule, section
+    # Aperçu) — jamais influencés par une déclaration manuelle, à la différence de
+    # `zone_geo`/`secteur_declare` ci-dessous (édition, section Paramètres, § AP).
+    # `None` pour toute ligne sans cotation (immobilier, Bricks.co...).
     secteur: str | None = None
     pays: str | None = None
+    # Zone géographique/secteur DÉCLARÉS pour cette ligne (`Holding.zone_geo`/
+    # `.secteur`, retour utilisateur du 17/09/2026, § AP.1/AP.2) — bruts, pour
+    # préremplir le formulaire d'édition de la section Paramètres ; `None` signifie
+    # "pas de déclaration, détection automatique". Distincts de `secteur`/`pays`
+    # ci-dessus : ceux-ci restent la mesure brute même quand une déclaration existe,
+    # `analysis_service.value_holdings` (utilisé pour les graphiques de répartition,
+    # pas pour cette fiche) est le seul consommateur de la priorité déclaration >
+    # mesure.
+    zone_geo: str | None = None
+    secteur_declare: str | None = None
     rendement_depuis_achat_pct: float | None = None
     rendement_annualise_pct: float | None = None
     # Cf. `HoldingOut.cout_acquisition_total` — même champ, même source.

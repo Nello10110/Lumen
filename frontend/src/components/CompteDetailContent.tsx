@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Compte, Etablissement, Holding, Loan } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { TYPES_EPARGNE } from '../utils/holdingCategories'
+import { SECTEURS, TYPES_EPARGNE, ZONES_GEO } from '../utils/holdingCategories'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
@@ -136,6 +136,89 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
   )
 }
 
+/** Un seul champ de classification (zone géographique OU secteur) appliqué à tout
+ * le compte — bouton d'enregistrement INDÉPENDANT du champ voisin (`ClassificationCompte`
+ * ci-dessous rend deux instances de ce composant) : contrairement aux quotités, la
+ * géographie et le secteur sont deux déclarations SÉPARÉES (retour utilisateur du
+ * 17/09/2026, formulé en deux demandes distinctes, § AP.3) — un même bouton
+ * pour les deux aurait effacé le secteur de chaque ligne dès qu'on ne voulait
+ * corriger que la géographie (et réciproquement), puisque le champ non touché
+ * démarre toujours sur « Détection automatique », jamais préchargé depuis les
+ * lignes existantes (mêmes raisons que `QuotitesCompte` : elles peuvent déjà
+ * diverger d'une ligne à l'autre, les réconcilier à l'affichage serait fragile). */
+function ClassificationCompteChamp({
+  label,
+  options,
+  onEnregistrer,
+}: {
+  label: string
+  options: string[]
+  onEnregistrer: (valeur: string | null) => Promise<unknown>
+}) {
+  const [valeur, setValeur] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [enregistre, setEnregistre] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    setEnregistre(false)
+    try {
+      await onEnregistrer(valeur || null)
+      setEnregistre(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label={label} className="w-56">
+          <Select value={valeur} onChange={(e) => setValeur(e.target.value)}>
+            <option value="">Détection automatique</option>
+            {options.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <PrimaryButton onClick={handleSave} disabled={saving}>
+          {saving ? 'Enregistrement...' : `Enregistrer ${label === 'Zone géographique' ? 'la zone' : 'le secteur'}`}
+        </PrimaryButton>
+      </div>
+      {enregistre && <p className="mt-2 text-sm text-positif">Appliqué à toutes les lignes du compte.</p>}
+      {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
+    </div>
+  )
+}
+
+/** Zone géographique et secteur pour TOUT le compte (retour utilisateur du
+ * 17/09/2026, § AP.3 : « pouvoir éditer sur... un compte entier... la
+ * géographie », puis « ... de la même façon la répartition sectorielle ») — même
+ * esprit que `QuotitesCompte` ci-dessus (le dire une fois plutôt que ligne par
+ * ligne), mais deux déclarations indépendantes plutôt qu'une répartition unique. */
+function ClassificationCompte({ compteId, nombreLignes }: { compteId: number; nombreLignes: number }) {
+  if (nombreLignes === 0) return null
+
+  return (
+    <Card title="Classification géographique et sectorielle">
+      <p className="mb-4 text-sm text-texte">
+        S'applique à TOUTES les lignes de ce compte ({nombreLignes} ligne{nombreLignes > 1 ? 's' : ''}) — remplace la
+        déclaration actuellement enregistrée sur chacune, plutôt que de la définir ligne par ligne.
+      </p>
+      <div className="space-y-4">
+        <ClassificationCompteChamp label="Zone géographique" options={ZONES_GEO} onEnregistrer={(v) => api.setCompteZoneGeo(compteId, v)} />
+        <ClassificationCompteChamp label="Secteur" options={SECTEURS} onEnregistrer={(v) => api.setCompteSecteur(compteId, v)} />
+      </div>
+    </Card>
+  )
+}
+
 /** Contenu détaillé d'un compte — partagé entre `CompteDetailModal` et
  * `CompteDetailPage`, même patron que `HoldingDetailContent`. */
 export default function CompteDetailContent({
@@ -223,6 +306,8 @@ export default function CompteDetailContent({
       <EmpruntsRattaches emprunts={empruntsRattaches} montantsMasques={montantsMasques} />
 
       <QuotitesCompte compteId={compte.id} nombreLignes={holdings.length} nombreEmprunts={empruntsRattaches.length} />
+
+      <ClassificationCompte compteId={compte.id} nombreLignes={holdings.length} />
 
       {onSupprime && <ZoneSuppression compte={compte} nombreLignes={holdings.length} onSupprime={onSupprime} />}
     </div>

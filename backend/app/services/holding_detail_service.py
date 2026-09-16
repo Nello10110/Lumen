@@ -183,6 +183,8 @@ def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | N
         "devise": md.devise if md else None,
         "secteur": md.secteur if md else None,
         "pays": md.pays if md else None,
+        "zone_geo": holding.zone_geo,
+        "secteur_declare": holding.secteur,
         "rendement_depuis_achat_pct": rendements.get("rendement_depuis_achat_pct"),
         "rendement_annualise_pct": rendements.get("rendement_annualise_pct"),
         "cout_acquisition_total": rendements.get("cout_acquisition_total"),

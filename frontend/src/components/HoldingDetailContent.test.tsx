@@ -24,6 +24,7 @@ vi.mock('../api/client', () => ({
     listDetenteurs: vi.fn(),
     setHoldingQuotites: vi.fn(),
     getHoldingDetail: vi.fn(),
+    updateHolding: vi.fn(),
     getHoldingPriceHistory: vi.fn().mockResolvedValue({ points: [], volatilite_annualisee_pct: null, max_drawdown_pct: null }),
     updateHoldingImmobilier: vi.fn(),
     getHoldingValuationHistory: vi.fn().mockResolvedValue([]),
@@ -52,6 +53,8 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     devise: 'USD',
     secteur: 'Technologie',
     pays: 'États-Unis',
+    zone_geo: null,
+    secteur_declare: null,
     rendement_depuis_achat_pct: 50,
     rendement_annualise_pct: 10,
     emetteur: null,
@@ -86,7 +89,7 @@ function ouvrirOnglet(nom: string) {
 describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
   it("n'affiche aucune section Détenteurs si l'utilisateur n'a déclaré aucun détenteur", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail()} />)
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
     ouvrirOnglet('Analyse')
 
     await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
@@ -98,7 +101,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
     render(
       <HoldingDetailContent
         detail={detail({ quotites: [{ detenteur_id: 1, detenteur_nom: 'Alice', quotite_pct: 60, part_detenue: 900, part_nette: 900 }] })}
-      />,
+      onRecharger={vi.fn()} />,
     )
     ouvrirOnglet('Analyse')
 
@@ -112,7 +115,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
 
   it('le bouton Enregistrer est désactivé tant que la somme des quotités saisies ne fait pas 100 %', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
-    render(<HoldingDetailContent detail={detail()} />)
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
     ouvrirOnglet('Analyse')
     await screen.findByText('Détenteurs')
 
@@ -134,7 +137,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
         ],
       }),
     )
-    render(<HoldingDetailContent detail={detail()} />)
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
     ouvrirOnglet('Analyse')
     await screen.findByText('Détenteurs')
 
@@ -159,20 +162,20 @@ describe('HoldingDetailContent — Compte rattaché (écran Comptes, backlog X.1
   }
 
   it("n'affiche aucun badge de compte quand la ligne n'est rattachée à aucun compte", () => {
-    render(<HoldingDetailContent detail={detail({ compte: null })} />)
+    render(<HoldingDetailContent detail={detail({ compte: null })} onRecharger={vi.fn()} />)
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('affiche le nom du compte rattaché, en lien vers sa fiche', () => {
-    render(<HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />)
+    render(<HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} onRecharger={vi.fn()} />)
 
     expect(screen.getByRole('link', { name: 'PEA' })).toHaveAttribute('href', '/comptes/42')
   })
 
   it("la section Détenteurs (onglet Analyse) renvoie aussi vers la fiche du compte, si la ligne en a un", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
-    render(<HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />)
+    render(<HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Analyse')
     await screen.findByText('Détenteurs')
 
@@ -237,6 +240,7 @@ function holdingApresAction(): Holding {
     date_valeur_estimee: '2026-01-01T00:00:00',
     taux_pct: null,
     zone_geo: null,
+    secteur: null,
     versement_mensuel: null,
     date_acquisition: null,
   }
@@ -245,7 +249,7 @@ function holdingApresAction(): Holding {
 describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it("n'affiche pas la fiche immobilier pour une position boursière", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'STOCK' })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'STOCK' })} onRecharger={vi.fn()} />)
 
     await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
     expect(screen.queryByText('Immobilier — caractéristiques et location')).not.toBeInTheDocument()
@@ -254,7 +258,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it('affiche le formulaire de caractéristiques pour un bien immobilier, vide si aucun détail saisi', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Paramètres')
 
     await screen.findByText('Immobilier — caractéristiques et location')
@@ -263,7 +267,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it('affiche le cashflow, les rentabilités et le prix au m² déjà calculés', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Cashflow et rentabilité')
     expect(screen.getByText('700,00 €')).toBeInTheDocument()
@@ -277,7 +281,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     render(
       <HoldingDetailContent
         detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ residence_principale: true, prix_acquisition_total: 215000 }) })}
-      />,
+      onRecharger={vi.fn()} />,
     )
 
     await screen.findByText('Cashflow et rentabilité')
@@ -287,7 +291,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("n'affiche pas le badge « Résidence principale » quand la fiche ne l'indique pas", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ residence_principale: false }) })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ residence_principale: false }) })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Cashflow et rentabilité')
     expect(screen.queryByText('Résidence principale')).not.toBeInTheDocument()
@@ -297,7 +301,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.updateHoldingImmobilier).mockResolvedValue(immobilier())
     vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() }))
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Paramètres')
     await screen.findByText('Immobilier — caractéristiques et location')
 
@@ -334,7 +338,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
       { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000, versement: null },
       { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null },
     ])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Historique de valorisation')
     const lignes = screen.getAllByRole('row').slice(1) // ignore l'en-tête
@@ -348,7 +352,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
       { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000, versement: null },
       { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null },
     ])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Historique de valorisation')
     expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
@@ -357,7 +361,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it("n'affiche pas de graphique pour un unique point d'historique (rien à tracer)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null }])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Historique de valorisation')
     expect(document.querySelector('.recharts-responsive-container')).not.toBeInTheDocument()
@@ -374,7 +378,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
           date_acquisition: '2019-06-15T00:00:00',
           prix_revient_moyen: 180000,
         })}
-      />,
+      onRecharger={vi.fn()} />,
     )
 
     await screen.findByText('Historique de valorisation')
@@ -398,7 +402,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
           date_acquisition: '2024-06-15T00:00:00',
           prix_revient_moyen: 180000,
         })}
-      />,
+      onRecharger={vi.fn()} />,
     )
 
     await screen.findByText('Historique de valorisation')
@@ -411,7 +415,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 0, versement: null }])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null }])
     vi.mocked(api.updateHoldingValuationPoint).mockResolvedValue(holdingApresAction())
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Historique de valorisation')
     fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
@@ -434,7 +438,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null }])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([])
     vi.mocked(api.deleteHoldingValuationPoint).mockResolvedValue(holdingApresAction())
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Historique de valorisation')
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
@@ -454,7 +458,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
     // tests de ce fichier (pas de `clearMocks` global, cf. `src/test/setup.ts`), et
     // des tests précédents (fiche immobilier) l'ont déjà invoqué.
     vi.mocked(api.getHoldingValuationHistory).mockClear()
-    render(<HoldingDetailContent detail={detail({ type_actif: 'VEHICLE' })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'VEHICLE' })} onRecharger={vi.fn()} />)
 
     await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
     expect(screen.queryByText('Versement mensuel déclaré')).not.toBeInTheDocument()
@@ -467,7 +471,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
     render(
       <HoldingDetailContent
         detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000, date_valeur_estimee: '2026-01-01T00:00:00' })}
-      />,
+      onRecharger={vi.fn()} />,
     )
 
     await vi.waitFor(() => expect(api.getHoldingValuationHistory).toHaveBeenCalledWith(1))
@@ -478,7 +482,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
 
   it('remplace la courbe de cours par la fiche Épargne pour un type couvert par TYPES_EPARGNE', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'CASH_ACCOUNT' })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'CASH_ACCOUNT' })} onRecharger={vi.fn()} />)
 
     expect(await screen.findByText('Versement mensuel déclaré')).toBeInTheDocument()
   })
@@ -507,10 +511,11 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       date_valeur_estimee: '2026-03-15T00:00:00',
       taux_pct: null,
       zone_geo: null,
+      secteur: null,
       versement_mensuel: null,
       date_acquisition: null,
     })
-    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} onRecharger={vi.fn()} />)
     await screen.findByLabelText('Valeur (€)')
 
     fireEvent.change(screen.getByLabelText('Valeur (€)'), { target: { value: '12000' } })
@@ -527,7 +532,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([])
     vi.mocked(api.setHoldingValorisation).mockResolvedValue(holdingApresAction())
-    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} onRecharger={vi.fn()} />)
     await screen.findByLabelText('Valeur (€)')
 
     fireEvent.change(screen.getByLabelText('Valeur (€)'), { target: { value: '12000' } })
@@ -546,7 +551,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       { id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 12000, versement: 1500 },
     ])
     vi.mocked(api.updateHoldingValuationPoint).mockResolvedValue(holdingApresAction())
-    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', immobilier: null })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', immobilier: null })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Historique de valorisation')
     expect(screen.getByText('dont 1 500,00 € versés')).toBeInTheDocument()
@@ -564,7 +569,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
   it("le bouton « Plus-value » est désactivé sans point antérieur connu (première valorisation)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} onRecharger={vi.fn()} />)
 
     await screen.findByLabelText('Valeur (€)')
     expect(screen.getByRole('button', { name: 'Plus-value' })).toBeDisabled()
@@ -576,7 +581,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 10000, versement: null },
     ])
     vi.mocked(api.setHoldingValorisation).mockResolvedValue(holdingApresAction())
-    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} onRecharger={vi.fn()} />)
     await screen.findByLabelText('Valeur (€)')
 
     fireEvent.change(screen.getByLabelText('Valeur (€)'), { target: { value: '12000' } })
@@ -598,7 +603,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 12000, versement: null },
     ])
     vi.mocked(api.updateHoldingValuationPoint).mockResolvedValue(holdingApresAction())
-    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', immobilier: null })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', immobilier: null })} onRecharger={vi.fn()} />)
 
     await screen.findByText('Historique de valorisation')
     // Liste affichée du plus récent au plus ancien : le premier "Modifier" édite le
@@ -620,7 +625,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
 describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
   it('affiche les trois onglets, Aperçu sélectionné par défaut', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail()} />)
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
 
     const onglets = screen.getAllByRole('tab')
     expect(onglets.map((o) => o.textContent)).toEqual(['Aperçu', 'Analyse', 'Paramètres'])
@@ -630,7 +635,7 @@ describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
 
   it("l'onglet Aperçu affiche les indicateurs clés et la courbe de cours, pas la répartition géographique", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail()} />)
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
 
     expect(await screen.findByText('Prix de revient')).toBeInTheDocument()
     expect(screen.queryByText('Répartition géographique')).not.toBeInTheDocument()
@@ -638,26 +643,64 @@ describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
 
   it("basculer sur l'onglet Analyse affiche la répartition géographique/sectorielle et masque l'onglet Aperçu", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail()} />)
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
     ouvrirOnglet('Analyse')
 
     expect(await screen.findByText('Répartition géographique')).toBeInTheDocument()
     expect(screen.queryByText('Prix de revient')).not.toBeInTheDocument()
   })
 
-  it("l'onglet Paramètres affiche un état vide explicite pour une position sans réglages éditables (ex. une action)", async () => {
+  it("l'onglet Paramètres affiche toujours la classification géographique/sectorielle, même pour une position sans autre réglage (ex. une action)", async () => {
+    // Retour utilisateur du 17/09/2026 (§ AP.1/AP.2) : contrairement à la fiche
+    // immobilier (réservée aux biens), la classification géo/secteur est éditable
+    // pour TOUTE ligne — remplace l'ancien état vide "Aucun paramètre modifiable".
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'STOCK' })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'STOCK' })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Paramètres')
 
-    expect(await screen.findByText('Aucun paramètre modifiable pour cette ligne pour l\'instant.')).toBeInTheDocument()
+    expect(await screen.findByText('Classification géographique et sectorielle')).toBeInTheDocument()
+    expect(screen.getByLabelText('Zone géographique')).toBeInTheDocument()
+    expect(screen.getByLabelText('Secteur')).toBeInTheDocument()
+  })
+
+  it('déclarer une zone géographique et un secteur appelle updateHolding puis recharge la fiche entière', async () => {
+    // Retour utilisateur du 17/09/2026 (§ AP.1/AP.2) : « pouvoir éditer... la
+    // géographie... de la même façon la répartition sectorielle » — vérifie que
+    // les deux champs sont bien envoyés ensemble et que `onRecharger` (pas
+    // seulement un état local) est appelé pour refléter le changement dans
+    // l'onglet Analyse de cette même fiche.
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.updateHolding).mockResolvedValue({} as never)
+    const onRecharger = vi.fn()
+    render(<HoldingDetailContent detail={detail({ type_actif: 'BOND', ticker: 'BRICKS-ABC' })} onRecharger={onRecharger} />)
+    ouvrirOnglet('Paramètres')
+
+    fireEvent.change(await screen.findByLabelText('Zone géographique'), { target: { value: 'Europe' } })
+    fireEvent.change(screen.getByLabelText('Secteur'), { target: { value: 'Immobilier' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la classification' }))
+
+    await vi.waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(1, { zone_geo: 'Europe', secteur: 'Immobilier' }))
+    expect(onRecharger).toHaveBeenCalled()
+  })
+
+  it('remettre la classification sur « Détection automatique » envoie null pour effacer la déclaration', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.updateHolding).mockResolvedValue({} as never)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'BOND', zone_geo: 'Europe', secteur_declare: 'Immobilier' })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Paramètres')
+
+    fireEvent.change(await screen.findByLabelText('Zone géographique'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Secteur'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la classification' }))
+
+    await vi.waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(1, { zone_geo: null, secteur: null }))
   })
 
   it("ouvre directement l'onglet Paramètres quand l'URL le demande (lien depuis le simulateur achat/location, retour utilisateur du 10/09/2026)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     rtlRender(
       <MemoryRouter initialEntries={['/patrimoine/MAISON?onglet=parametres']}>
-        <HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />
+        <HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />
       </MemoryRouter>,
     )
 
@@ -669,7 +712,7 @@ describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     rtlRender(
       <MemoryRouter initialEntries={['/patrimoine/AAPL?onglet=inconnu']}>
-        <HoldingDetailContent detail={detail()} />
+        <HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />
       </MemoryRouter>,
     )
 
@@ -678,7 +721,7 @@ describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
 
   it('affiche le libellé complet de la taxonomie élargie (backlog 2.M.1) dans le badge de catégorie', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REGULATED_SAVINGS' })} />)
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REGULATED_SAVINGS' })} onRecharger={vi.fn()} />)
 
     expect(await screen.findByText('Épargne réglementée (Livret A, LDDS...)')).toBeInTheDocument()
   })

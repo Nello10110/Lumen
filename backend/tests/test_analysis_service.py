@@ -330,7 +330,7 @@ def test_une_ligne_bricks_avec_cotation_connue_garde_sa_region_mesuree(db):
 
 
 def test_zone_geo_declaree_a_la_main_prime_sur_la_region_mesuree(db):
-    """Retour utilisateur du 17/09/2026 (§ AO.2) : pouvoir corriger à la main la
+    """Retour utilisateur du 17/09/2026 (§ AP.1) : pouvoir corriger à la main la
     géographie d'un titre — une déclaration explicite (`Holding.zone_geo`) doit
     l'emporter sur la région déduite automatiquement par `market_data`, pas
     seulement s'appliquer en son absence."""
@@ -375,6 +375,53 @@ def test_zone_geo_declaree_a_la_main_prime_meme_pour_un_fonds(db):
 
     valued = analysis_service.value_holdings(db.query(Holding).all())
     assert analysis_service.breakdown_with_lookthrough(db, valued, "geo") == {"Europe": 1000.0}
+
+
+def test_secteur_declare_a_la_main_classe_une_ligne_bricks(db):
+    """Retour utilisateur du 17/09/2026 (§ AP.2) : « pouvoir éditer... la
+    répartition sectorielle » — une ligne Bricks.co (immobilier, jamais coté, donc
+    sans `MarketDataCache.secteur`) reste "Non catégorisé" en secteur tant que rien
+    n'est déclaré, mais devient classée dès que `Holding.secteur` est renseigné."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="BRICKS-ABCDEF0123",
+            nom="Résidence Test",
+            quantite=10.0,
+            prix_revient_moyen=100.0,
+            type_actif="BOND",
+        )
+    )
+    db.commit()
+    valued = analysis_service.value_holdings(db.query(Holding).all())
+    assert analysis_service.breakdown_with_lookthrough(db, valued, "sector") == {NON_CATEGORISE: 1000.0}
+
+    db.query(Holding).filter(Holding.ticker == "BRICKS-ABCDEF0123").update({"secteur": "Immobilier"})
+    db.commit()
+    valued = analysis_service.value_holdings(db.query(Holding).all())
+    assert analysis_service.breakdown_with_lookthrough(db, valued, "sector") == {"Immobilier": 1000.0}
+
+
+def test_secteur_declare_a_la_main_prime_sur_le_secteur_mesure(db):
+    """Même priorité que `zone_geo` (cf. `test_zone_geo_declaree_a_la_main_prime_sur_la_region_mesuree`) :
+    une déclaration explicite l'emporte sur le secteur déduit de `market_data`."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="ACT-US",
+            nom="Action reclassée",
+            quantite=10.0,
+            prix_revient_moyen=100.0,
+            type_actif="STOCK",
+            secteur="Immobilier",
+        )
+    )
+    db.add(MarketDataCache(ticker="ACT-US", prix_actuel=100.0, secteur="Technology"))
+    db.commit()
+
+    valued = analysis_service.value_holdings(db.query(Holding).all())
+    assert valued[0].secteur_label == "Immobilier"
+    assert analysis_service.breakdown_with_lookthrough(db, valued, "sector") == {"Immobilier": 1000.0}
 
 
 # ---------------------------------------------------------------------------

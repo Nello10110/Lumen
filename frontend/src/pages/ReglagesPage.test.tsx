@@ -520,6 +520,7 @@ function holdingDeclaration(overrides: Partial<import('../api/types').Holding> =
     date_valeur_estimee: null,
     taux_pct: null,
     zone_geo: null,
+    secteur: null,
     versement_mensuel: null,
     date_acquisition: null,
     ...overrides,

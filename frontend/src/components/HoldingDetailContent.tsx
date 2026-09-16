@@ -3,11 +3,11 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { HoldingDetail } from '../api/types'
 import Card from './Card'
+import ClassificationParametresForm from './ClassificationParametresForm'
 import { DeltaBadge, SegmentedControl } from './Controls'
 import { GlassPanel } from './GlassPanel'
 import DetenteursSection from './DetenteursSection'
 import EpargneApercu from './EpargneApercu'
-import EtatVide from './EtatVide'
 import { Label } from './Field'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import ImmobilierApercu from './ImmobilierApercu'
@@ -50,7 +50,20 @@ const ONGLETS: { key: Onglet; label: string }[] = [
  * Les sections propres à chaque nature d'actif (immobilier, épargne, détenteurs...)
  * vivent dans leurs propres composants sous `components/` — cf. backlog audit
  * maintenabilité (même raison que le découpage de `ReglagesPage.tsx`). */
-export default function HoldingDetailContent({ detail, titleId }: { detail: HoldingDetail; titleId?: string }) {
+export default function HoldingDetailContent({
+  detail,
+  titleId,
+  onRecharger,
+}: {
+  detail: HoldingDetail
+  titleId?: string
+  // Recharge la fiche ENTIÈRE (pas seulement un sous-composant) — nécessaire à
+  // `ClassificationParametresForm` (§ AP), dont la sauvegarde change aussi
+  // `repartition_geo`/`repartition_sector` affichés dans l'onglet Analyse de cette
+  // même fiche. Fournie par `useHoldingDetail` côté appelant (`HoldingDetailPage`/
+  // `HoldingDetailModal`), jamais recalculée localement ici.
+  onRecharger: () => void
+}) {
   const { montantsMasques } = usePreferencesAffichage()
   const gainPositif = (detail.rendement_depuis_achat_pct ?? 0) >= 0
   const estImmobilier = detail.type_actif === 'REAL_ESTATE'
@@ -332,7 +345,8 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
 
       {onglet === 'parametres' && (
         <div id="fiche-panneau-parametres" role="tabpanel" aria-labelledby="fiche-onglet-parametres" className="space-y-6">
-          {estImmobilier ? (
+          <ClassificationParametresForm detail={detail} onSaved={onRecharger} />
+          {estImmobilier && (
             <ImmobilierParametresForm
               form={immo.form}
               setForm={immo.setForm}
@@ -340,10 +354,6 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
               error={immo.error}
               onSave={immo.handleSave}
             />
-          ) : (
-            <Card>
-              <EtatVide titre="Aucun paramètre modifiable pour cette ligne pour l'instant." />
-            </Card>
           )}
         </div>
       )}

@@ -252,6 +252,36 @@ def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: lis
         raise
 
 
+def set_zone_geo_compte(db: Session, user_id: int, compte: Compte, zone_geo: str | None) -> int:
+    """Applique la MÊME zone géographique (`Holding.zone_geo`) à chaque ligne
+    actuellement rattachée à ce compte — retour utilisateur du 17/09/2026 (§ AP.3) :
+    « pouvoir éditer sur un compte entier (donc tous les actifs qui le composent en
+    même temps) la géographie », même patron que `set_quotites_compte` ci-dessus
+    (une seule action foyer, un seul commit). `zone_geo=None` efface la déclaration
+    manuelle sur chaque ligne — retombe alors sur la détection automatique
+    (`analysis_service.value_holdings`), jamais une valeur inventée. Renvoie le
+    nombre de lignes modifiées ; un compte sans aucune ligne ne fait rien (pas
+    d'erreur)."""
+    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.user_id == user_id).all()
+    for holding in holdings:
+        holding.zone_geo = zone_geo
+    db.commit()
+    return len(holdings)
+
+
+def set_secteur_compte(db: Session, user_id: int, compte: Compte, secteur: str | None) -> int:
+    """Applique le MÊME secteur (`Holding.secteur`) à chaque ligne actuellement
+    rattachée à ce compte — même patron que `set_zone_geo_compte` juste au-dessus
+    (retour utilisateur du 17/09/2026, § AP.3 : « pouvoir éditer de la même façon
+    la répartition sectorielle »). `secteur=None` efface la déclaration manuelle
+    sur chaque ligne. Renvoie le nombre de lignes modifiées."""
+    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.user_id == user_id).all()
+    for holding in holdings:
+        holding.secteur = secteur
+    db.commit()
+    return len(holdings)
+
+
 def _holdings_repartition_incomplete(db: Session, holding_ids: list[int]) -> set[int]:
     """Holdings (parmi `holding_ids`) dont les quotités — sur l'actif OU sur un
     emprunt qui lui est rattaché — sont COMMENCÉES mais ne somment pas à 100 % (retour

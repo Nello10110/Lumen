@@ -102,9 +102,12 @@ export interface Holding {
   // réglementée/salariale), négatif = décote attendue (véhicule) — jamais appliqué
   // automatiquement à `valeur_estimee`, cf. `models.Holding.taux_pct` côté backend.
   taux_pct: number | null
-  // Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1) —
-  // cf. `models.Holding.zone_geo` côté backend.
+  // Zone géographique déclarée pour cette ligne (backlog 2.P.1) — cf.
+  // `models.Holding.zone_geo` côté backend.
   zone_geo: string | null
+  // Secteur déclaré pour cette ligne (§ AP.2) — cf. `models.Holding.secteur` côté
+  // backend.
+  secteur: string | null
   // Versement mensuel récurrent déclaré (écran Épargne, backlog 2.S.1) — jamais
   // déduit automatiquement, additionné à `versement_mensuel_suggere` côté Simulateur.
   // Cf. `models.Holding.versement_mensuel` côté backend.
@@ -138,6 +141,7 @@ export interface HoldingInput {
   valeur_estimee?: number | null
   taux_pct?: number | null
   zone_geo?: string | null
+  secteur?: string | null
   versement_mensuel?: number | null
   // Format AAAA-MM-JJ, comme `ValorisationInput.date` — cf. `Holding.date_acquisition`.
   date_acquisition?: string | null
@@ -161,6 +165,7 @@ export interface HoldingUpdateInput {
   valeur_estimee?: number | null
   taux_pct?: number | null
   zone_geo?: string | null
+  secteur?: string | null
   versement_mensuel?: number | null
   date_acquisition?: string | null
 }

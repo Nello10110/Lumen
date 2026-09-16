@@ -41,9 +41,14 @@ export default function HoldingDetailModal({ holdingId, onClose }: { holdingId: 
             Ouvrir en pleine page <IconLienExterne className="h-3 w-3" />
           </Link>
 
-          {loading && <SkeletonTexte lignes={4} />}
+          {/* `loading && !detail` (pas `loading` seul) : un `recharger()` (§ AP.1)
+              repasse `loading` à vrai le temps du rafraîchissement, mais `detail`
+              garde ses anciennes valeurs entre-temps (cf. `useHoldingDetail`) —
+              sans cette garde, le squelette s'afficherait ICI EN PLUS de la fiche
+              encore montée juste en dessous, au lieu de la remplacer. */}
+          {loading && !detail && <SkeletonTexte lignes={4} />}
           {error && <EtatErreur message={error} onReessayer={recharger} />}
-          {detail && <HoldingDetailContent detail={detail} />}
+          {detail && <HoldingDetailContent detail={detail} onRecharger={recharger} />}
         </>
       )}
     </Modale>

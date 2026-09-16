@@ -356,3 +356,47 @@ def test_quotites_compte_somme_non_100_refusee(client, db):
 def test_quotites_dun_compte_introuvable_renvoie_404(client):
     reponse = client.put("/api/comptes/999/quotites", json={"quotites": []})
     assert reponse.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Zone géographique / secteur par compte (§ AP, retour utilisateur du
+# 17/09/2026) — même patron que les quotités ci-dessus : une seule action pour
+# tout le compte, plutôt que ligne par ligne.
+# ---------------------------------------------------------------------------
+
+
+def test_declarer_la_zone_geo_dun_compte_entier(client, db):
+    compte = make_compte(db, nom="Bricks")
+    holding_a = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id)
+    holding_b = make_holding(db, ticker="BRICKS-BBB", type_actif="BOND", compte_id=compte.id)
+
+    reponse = client.put(f"/api/comptes/{compte.id}/zone-geo", json={"zone_geo": "Europe"})
+
+    assert reponse.status_code == 200
+    assert reponse.json() == {"ok": True, "lignes_modifiees": 2}
+    detail_a = client.get(f"/api/portfolio/holdings/{holding_a.id}/detail").json()
+    detail_b = client.get(f"/api/portfolio/holdings/{holding_b.id}/detail").json()
+    assert detail_a["zone_geo"] == "Europe"
+    assert detail_b["zone_geo"] == "Europe"
+
+
+def test_zone_geo_dun_compte_introuvable_renvoie_404(client):
+    reponse = client.put("/api/comptes/999/zone-geo", json={"zone_geo": "Europe"})
+    assert reponse.status_code == 404
+
+
+def test_declarer_le_secteur_dun_compte_entier(client, db):
+    compte = make_compte(db, nom="Bricks")
+    holding_a = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id)
+
+    reponse = client.put(f"/api/comptes/{compte.id}/secteur", json={"secteur": "Immobilier"})
+
+    assert reponse.status_code == 200
+    assert reponse.json() == {"ok": True, "lignes_modifiees": 1}
+    detail_a = client.get(f"/api/portfolio/holdings/{holding_a.id}/detail").json()
+    assert detail_a["secteur_declare"] == "Immobilier"
+
+
+def test_secteur_dun_compte_introuvable_renvoie_404(client):
+    reponse = client.put("/api/comptes/999/secteur", json={"secteur": "Immobilier"})
+    assert reponse.status_code == 404

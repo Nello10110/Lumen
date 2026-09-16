@@ -13,6 +13,8 @@ vi.mock('../api/client', () => ({
     listLoans: vi.fn().mockResolvedValue([]),
     listDetenteurs: vi.fn().mockResolvedValue([]),
     setCompteQuotites: vi.fn(),
+    setCompteZoneGeo: vi.fn(),
+    setCompteSecteur: vi.fn(),
     // Ligne d'épargne inline (fusion de l'écran Épargne, 03/09/2026) — `LigneEpargne`
     // en a besoin pour ses propres actions (Modifier/Ajouter une valorisation/Supprimer).
     getHoldingValuationHistory: vi.fn().mockResolvedValue([]),
@@ -57,6 +59,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     date_valeur_estimee: null,
     taux_pct: null,
     zone_geo: null,
+    secteur: null,
     versement_mensuel: null,
     date_acquisition: null,
     ...overrides,
@@ -358,6 +361,57 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
       ]),
     )
     expect(await screen.findByText('Répartition appliquée à toutes les lignes du compte.')).toBeInTheDocument()
+  })
+})
+
+describe('CompteDetailContent — classification géographique et sectorielle du compte', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.listEtablissements).mockResolvedValue([])
+    vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+  })
+
+  it("n'affiche pas la carte si le compte n'a aucune ligne", () => {
+    renderContent(compte(), [])
+
+    expect(screen.queryByText('Classification géographique et sectorielle')).not.toBeInTheDocument()
+  })
+
+  it('mentionne le nombre de lignes concernées par le remplacement', async () => {
+    renderContent(compte(), [holding({ id: 1 }), holding({ id: 2 })])
+
+    await screen.findByText('Classification géographique et sectorielle')
+    expect(screen.getByText(/S'applique à TOUTES les lignes de ce compte \(2 lignes\)/)).toBeInTheDocument()
+  })
+
+  it('déclarer une zone géographique appelle setCompteZoneGeo SEUL, jamais setCompteSecteur', async () => {
+    // Retour utilisateur du 17/09/2026 (§ AP.3) : deux demandes distinctes,
+    // deux boutons indépendants — corriger la géographie ne doit jamais effacer le
+    // secteur de chaque ligne (et réciproquement), cf. docstring de
+    // `ClassificationCompteChamp`.
+    vi.mocked(api.setCompteZoneGeo).mockResolvedValue({ ok: true, lignes_modifiees: 2 })
+    renderContent(compte({ id: 5 }), [holding({ id: 1 }), holding({ id: 2 })])
+    await screen.findByText('Classification géographique et sectorielle')
+
+    fireEvent.change(screen.getByLabelText('Zone géographique'), { target: { value: 'Europe' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la zone' }))
+
+    await vi.waitFor(() => expect(api.setCompteZoneGeo).toHaveBeenCalledWith(5, 'Europe'))
+    expect(api.setCompteSecteur).not.toHaveBeenCalled()
+    expect(await screen.findByText('Appliqué à toutes les lignes du compte.')).toBeInTheDocument()
+  })
+
+  it('déclarer un secteur appelle setCompteSecteur SEUL, jamais setCompteZoneGeo', async () => {
+    vi.mocked(api.setCompteSecteur).mockResolvedValue({ ok: true, lignes_modifiees: 1 })
+    renderContent(compte({ id: 5 }), [holding({ id: 1 })])
+    await screen.findByText('Classification géographique et sectorielle')
+
+    fireEvent.change(screen.getByLabelText('Secteur'), { target: { value: 'Immobilier' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le secteur' }))
+
+    await vi.waitFor(() => expect(api.setCompteSecteur).toHaveBeenCalledWith(5, 'Immobilier'))
+    expect(api.setCompteZoneGeo).not.toHaveBeenCalled()
   })
 })
 

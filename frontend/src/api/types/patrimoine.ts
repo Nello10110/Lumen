@@ -161,8 +161,15 @@ export interface HoldingDetail {
   prix_actuel: number | null
   valeur: number
   devise: string | null
+  // Secteur/pays MESURÉS (lecture seule, section Aperçu) — jamais influencés par
+  // une déclaration manuelle, cf. `zone_geo`/`secteur_declare` ci-dessous.
   secteur: string | null
   pays: string | null
+  // Zone géographique/secteur DÉCLARÉS pour cette ligne (§ AP.1/AP.2, retour
+  // utilisateur du 17/09/2026) — `null` signifie « pas de déclaration, détection
+  // automatique ». Éditables depuis la section Paramètres.
+  zone_geo: string | null
+  secteur_declare: string | null
   rendement_depuis_achat_pct: number | null
   rendement_annualise_pct: number | null
   // Cf. `Holding.cout_acquisition_total` (noyau.ts) — même champ, même source.
