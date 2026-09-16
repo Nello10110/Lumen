@@ -28,6 +28,7 @@ from .routers import (
     detenteurs,
     donnees,
     export,
+    jalons,
     loans,
     market_data,
     objectifs,
@@ -185,6 +186,7 @@ app.include_router(patrimoine.router, dependencies=_protegee)
 app.include_router(detenteurs.router, dependencies=_proprietaire_seul)
 app.include_router(budget.router, dependencies=_pas_invite)
 app.include_router(objectifs.router, dependencies=_proprietaire_seul)
+app.include_router(jalons.router, dependencies=_proprietaire_seul)
 app.include_router(partage.router, dependencies=_proprietaire_seul)
 app.include_router(salaire.router, dependencies=_proprietaire_seul)
 

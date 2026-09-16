@@ -100,6 +100,9 @@ from .emprunts import (  # noqa: F401
 from .export import (  # noqa: F401
     DeclarationPatrimoineRequest,
 )
+from .jalons import (  # noqa: F401
+    JalonOut,
+)
 from .objectifs import (  # noqa: F401
     ActifRattacheOut,
     ContributeurObjectifOut,
