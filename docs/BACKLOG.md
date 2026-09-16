@@ -4158,6 +4158,63 @@ regroupé sous « Sans compte » — import antérieur à la provenance par comp
 rien n'a été investi cette année-là, plutôt qu'un tableau vide.
 
 ---
+
+### AM. Trois bugs sur un PER valorisé manuellement (16/09/2026)
+
+Retour terrain unique regroupant trois bugs distincts, tous découverts par le même utilisateur en
+testant l'ajout d'un PER (0 € en 2024, 50 000 € aujourd'hui dont 5 000 € de plus-value) : « il lisse
+bien entre les 2 points l'augmentation linéaire du PER mais par contre en mode étagé sur le tableau
+de bord il me met n'importe quoi [...] De plus, Tous les comptes ne s'affichent pas dans le graphique
+[...] Et pareil pour le graphique évolution dans l'onglet analyse, je ne peux pas sélectionner le
+PER ». Regroupés ici plutôt qu'éclatés en trois sections isolées : les trois racines touchent le même
+mécanisme (l'historique de valorisation daté d'une ligne `TYPES_EPARGNE`) sous trois angles différents.
+
+#### AM.1 — `mineur` · `S` · `traité` (16/09/2026) — Mode étagé Investi/Gains incohérent pour une ligne épargne
+
+`patrimoine_history_service._compute_patrimoine_history` dispatchait déjà la VALEUR brute d'une ligne
+`TYPES_EPARGNE` vers `_valeur_interpolee` (§ U.2) mais gardait toujours la part INVESTIE en escalier
+(`historical_performance_service._value_at`, jamais `_valeur_interpolee`) — asymétrie qui produisait
+un `Gains = Valeur − Investi` en dents de scie entre deux points connus (la valeur progressait en
+continu pendant que l'investi restait plaqué). Nouveau dispatcheur `_valeur_investie_ligne_a_date`,
+miroir exact de `_valeur_ligne_a_date`, appliqué aux deux branches (foyer entier et détenteur scopé)
+de `_compute_patrimoine_history`. Les BREAKPOINTS stockés restent des faits ponctuels (un versement
+est déclaré à une date précise, jamais lissé, cf. § U.2) — seule la valeur LUE entre deux breakpoints
+change de méthode d'échantillonnage, désormais cohérente avec la valeur brute.
+
+#### AM.2 — `mineur` · `S` · `traité` (16/09/2026) — Ligne épargne absente du graphique Plus-value par compte
+
+`Holding.prix_revient_moyen` (base de `cout_acquisition_total`, utilisé par
+`gainsParCompte.ts::calculerGainsParCompte` pour exclure une ligne sans coût connu) n'était jamais
+synchronisé par le mécanisme d'historique de valorisation daté (`PUT .../valorisation` et consorts,
+`routers/portfolio.py`) — un PER saisi uniquement via ce mécanisme, sans jamais remplir le champ
+« Prix de revient » séparé proposé à la création, restait donc invisible du calcul de plus-value quel
+que soit son gain réel. Plutôt que d'écraser silencieusement `prix_revient_moyen` à chaque mutation de
+l'historique (rejeté : trop surprenant, pourrait effacer une valeur saisie à la main), repli non
+destructif côté lecture : nouvelle fonction `immobilier_service.investi_cumule_derive` (dernier
+montant cumulé « investi » reconstruit depuis l'historique daté, même principe que le premier point de
+`_serie_investie_manuel`), utilisée par `performance_service._rendement_pour_ligne` UNIQUEMENT quand
+`prix_revient_moyen` est vide. Chargée par lot (`historiques_valorisation_par_holding`, même patron
+anti-N+1 que `details_immobiliers_par_holding`) dans `compute_holding_returns`.
+
+#### AM.3 — `mineur` · `M` · `traité` (16/09/2026) — PER non sélectionnable dans le graphique Évolution
+
+`EvolutionFinanciereCard.tsx` (écran Analyse) limitait volontairement son sélecteur de classe aux 5
+classes financières (`STOCK`/`FUND`/`CRYPTO`/`BOND`/`PRIVATE_FUND`) : `GET /api/performance/history`
+ne filtrait que le grand livre de transactions (`historical_performance_service`), qui ne connaît
+aucune ligne valorisée à la main — un filtre sur `PENSION` (PER) y aurait toujours renvoyé une série
+vide. Nouvelle fonction `patrimoine_history_service.compute_portfolio_history_filtre`, appelée par
+l'endpoint à la place de l'ancien appel direct : combine la part financière déjà filtrable et la part
+manuelle correspondant aux mêmes filtres (réutilise `_serie_holding_manuel`/`_valeur_ligne_a_date` et
+`_serie_investie_manuel`/`_valeur_investie_ligne_a_date`, cf. AM.1), échantillonnées sur une grille
+hebdomadaire commune. Le sélecteur frontend réutilise désormais `TYPE_ACTIF_OPTIONS`
+(`holdingCategories.ts`, déjà utilisé par le formulaire d'ajout manuel) au lieu d'un dictionnaire de 5
+entrées dédié, et n'exclut plus les lignes `origine === 'manuel'`. Changement de portée assumé : sans
+aucun filtre, le total inclut désormais la part manuelle (jusqu'ici absente) — cohérent avec le fait
+qu'un type manuel devienne sélectionnable individuellement (choisir « Tout » puis « PER » ne doit
+jamais faire apparaître un montant absent du total non filtré). Le tableau de bord
+(`PortfolioHistoryChart`, portefeuille entier) n'est pas concerné : il reste sciemment financier seul.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
