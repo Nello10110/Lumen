@@ -9,7 +9,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { ChartFrame } from './ChartFrame'
 import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 import { dateVersISO, formatEuro } from '../utils/format'
-import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel } from '../utils/interetsComposes'
+import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel, type ResultatFire } from '../utils/interetsComposes'
 import { SegmentedControl } from './Controls'
 
 const DUREES = [5, 10, 20, 30] as const
@@ -43,6 +43,44 @@ function libelleMoisAnnee(offset: number): string {
   const mois = ((totalMois % 12) + 12) % 12
   const nomMois = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long' })
   return `${annee} ${nomMois.charAt(0).toUpperCase()}${nomMois.slice(1)}`
+}
+
+/** Délai en mois, formaté en langage courant : sous un an en mois, au-delà en
+ * années arrondies — « 8 mois plus tôt » se compte, « 38 mois plus tôt » se
+ * recalcule mentalement en années de toute façon. */
+function formatDelai(mois: number): string {
+  if (mois < 12) return `${mois} mois`
+  const ans = Math.round(mois / 12)
+  return `${ans} an${ans > 1 ? 's' : ''}`
+}
+
+/** Backlog § AG.6 — la phrase en langage humain qui précède le détail chiffré du
+ * FIRE : ce que 50 €/mois de plus changeraient concrètement, calculé sur le MÊME
+ * moteur que le reste (`calculerFire`), jamais une formule séparée qui pourrait
+ * diverger. `null` si rien de significatif à raconter (objectif déjà atteint,
+ * différence sous le mois — arrondie à zéro, une case tronquée artificiellement à
+ * « 0 mois plus tôt » serait plus trompeuse que silencieuse). */
+function phraseFireEnHistoire(fire: ResultatFire | null, fireAvecPlus50: ResultatFire | null): string | null {
+  if (!fire || !fireAvecPlus50) return null
+  // Déjà atteinte : rien à accélérer.
+  if (fire.anneesAvantIndependance === 0) return null
+
+  if (fire.anneesAvantIndependance === null) {
+    // Jamais atteinte dans l'horizon de recherche (60 ans) SANS les 50 € de plus —
+    // mais avec, ça devient possible : un cas où « plus tôt » n'a pas de sens,
+    // « devient possible » si.
+    if (fireAvecPlus50.anneesAvantIndependance !== null) {
+      return `Avec 50 € de plus par mois, l'indépendance financière deviendrait atteignable — plutôt que jamais d'ici 60 ans.`
+    }
+    return null
+  }
+
+  if (fireAvecPlus50.anneesAvantIndependance === null) return null // ne devrait pas arriver (plus de versement ne peut qu'aider), garde-fou silencieux
+
+  const moisPlusTot = Math.round((fire.anneesAvantIndependance - fireAvecPlus50.anneesAvantIndependance) * 12)
+  if (moisPlusTot < 1) return null
+
+  return `Avec 50 € de plus par mois, tu prendrais ta retraite ${formatDelai(moisPlusTot)} plus tôt.`
 }
 
 /** Hypothèse réglée au curseur (maquette de la refonte : « les hypothèses se
@@ -277,6 +315,16 @@ export default function SimulateurProjectionSection() {
     () => (fireValide ? calculerFire(capitalNum, tauxNum, versementNum, depenseCibleNum, tauxRetraitNum) : null),
     [fireValide, capitalNum, tauxNum, versementNum, depenseCibleNum, tauxRetraitNum],
   )
+  // Backlog § AG.6 (15/09/2026) — « une première phrase en langage humain avant le
+  // détail chiffré » : ce que 50 €/mois de plus changeraient concrètement, pas un
+  // second scénario à paramétrer soi-même. Même moteur (`calculerFire`), versement
+  // +50 — le tableau détaillé, lui, continue de répondre à « et si je change VRAIMENT
+  // mes hypothèses », cette phrase ne fait que donner un ordre de grandeur immédiat.
+  const fireAvecPlus50 = useMemo(
+    () => (fireValide ? calculerFire(capitalNum, tauxNum, versementNum + 50, depenseCibleNum, tauxRetraitNum) : null),
+    [fireValide, capitalNum, tauxNum, versementNum, depenseCibleNum, tauxRetraitNum],
+  )
+  const phraseHumaineFire = phraseFireEnHistoire(fire, fireAvecPlus50)
 
   return (
     <div className="space-y-[14px]">
@@ -561,6 +609,11 @@ export default function SimulateurProjectionSection() {
         </div>
 
         {!depenseCible && <p className="mt-4 text-sm text-texte-attenue">Renseigne une dépense annuelle cible pour voir le résultat.</p>}
+
+        {/* Backlog § AG.6 : la phrase en langage humain, AVANT le détail chiffré —
+            le tableau/StatTile en dessous répond à « et si je change vraiment mes
+            hypothèses », celle-ci donne un ordre de grandeur immédiat sans y toucher. */}
+        {phraseHumaineFire && <p className="mt-4 text-[15px] font-medium text-ink">{phraseHumaineFire}</p>}
 
         {/* Chiffre héros (maquette de la refonte) : l'ANNÉE d'indépendance, pas le
             nombre d'années — « 2048 » se situe dans une vie, « dans 22 ans » se

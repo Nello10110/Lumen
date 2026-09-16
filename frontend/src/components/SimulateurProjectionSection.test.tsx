@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { JonctionPatrimoine, PatrimoineNet, PerformanceSummary } from '../api/types'
 import { formatEuro } from '../utils/format'
-import { agregerParAnnee, calculerTrajectoire, calculerTrajectoireMensuelle } from '../utils/interetsComposes'
+import { agregerParAnnee, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle } from '../utils/interetsComposes'
 import SimulateurProjectionSection from './SimulateurProjectionSection'
 
 vi.mock('../api/client', () => ({
@@ -329,6 +329,42 @@ describe('SimulateurProjectionSection', () => {
       render(<SimulateurProjectionSection />)
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(150))
+    })
+  })
+
+  describe('FIRE reformulé en histoire (backlog § AG.6)', () => {
+    it("affiche le délai gagné avec 50 € de plus par mois, en cohérence avec calculerFire", async () => {
+      render(<SimulateurProjectionSection />)
+      await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
+
+      fireEvent.change(screen.getByLabelText('Versement mensuel (€)'), { target: { value: '500' } })
+      fireEvent.change(screen.getByLabelText('Dépense annuelle cible (€)'), { target: { value: '40000' } })
+
+      const fire = calculerFire(10000, 5, 500, 40000, 4)
+      const fireAvecPlus50 = calculerFire(10000, 5, 550, 40000, 4)
+      const moisGagnes = Math.round((fire.anneesAvantIndependance! - fireAvecPlus50.anneesAvantIndependance!) * 12)
+      const delaiAttendu = moisGagnes < 12 ? `${moisGagnes} mois` : `${Math.round(moisGagnes / 12)} an`
+
+      const phrase = await screen.findByText(/Avec 50 € de plus par mois, tu prendrais ta retraite/)
+      expect(phrase).toHaveTextContent(delaiAttendu)
+    })
+
+    it("n'affiche aucune phrase tant qu'aucune dépense cible n'est saisie", async () => {
+      render(<SimulateurProjectionSection />)
+      await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
+
+      expect(screen.queryByText(/Avec 50 € de plus par mois/)).not.toBeInTheDocument()
+    })
+
+    it("n'affiche aucune phrase quand l'indépendance est déjà atteinte (rien à accélérer)", async () => {
+      render(<SimulateurProjectionSection />)
+      await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
+
+      fireEvent.change(screen.getByLabelText('Capital de départ (€)'), { target: { value: '2000000' } })
+      fireEvent.change(screen.getByLabelText('Dépense annuelle cible (€)'), { target: { value: '40000' } })
+
+      await screen.findByText('Déjà atteinte')
+      expect(screen.queryByText(/Avec 50 € de plus par mois/)).not.toBeInTheDocument()
     })
   })
 })
