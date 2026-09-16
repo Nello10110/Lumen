@@ -120,6 +120,54 @@ def historique_valorisation(db: Session, holding_id: int) -> list[HoldingValuati
     )
 
 
+def historiques_valorisation_par_holding(db: Session, holding_ids: list[int]) -> dict[int, list[HoldingValuationHistory]]:
+    """Chargement groupé (une requête `IN (...)`), même patron que
+    `details_immobiliers_par_holding` ci-dessus — à utiliser par tout appelant qui
+    boucle sur plusieurs holdings pour éviter un N+1 (`historique_valorisation`
+    reste la variante mono-holding). Trié par date, même contrat que celle-ci."""
+    if not holding_ids:
+        return {}
+    points = (
+        db.query(HoldingValuationHistory)
+        .filter(HoldingValuationHistory.holding_id.in_(holding_ids))
+        .order_by(HoldingValuationHistory.holding_id, HoldingValuationHistory.date_valeur)
+        .all()
+    )
+    par_holding: dict[int, list[HoldingValuationHistory]] = {}
+    for p in points:
+        par_holding.setdefault(p.holding_id, []).append(p)
+    return par_holding
+
+
+def investi_cumule_derive(holding: Holding, points_historique: list[HoldingValuationHistory]) -> float | None:
+    """Dernier montant cumulé "investi" connu pour une ligne valorisée manuellement,
+    dérivé de son historique de valorisation daté — repli utilisé par
+    `performance_service._rendement_pour_ligne` pour `cout_acquisition_total`
+    quand `Holding.prix_revient_moyen` n'est pas renseigné (retour utilisateur du
+    16/09/2026 : un PER valorisé uniquement via des points datés — sans jamais
+    remplir le champ "prix de revient" séparé, distinct de ce mécanisme, proposé à
+    la création — restait invisible du calcul de plus-value, donc absent du
+    graphique "Plus-value par compte" côté frontend, `gainsParCompte.ts`, qui
+    exclut toute ligne à `cout_acquisition_total` `None`).
+
+    Même principe que le tout premier point de
+    `patrimoine_history_service._serie_investie_manuel` (celui-ci ne reproduit que
+    le DERNIER montant cumulé, pas la série complète — c'est tout ce dont
+    `_rendement_pour_ligne` a besoin) : l'investi part de la valeur du premier
+    point connu (ou `valeur_estimee` à défaut), puis ne progresse QU'aux points à
+    `versement` explicitement déclaré (§ U.2) — jamais recalculé depuis
+    `prix_revient_moyen`/l'ancrage sur le coût d'acquisition ici, puisque cette
+    fonction n'est appelée QUE quand ce champ est vide, donc sans effet. `None` si
+    aucune donnée n'existe pour cette ligne (jamais valorisée)."""
+    if points_historique:
+        cumul = points_historique[0].valeur
+        for p in points_historique[1:]:
+            if p.versement is not None:
+                cumul += p.versement
+        return cumul
+    return holding.valeur_estimee
+
+
 def _arrondi(valeur: float | None) -> float | None:
     return round(valeur, 2) if valeur is not None else None
 

@@ -112,10 +112,17 @@ def test_valeur_investie_dun_bien_immobilier_inclut_les_frais_dacquisition(db):
     assert point_ancrage["valeur_manuelle"] == 200000.0
 
 
-def test_valeur_investie_reste_en_escalier_meme_pour_une_ligne_epargne_interpolee(db):
-    """Contrairement à la valeur brute (interpolée pour `TYPES_EPARGNE`, § U.2),
-    l'investi reste TOUJOURS en escalier : un versement est un événement ponctuel,
-    jamais une progression continue à lisser."""
+def test_valeur_investie_interpolee_pour_une_ligne_epargne_comme_la_valeur_brute(db):
+    """Correctif du 16/09/2026 (retour utilisateur : mode étagé « n'importe quoi »
+    sur un PER passé de 0€ à 50 000€ entre deux points) — l'investi d'une ligne
+    `TYPES_EPARGNE` suit désormais la même bascule que la valeur brute (§ U.2) :
+    interpolé entre deux BREAKPOINTS, pas plaqué en escalier. Les breakpoints
+    eux-mêmes restent des faits ponctuels (`_serie_investie_manuel` ne bouge
+    toujours qu'aux points à `versement` déclaré) — seule la valeur LUE entre deux
+    breakpoints change de méthode d'échantillonnage. Avant ce correctif,
+    `valeur_investie` restait plaquée à 1000 à mi-chemin pendant que
+    `valeur_manuelle` progressait déjà vers 1200, ce qui produisait un
+    `Gains = Valeur - Investi` en dents de scie."""
     holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 1200.0, datetime(2024, 1, 15), versement=200.0)
@@ -124,7 +131,27 @@ def test_valeur_investie_reste_en_escalier_meme_pour_une_ligne_epargne_interpole
 
     point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
     assert point_mi_chemin["valeur_manuelle"] == 1100.0  # brute : interpolée à mi-chemin
-    assert point_mi_chemin["valeur_investie"] == 1000.0  # investi : encore plaqué au premier point (escalier)
+    assert point_mi_chemin["valeur_investie"] == 1100.0  # investi : interpolé pareillement, plus en escalier
+
+
+def test_investi_immobilier_reste_en_escalier_meme_a_cote_dune_ligne_epargne_interpolee(db):
+    """Garde-fou de non-régression symétrique à
+    `test_immobilier_reste_en_escalier_meme_a_cote_dune_ligne_epargne_interpolee` :
+    la bascule investi interpolé/escalier se fait ligne par ligne selon
+    `type_actif`, pas globalement — un bien immobilier gardé en escalier à côté
+    d'une ligne épargne interpolée ne doit pas se mettre à interpoler lui aussi."""
+    bien = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0)
+    av = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, bien.id, 250000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, bien.id, 300000.0, datetime(2024, 1, 15), versement=50000.0)
+    immobilier_service.enregistrer_point_historique(db, av.id, 1000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, av.id, 1200.0, datetime(2024, 1, 15), versement=200.0)
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
+    # immobilier : encore plaqué à 250000 (escalier) + épargne : interpolée à 1100
+    assert point_mi_chemin["valeur_investie"] == 251100.0
 
 
 def test_ancrage_cout_dacquisition_definit_linvesti_initial(db):

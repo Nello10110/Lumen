@@ -29,7 +29,7 @@ from datetime import date as date_cls
 
 from sqlalchemy.orm import Session
 
-from ..models import TYPE_ACTIF_REAL_ESTATE, Holding, Transaction
+from ..models import TYPE_ACTIF_REAL_ESTATE, TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Transaction
 from . import analysis_service, immobilier_service, portfolio_reconstruction
 from .portfolio_reconstruction import PositionState
 
@@ -296,7 +296,11 @@ def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:
 
 
 def _rendement_pour_ligne(
-    v: analysis_service.ValuedHolding, state: PositionState | None, now: datetime, frais_acquisition: float = 0.0
+    v: analysis_service.ValuedHolding,
+    state: PositionState | None,
+    now: datetime,
+    frais_acquisition: float = 0.0,
+    investi_derive: float | None = None,
 ) -> dict:
     """Calcul commun à `compute_holding_returns` (toutes les lignes) et
     `compute_holding_return` (une seule, cf. LOT 4.2) — factorisé pour que les deux
@@ -308,7 +312,16 @@ def _rendement_pour_ligne(
     `immobilier_service.frais_acquisition_total`), ajouté au coût de revient utilisé
     ci-dessous plutôt qu'à `h.prix_revient_moyen` directement : la précondition
     "un prix de revient est connu" reste inchangée si `prix_revient_moyen` est
-    `None`, seul le montant change quand il est renseigné."""
+    `None`, seul le montant change quand il est renseigné.
+
+    `investi_derive` : repli utilisé UNIQUEMENT quand `prix_revient_moyen` est vide
+    (retour utilisateur du 16/09/2026, cf. `immobilier_service.investi_cumule_derive`)
+    — un montant cumulé "investi" reconstruit depuis l'historique de valorisation
+    daté de la ligne, pour les foyers qui suivent un actif manuel (PER, assurance-vie...)
+    uniquement via ce mécanisme sans jamais remplir le champ "prix de revient" séparé.
+    Jamais additionné à `frais_acquisition` (cette dernière ne s'applique qu'au repli
+    `prix_revient_moyen`, cf. `immobilier_service.investi_cumule_derive`, qui
+    l'exclut déjà pour la même raison)."""
     h = v.holding
     # `valeur_estimee` (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/PER)
     # joue le rôle du prix actuel pour ces lignes : c'est un montant absolu, mais
@@ -316,7 +329,7 @@ def _rendement_pour_ligne(
     # donc la comparer directement à `prix_revient_moyen` (le montant investi à
     # l'origine) reste correcte.
     prix_actuel_effectif = h.valeur_estimee if h.valeur_estimee is not None else (h.market_data.prix_actuel if h.market_data else None)
-    cout_total = h.prix_revient_moyen + frais_acquisition if h.prix_revient_moyen else None
+    cout_total = h.prix_revient_moyen + frais_acquisition if h.prix_revient_moyen else investi_derive
     depuis_achat = None
     if cout_total and cout_total > EPSILON and prix_actuel_effectif is not None:
         depuis_achat = (prix_actuel_effectif / cout_total - 1) * 100
@@ -397,12 +410,21 @@ def compute_holding_returns(
     ids_immobiliers = [h.id for h in holdings if h.type_actif == TYPE_ACTIF_REAL_ESTATE]
     details_immobiliers = immobilier_service.details_immobiliers_par_holding(db, ids_immobiliers)
 
+    # Repli "investi dérivé" (retour utilisateur du 16/09/2026, cf.
+    # `immobilier_service.investi_cumule_derive`) : chargé en une requête groupée
+    # pour toutes les lignes manuelles, même patron que ci-dessus — n'affecte que
+    # celles dont `prix_revient_moyen` est vide (`_rendement_pour_ligne` l'ignore
+    # sinon).
+    ids_manuels = [h.id for h in holdings if h.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL]
+    historiques_manuels = immobilier_service.historiques_valorisation_par_holding(db, ids_manuels)
+
     return {
         v.holding.id: _rendement_pour_ligne(
             v,
             positions.get((v.holding.ticker, v.holding.compte_id)),
             now,
             immobilier_service.frais_acquisition_total(details_immobiliers.get(v.holding.id)),
+            immobilier_service.investi_cumule_derive(v.holding, historiques_manuels.get(v.holding.id, [])),
         )
         for v in valued
     }
@@ -435,4 +457,5 @@ def compute_holding_return(db: Session, holding_id: int, user_id: int, position:
     now = datetime.now(UTC).replace(tzinfo=None)
 
     frais_acquisition = immobilier_service.frais_acquisition_total(immobilier_service.detail_immobilier(db, holding.id))
-    return _rendement_pour_ligne(v, position, now, frais_acquisition)
+    investi_derive = immobilier_service.investi_cumule_derive(holding, immobilier_service.historique_valorisation(db, holding.id))
+    return _rendement_pour_ligne(v, position, now, frais_acquisition, investi_derive)

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Compte, Holding, User
+from ..models import User
 from ..schemas import (
     BenchmarkOption,
     ComparaisonBenchmark,
@@ -60,28 +60,23 @@ def get_portfolio_history(
     Analyse, retour utilisateur du 13/09/2026) : optionnels, `type_actif` combinable
     avec l'un des deux autres, mais `compte_id`/`etablissement_id` mutuellement
     exclusifs (un seul niveau de granularité à la fois, plus simple à lire qu'un
-    établissement filtré puis un compte qui le restreindrait encore). Résolus ici en
-    un ensemble de couples `(ticker, compte_id)` plutôt que de simples tickers
-    (corrigé le 14/09/2026 : un filtre par ticker seul incluait à tort la part d'un
-    AUTRE compte partageant ce ticker — `Transaction.compte_id` existe désormais,
-    `historical_performance_service` filtre sur la position exacte, plus une
-    approximation). Tous absents : comportement strictement inchangé (portefeuille
-    entier), même appel qu'avant cette fonctionnalité."""
+    établissement filtré puis un compte qui le restreindrait encore).
+
+    Délégué à `patrimoine_history_service.compute_portfolio_history_filtre` (revu le
+    16/09/2026, retour utilisateur : un PER/une assurance-vie/un livret restaient
+    impossibles à sélectionner ici, faute de grand livre de transactions à filtrer)
+    — combine désormais la part financière (résolue en un ensemble de couples
+    `(ticker, compte_id)`, jamais de simples tickers depuis le 14/09/2026 : un
+    filtre par ticker seul incluait à tort la part d'un AUTRE compte partageant ce
+    ticker) ET la part manuelle correspondant aux mêmes filtres. Tous les filtres
+    absents : portée élargie par rapport à l'ancien comportement financier seul
+    (la part manuelle, désormais filtrable, doit aussi apparaître dans le total non
+    filtré — cf. docstring de la fonction déléguée)."""
     if compte_id is not None and etablissement_id is not None:
         raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
 
     user_id = auth_service.id_foyer(current_user)
-    cles_filtres = None
-    if type_actif is not None or compte_id is not None or etablissement_id is not None:
-        requete = db.query(Holding.ticker, Holding.compte_id).filter(Holding.user_id == user_id)
-        if type_actif is not None:
-            requete = requete.filter(Holding.type_actif == type_actif)
-        if compte_id is not None:
-            requete = requete.filter(Holding.compte_id == compte_id)
-        if etablissement_id is not None:
-            requete = requete.join(Compte, Holding.compte_id == Compte.id).filter(Compte.etablissement_id == etablissement_id)
-        cles_filtres = {(ticker, compte_id) for ticker, compte_id in requete.all()}
-    points = historical_performance_service.compute_portfolio_history(db, user_id, cles_filtres=cles_filtres)
+    points = patrimoine_history_service.compute_portfolio_history_filtre(db, user_id, type_actif, compte_id, etablissement_id)
     return PortfolioHistoryResponse(points=points)
 
 

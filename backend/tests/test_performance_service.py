@@ -168,6 +168,61 @@ def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisitio
     assert resultat_seul["rendement_depuis_achat_pct"] == resultats[holding.id]["rendement_depuis_achat_pct"]
 
 
+def test_cout_acquisition_derive_de_lhistorique_quand_prix_revient_moyen_est_vide(db):
+    """Retour utilisateur du 16/09/2026 : un PER suivi uniquement via l'historique
+    de valorisation daté (`PUT .../valorisation`), sans jamais remplir le champ
+    "prix de revient" séparé proposé à la création, restait invisible du calcul de
+    plus-value (`cout_acquisition_total` à `None`) — donc absent du graphique
+    "Plus-value par compte" côté frontend (`gainsParCompte.ts`, qui exclut toute
+    ligne à coût `None`). Scénario exact du retour terrain : PER à 0€ en 2024, puis
+    50 000€ aujourd'hui dont 5 000€ de plus-value déclarée -> 45 000€ de versement."""
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="PER_TEST",
+        nom="PER",
+        quantite=1.0,
+        prix_revient_moyen=None,
+        type_actif="PENSION",
+        valeur_estimee=50000.0,
+    )
+    db.add(holding)
+    db.commit()
+    db.refresh(holding)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 0.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 50000.0, datetime.now(timezone.utc).replace(tzinfo=None), versement=45000.0)
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    assert resultats[holding.id]["cout_acquisition_total"] == 45000.0
+    assert resultats[holding.id]["rendement_depuis_achat_pct"] == pytest.approx((50000 / 45000 - 1) * 100, abs=0.01)
+
+    # `compute_holding_return` (variante mono-ligne) doit renvoyer exactement le
+    # même résultat, même précédent que `test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisition`.
+    resultat_seul = compute_holding_return(db, holding.id, ID_UTILISATEUR_TEST)
+    assert resultat_seul["cout_acquisition_total"] == 45000.0
+
+
+def test_cout_acquisition_non_derive_quand_prix_revient_moyen_est_deja_renseigne(db):
+    """Garde-fou de non-régression : le repli ne doit jamais écraser un
+    `prix_revient_moyen` explicitement saisi, même si un historique de valorisation
+    existe aussi pour la même ligne."""
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="PER_AVEC_PRIX",
+        nom="PER",
+        quantite=1.0,
+        prix_revient_moyen=10000.0,
+        type_actif="PENSION",
+        valeur_estimee=12000.0,
+    )
+    db.add(holding)
+    db.commit()
+    db.refresh(holding)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 999.0, datetime(2024, 1, 1))
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    assert resultats[holding.id]["cout_acquisition_total"] == 10000.0
+
+
 def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
     """Retour utilisateur (26/08/2026) : `date_acquisition` permet un CAGR à un seul
     flux pour un actif valorisé manuellement, là où aucun grand livre de transactions

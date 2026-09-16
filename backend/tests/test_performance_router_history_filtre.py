@@ -7,7 +7,7 @@ from datetime import datetime
 import yfinance as yf
 
 from app.models import Compte, Etablissement, Holding
-from app.services import historical_performance_service
+from app.services import historical_performance_service, immobilier_service
 from app.services.portfolio_reconstruction import rebuild_holdings
 
 from .conftest import ID_UTILISATEUR_TEST, make_transaction
@@ -121,3 +121,42 @@ def test_filtre_sans_aucune_position_correspondante_renvoie_une_serie_vide(clien
 
     assert reponse.status_code == 200
     assert reponse.json()["points"] == []
+
+
+def test_filtre_par_type_actif_manuel_selectionne_desormais_le_per(client, db, monkeypatch):
+    """Correctif du 16/09/2026 (retour utilisateur : « je ne peux pas sélectionner
+    le PER »/« il faut pouvoir sélectionner tous les types de compte ») — un type
+    `TYPES_ACTIF_PATRIMOINE_MANUEL` est désormais un filtre valide ici, alors qu'il
+    ne renvoyait jusqu'ici qu'une série vide (le grand livre de transactions filtré
+    par `historical_performance_service` ne connaît aucune ligne manuelle)."""
+    _preparer_deux_positions(db, monkeypatch)
+    per = Holding(user_id=ID_UTILISATEUR_TEST, ticker="PER1", nom="PER", quantite=1.0, type_actif="PENSION")
+    db.add(per)
+    db.commit()
+    db.refresh(per)
+    immobilier_service.enregistrer_point_historique(db, per.id, 50000.0, datetime(2024, 1, 1))
+
+    reponse = client.get("/api/performance/history?type_actif=PENSION")
+
+    assert reponse.status_code == 200
+    points = reponse.json()["points"]
+    assert points and points[-1]["valeur_portefeuille"] == 50000.0
+
+
+def test_sans_filtre_inclut_desormais_la_part_manuelle(client, db, monkeypatch):
+    """La portée de `/api/performance/history` s'élargit : sans filtre, le total
+    combine désormais financier + manuel (cf. docstring de
+    `patrimoine_history_service.compute_portfolio_history_filtre`) — cohérent avec
+    le fait qu'un type manuel devienne sélectionnable individuellement (choisir
+    « Tout » puis « PER » ne doit jamais faire apparaître un montant absent du
+    total non filtré)."""
+    _preparer_deux_positions(db, monkeypatch)
+    per = Holding(user_id=ID_UTILISATEUR_TEST, ticker="PER1", nom="PER", quantite=1.0, type_actif="PENSION")
+    db.add(per)
+    db.commit()
+    db.refresh(per)
+    immobilier_service.enregistrer_point_historique(db, per.id, 50000.0, datetime(2024, 1, 1))
+
+    valeur_bbb = client.get("/api/performance/history?type_actif=CRYPTO").json()["points"][-1]["valeur_portefeuille"]
+    dernier = client.get("/api/performance/history").json()["points"][-1]
+    assert dernier["valeur_portefeuille"] == 1000.0 + valeur_bbb + 50000.0

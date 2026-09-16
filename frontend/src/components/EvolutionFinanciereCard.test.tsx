@@ -62,31 +62,42 @@ beforeEach(() => {
 })
 
 describe('EvolutionFinanciereCard', () => {
-  it("affiche un état vide quand aucune position financière issue d'un import n'existe", async () => {
+  it('affiche un état vide quand aucune position (financière ou manuelle) n\'existe', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+
+    render_()
+
+    expect(await screen.findByText('Aucune position suivie pour l\'instant.')).toBeInTheDocument()
+    expect(api.getPortfolioHistory).not.toHaveBeenCalled()
+  })
+
+  it("une position valorisée manuellement seule (PER, sans aucune position financière) n'affiche plus l'état vide", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([
-      holding({ ticker: 'MAISON', type_actif: 'REAL_ESTATE', origine: 'manuel' }),
+      holding({ ticker: 'PER1', type_actif: 'PENSION', origine: 'manuel' }),
     ])
 
     render_()
 
-    expect(await screen.findByText('Aucune position boursière suivie pour l\'instant.')).toBeInTheDocument()
-    expect(api.getPortfolioHistory).not.toHaveBeenCalled()
+    await waitFor(() => expect(api.getPortfolioHistory).toHaveBeenCalled())
+    expect(screen.queryByText('Aucune position suivie pour l\'instant.')).not.toBeInTheDocument()
   })
 
-  it('ne propose que les classes financières reconstruites au sélecteur (pas l\'immobilier manuel)', async () => {
+  it('propose aussi bien les classes financières que les classes valorisées manuellement (PER, immobilier...)', async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([
       holding({ ticker: 'AAA', type_actif: 'STOCK', origine: 'reconstruit' }),
       holding({ id: 2, ticker: 'BBB', type_actif: 'CRYPTO', origine: 'reconstruit' }),
       holding({ id: 3, ticker: 'MAISON', type_actif: 'REAL_ESTATE', origine: 'manuel' }),
+      holding({ id: 4, ticker: 'PER1', type_actif: 'PENSION', origine: 'manuel' }),
     ])
 
     render_()
     await waitFor(() => expect(api.getPortfolioHistory).toHaveBeenCalled())
 
     const select = screen.getByLabelText("Classe d'actif")
-    expect(within(select).getByText('Actions')).toBeInTheDocument()
+    expect(within(select).getByText('Action')).toBeInTheDocument()
     expect(within(select).getByText('Crypto')).toBeInTheDocument()
-    expect(within(select).queryByText('Immobilier')).not.toBeInTheDocument()
+    expect(within(select).getByText('Immobilier')).toBeInTheDocument()
+    expect(within(select).getByText('PER / Épargne retraite')).toBeInTheDocument()
   })
 
   it('choisir une classe d\'actif relance getPortfolioHistory avec le bon filtre', async () => {

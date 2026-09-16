@@ -12,22 +12,20 @@ import { Field, Input, Select } from './Field'
 import { SkeletonGraphique } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { dateVersISO, formatDate, formatEuro } from '../utils/format'
+import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
 import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, variationSurPeriode, PERIODES_RELATIVES, type Periode, type PeriodeRelative } from '../utils/periode'
 
-// Classes financières filtrables ici — celles que le grand livre de transactions
-// peut réellement produire (`ledger_import.py`, `bricks_import.py`, l'import Trade
-// Republic...), jamais l'immobilier/l'épargne valorisés manuellement (aucun
-// historique de transactions, un filtre sur cette classe donnerait toujours un
-// graphique vide). Libellés dupliqués depuis `LABEL_TYPE_ACTIF` côté backend
-// (`patrimoine_service.py`) plutôt qu'exposés par une route dédiée — un dictionnaire
-// de 5 entrées ne justifie pas un aller-retour réseau de plus.
-const LABEL_CLASSE_FINANCIERE: Record<string, string> = {
-  STOCK: 'Actions',
-  FUND: 'ETF / Fonds',
-  CRYPTO: 'Crypto',
-  BOND: 'Obligations',
-  PRIVATE_FUND: 'Private Equity',
-}
+// Libellé de chaque `type_actif` sélectionnable ici — dérivé de `TYPE_ACTIF_OPTIONS`
+// (même liste que le formulaire d'ajout manuel, `holdingCategories.ts`) plutôt que
+// redupliqué, sans l'option "Non précisé" (valeur vide, sans objet pour un filtre).
+// Depuis le 16/09/2026 (retour utilisateur : « je ne peux pas sélectionner le
+// PER »), ce graphique couvre TOUTES les classes, financières ET valorisées
+// manuellement (immobilier/SCPI/assurance-vie/PER/épargne...) — cf.
+// `patrimoine_history_service.compute_portfolio_history_filtre` côté backend, qui
+// combine désormais grand livre de transactions et historique de valorisation daté.
+const LABEL_TYPE_ACTIF: Record<string, string> = Object.fromEntries(
+  TYPE_ACTIF_OPTIONS.filter((o) => o.value !== '').map((o) => [o.value, o.label]),
+)
 
 type FiltreGroupe = { type: 'compte' | 'etablissement'; id: number } | null
 type ModeDate = PeriodeRelative | 'PERSO'
@@ -46,10 +44,9 @@ const OPTIONS_PERIODE: { valeur: ModeDate; label: string }[] = [
  * onglet ne doit JAMAIS toucher — changer la période ici ne doit pas changer celle
  * du tableau de bord (cf. `RapportPage.tsx`, même doctrine d'état local).
  *
- * Portée FINANCIÈRE uniquement (actions/ETF/crypto/obligations/private equity) :
- * seules les lignes `origine === 'reconstruit'` (construites depuis le grand livre
- * de transactions) sont filtrables sur l'historique — l'immobilier/l'épargne
- * valorisés à la main n'ont pas de série temporelle à filtrer. */
+ * Couvre toute ligne du portefeuille — financière (grand livre de transactions)
+ * ET valorisée manuellement (immobilier/SCPI/assurance-vie/PER/épargne...), cf.
+ * `LABEL_TYPE_ACTIF` ci-dessus. */
 export default function EvolutionFinanciereCard() {
   const { montantsMasques } = usePreferencesAffichage()
 
@@ -62,20 +59,20 @@ export default function EvolutionFinanciereCard() {
       .catch((err) => setErreurHoldings(err.message))
   }, [])
 
-  const holdingsFinanciers = useMemo(
-    () => (holdings ?? []).filter((h) => h.origine === 'reconstruit' && h.type_actif !== null && h.type_actif in LABEL_CLASSE_FINANCIERE),
+  const holdingsPertinents = useMemo(
+    () => (holdings ?? []).filter((h) => h.type_actif !== null && h.type_actif in LABEL_TYPE_ACTIF),
     [holdings],
   )
 
   const classesDisponibles = useMemo(() => {
-    const presentes = new Set(holdingsFinanciers.map((h) => h.type_actif))
-    return Object.keys(LABEL_CLASSE_FINANCIERE).filter((cle) => presentes.has(cle))
-  }, [holdingsFinanciers])
+    const presentes = new Set(holdingsPertinents.map((h) => h.type_actif))
+    return Object.keys(LABEL_TYPE_ACTIF).filter((cle) => presentes.has(cle))
+  }, [holdingsPertinents])
 
   const { comptesDisponibles, etablissementsDisponibles } = useMemo(() => {
     const comptes = new Map<number, string>()
     const etablissements = new Map<number, string>()
-    for (const h of holdingsFinanciers) {
+    for (const h of holdingsPertinents) {
       if (!h.compte) continue
       comptes.set(h.compte.id, h.compte.nom)
       if (h.compte.etablissement) etablissements.set(h.compte.etablissement.id, h.compte.etablissement.nom)
@@ -84,7 +81,7 @@ export default function EvolutionFinanciereCard() {
       comptesDisponibles: [...comptes.entries()].map(([id, nom]) => ({ id, nom })),
       etablissementsDisponibles: [...etablissements.entries()].map(([id, nom]) => ({ id, nom })),
     }
-  }, [holdingsFinanciers])
+  }, [holdingsPertinents])
 
   const [typeActif, setTypeActif] = useState<string | null>(null)
   const [filtreGroupe, setFiltreGroupe] = useState<FiltreGroupe>(null)
@@ -130,7 +127,7 @@ export default function EvolutionFinanciereCard() {
   const generationRef = useRef(0)
 
   useEffect(() => {
-    if (holdingsFinanciers.length === 0) return
+    if (holdingsPertinents.length === 0) return
     const generation = ++generationRef.current
     const controller = new AbortController()
     setLoading(true)
@@ -155,7 +152,7 @@ export default function EvolutionFinanciereCard() {
       })
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenché uniquement par les filtres réseau (classe/compte/établissement) ; la période reste un filtrage client sur la série déjà reçue, cf. `filtered` ci-dessous.
-  }, [typeActif, filtreGroupe, holdingsFinanciers.length])
+  }, [typeActif, filtreGroupe, holdingsPertinents.length])
 
   const filtered = useMemo(() => {
     if (!points || periodeInvalide) return []
@@ -172,15 +169,19 @@ export default function EvolutionFinanciereCard() {
   if (erreurHoldings) return <EtatErreur message={erreurHoldings} />
   if (holdings === null) return <SkeletonGraphique />
 
-  if (holdingsFinanciers.length === 0) {
+  if (holdingsPertinents.length === 0) {
     return (
       <EtatVide
-        titre="Aucune position boursière suivie pour l'instant."
+        titre="Aucune position suivie pour l'instant."
         description={
           <>
-            Cet onglet suit les actions/ETF/crypto issus d'un import de transactions —{' '}
+            Importez un relevé ou ajoutez une ligne (immobilier, PER, assurance-vie...) depuis{' '}
             <Link to="/import" className="font-medium text-accent hover:underline">
-              importer un relevé
+              Import
+            </Link>{' '}
+            ou{' '}
+            <Link to="/patrimoine" className="font-medium text-accent hover:underline">
+              Actifs
             </Link>
             .
           </>
@@ -197,7 +198,7 @@ export default function EvolutionFinanciereCard() {
             <option value="">Tout</option>
             {classesDisponibles.map((cle) => (
               <option key={cle} value={cle}>
-                {LABEL_CLASSE_FINANCIERE[cle]}
+                {LABEL_TYPE_ACTIF[cle]}
               </option>
             ))}
           </Select>

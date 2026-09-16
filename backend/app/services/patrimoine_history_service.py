@@ -34,10 +34,17 @@ aussi. `valeur_investie` combine la part financière (grand livre de transaction
 inchangé) et la part manuelle — cette dernière ne peut croître/décroître qu'aux points
 où un versement est EXPLICITEMENT déclaré (`HoldingValuationHistory.versement`, § U.2) :
 toute hausse/baisse non déclarée reste attribuée au gain, jamais à l'investi (même
-convention que le résidu du bloc épargne du Rapport, § U.1/U.2). Contrairement à la
-valeur brute d'une ligne `TYPES_EPARGNE` (interpolée, ci-dessus), la part investie reste
-TOUJOURS en escalier (`_serie_investie_manuel` n'utilise jamais `_valeur_interpolee`) :
-un versement est un événement ponctuel, jamais une progression continue à lisser.
+convention que le résidu du bloc épargne du Rapport, § U.1/U.2). Les BREAKPOINTS de la
+part investie (`_serie_investie_manuel`) restent TOUJOURS des faits ponctuels — un
+versement est déclaré à une date précise, jamais une progression continue à inventer
+entre deux points. Mais la valeur LUE entre deux breakpoints suit désormais la même
+bascule que la valeur brute juste au-dessus (`_valeur_investie_ligne_a_date`, miroir de
+`_valeur_ligne_a_date`) : en escalier pour l'immobilier/SCPI/etc., interpolée pour
+`TYPES_EPARGNE`. Correctif du 16/09/2026 (retour utilisateur : un PER passé de 0€ à
+50 000€ entre deux points affichait un mode étagé « n'importe quoi ») — avant ce
+correctif, l'investi restait TOUJOURS en escalier même pour `TYPES_EPARGNE`, pendant que
+la valeur brute progressait en ligne continue : `Gains = Valeur − Investi` oscillait
+alors de façon incohérente entre les deux points au lieu de progresser proprement.
 `valeur_realisee_cumulee` reste exclusivement financière (ventes/dividendes/intérêts) —
 aucun équivalent « réalisé » pour un bien valorisé manuellement, qui ne se cède pas par
 petites parts comme une action.
@@ -59,7 +66,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from ..models import TYPE_ACTIF_REAL_ESTATE, TYPES_ACTIF_PATRIMOINE_MANUEL, TYPES_EPARGNE, Holding, Loan
+from ..models import TYPE_ACTIF_REAL_ESTATE, TYPES_ACTIF_PATRIMOINE_MANUEL, TYPES_EPARGNE, Compte, Holding, Loan
 from . import detenteurs_service, historical_performance_service, historique_cache, immobilier_service, loan_service, patrimoine_service
 from .historical_performance_service import TimeSeries
 
@@ -95,6 +102,18 @@ def _valeur_ligne_a_date(holding: Holding, serie: TimeSeries, date: datetime) ->
     if holding.type_actif in TYPES_EPARGNE:
         return _valeur_interpolee(serie, date)
     return historical_performance_service._value_at(serie, date)
+
+
+def _valeur_investie_ligne_a_date(holding: Holding, serie_investie: TimeSeries, date: datetime) -> float | None:
+    """Même bascule que `_valeur_ligne_a_date` ci-dessus, appliquée à la série
+    INVESTIE (`_serie_investie_manuel`) plutôt qu'à la valeur brute — voir le
+    docstring du module (§ U.4, correctif du 16/09/2026) pour la justification :
+    sans ce miroir, une ligne `TYPES_EPARGNE` affichait un mode étagé incohérent,
+    la valeur brute progressant en continu pendant que l'investi restait plaqué en
+    escalier entre les deux mêmes points."""
+    if holding.type_actif in TYPES_EPARGNE:
+        return _valeur_interpolee(serie_investie, date)
+    return historical_performance_service._value_at(serie_investie, date)
 
 
 def _series_financieres(db: Session, user_id: int) -> tuple[TimeSeries, TimeSeries, TimeSeries]:
@@ -295,7 +314,8 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
             passifs_totaux = sum(_valeur_emprunt_a_date(loan, date) for loan in loans)
             valeur_investie = historical_performance_service._value_at(serie_financiere_investie, date) or 0.0
             valeur_investie += sum(
-                historical_performance_service._value_at(serie, date) or 0.0 for serie in series_investies_manuelles.values()
+                _valeur_investie_ligne_a_date(holdings_manuels_par_id[holding_id], serie, date) or 0.0
+                for holding_id, serie in series_investies_manuelles.items()
             )
             valeur_realisee_cumulee = historical_performance_service._value_at(serie_financiere_realisee, date) or 0.0
         else:
@@ -317,7 +337,7 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
                 pct = pourcentages_manuels.get(holding_id, {}).get(detenteur_id)
                 if pct is None:
                     continue
-                valeur_investie += (historical_performance_service._value_at(serie, date) or 0.0) * pct / 100
+                valeur_investie += (_valeur_investie_ligne_a_date(holdings_manuels_par_id[holding_id], serie, date) or 0.0) * pct / 100
             valeur_realisee_cumulee = (historical_performance_service._value_at(serie_financiere_realisee, date) or 0.0) * ratio_financier
 
         actifs_totaux = valeur_financiere + valeur_manuelle
@@ -350,6 +370,147 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
             }
         )
 
+    return points
+
+
+def _cles_financieres_filtrees(
+    db: Session, user_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
+) -> set[tuple[str, int | None]] | None:
+    """`(ticker, compte_id)` des lignes FINANCIÈRES (jamais `TYPES_ACTIF_PATRIMOINE_MANUEL`,
+    qui n'ont pas de grand livre de transactions à filtrer) correspondant aux filtres
+    — `None` si aucun filtre n'est demandé (comportement inchangé de
+    `historical_performance_service.compute_portfolio_history`, portefeuille entier).
+    Même requête que `routers/performance.py::get_portfolio_history` avant ce
+    correctif, restreinte en plus aux types non-manuels (§ AM, ci-dessous)."""
+    if type_actif is None and compte_id is None and etablissement_id is None:
+        return None
+    requete = db.query(Holding.ticker, Holding.compte_id).filter(
+        Holding.user_id == user_id, Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL)
+    )
+    if type_actif is not None:
+        requete = requete.filter(Holding.type_actif == type_actif)
+    if compte_id is not None:
+        requete = requete.filter(Holding.compte_id == compte_id)
+    if etablissement_id is not None:
+        requete = requete.join(Compte, Holding.compte_id == Compte.id).filter(Compte.etablissement_id == etablissement_id)
+    return {(ticker, cid) for ticker, cid in requete.all()}
+
+
+def _holdings_manuels_filtres(
+    db: Session, user_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
+) -> list[Holding]:
+    requete = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL))
+    if type_actif is not None:
+        requete = requete.filter(Holding.type_actif == type_actif)
+    if compte_id is not None:
+        requete = requete.filter(Holding.compte_id == compte_id)
+    if etablissement_id is not None:
+        requete = requete.join(Compte, Holding.compte_id == Compte.id).filter(Compte.etablissement_id == etablissement_id)
+    return requete.all()
+
+
+def compute_portfolio_history_filtre(
+    db: Session,
+    user_id: int,
+    type_actif: str | None = None,
+    compte_id: int | None = None,
+    etablissement_id: int | None = None,
+) -> list[dict]:
+    """Historique de valeur COMBINÉ (financier + manuel), filtrable par classe
+    d'actif/compte/établissement — graphique « Évolution » de l'écran Analyse
+    (`routers/performance.py::get_portfolio_history`). Même forme de point que
+    `historical_performance_service.compute_portfolio_history`
+    (`PortfolioHistoryPoint` : `valeur_portefeuille`/`valeur_investie`/
+    `valeur_realisee_cumulee`), consommée par le même endpoint et le même composant
+    frontend.
+
+    Correctif du 16/09/2026 (retour utilisateur : « je ne peux pas sélectionner le
+    PER » dans ce graphique, « il faut pouvoir sélectionner tous les types de
+    compte ») — avant ce correctif, `get_portfolio_history` filtrait uniquement le
+    grand livre de transactions (`historical_performance_service`), qui ne
+    connaît QUE les lignes financières reconstruites (`origine == 'reconstruit'`) :
+    un PER/une assurance-vie/un livret valorisés à la main (`TYPES_ACTIF_PATRIMOINE_MANUEL`)
+    étaient donc TOUJOURS absents de ce graphique, quel que soit le filtre choisi —
+    `EvolutionFinanciereCard.tsx` limitait en conséquence son sélecteur aux 5
+    classes financières, faute de pouvoir afficher autre chose. Cette fonction
+    réutilise exactement la même logique de série par ligne que
+    `_compute_patrimoine_history` ci-dessus (mode étagé du tableau de bord) —
+    `_serie_holding_manuel`/`_valeur_ligne_a_date` et
+    `_serie_investie_manuel`/`_valeur_investie_ligne_a_date`, TYPES_EPARGNE compris
+    (§ U.2/U.4) — restreinte aux holdings manuels qui matchent le filtre, puis
+    sommée point par point avec la part financière elle-même filtrée
+    (`historical_performance_service.compute_portfolio_history(cles_filtres=...)`).
+    Échantillonnées sur UNE grille hebdomadaire commune démarrant au plus ancien
+    point connu des deux poches (même stratégie que `_compute_patrimoine_history` :
+    fusionner deux grilles indépendantes, potentiellement désalignées en jour de la
+    semaine puisqu'ancrées chacune à leur propre date de départ, produirait des
+    trous). `valeur_realisee_cumulee` reste exclusivement financière (aucun
+    équivalent « réalisé » pour une ligne manuelle, même convention que
+    `_compute_patrimoine_history`).
+
+    Sans aucun filtre, la portée s'élargit par rapport à l'ancien comportement :
+    la part manuelle, jusqu'ici invisible sur cet écran, est désormais incluse —
+    changement voulu, cohérent avec le fait qu'un type manuel devienne sélectionnable
+    (choisir « Tout » puis « PER » ne doit jamais faire APPARAÎTRE un montant qui
+    aurait été absent du total non filtré). Le tableau de bord
+    (`PortfolioHistoryChart`, portefeuille entier) n'appelle volontairement jamais
+    cette fonction et reste sur `historical_performance_service.compute_portfolio_history`
+    seule — financier seul par contrat documenté dans son propre en-tête, cf.
+    `patrimoine_service.compute_patrimoine_net`/`compute_patrimoine_history` pour la
+    vue combinée déjà dédiée à cet usage-là."""
+    cles_filtres = _cles_financieres_filtrees(db, user_id, type_actif, compte_id, etablissement_id)
+    points_financiers = historical_performance_service.compute_portfolio_history(db, user_id, cles_filtres=cles_filtres)
+    serie_financiere = [(datetime.fromisoformat(p["date"]), p["valeur_portefeuille"]) for p in points_financiers]
+    serie_financiere_investie = [(datetime.fromisoformat(p["date"]), p["valeur_investie"]) for p in points_financiers]
+    serie_financiere_realisee = [(datetime.fromisoformat(p["date"]), p["valeur_realisee_cumulee"]) for p in points_financiers]
+
+    holdings_manuels = _holdings_manuels_filtres(db, user_id, type_actif, compte_id, etablissement_id)
+    holdings_manuels_par_id = {h.id: h for h in holdings_manuels}
+    ids_immobiliers = [h.id for h in holdings_manuels if h.type_actif == TYPE_ACTIF_REAL_ESTATE]
+    details_immobiliers = immobilier_service.details_immobiliers_par_holding(db, ids_immobiliers)
+    series_manuelles: dict[int, TimeSeries] = {}
+    series_investies_manuelles: dict[int, TimeSeries] = {}
+    for holding in holdings_manuels:
+        historique = immobilier_service.historique_valorisation(db, holding.id)
+        series_manuelles[holding.id] = _serie_holding_manuel(holding, historique)
+        frais_acquisition = immobilier_service.frais_acquisition_total(details_immobiliers.get(holding.id))
+        series_investies_manuelles[holding.id] = _serie_investie_manuel(holding, historique, frais_acquisition)
+
+    candidats_debut: list[datetime] = []
+    if serie_financiere:
+        candidats_debut.append(serie_financiere[0][0])
+    for serie in series_manuelles.values():
+        if serie:
+            candidats_debut.append(serie[0][0])
+
+    if not candidats_debut:
+        return []
+
+    debut = min(candidats_debut)
+    maintenant = datetime.now(UTC).replace(tzinfo=None)
+    grille = historical_performance_service._weekly_grid(debut, maintenant)
+
+    points = []
+    for date in grille:
+        valeur = historical_performance_service._value_at(serie_financiere, date) or 0.0
+        valeur += sum(
+            _valeur_ligne_a_date(holdings_manuels_par_id[holding_id], serie, date) or 0.0
+            for holding_id, serie in series_manuelles.items()
+        )
+        valeur_investie = historical_performance_service._value_at(serie_financiere_investie, date) or 0.0
+        valeur_investie += sum(
+            _valeur_investie_ligne_a_date(holdings_manuels_par_id[holding_id], serie, date) or 0.0
+            for holding_id, serie in series_investies_manuelles.items()
+        )
+        valeur_realisee = historical_performance_service._value_at(serie_financiere_realisee, date) or 0.0
+        points.append(
+            {
+                "date": date.date().isoformat(),
+                "valeur_portefeuille": round(valeur, 2),
+                "valeur_investie": round(valeur_investie, 2),
+                "valeur_realisee_cumulee": round(valeur_realisee, 2),
+            }
+        )
     return points
 
 
