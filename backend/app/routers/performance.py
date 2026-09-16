@@ -12,6 +12,7 @@ from ..schemas import (
     BenchmarkOption,
     ComparaisonBenchmark,
     DividendeMois,
+    InvestissementMensuelMoyen,
     MetriquesAvancees,
     PerformanceSummary,
     PortfolioHistoryResponse,
@@ -36,6 +37,15 @@ router = APIRouter(prefix="/api/performance", tags=["performance"])
 @router.get("", response_model=PerformanceSummary)
 def get_performance(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return performance_service.compute_performance(db, auth_service.id_foyer(current_user))
+
+
+@router.get("/investissement-mensuel-moyen", response_model=InvestissementMensuelMoyen)
+def get_investissement_mensuel_moyen(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Moyenne mensuelle du montant réellement investi sur les 12 derniers mois
+    glissants — préremplit le versement mensuel du Simulateur (demande directe du
+    16/09/2026), cf. `performance_service.montant_investi_mensuel_moyen_glissant`."""
+    montant = performance_service.montant_investi_mensuel_moyen_glissant(db, auth_service.id_foyer(current_user))
+    return InvestissementMensuelMoyen(montant=montant)
 
 
 @router.get("/history", response_model=PortfolioHistoryResponse)

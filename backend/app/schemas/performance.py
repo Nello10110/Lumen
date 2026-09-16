@@ -23,6 +23,13 @@ class PerformanceSummary(BaseModel):
     premiere_transaction: str | None = None
 
 
+class InvestissementMensuelMoyen(BaseModel):
+    """Réponse de `GET /api/performance/investissement-mensuel-moyen` — cf.
+    `services/performance_service.montant_investi_mensuel_moyen_glissant`."""
+
+    montant: float | None
+
+
 class PortfolioHistoryPoint(BaseModel):
     date: str
     valeur_portefeuille: float

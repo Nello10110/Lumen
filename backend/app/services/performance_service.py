@@ -24,7 +24,8 @@ ajoute des transactions en cours de vie de l'app, et un mécanisme implicite mas
 transporter son résultat, jamais le dupliquer.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from datetime import date as date_cls
 
 from sqlalchemy.orm import Session
 
@@ -217,26 +218,53 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     }
 
 
-def montant_investi_periode(db: Session, user_id: int, date_debut: str, date_fin: str) -> float:
+def montant_investi_periode_par_compte(db: Session, user_id: int, date_debut: str, date_fin: str) -> dict[int | None, float]:
     """Somme des achats réels (`TRADING/BUY` + `CASH/PRIVATE_MARKET_BUY`, frais/taxes
     inclus — même logique que `cout_total_investi` ci-dessus, mais bornée à une période
     plutôt qu'à toute la vie du compte) sur `[date_debut, date_fin]` (bornes incluses,
-    format `AAAA-MM-JJ`, même filtrage que `rapport_service.compute_rapport_periode`).
-    Volontairement une fonction séparée plutôt qu'un paramètre optionnel sur
-    `compute_performance` : ce dernier est déjà livré et testé sur son calcul
-    "vie entière", ne pas y toucher pour ce besoin distinct (taux d'épargne annuel)."""
+    format `AAAA-MM-JJ`, même filtrage que `rapport_service.compute_rapport_periode`),
+    ventilée par `Transaction.compte_id` — `None` regroupe les transactions dont le
+    compte n'a pas pu être déterminé (import antérieur à la provenance par compte,
+    cf. `models.Transaction.compte_id`). `montant_investi_periode` ci-dessous en est
+    la simple somme, pour ne jamais dupliquer ce filtrage."""
     transactions_periode = (
         db.query(Transaction)
         .filter(Transaction.user_id == user_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
         .all()
     )
-    total = 0.0
+    par_compte: dict[int | None, float] = {}
     for tx in transactions_periode:
+        montant = 0.0
         if tx.category == "TRADING" and tx.type == "BUY" and tx.shares is not None:
-            total += -(tx.amount + tx.fee + tx.tax)
+            montant = -(tx.amount + tx.fee + tx.tax)
         elif tx.category == "CASH" and tx.type == "PRIVATE_MARKET_BUY":
-            total += -(tx.amount + tx.fee + tx.tax)
-    return total
+            montant = -(tx.amount + tx.fee + tx.tax)
+        if montant != 0.0:
+            par_compte[tx.compte_id] = par_compte.get(tx.compte_id, 0.0) + montant
+    return par_compte
+
+
+def montant_investi_periode(db: Session, user_id: int, date_debut: str, date_fin: str) -> float:
+    """Volontairement une fonction séparée de `compute_performance` plutôt qu'un
+    paramètre optionnel sur celle-ci : ce dernier est déjà livré et testé sur son
+    calcul "vie entière", ne pas y toucher pour ce besoin distinct (taux d'épargne
+    annuel, § R.1)."""
+    return sum(montant_investi_periode_par_compte(db, user_id, date_debut, date_fin).values())
+
+
+def montant_investi_mensuel_moyen_glissant(db: Session, user_id: int, *, jours: int = 365) -> float | None:
+    """Moyenne mensuelle du montant réellement investi (achats de titres réels, cf.
+    `montant_investi_periode`) sur les 12 derniers mois glissants jusqu'à aujourd'hui
+    (backlog, demande directe du 16/09/2026) — sert de valeur par défaut au versement
+    mensuel du Simulateur : une base sur le comportement d'investissement RÉEL du
+    foyer, distincte de l'estimation de reste à vivre budgétaire déjà utilisée par
+    ailleurs (`budget_service.compute_jonction_patrimoine.versement_mensuel_suggere`).
+    `None` si rien n'a été investi sur la fenêtre (le Simulateur garde alors son
+    repli habituel), jamais `0.0` qui laisserait croire à une donnée mesurée."""
+    aujourdhui = date_cls.today()
+    date_debut = (aujourdhui - timedelta(days=jours)).isoformat()
+    montant = montant_investi_periode(db, user_id, date_debut, aujourdhui.isoformat())
+    return round(montant / (jours / 30.4375), 2) if montant > 0 else None
 
 
 def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:

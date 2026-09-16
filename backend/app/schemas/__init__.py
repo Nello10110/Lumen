@@ -127,6 +127,7 @@ from .performance import (  # noqa: F401
     ComparaisonBenchmarkPoint,
     DividendeLigne,
     DividendeMois,
+    InvestissementMensuelMoyen,
     MetriquesAvancees,
     MouvementRapport,
     PerformanceSummary,
@@ -176,6 +177,7 @@ from .reglages import (  # noqa: F401
     ScheduledJobUpdate,
 )
 from .salaire import (  # noqa: F401
+    InvestissementCompte,
     SalaireDonnees,
     SalaireIn,
     SalaireResume,

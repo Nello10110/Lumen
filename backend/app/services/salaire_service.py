@@ -22,7 +22,7 @@ prise isolément.
 
 from sqlalchemy.orm import Session
 
-from ..models import Detenteur, Salaire
+from ..models import Compte, Detenteur, Salaire
 from . import performance_service
 
 EPSILON = 1e-6
@@ -144,7 +144,8 @@ def compute_synthese_annee(db: Session, user_id: int, annee: int) -> dict:
             net_total += resume["net_avant_impot_annuel"]
             toutes_avec_taux = False
 
-    montant_investi_annee = performance_service.montant_investi_periode(db, user_id, f"{annee}-01-01", f"{annee}-12-31")
+    date_debut, date_fin = f"{annee}-01-01", f"{annee}-12-31"
+    montant_investi_annee = performance_service.montant_investi_periode(db, user_id, date_debut, date_fin)
     taux_epargne_pct = (montant_investi_annee / net_total * 100) if net_total > EPSILON else None
 
     return {
@@ -154,7 +155,29 @@ def compute_synthese_annee(db: Session, user_id: int, annee: int) -> dict:
         "toutes_les_entrees_ont_un_taux_imposition": toutes_avec_taux,
         "montant_investi_annee": round(montant_investi_annee, 2),
         "taux_epargne_pct": round(taux_epargne_pct, 2) if taux_epargne_pct is not None else None,
+        "investissement_par_compte": investissement_par_compte(db, user_id, date_debut, date_fin),
     }
+
+
+def investissement_par_compte(db: Session, user_id: int, date_debut: str, date_fin: str) -> list[dict]:
+    """Détail par compte du montant réellement investi sur la période (demande
+    directe du 16/09/2026, affiché sous le taux d'épargne) — même source que
+    `montant_investi_annee` ci-dessus (`performance_service.
+    montant_investi_periode_par_compte`), triée du plus au moins investi. `None`
+    (compte non déterminable, import antérieur à la provenance par compte) devient
+    « Sans compte », même libellé que l'écran Comptes."""
+    par_compte_id = performance_service.montant_investi_periode_par_compte(db, user_id, date_debut, date_fin)
+    if not par_compte_id:
+        return []
+
+    ids_reels = [compte_id for compte_id in par_compte_id if compte_id is not None]
+    noms = {c.id: c.nom for c in db.query(Compte).filter(Compte.id.in_(ids_reels)).all()} if ids_reels else {}
+
+    lignes = [
+        {"compte_id": compte_id, "compte_nom": noms.get(compte_id), "montant": round(montant, 2)}
+        for compte_id, montant in par_compte_id.items()
+    ]
+    return sorted(lignes, key=lambda ligne: ligne["montant"], reverse=True)
 
 
 def list_salaires(db: Session, user_id: int) -> list[Salaire]:

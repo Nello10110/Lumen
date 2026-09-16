@@ -1,9 +1,11 @@
 """Verrouille `services/salaire_service.py` : conversion brut/net par entrée, et
 agrégation multi-entrées pour le taux d'épargne du foyer."""
 
+from datetime import date, timedelta
+
 from app.services import performance_service, salaire_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_compte, make_transaction
 
 
 def test_estimer_brut_net_depuis_brut_cadre():
@@ -165,3 +167,48 @@ def test_montant_investi_periode_inclut_private_market_buy(db):
 
     total = performance_service.montant_investi_periode(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-12-31")
     assert total == 510.0
+
+
+def test_investissement_par_compte_ventile_par_transaction_compte_id(db):
+    """Demande directe du 16/09/2026 : détail par compte affiché sous le taux
+    d'épargne, écran Salaire."""
+    pea = make_compte(db, nom="PEA")
+    cto = make_compte(db, nom="CTO")
+    make_transaction(db, category="TRADING", type="BUY", date="2026-03-01", amount=-1000.0, fee=0.0, tax=0.0, shares=1.0, compte_id=pea.id)
+    make_transaction(db, category="TRADING", type="BUY", date="2026-06-01", amount=-500.0, fee=0.0, tax=0.0, shares=1.0, compte_id=cto.id)
+    # Sans compte déterminable (import antérieur à la provenance par compte) :
+    # doit apparaître à part, jamais mélangé aux comptes réels ni perdu.
+    make_transaction(db, category="TRADING", type="BUY", date="2026-09-01", amount=-200.0, fee=0.0, tax=0.0, shares=1.0, compte_id=None)
+
+    lignes = salaire_service.investissement_par_compte(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-12-31")
+
+    par_id = {ligne["compte_id"]: ligne for ligne in lignes}
+    assert par_id[pea.id]["montant"] == 1000.0
+    assert par_id[pea.id]["compte_nom"] == "PEA"
+    assert par_id[cto.id]["montant"] == 500.0
+    assert par_id[None]["montant"] == 200.0
+    assert par_id[None]["compte_nom"] is None
+    # Trié du plus au moins investi.
+    assert [ligne["compte_id"] for ligne in lignes] == [pea.id, cto.id, None]
+
+
+def test_investissement_par_compte_vide_si_aucune_transaction(db):
+    assert salaire_service.investissement_par_compte(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-12-31") == []
+
+
+def test_montant_investi_mensuel_moyen_glissant_sur_12_mois(db):
+    """Base du versement mensuel par défaut du Simulateur (demande directe du
+    16/09/2026) — moyenne glissante, jamais un calendrier civil comme le taux
+    d'épargne annuel ci-dessus."""
+    aujourdhui = date.today()
+    make_transaction(db, category="TRADING", type="BUY", date=(aujourdhui - timedelta(days=60)).isoformat(), amount=-1200.0, fee=0.0, tax=0.0, shares=1.0)
+    # Hors fenêtre (plus de 365 jours) : ne doit pas compter.
+    make_transaction(db, category="TRADING", type="BUY", date=(aujourdhui - timedelta(days=400)).isoformat(), amount=-5000.0, fee=0.0, tax=0.0, shares=1.0)
+
+    moyenne = performance_service.montant_investi_mensuel_moyen_glissant(db, ID_UTILISATEUR_TEST)
+
+    assert moyenne == round(1200.0 / (365 / 30.4375), 2)
+
+
+def test_montant_investi_mensuel_moyen_glissant_none_si_rien_investi(db):
+    assert performance_service.montant_investi_mensuel_moyen_glissant(db, ID_UTILISATEUR_TEST) is None

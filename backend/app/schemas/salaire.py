@@ -108,6 +108,15 @@ class SalaireResume(BaseModel):
     net_apres_impot_mensuel_moyen: float | None
 
 
+class InvestissementCompte(BaseModel):
+    """Une ligne du détail par compte du montant investi (demande directe du
+    16/09/2026) — cf. `services/salaire_service.investissement_par_compte`."""
+
+    compte_id: int | None
+    compte_nom: str | None
+    montant: float
+
+
 class SyntheseAnnee(BaseModel):
     """Agrégat de TOUTES les entrées de salaire d'une année — taux d'épargne du foyer,
     cf. `services/salaire_service.compute_synthese_annee`."""
@@ -118,6 +127,7 @@ class SyntheseAnnee(BaseModel):
     toutes_les_entrees_ont_un_taux_imposition: bool
     montant_investi_annee: float
     taux_epargne_pct: float | None
+    investissement_par_compte: list[InvestissementCompte]
 
 
 class SalaireDonnees(BaseModel):

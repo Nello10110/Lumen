@@ -1,7 +1,7 @@
 """Verrouille `GET/POST/PUT/DELETE /api/salaire` (plusieurs entrées par année, CRUD +
 isolation inter-comptes)."""
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur
+from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur, make_compte, make_transaction
 
 PAYLOAD_VALIDE = {
     "annee": 2026,
@@ -59,6 +59,20 @@ def test_synthese_annee_dediee(client):
     reponse_vide = client.get("/api/salaire/synthese/2099")
     assert reponse_vide.status_code == 200
     assert reponse_vide.json()["nombre_salaires"] == 0
+
+
+def test_synthese_annee_expose_le_detail_dinvestissement_par_compte(client, db):
+    """Demande directe du 16/09/2026 : affiché sous le taux d'épargne, écran
+    Salaire."""
+    client.post("/api/salaire", json=PAYLOAD_VALIDE)
+    pea = make_compte(db, nom="PEA")
+    make_transaction(db, category="TRADING", type="BUY", date="2026-03-01", amount=-1000.0, fee=0.0, tax=0.0, shares=1.0, compte_id=pea.id)
+
+    reponse = client.get("/api/salaire/synthese/2026")
+
+    assert reponse.status_code == 200
+    lignes = reponse.json()["investissement_par_compte"]
+    assert lignes == [{"compte_id": pea.id, "compte_nom": "PEA", "montant": 1000.0}]
 
 
 def test_modifier_une_entree(client):
