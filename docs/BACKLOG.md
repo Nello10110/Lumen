@@ -4313,6 +4313,71 @@ l'instrument Bricks.co (une fraction d'obligation/prêt), seule sa lecture ÉCON
 d'actif, onglet de navigation) est reclassée en immobilier.
 
 ---
+
+### AP. Édition manuelle de la géographie et du secteur, par titre ou par compte entier (17/09/2026)
+
+Suite directe de AO (Bricks.co) : plutôt que de multiplier les replis structurels au cas par cas pour
+chaque nouvelle plateforme sans cotation, l'utilisateur demande un mécanisme général — « il faut pouvoir
+éditer sur un titre, ou un compte entier... la géographie des actifs », puis « pouvoir éditer de la même
+façon la répartition sectorielle ».
+
+#### AP.1 — `mineur` · `S` · `traité` (17/09/2026) — Une déclaration prime sur la détection automatique, éditable ligne par ligne
+
+`Holding.zone_geo` existait déjà (backlog 2.P.1) mais n'était consulté par `analysis_service.value_holdings`
+QUE pour les lignes valorisées manuellement (`valeur_estimee`) — jamais pour une ligne financière (celle
+qui a un vrai `market_data`), et surtout jamais exposé nulle part en ÉDITION après la création (ni
+`HoldingDetailContent.tsx`, ni `PositionsTable.tsx`). Deux changements :
+
+- `value_holdings` : `region = h.zone_geo or (md.region if md else None)` — une déclaration explicite
+  prime désormais sur la région mesurée, y compris pour corriger le pays de domiciliation trompeur d'un
+  ETF. `categorie_propre_a_la_ligne` : le garde-fou qui forçait tout `type_actif == "FUND"` à
+  `NON_CATEGORISE` (protection contre ce même piège de domiciliation) ne s'applique plus qu'en l'ABSENCE
+  de déclaration — sans quoi éditer la géographie d'un fonds n'aurait eu aucun effet visible.
+- Nouveau composant `ClassificationParametresForm.tsx`, affiché dans l'onglet Paramètres de la fiche
+  d'une ligne (`HoldingDetailContent.tsx`) — pour TOUT type de ligne, pas seulement l'immobilier (qui
+  garde en plus son propre formulaire `ImmobilierParametresForm`) : remplace l'ancien état vide « Aucun
+  paramètre modifiable ». Sélecteur `Détection automatique` (efface la déclaration, `zone_geo: null`) ou
+  une des 6 zones (`ZONES_GEO`, `holdingCategories.ts`) ; enregistre via le `PATCH /holdings/{id}` déjà
+  existant, puis recharge la fiche ENTIÈRE (`onRecharger`, propagé depuis `useHoldingDetail`) pour que
+  l'onglet Analyse de cette même fiche reflète immédiatement le changement.
+
+Effet de bord trouvé en vérifiant AP.1 en conditions réelles : `useHoldingDetail` remettait `detail` à
+`null` à CHAQUE `recharger()`, pas seulement au changement de `holdingId` — le squelette de chargement
+démontait alors `HoldingDetailContent` (donc son onglet local) le temps du rafraîchissement, ramenant
+systématiquement l'utilisateur sur Aperçu juste après avoir sauvegardé depuis Paramètres. Corrigé en
+scindant l'effet de remise à zéro (lié à `holdingId` seul) de celui de chargement (lié à `holdingId` ET
+au compteur de rechargement) — `HoldingDetailPage`/`HoldingDetailModal` n'affichent plus leur squelette
+que si `loading` est vrai ET qu'aucune donnée n'est encore connue (`loading && !detail`), jamais sur un
+simple rafraîchissement en arrière-plan.
+
+#### AP.2 — `mineur` · `S` · `traité` (17/09/2026) — Nouveau champ `Holding.secteur`, même mécanique pour le secteur
+
+Contrairement à la géographie, aucun champ de secteur DÉCLARÉ n'existait sur `Holding` — migration
+`9a91c3af63c9` (`secteur: str | None`, nullable, aucun repli implicite comme `zone_geo` en a un vers
+`ZONE_EUROPE` : pas de secteur « par défaut » raisonnable à deviner pour un actif manuel). Stocke
+directement le libellé français (`reference_indices.SECTOR_LABELS`, ex. « Immobilier »), jamais la clé
+brute `yfinance` de `MarketDataCache.secteur` — reste comparable à `ValuedHolding.secteur_label` sans
+traduction à la lecture. Même priorité que AP.1 dans `value_holdings`
+(`secteur_label = h.secteur or (label_for_sector(md.secteur) if md and md.secteur else None)`), même
+sélecteur (`SECTEURS`, 11 libellés + « Autres secteurs ») ajouté au même `ClassificationParametresForm`.
+`HoldingDetail` expose désormais `zone_geo`/`secteur_declare` (bruts, pour préremplir le formulaire) en
+plus de `secteur`/`pays` (mesurés, lecture seule, section Aperçu inchangée) — deux paires de champs
+distinctes plutôt qu'une seule réutilisée dans les deux sens.
+
+#### AP.3 — `mineur` · `M` · `traité` (17/09/2026) — Édition en masse pour tout un compte
+
+Même esprit que `comptes_service.set_quotites_compte` (backlog X.1, « le dire une fois plutôt que ligne
+par ligne ») : nouvelles fonctions `set_zone_geo_compte`/`set_secteur_compte`, nouveaux endpoints
+`PUT /comptes/{id}/zone-geo`/`PUT /comptes/{id}/secteur`, qui écrasent le champ correspondant sur CHAQUE
+ligne rattachée au compte. Volontairement DEUX actions indépendantes (deux boutons « Enregistrer »
+distincts dans la nouvelle carte `ClassificationCompte` de `CompteDetailContent.tsx`), pas une seule
+combinée comme les quotités : la géographie et le secteur sont deux demandes séparées dans la
+conversation, et un même bouton pour les deux aurait effacé le secteur de chaque ligne dès qu'on ne
+voulait corriger que la géographie (le champ non touché démarre toujours sur « Détection automatique »,
+jamais préchargé depuis les lignes existantes — mêmes raisons que `QuotitesCompte`, qui peuvent déjà
+diverger d'une ligne à l'autre).
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
