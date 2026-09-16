@@ -34,6 +34,13 @@ jamais recyclé ni dans `realized_gain` ni dans `cost_basis`, faussant à la hau
 le gain/perte total du portefeuille (cas réels trouvés le 20/08/2026 : ~76 € au
 total sur trois positions).
 
+Un cas particulier d'opération sur titres est neutralisé AVANT même d'atteindre ce
+traitement générique addition/retrait : les paires `FREE_RECEIPT` retrait+ajout de
+quantité identique, sur le même `(symbol, compte_id)` et proches dans le temps,
+qui représentent une migration interne de custody chez ce courtier plutôt qu'un
+don réel de titres — cf. `_neutraliser_paires_free_receipt` pour le détail et le
+retour utilisateur qui l'a motivé (17/09/2026).
+
 Rejouer le grand livre dans l'ordre chronologique strict (`datetime_utc`) ne
 suffit pas non plus à lui seul : ce courtier peut enregistrer la confirmation
 d'une vente avant celle de l'achat correspondant, même le même jour (titre offert
@@ -60,7 +67,7 @@ qui transformerait un remboursement en charge.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -274,6 +281,70 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
             state.shares_history.append((tx.datetime_utc, state.shares))
 
 
+_FENETRE_APPARIEMENT_FREE_RECEIPT = timedelta(hours=1)
+
+
+def _neutraliser_paires_free_receipt(transactions: list[Transaction]) -> list[Transaction]:
+    """Neutralise les paires `FREE_RECEIPT` retrait+ajout de quantité identique sur
+    le même `(symbol, compte_id)`, proches dans le temps (retour utilisateur du
+    17/09/2026 : écarts massifs de rentabilité affichée, jusqu'à plusieurs milliers
+    de %, constatés sur un export réel).
+
+    Ce courtier journalise certaines migrations internes de custody (ex. re-bascule
+    de la représentation des fractions d'un ISIN — observé en lot sur plusieurs
+    dizaines de lignes horodatées à quelques millisecondes d'écart, le même jour,
+    dans l'export ayant motivé ce correctif) comme DEUX lignes `FREE_RECEIPT`
+    consécutives par titre : un retrait suivi presque instantanément d'un ajout de
+    la MÊME quantité — jamais une seule ligne neutre. Sans traitement dédié, le
+    retrait tombe dans la branche "retrait sans contrepartie" de `_apply_transaction`
+    (perte réalisée, coût moyen retiré) tandis que l'ajout tombe dans la branche
+    "titres reçus gratuitement" (coût nul) : le nombre de titres détenus ne change
+    pas au final, mais le coût de revient, lui, est amputé à tort — un prix de
+    revient moyen artificiellement bas gonflait la rentabilité affichée des lignes
+    concernées jusqu'à des milliers de pourcents.
+
+    Un `FREE_RECEIPT` isolé (pas de contrepartie de signe opposé à proximité — ex.
+    les petits gains crypto hebdomadaires observés dans le même export, toujours
+    positifs seuls) reste traité comme un vrai don de titres, coût nul, comportement
+    inchangé : seules les PAIRES exactes (écart de quantité sous `EPSILON`, dans la
+    fenêtre `_FENETRE_APPARIEMENT_FREE_RECEIPT`) sont neutralisées, en les retirant
+    purement et simplement du grand livre rejoué — ni gain, ni perte, ni changement
+    de quantité n'est le comportement strictement correct pour un non-événement
+    économique. Appelée sur la liste encore triée par `datetime_utc` (avant
+    `_trier_pour_reconstruction` ci-dessous, dont le réordonnancement retrait/ajout
+    au sein d'une même journée n'a pas sa place ici : on veut la proximité
+    temporelle RÉELLE, pas la priorité de traitement)."""
+    par_cle: dict[tuple[str, int | None], list[int]] = {}
+    for i, tx in enumerate(transactions):
+        if tx.type == "FREE_RECEIPT" and tx.shares is not None:
+            par_cle.setdefault((tx.symbol, tx.compte_id), []).append(i)
+
+    a_exclure: set[int] = set()
+    for indices in par_cle.values():
+        consommes: set[int] = set()
+        for pos, i in enumerate(indices):
+            if i in consommes or transactions[i].shares >= -EPSILON:
+                continue  # ne cherche une contrepartie qu'à partir d'un retrait
+            for j in indices[pos + 1 :]:
+                if j in consommes:
+                    continue
+                autre = transactions[j]
+                if autre.datetime_utc - transactions[i].datetime_utc > _FENETRE_APPARIEMENT_FREE_RECEIPT:
+                    break  # `indices` est trié par date : inutile de chercher plus loin
+                if autre.shares is None or autre.shares <= EPSILON:
+                    continue
+                if abs(transactions[i].shares + autre.shares) < EPSILON:
+                    a_exclure.add(i)
+                    a_exclure.add(j)
+                    consommes.add(i)
+                    consommes.add(j)
+                    break
+
+    if not a_exclure:
+        return transactions
+    return [tx for idx, tx in enumerate(transactions) if idx not in a_exclure]
+
+
 def _trier_pour_reconstruction(transactions: list[Transaction]) -> list[Transaction]:
     """Trie le grand livre pour la reconstruction séquentielle des positions
     (backlog 2.J.1, Fix 1) : par date CALENDAIRE, puis — au sein d'une même
@@ -331,6 +402,7 @@ def compute_positions(
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
+    transactions = _neutraliser_paires_free_receipt(transactions)
     transactions = _trier_pour_reconstruction(transactions)
 
     positions: dict[tuple[str, int | None], PositionState] = {}
@@ -375,6 +447,7 @@ def compute_position(db: Session, holding: Holding, methode: str | None = None) 
     )
     if not transactions:
         return None
+    transactions = _neutraliser_paires_free_receipt(transactions)
     transactions = _trier_pour_reconstruction(transactions)
 
     state = PositionState(symbol=holding.ticker, compte_id=holding.compte_id)

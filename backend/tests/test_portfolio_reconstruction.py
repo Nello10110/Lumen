@@ -169,6 +169,155 @@ def test_operation_sur_titre_ajuste_quantite_a_cout_nul(db):
     assert etat.cost_basis == cost_basis_avant  # coût nul pour l'opération sur titre
 
 
+def test_paire_free_receipt_retrait_puis_ajout_neutralisee(db):
+    """Retour utilisateur du 17/09/2026 : rentabilité affichée gonflée à plusieurs
+    milliers de % sur un export réel. Cause racine confirmée : une migration
+    interne de custody chez ce courtier journalise certains titres comme DEUX
+    lignes `FREE_RECEIPT` consécutives (retrait puis ajout de la MÊME quantité,
+    quelques millisecondes d'écart) plutôt qu'une seule ligne neutre — sans
+    traitement dédié, le retrait comptait comme une perte réalisée (coût moyen
+    retiré) et l'ajout comme un don à coût nul, amputant le coût de revient sans
+    que la quantité ne change. Une paire exacte doit désormais laisser la position
+    strictement inchangée : ni gain, ni perte, ni variation de coût."""
+    make_transaction(db, transaction_id="tx-1", symbol="PPP", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="PPP",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=-6.0928500000,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 5, 8, 50, 605000),
+    )
+    make_transaction(
+        db,
+        transaction_id="tx-3",
+        symbol="PPP",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=6.0928500000,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 5, 8, 50, 608000),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("PPP", None)]
+
+    assert etat.shares == pytest.approx(10.0)
+    assert etat.cost_basis == pytest.approx(1000.0)  # coût de revient jamais amputé
+    assert etat.realized_gain == 0.0
+    assert etat.anomalies == []
+
+
+def test_paire_free_receipt_quantites_differentes_non_neutralisee(db):
+    """Garde-fou de non-régression : seule une paire de quantité EXACTEMENT
+    opposée est neutralisée — un retrait et un ajout de quantités différentes
+    (donc un vrai mouvement net) doivent continuer à suivre le traitement
+    générique addition/retrait existant."""
+    make_transaction(db, transaction_id="tx-1", symbol="QQQ", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="QQQ",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=-4.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 5, 8, 50),
+    )
+    make_transaction(
+        db,
+        transaction_id="tx-3",
+        symbol="QQQ",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=6.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 5, 8, 51),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("QQQ", None)]
+
+    # Même jour calendaire : `_trier_pour_reconstruction` traite l'ajout (+6, à
+    # coût nul) AVANT le retrait (-4), quel que soit l'ordre d'horodatage exact —
+    # comportement générique inchangé, jamais neutralisé puisque les quantités ne
+    # se compensent pas exactement.
+    assert etat.shares == 12.0
+    assert etat.cost_basis == pytest.approx(750.0)  # ajout +6/coût nul -> 16 titres/1000 ; retrait 4*1000/16 = 250
+
+
+def test_paire_free_receipt_trop_eloignee_dans_le_temps_non_neutralisee(db):
+    """Garde-fou de non-régression : deux `FREE_RECEIPT` de quantité opposée mais
+    séparés de plus d'une heure ne sont pas appariés — évite de neutraliser à tort
+    deux événements authentiquement distincts qui se compenseraient par coïncidence
+    sur une quantité fractionnaire."""
+    make_transaction(db, transaction_id="tx-1", symbol="RRR", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="RRR",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=-3.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 5, 0, 0),
+    )
+    make_transaction(
+        db,
+        transaction_id="tx-3",
+        symbol="RRR",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=3.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 8, 0, 0),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("RRR", None)]
+
+    # Même jour calendaire : l'ajout (+3, coût nul) est traité avant le retrait
+    # (-3) par `_trier_pour_reconstruction` — comportement générique inchangé,
+    # jamais neutralisé puisque les deux lignes sont hors fenêtre d'appariement.
+    assert etat.shares == 10.0
+    assert etat.cost_basis == pytest.approx(1000.0 * 10 / 13)  # ajout +3/coût nul -> 13 titres/1000 ; retrait 3*1000/13
+
+
+def test_paire_free_receipt_scopee_par_compte(db):
+    """Garde-fou de non-régression : une paire ne s'apparie que sur le MÊME
+    `(symbol, compte_id)` — un retrait sur un compte et un ajout de même quantité
+    sur un AUTRE compte ne représentent pas la même migration interne."""
+    make_transaction(db, transaction_id="tx-1", symbol="SSS", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1), compte_id=1)
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="SSS",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=-5.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 5, 8, 50),
+        compte_id=1,
+    )
+    make_transaction(
+        db,
+        transaction_id="tx-3",
+        symbol="SSS",
+        category="DELIVERY",
+        type="FREE_RECEIPT",
+        shares=5.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 1, 30, 5, 8, 51),
+        compte_id=2,
+    )
+
+    positions = compute_positions(db, ID_UTILISATEUR_TEST)
+
+    assert positions[("SSS", 1)].shares == 5.0
+    assert positions[("SSS", 1)].cost_basis == pytest.approx(500.0)  # 1000 - (100 * 5), retrait non neutralisé
+    assert positions[("SSS", 2)].shares == 5.0
+    assert positions[("SSS", 2)].cost_basis == 0.0  # don à coût nul, non apparié
+
+
 def test_private_market_buy_une_part_egale_un_euro_investi(db):
     make_transaction(
         db,
