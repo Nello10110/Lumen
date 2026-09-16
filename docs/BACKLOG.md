@@ -4451,6 +4451,35 @@ points dès qu'ils existent, sans changement de contrat d'API. Nécessite `PATRI
 correctif, à créer (gratuit, sans carte bancaire) pour voir l'effet.
 
 ---
+
+### AS. Deux tests E2E en échec sur la CI GitHub Actions (17/09/2026)
+
+#### AS.1 — `mineur` · `S` · `traité` (17/09/2026) — `comptes.spec.ts` désambiguïsé après l'ajout de la carte Classification (§ AP.3)
+
+Retour utilisateur direct : « il y a des github actions qui ne sont pas passées ». Deux tests en échec
+intermittent dans `frontend/e2e/comptes.spec.ts`, tous deux des violations Playwright « strict mode »
+(un locator qui devait désigner un seul élément en trouve plusieurs) :
+
+- `getByText('Livret A E2E')` résolvait à 3 éléments (le `<tspan>` du graphique « Plus-value par
+  compte », la cellule du tableau, ET le bouton de la liste des comptes) — un test antérieur à la
+  revue du 05/09/2026 qui a ajouté le nom du compte au graphique, jamais mis à jour en même temps que
+  le test voisin (« compte multi-lignes ») qui, lui, avait déjà migré vers
+  `getByRole('button', { name: new RegExp(\`^...\`) })`. Même correctif appliqué ici.
+- `getByRole('dialog').getByText(/S'applique à TOUTES les lignes de ce compte/)` résolvait à 2 éléments
+  depuis l'ajout de la carte « Classification géographique et sectorielle » (§ AP.3, même journée) :
+  son paragraphe reprend un préfixe identique à celui de « Répartition entre détenteurs »
+  (`QuotitesCompte`), ne différant que par un mot en fin de phrase (« répartition » vs « déclaration »).
+  Regex étendue pour inclure ce mot distinctif. Effet de bord découvert en vérifiant le correctif en
+  conditions réelles : le clic sur le bouton « Enregistrer » de la répartition (`.last()` sur un
+  match par SOUS-CHAÎNE, comportement par défaut de Playwright) aurait alors sélectionné à tort
+  « Enregistrer le secteur » de la nouvelle carte — corrigé en passant ce locator en correspondance
+  EXACTE (`exact: true`), qui exclut ces deux boutons dont le nom diffère.
+
+Aucun changement de code applicatif : uniquement les tests, qui n'avaient pas suivi deux évolutions
+d'interface distinctes du même jour. Suite E2E complète (81 tests) relancée localement et vérifiée au
+vert avant de pousser.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
