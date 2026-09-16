@@ -4124,6 +4124,40 @@ automatique, pas une activité utilisateur). Absent pour le bucket « Sans compt
 un compte tout juste créé sans aucune ligne.
 
 ---
+
+### AL. Versement mensuel du Simulateur sur 12 mois glissants + détail d'investissement par compte (16/09/2026)
+
+Deux demandes distinctes mais liées — l'une suit directement de l'autre dans la conversation avec
+l'utilisateur — regroupées ici plutôt qu'éclatées entre § AK et un nouveau lot isolé.
+
+#### AL.1 — `mineur` · `S` · `traité` (16/09/2026) — Versement mensuel par défaut = moyenne investie sur 12 mois glissants
+
+Le versement mensuel du Simulateur était préempli à partir d'une estimation de reste à vivre
+budgétaire sur 3 mois (`budget_service.compute_jonction_patrimoine.versement_mensuel_suggere`) — ce
+que le foyer POUVAIT investir, pas ce qu'il a RÉELLEMENT investi. Demande directe : « Ca permettera
+d'avoir par défaut la vrai simulation sur la base du passé ». Nouvelle fonction
+`performance_service.montant_investi_mensuel_moyen_glissant` : moyenne mensuelle du montant
+réellement investi (achats de titres réels, `montant_investi_periode`) sur les 12 derniers mois
+glissants jusqu'à aujourd'hui — jamais un calendrier civil comme le taux d'épargne annuel de l'écran
+Salaire (§ R.1), une vraie fenêtre glissante. Nouvel endpoint
+`GET /api/performance/investissement-mensuel-moyen`. `None` (jamais `0.0`) si rien n'a été investi
+sur la fenêtre, pour ne jamais laisser croire à une donnée mesurée — le champ garde alors son défaut
+de 0. Toujours ADDITIONNÉ aux versements mensuels déclarés sur les comptes Épargne (backlog 2.S.1,
+`GET /api/budget/jonction-patrimoine`), qui reste l'unique raison pour laquelle cet endpoint est
+encore appelé depuis le Simulateur.
+
+#### AL.2 — `mineur` · `S` · `traité` (16/09/2026) — Détail d'investissement par compte sous le taux d'épargne
+
+Demande directe, dans la foulée de AL.1 : afficher, sous le taux d'épargne du foyer (écran Salaire),
+la ventilation du montant investi par compte. `performance_service.montant_investi_periode` refactorée
+sans changer son résultat : nouvelle fonction sœur `montant_investi_periode_par_compte` (même
+filtrage de transactions, ventilé par `Transaction.compte_id`) dont elle n'est plus que la somme.
+Nouvelle fonction `salaire_service.investissement_par_compte`, nouveau champ
+`SyntheseAnnee.investissement_par_compte` (liste triée du plus au moins investi, `compte_id=None`
+regroupé sous « Sans compte » — import antérieur à la provenance par compte). Absent de l'écran si
+rien n'a été investi cette année-là, plutôt qu'un tableau vide.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
