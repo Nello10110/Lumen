@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models import SOURCE_INDICE, TYPES_ACTIF_PATRIMOINE_MANUEL, FundComposition, Holding
+from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
 from .reference_indices import NON_CATEGORISE, ZONE_EUROPE, label_for_sector
 
 # Libellé affiché pour regrouper les lignes sans compte renseigné (LOT 5.1), plutôt
@@ -75,11 +76,33 @@ def value_holdings(holdings: list[Holding]) -> list[ValuedHolding]:
         md = h.market_data
         prix = md.prix_actuel if md and md.prix_actuel is not None else h.prix_revient_moyen
         a_des_donnees = md is not None and md.erreur is None and md.prix_actuel is not None
+        # `Holding.zone_geo` (retour utilisateur du 17/09/2026, § AO.2 : pouvoir
+        # corriger à la main la géographie d'un titre) prime désormais sur la région
+        # mesurée par `market_data` — une déclaration explicite du foyer l'emporte
+        # toujours sur une donnée déduite automatiquement, même quand cette dernière
+        # existe (ex. corriger le pays de domiciliation trompeur d'un ETF, cf.
+        # `categorie_propre_a_la_ligne` ci-dessous pour le cas `type_actif == "FUND"`,
+        # qui reste non catégorisé PAR DÉFAUT mais devient éditable ligne par ligne).
+        region = h.zone_geo or (md.region if md else None)
+        # Bricks.co (crowdfunding immobilier, retour utilisateur du 17/09/2026) :
+        # ses symboles synthétiques (`bricks_import.PREFIXE_SYMBOLE`) ne sont, par
+        # construction, JAMAIS résolus par `market_data_service` (cf.
+        # `PREFIXES_SYMBOLES_INTERNES`) — `region` restait donc toujours `None`,
+        # classant systématiquement ces lignes en "Non catégorisé" dans la
+        # répartition géographique alors que la plateforme n'investit QUE dans de
+        # l'immobilier français/européen : un fait structurel de la plateforme,
+        # jamais une supposition ligne par ligne (à la différence d'un ETF, cf.
+        # `categorie_propre_a_la_ligne` ci-dessous, dont le pays de domiciliation
+        # ne dit rien de ses actifs sous-jacents). Seul repli restant une fois
+        # `zone_geo` pris en compte ci-dessus : un foyer qui préfère laisser la
+        # correction automatique plutôt que de la saisir lui-même reste couvert.
+        if region is None and h.ticker is not None and h.ticker.startswith(PREFIXE_SYMBOLE_BRICKS):
+            region = ZONE_EUROPE
         valued.append(
             ValuedHolding(
                 holding=h,
                 valeur=(prix or 0) * h.quantite,
-                region=md.region if md else None,
+                region=region,
                 pays=md.pays if md else None,
                 secteur_label=label_for_sector(md.secteur) if md and md.secteur else None,
                 a_des_donnees=a_des_donnees,
@@ -108,9 +131,14 @@ def categorie_propre_a_la_ligne(v: ValuedHolding, type_: str) -> str:
     ETF européens), pas celui de ses actifs sous-jacents. Le retenir classerait un ETF
     S&P 500 en "Europe" — une erreur bien pire qu'une absence de donnée. Faute de
     composition ET de repli par l'indice suivi, un fonds reste donc explicitement non
-    catégorisé géographiquement.
+    catégorisé géographiquement PAR DÉFAUT — sauf si le foyer a lui-même déclaré une
+    zone sur cette ligne (`Holding.zone_geo`, § AO.2, retour utilisateur du
+    17/09/2026 : pouvoir corriger la géographie d'un titre à la main) : une
+    déclaration explicite prime alors sur la protection contre le piège de la
+    domiciliation, exactement comme pour toute autre ligne (`value_holdings` a déjà
+    fait passer `zone_geo` dans `v.region` avant d'arriver ici).
     """
-    if type_ == "geo" and v.holding.type_actif == "FUND":
+    if type_ == "geo" and v.holding.type_actif == "FUND" and v.holding.zone_geo is None:
         return NON_CATEGORISE
     valeur = v.region if type_ == "geo" else v.secteur_label
     return valeur or NON_CATEGORISE

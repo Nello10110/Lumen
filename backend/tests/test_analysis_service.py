@@ -281,6 +281,102 @@ def test_une_action_reste_classee_sur_son_pays(db):
     assert analysis_service.breakdown_with_lookthrough(db, valued, "geo") == {"Amérique du Nord": 1000.0}
 
 
+def test_une_ligne_bricks_est_classee_en_europe(db):
+    """Retour utilisateur du 17/09/2026 : « les investissements Bricks.co sont tous
+    des investissements européens, mais ils sont marqués comme non catégorisés ».
+    Ses symboles synthétiques (`bricks_import.PREFIXE_SYMBOLE`) ne peuvent, par
+    construction, JAMAIS résoudre de `MarketDataCache` (cf.
+    `market_data_service.PREFIXES_SYMBOLES_INTERNES`) — `region` restait donc
+    toujours `None`, classant systématiquement ces lignes en "Non catégorisé" alors
+    que la plateforme n'investit QUE dans de l'immobilier français/européen : un
+    fait structurel de la plateforme, appliqué ici sans dépendre d'une cotation."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="BRICKS-ABCDEF0123",
+            nom="Résidence Test",
+            quantite=10.0,
+            prix_revient_moyen=100.0,
+            type_actif="BOND",
+        )
+    )
+    db.commit()
+
+    valued = analysis_service.value_holdings(db.query(Holding).all())
+    assert valued[0].region == "Europe"
+    assert analysis_service.breakdown_with_lookthrough(db, valued, "geo") == {"Europe": 1000.0}
+
+
+def test_une_ligne_bricks_avec_cotation_connue_garde_sa_region_mesuree(db):
+    """Garde-fou de non-régression : le repli Europe ne s'applique QUE quand aucune
+    donnée de marché n'existe — si `MarketDataCache` porte un jour une région
+    mesurée pour un symbole `BRICKS-*` (cas non observé en pratique, ce courtier
+    n'étant pas coté), elle prime sur le repli structurel."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="BRICKS-ABCDEF0123",
+            nom="Résidence Test",
+            quantite=10.0,
+            prix_revient_moyen=100.0,
+            type_actif="BOND",
+        )
+    )
+    db.add(MarketDataCache(ticker="BRICKS-ABCDEF0123", prix_actuel=100.0, region="Amérique du Nord"))
+    db.commit()
+
+    valued = analysis_service.value_holdings(db.query(Holding).all())
+    assert valued[0].region == "Amérique du Nord"
+
+
+def test_zone_geo_declaree_a_la_main_prime_sur_la_region_mesuree(db):
+    """Retour utilisateur du 17/09/2026 (§ AO.2) : pouvoir corriger à la main la
+    géographie d'un titre — une déclaration explicite (`Holding.zone_geo`) doit
+    l'emporter sur la région déduite automatiquement par `market_data`, pas
+    seulement s'appliquer en son absence."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="ACT-US",
+            nom="Action américaine reclassée",
+            quantite=10.0,
+            prix_revient_moyen=100.0,
+            type_actif="STOCK",
+            zone_geo="Marchés émergents",
+        )
+    )
+    db.add(MarketDataCache(ticker="ACT-US", prix_actuel=100.0, region="Amérique du Nord"))
+    db.commit()
+
+    valued = analysis_service.value_holdings(db.query(Holding).all())
+    assert valued[0].region == "Marchés émergents"
+    assert analysis_service.breakdown_with_lookthrough(db, valued, "geo") == {"Marchés émergents": 1000.0}
+
+
+def test_zone_geo_declaree_a_la_main_prime_meme_pour_un_fonds(db):
+    """Le garde-fou anti-domiciliation (`test_un_fonds_sans_composition_n_est_jamais_classe_sur_son_pays_de_domiciliation`)
+    ne protège que le cas PAR DÉFAUT (aucune donnée fiable) — dès que le foyer a
+    lui-même déclaré une zone sur cette ligne, elle doit s'appliquer comme pour
+    n'importe quelle autre ligne, sans quoi éditer la géographie d'un fonds resterait
+    sans aucun effet visible."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="ETF-IE",
+            nom="ETF domicilié en Irlande",
+            quantite=10.0,
+            prix_revient_moyen=100.0,
+            type_actif="FUND",
+            zone_geo="Europe",
+        )
+    )
+    db.add(MarketDataCache(ticker="ETF-IE", prix_actuel=100.0, pays="Ireland", region="Amérique du Nord"))
+    db.commit()
+
+    valued = analysis_service.value_holdings(db.query(Holding).all())
+    assert analysis_service.breakdown_with_lookthrough(db, valued, "geo") == {"Europe": 1000.0}
+
+
 # ---------------------------------------------------------------------------
 # Roadmap Phase 3, § E.3 — coût de gestion annuel consolidé des fonds/ETF
 # ---------------------------------------------------------------------------

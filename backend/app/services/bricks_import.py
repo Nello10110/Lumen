@@ -51,6 +51,13 @@ REQUIRED_COLUMNS_BRICKS = {
 
 STATUT_VALIDE = "Validée"
 
+# Préfixe des symboles synthétiques générés ci-dessous (cf. `symbol_pour_bien`) —
+# exposé comme constante nommée (plutôt que la chaîne littérale dupliquée) pour
+# `analysis_service.value_holdings`, qui s'en sert pour reconnaître une ligne
+# Bricks.co sans dépendre de `market_data_service.PREFIXES_SYMBOLES_INTERNES`
+# (généraliste, pourrait un jour porter un préfixe non-européen) — cf. § AO.1.
+PREFIXE_SYMBOLE = "BRICKS-"
+
 
 def looks_like_bricks_export(columns: list[str]) -> bool:
     return REQUIRED_COLUMNS_BRICKS.issubset(set(columns))
@@ -63,7 +70,7 @@ def symbol_pour_bien(propriete: str) -> str:
     bien est porté séparément par `Transaction.name`, affiché dans la colonne Nom
     du portefeuille."""
     empreinte = hashlib.md5(propriete.strip().lower().encode("utf-8")).hexdigest()[:10].upper()
-    return f"BRICKS-{empreinte}"
+    return f"{PREFIXE_SYMBOLE}{empreinte}"
 
 
 def _clean(value) -> str | None:
