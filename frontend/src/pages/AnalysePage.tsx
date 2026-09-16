@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
-import type { AnalysisResponse, CoutGestionConsolide, PerformanceSummary } from '../api/types'
+import type { AnalysisResponse, CoutGestionConsolide, IndicateursSituation, PerformanceSummary } from '../api/types'
 import AllocationChartCard from '../components/AllocationChartCard'
 import CompositionModal from '../components/CompositionModal'
 import { SecondaryButton, SegmentedControl } from '../components/Controls'
@@ -10,6 +10,7 @@ import EtatErreur from '../components/EtatErreur'
 import EvolutionFinanciereCard from '../components/EvolutionFinanciereCard'
 import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
 import { IconDividendes, IconEvolution, IconMaison, IconObjectifs, IconPatrimoine } from '../components/icons'
+import IndicateursSituationCard from '../components/IndicateursSituationCard'
 import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PerformanceCard from '../components/PerformanceCard'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
@@ -18,6 +19,7 @@ import SimulateurAchatLocationCard from '../components/SimulateurAchatLocationCa
 import SimulateurProjectionSection from '../components/SimulateurProjectionSection'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
+import { useAuth } from '../hooks/useAuth'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
@@ -42,25 +44,38 @@ const ONGLET_PAR_DEFAUT: OngletKey = 'portefeuille'
  * va ; tout ce qui répond à « pourquoi » et « de quoi est-ce fait » vit ici.
  *
  * Plusieurs onglets, chacun une question distincte : **Portefeuille** (de quoi le
- * patrimoine est-il fait, comment se comporte-t-il, ce qu'il coûte), **Évolution**
+ * patrimoine est-il fait, comment se comporte-t-il, ce qu'il coûte — complété le
+ * 16/09/2026 par les indicateurs de situation, cf. plus bas), **Évolution**
  * (retour utilisateur du 13/09/2026 — le graphique héros du tableau de bord, mais
  * filtrable par classe d'actif/établissement/compte et sur une fourchette de dates
  * précise, cf. `EvolutionFinanciereCard`), **Revenus** (ce qu'il rapporte sans qu'on
  * le vende), **Achat vs location** et **Simulateur** (projection de patrimoine et
- * indépendance financière, `SimulateurProjectionSection` — retour utilisateur du
- * 16/09/2026 : vivait jusqu'ici fusionné avec les objectifs suivis sur `/objectifs`,
- * sans jamais en partager la moindre donnée ; déplacé ici, à côté de son cousin
- * « et si... » Achat vs location. La clé d'onglet `simulateur` désigne toujours ce
- * dernier — antérieure à ce déplacement — pas le nouvel onglet Simulateur, dont la
- * clé est `projection`). Sélection portée par l'URL (`?onglet=…`, même patron que
+ * indépendance financière, `SimulateurProjectionSection` — vivait jusqu'au
+ * 16/09/2026 fusionné avec le suivi d'objectifs sur `/objectifs`, sans jamais en
+ * partager la moindre donnée ; déplacé ici, à côté de son cousin « et si... » Achat
+ * vs location. La clé d'onglet `simulateur` désigne toujours ce dernier —
+ * antérieure à ce déplacement — pas le nouvel onglet Simulateur, dont la clé est
+ * `projection`). Sélection portée par l'URL (`?onglet=…`, même patron que
  * `ReglagesPage`) : un lien direct vers un onglet précis reste possible et le retour
  * navigateur le restitue.
  *
+ * `IndicateursSituationCard` (matelas de sécurité, taux d'endettement, part
+ * immobilisée, backlog 2.O.2) rejoint l'onglet Portefeuille le 16/09/2026 : le
+ * suivi d'objectifs qui l'hébergeait jusque-là (`/objectifs`) a été retiré (retour
+ * utilisateur direct : « on pourrait tout supprimer » — la fonctionnalité avait
+ * perdu son intérêt, cf. `docs/BACKLOG.md` § AJ), mais ces indicateurs de santé
+ * financière restent pertinents indépendamment de tout objectif suivi. Réservés au
+ * propriétaire côté backend (même restriction que les autres réglages financiers
+ * sensibles) — `AnalysePage` n'interroge donc l'API que pour ce rôle et gate le
+ * rendu de la carte, plutôt que de déplacer tout l'onglet derrière cette
+ * restriction.
+ *
  * L'ancienne URL `/dividendes` redirige ici (cf. `App.tsx`) — les marque-pages
  * survivent au renommage. Depuis le 16/09/2026, `/simulateur` y redirige aussi
- * (`?onglet=projection`), à la place de son ancienne cible `/objectifs`. */
+ * (`?onglet=projection`). */
 export default function AnalysePage() {
   const { montantsMasques } = usePreferencesAffichage()
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const ongletParam = searchParams.get('onglet') as OngletKey | null
   const onglet = ONGLETS.some((o) => o.key === ongletParam) ? (ongletParam as OngletKey) : ONGLET_PAR_DEFAUT
@@ -88,6 +103,12 @@ export default function AnalysePage() {
   const [coutGestion, setCoutGestion] = useState<CoutGestionConsolide | null>(null)
   const [chargementCoutGestion, setChargementCoutGestion] = useState(true)
   const [erreurCoutGestion, setErreurCoutGestion] = useState<string | null>(null)
+
+  // Indicateurs de situation (backlog 2.O.2) : réservés au propriétaire côté
+  // backend (`GET /api/analysis/indicateurs-situation`) — n'interroge donc
+  // l'API que pour ce rôle, jamais pour un membre qui recevrait de toute façon
+  // un 403.
+  const [indicateurs, setIndicateurs] = useState<IndicateursSituation | null>(null)
 
   const [modal, setModal] = useState<{ type: 'geo' | 'sector'; categorie: string } | null>(null)
 
@@ -121,9 +142,12 @@ export default function AnalysePage() {
       .finally(() => setLoading(false))
     chargerPerformance()
     chargerCoutGestion()
+    if (user?.role === 'proprietaire') {
+      api.getIndicateursSituation().then(setIndicateurs).catch(() => setIndicateurs(null))
+    }
   }
 
-  useEffect(chargerDonnees, [])
+  useEffect(chargerDonnees, [user?.role])
 
   return (
     <div className="space-y-[14px]">
@@ -249,6 +273,8 @@ export default function AnalysePage() {
           {chargementCoutGestion && <SkeletonTexte lignes={2} />}
           {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}
           {!chargementCoutGestion && !erreurCoutGestion && coutGestion && <CoutGestionCard cout={coutGestion} />}
+
+          {user?.role === 'proprietaire' && indicateurs && <IndicateursSituationCard indicateurs={indicateurs} />}
 
           {modal && (
             <CompositionModal

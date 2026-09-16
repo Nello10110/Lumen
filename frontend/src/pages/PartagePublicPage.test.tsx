@@ -39,7 +39,6 @@ function payload(overrides: Partial<PartagePayload> = {}): PartagePayload {
     exposition: null,
     performance: null,
     budget: null,
-    objectifs: null,
     ...overrides,
   }
 }

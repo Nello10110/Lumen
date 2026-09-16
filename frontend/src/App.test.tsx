@@ -16,7 +16,6 @@ vi.mock('./pages/HoldingDetailPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ImportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ReglagesPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/AidePage', () => ({ default: () => <div /> }))
-vi.mock('./pages/ObjectifsPage', () => ({ default: () => <div /> }))
 
 vi.mock('./api/client', () => ({
   api: {
@@ -210,7 +209,6 @@ describe('App — barre latérale (backlog 2.K.2)', () => {
     const barreLaterale = await screen.findByRole('navigation', { name: 'Navigation principale' })
     expect(within(barreLaterale).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
     expect(within(barreLaterale).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
-    expect(within(barreLaterale).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
     expect(within(barreLaterale).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(barreLaterale).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
 
@@ -233,16 +231,15 @@ describe('App — navigation inférieure mobile (backlog 2.K.4)', () => {
     const navMobile = await screen.findByRole('navigation', { name: 'Navigation principale (mobile)' })
     expect(within(navMobile).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
     expect(within(navMobile).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
-    expect(within(navMobile).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
     expect(within(navMobile).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
-    // Analyse/Rapport ne tiennent pas dans les 4 entrées directes : rangés
-    // derrière "Plus", fermé par défaut.
-    expect(within(navMobile).queryByRole('link', { name: /Analyse/ })).not.toBeInTheDocument()
+    expect(within(navMobile).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
+    // Rapport ne tient pas dans les 4 entrées directes : rangé derrière "Plus",
+    // fermé par défaut.
     expect(within(navMobile).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
     expect(within(navMobile).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
   })
 
-  it('"Plus" ouvre une feuille avec Analyse/Rapport, Import/Réglages/Aide, thème et déconnexion', async () => {
+  it('"Plus" ouvre une feuille avec Rapport, Import/Réglages/Aide, thème et déconnexion', async () => {
     render(
       <MemoryRouter>
         <App />
@@ -253,7 +250,6 @@ describe('App — navigation inférieure mobile (backlog 2.K.4)', () => {
     fireEvent.click(within(navMobile).getByRole('button', { name: 'Plus' }))
 
     const feuille = await screen.findByRole('dialog')
-    expect(within(feuille).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(feuille).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
     expect(within(feuille).getByRole('link', { name: 'Import' })).toHaveAttribute('href', '/import')
     expect(within(feuille).getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')

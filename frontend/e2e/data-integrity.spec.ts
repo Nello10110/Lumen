@@ -43,15 +43,6 @@ test.describe('Cohérence des agrégats (API directe)', () => {
     ])
   })
 
-  test('objectif "Fonds d\'urgence E2E" à 75% de progression', async ({ request }) => {
-    const { attendu, objectif_id } = seedData()
-    const res = await request.get(`/api/objectifs/${objectif_id}`, { headers })
-    const objectif = await res.json()
-
-    expect(objectif.valeur_actuelle).toBe(attendu.valeur_livret)
-    expect(objectif.progression_pct).toBe(75)
-  })
-
   test('budget : sorties/entrées et jonction patrimoine cohérentes sur 3 mois', async ({ request }) => {
     const fin = new Date().toISOString().slice(0, 10)
     const debut = new Date(Date.now() - 95 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)

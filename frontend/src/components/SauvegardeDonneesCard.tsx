@@ -23,9 +23,6 @@ const LIBELLES: Record<string, string> = {
   quotites_loans: "répartitions d'emprunt",
   transactions: 'transactions',
   salaires: 'salaires',
-  objectifs: 'objectifs',
-  objectif_actifs: "actifs rattachés à un objectif",
-  objectif_contributeurs: 'contributeurs à un objectif',
   categories_budget: 'catégories de budget',
   mouvements_bancaires: 'mouvements bancaires',
   regles_categorisation: 'règles de catégorisation',
@@ -135,7 +132,7 @@ export default function SauvegardeDonneesCard() {
     try {
       await api.effacerFoyer(confirmationSaisie)
       // La remise à zéro touche quasiment tous les écrans (patrimoine, budget,
-      // objectifs, comptes...) — un rechargement complet est plus sûr que de
+      // comptes...) — un rechargement complet est plus sûr que de
       // propager un callback de rafraîchissement à travers tout l'arbre de
       // composants. L'assistant de bienvenue réapparaîtra (son drapeau est lui
       // aussi une donnée du foyer désormais effacée) : c'est cohérent avec "repartir
@@ -152,7 +149,7 @@ export default function SauvegardeDonneesCard() {
       <p className="mb-4 text-sm text-texte">
         Exporte <span className="font-medium text-texte">tout</span> le patrimoine du foyer dans un seul fichier :
         positions, transactions, immobilier, emprunts, comptes et établissements, détenteurs et répartitions, épargne,
-        objectifs, salaires, budget et préférences. Utile pour se faire une sauvegarde avant une manipulation, ou pour
+        salaires, budget et préférences. Utile pour se faire une sauvegarde avant une manipulation, ou pour
         déménager vers une autre installation.
       </p>
       <p className="mb-4 text-sm text-texte-attenue">
@@ -184,7 +181,7 @@ export default function SauvegardeDonneesCard() {
         <p className="mb-1 text-sm font-medium text-texte">Réinitialiser le foyer</p>
         <p className="mb-3 text-sm text-texte-attenue">
           Efface <span className="font-medium text-negatif">définitivement</span> tout le patrimoine du foyer
-          (comptes, établissements, positions, transactions, emprunts, budget, objectifs...) et les liens de partage.
+          (comptes, établissements, positions, transactions, emprunts, budget...) et les liens de partage.
           Les comptes du foyer (propriétaire, membres, invités) ne sont, eux, jamais supprimés.
         </p>
         <button
@@ -259,7 +256,7 @@ export default function SauvegardeDonneesCard() {
               </h2>
               <p className="mt-2 text-sm text-texte">
                 Seront effacés : tout le patrimoine (comptes, établissements, positions, transactions, immobilier,
-                emprunts, budget, objectifs, salaires) et les liens de partage.
+                emprunts, budget, salaires) et les liens de partage.
               </p>
               <p className="mt-2 text-sm text-texte">
                 Ne seront <span className="font-medium text-texte">pas</span> touchés : les comptes du foyer

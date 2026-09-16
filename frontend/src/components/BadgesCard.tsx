@@ -11,8 +11,8 @@ import { formatDate } from '../utils/format'
  * à venir : strictement personnelle, jamais partageable ni comparée à qui que ce
  * soit (l'application n'a pas de notion de classement, et ça doit le rester,
  * garde-fou explicite du backlog). Valorise la RÉGULARITÉ du suivi (premier
- * import, ancienneté, objectif atteint), jamais le volume investi ou le risque
- * pris — d'où l'absence délibérée de tout chiffre en euros sur cette carte.
+ * import, ancienneté), jamais le volume investi ou le risque pris — d'où
+ * l'absence délibérée de tout chiffre en euros sur cette carte.
  *
  * Même source que la célébration (`App.tsx`, § AG.3) — `GET /api/jalons` — mais
  * consommée séparément (jamais de célébration rejouée depuis cet écran, jamais de

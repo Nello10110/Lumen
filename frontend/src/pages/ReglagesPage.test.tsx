@@ -422,7 +422,6 @@ function lienPartage(overrides: Partial<import('../api/types').LienPartage> = {}
     inclure_repartition: true,
     inclure_performance: true,
     inclure_budget: false,
-    inclure_objectifs: false,
     masquer_valeurs: false,
     code_requis: false,
     created_at: '2026-01-01T00:00:00',

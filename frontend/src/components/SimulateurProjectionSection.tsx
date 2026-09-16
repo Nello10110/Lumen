@@ -163,13 +163,12 @@ function CurseurHypothese({
  *
  * Onglet « Simulateur » de l'écran Analyse (retour utilisateur du 16/09/2026 : « le
  * simulateur n'a pas trop sa place dans Objectifs ») — vivait auparavant sur
- * `/objectifs`, fusionné avec les objectifs suivis (`ObjectifsSuivisSection`,
- * backlog B.1). Les deux ne partageaient que l'écran, jamais une donnée : le
- * déplacement ici, à côté de son cousin « Achat vs location »
- * (`SimulateurAchatLocationCard`, même famille de question « et si... »), ne
- * casse rien côté Objectifs, qui garde ses objectifs suivis seuls sur `/objectifs`
- * (`pages/ObjectifsPage.tsx`). L'ancienne URL `/simulateur` redirige désormais ici
- * (`App.tsx`). */
+ * `/objectifs`, fusionné avec le suivi d'objectifs (backlog B.1). Les deux ne
+ * partageaient que l'écran, jamais une donnée : le déplacement ici, à côté de son
+ * cousin « Achat vs location » (`SimulateurAchatLocationCard`, même famille de
+ * question « et si... »), a précédé de peu le retrait complet du suivi
+ * d'objectifs lui-même (même jour, backlog § AJ : la fonctionnalité avait perdu
+ * son intérêt). L'ancienne URL `/simulateur` redirige désormais ici (`App.tsx`). */
 export default function SimulateurProjectionSection() {
   const { montantsMasques } = usePreferencesAffichage()
   const [capital, setCapital] = useState('')

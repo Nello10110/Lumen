@@ -126,8 +126,8 @@ export default function GestionFoyerCard() {
   return (
     <Card title="Comptes du foyer">
       <p className="mb-4 text-sm text-texte-attenue">
-        Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les objectifs ni la
-        sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des détenteurs qui lui
+        Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les indicateurs de
+        situation ni la sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des détenteurs qui lui
         sont assignés ci-dessous.
       </p>
 

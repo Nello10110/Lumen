@@ -124,6 +124,20 @@ export interface ExpositionConsolidee {
   part_estimee_manuelle_pct_nette: number
 }
 
+// Indicateurs de situation (backlog 2.O.2) — matelas de sécurité, taux
+// d'endettement, part du patrimoine immobilisée. Anciennement rattachés à
+// l'écran Objectifs, déplacés dans Analyse le 16/09/2026 avec le retrait du
+// suivi d'objectifs (backlog § AJ).
+export interface IndicateursSituation {
+  matelas_securite_mois: number | null
+  taux_endettement_pct: number | null
+  part_immobilisee_pct: number | null
+  epargne_disponible: number
+  depenses_mensuelles_moyennes: number | null
+  mensualites_totales: number
+  revenus_nets_mensuels_moyens: number | null
+}
+
 export interface FundTopHoldingItem {
   symbol: string
   nom: string | null

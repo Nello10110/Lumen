@@ -217,29 +217,6 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
         </Card>
       )}
 
-      {donnees.objectifs && (
-        <Card title="Objectifs">
-          {donnees.objectifs.length === 0 ? (
-            <EtatVide titre="Aucun objectif." />
-          ) : (
-            <ul className="divide-y divide-bordure">
-              {donnees.objectifs.map((o) => (
-                <li key={o.nom} className="py-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-texte">{o.nom}</span>
-                    <span className="text-xs text-texte-attenue">échéance {formatDate(o.echeance)}</span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-texte-attenue">
-                    {o.diagnostic}
-                    {o.progression_pct !== null ? ` · ${o.progression_pct}% atteint` : ''}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
-
       <p className="text-center text-xs text-texte-attenue">Vue en lecture seule, générée par Lumen.</p>
     </div>
   )

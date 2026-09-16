@@ -43,8 +43,6 @@ import type {
   LoanInput,
   LoanUpdateInput,
   MouvementBancaire,
-  ObjectifDetail,
-  ObjectifInput,
   OidcStatus,
   DeclarationPatrimoineInput,
   ExpositionConsolidee,
@@ -554,9 +552,7 @@ export const api = {
   getJonctionPatrimoine: (dateDebut: string, dateFin: string) =>
     request<JonctionPatrimoine>(`/budget/jonction-patrimoine?date_debut=${dateDebut}&date_fin=${dateFin}`),
 
-  // Objectifs suivis et indicateurs de situation (backlog 2.O.1/2.O.2)
-  listObjectifs: () => request<ObjectifDetail[]>('/objectifs/'),
-  createObjectif: (payload: ObjectifInput) => request<ObjectifDetail>('/objectifs/', { method: 'POST', body: JSON.stringify(payload) }),
-  deleteObjectif: (id: number) => request<void>(`/objectifs/${id}`, { method: 'DELETE' }),
-  getIndicateursSituation: () => request<IndicateursSituation>('/objectifs/situation/indicateurs'),
+  // Indicateurs de situation (backlog 2.O.2) — matelas de sécurité, taux
+  // d'endettement, part immobilisée. Anciennement rattachés à Objectifs.
+  getIndicateursSituation: () => request<IndicateursSituation>('/analysis/indicateurs-situation'),
 }

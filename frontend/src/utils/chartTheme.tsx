@@ -59,7 +59,7 @@ export const RAYON_BARRE_HORIZONTALE: [number, number, number, number] = [0, 12,
 export const RAYON_BARRE_VERTICALE: [number, number, number, number] = [7, 7, 0, 0]
 
 /** Hauteurs. Trois marches, pas une valeur par graphique.
- *  • `heros`   — la courbe du bloc principal d'un écran (Synthèse, Objectifs) ;
+ *  • `heros`   — la courbe du bloc principal d'un écran (Synthèse, Analyse) ;
  *  • `panneau` — un graphique dans un panneau ordinaire ;
  *  • `encart`  — un graphique secondaire, dans une colonne ou une modale.
  * Un diagramme en barres de catégories se calcule plutôt avec `hauteurBarres()`. */

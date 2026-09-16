@@ -85,8 +85,8 @@ function AppAuthentifiee() {
   // rôle autorisé côté backend (`/api/jalons`, cf. `main.py`) — même restriction
   // que l'assistant de bienvenue ci-dessous. Chargé une seule fois par connexion,
   // jamais reconsulté au fil de la session : un jalon franchi PENDANT la session
-  // (ex. un objectif qui vient d'être atteint) attendra la prochaine connexion,
-  // cohérent avec « ne dérange jamais en plein travail ».
+  // (ex. le cap des 3 mois de suivi) attendra la prochaine connexion, cohérent
+  // avec « ne dérange jamais en plein travail ».
   const [jalonsACelebrer, setJalonsACelebrer] = useState<Jalon[]>([])
   useEffect(() => {
     if (!user || user.role !== 'proprietaire') return
@@ -207,10 +207,16 @@ function AppAuthentifiee() {
                 <Route path="/dividendes" element={<Navigate to="/analyse?onglet=revenus" replace />} />
                 {/* Le Simulateur (projection/FIRE) est devenu l'onglet « Simulateur »
                     d'`Analyse` (16/09/2026, retour utilisateur : il n'avait pas sa
-                    place sur `/objectifs`, aux côtés des objectifs suivis, avec
-                    lesquels il ne partageait aucune donnée) : l'ancienne URL y mène
-                    directement, à la place de son ancienne cible `/objectifs`. */}
+                    place sur `/objectifs`, aux côtés du suivi d'objectifs, avec
+                    lequel il ne partageait aucune donnée) : l'ancienne URL y mène
+                    directement. */}
                 <Route path="/simulateur" element={<Navigate to="/analyse?onglet=projection" replace />} />
+                {/* Suivi d'objectifs retiré (16/09/2026, retour utilisateur : la
+                    fonctionnalité avait perdu son intérêt, cf. `docs/BACKLOG.md`
+                    § AJ) — les indicateurs de situation qui vivaient sur cette
+                    page ont rejoint l'onglet Portefeuille d'`Analyse`, l'ancienne
+                    URL y mène donc plutôt que de disparaître. */}
+                <Route path="/objectifs" element={<Navigate to="/analyse" replace />} />
                 {/* Backlog § AD.3 (15/09/2026) : jusqu'ici une URL inconnue tombait sur
                     un cadre vide, sans message — cette route capture tout ce qu'aucune
                     route ci-dessus n'a intercepté (React Router : matché en dernier

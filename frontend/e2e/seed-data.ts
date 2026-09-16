@@ -26,7 +26,6 @@ export interface SeedData {
     livret: { id: number; nom: string }
   }
   loan_id: number
-  objectif_id: number
   attendu: {
     valeur_financiere: number
     patrimoine_net: number

@@ -6,7 +6,6 @@ import {
   IconComptes,
   IconDividendes,
   IconImport,
-  IconObjectifs,
   IconPatrimoine,
   IconRapport,
   IconReglages,
@@ -61,16 +60,8 @@ export const ROUTES: RouteMeta[] = [
   // désormais partager un ticker (une par compte) — un ticker seul ne peut plus
   // désambiguïser laquelle afficher, cf. `App.tsx::RedirectionTicker`.
   { path: '/patrimoine/:holdingId', titre: 'Détail de la position' },
-  {
-    path: '/objectifs',
-    titre: 'Objectifs',
-    navLabel: 'Objectifs',
-    icone: IconObjectifs,
-    rang: 'consultation',
-    rolesAutorises: ['proprietaire'],
-  },
   // `BottomNav` ne montre en direct que les 4 premières routes de consultation
-  // (`MAX_ENTREES_DIRECTES`) : Synthèse/Patrimoine/Objectifs/Comptes, le reste
+  // (`MAX_ENTREES_DIRECTES`) : Synthèse/Patrimoine/Comptes/Analyse, le reste
   // rejoint "Plus" (backlog 2.S.1). L'écran Épargne a fusionné dans Comptes le
   // 03/09/2026 (demande directe de l'utilisateur) — ses lignes vivent désormais
   // dans la fiche détaillée d'un compte (`CompteDetailContent`/`LigneEpargne`).

@@ -29,7 +29,7 @@ l'API » ci-dessous.
 ## Organisation des dossiers
 
 - `src/pages/` — un composant par écran/route (Tableau de bord, Portefeuille, Import,
-  Objectifs, Réglages, fiche détaillée en pleine page...).
+  Analyse, Réglages, fiche détaillée en pleine page...).
 - `src/components/` — composants réutilisables entre plusieurs pages (cartes,
   modales, graphiques, tuiles de statistiques...).
 - `src/hooks/` — logique d'état réutilisable indépendante de l'affichage (ex. suivi

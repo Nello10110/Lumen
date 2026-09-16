@@ -9,7 +9,6 @@ export interface LienPartage {
   inclure_repartition: boolean
   inclure_performance: boolean
   inclure_budget: boolean
-  inclure_objectifs: boolean
   masquer_valeurs: boolean
   code_requis: boolean
   created_at: string
@@ -25,7 +24,6 @@ export interface LienPartageInput {
   inclure_repartition?: boolean
   inclure_performance?: boolean
   inclure_budget?: boolean
-  inclure_objectifs?: boolean
   masquer_valeurs?: boolean
   code?: string | null
 }
@@ -77,15 +75,6 @@ export interface PartageBudget {
   repartition_sorties: PartageRepartitionItem[]
 }
 
-export interface PartageObjectif {
-  nom: string
-  type: string
-  echeance: string
-  progression_pct: number | null
-  diagnostic: string
-  retard_mois: number | null
-}
-
 // Déclaration de patrimoine PDF paramétrable (backlog 2.Q.2). `null`/absent =
 // toutes les lignes du foyer ; une liste (même vide) restreint explicitement.
 export interface DeclarationPatrimoineInput {
@@ -104,5 +93,4 @@ export interface PartagePayload {
   exposition: PartageExposition | null
   performance: PartagePerformance | null
   budget: PartageBudget | null
-  objectifs: PartageObjectif[] | null
 }

@@ -23,8 +23,8 @@ export default function EtapeBienvenue() {
               établis chacun de leur côté). */}
           <p className="font-medium text-ink">Bienvenue — faisons la lumière sur tes finances, ensemble.</p>
           <p>
-            Cette application suit ton patrimoine dans son ensemble : portefeuille boursier, immobilier, épargne, budget,
-            objectifs. Quelques réglages de départ permettent de l'adapter à ta situation — ça prend deux minutes.
+            Cette application suit ton patrimoine dans son ensemble : portefeuille boursier, immobilier, épargne,
+            budget. Quelques réglages de départ permettent de l'adapter à ta situation — ça prend deux minutes.
           </p>
         </>
       )}

@@ -38,9 +38,8 @@ describe('BottomNav (backlog 2.K.4)', () => {
     expect(nav).toHaveClass('h-16') // 64px, largement au-dessus des 44px requis
     expect(within(nav).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
     expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
-    expect(within(nav).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
     expect(within(nav).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
-    expect(within(nav).queryByRole('link', { name: /Analyse/ })).not.toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(nav).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
   })
@@ -52,23 +51,23 @@ describe('BottomNav (backlog 2.K.4)', () => {
     expect(screen.getByRole('link', { name: /Synthèse/ })).not.toHaveClass('text-accent')
   })
 
-  it('invité : seuls Synthèse/Patrimoine/Épargne en direct (rôle restreint, backlog 2.L.2), "Plus" reste présent', () => {
+  it('invité : seuls Synthèse/Patrimoine/Comptes en direct (rôle restreint, backlog 2.L.2), "Plus" reste présent', () => {
     renderNav(utilisateur({ role: 'invite' }))
 
     const nav = screen.getByRole('navigation', { name: 'Navigation principale (mobile)' })
     expect(within(nav).getByRole('link', { name: /Synthèse/ })).toBeInTheDocument()
     expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toBeInTheDocument()
-    expect(within(nav).queryByRole('link', { name: /Objectifs/ })).not.toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: /Comptes/ })).toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: /Analyse/ })).not.toBeInTheDocument()
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
   })
 
-  it("« Plus » ouvre une feuille avec Analyse/Rapport, Import/Réglages/Aide, thème et déconnexion", async () => {
+  it("« Plus » ouvre une feuille avec Rapport, Import/Réglages/Aide, thème et déconnexion", async () => {
     renderNav(utilisateur())
 
     fireEvent.click(screen.getByRole('button', { name: 'Plus' }))
 
     const feuille = await screen.findByRole('dialog')
-    expect(within(feuille).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(feuille).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
     expect(within(feuille).getByRole('link', { name: 'Import' })).toHaveAttribute('href', '/import')
     expect(within(feuille).getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')

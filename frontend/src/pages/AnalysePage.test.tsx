@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { AnalysisResponse, ExpositionConsolidee } from '../api/types'
+import type { AnalysisResponse, ExpositionConsolidee, Role } from '../api/types'
+import { AuthContext, type AuthContextValue } from '../contexts/authContextObject'
 import AnalysePage from './AnalysePage'
 
 vi.mock('../api/client', () => ({
@@ -12,6 +13,7 @@ vi.mock('../api/client', () => ({
     getCoutGestionConsolide: vi.fn(),
     getExpositionConsolidee: vi.fn(),
     getDividendCalendar: vi.fn().mockResolvedValue([]),
+    getIndicateursSituation: vi.fn(),
   },
 }))
 
@@ -87,10 +89,24 @@ function expositionConsolidee(overrides: Partial<ExpositionConsolidee> = {}): Ex
   }
 }
 
-function renderPage(url = '/analyse') {
+function authValue(role: Role = 'proprietaire'): AuthContextValue {
+  return {
+    user: { id: 1, username: 'testeur', role, onboarding_termine: true, holdings_sans_compte: 0 },
+    loading: false,
+    login: async () => {},
+    register: async () => {},
+    logout: () => {},
+    completeOnboarding: async () => {},
+    refetchUser: async () => {},
+  }
+}
+
+function renderPage(url = '/analyse', auth: AuthContextValue = authValue()) {
   return render(
     <MemoryRouter initialEntries={[url]}>
-      <AnalysePage />
+      <AuthContext.Provider value={auth}>
+        <AnalysePage />
+      </AuthContext.Provider>
     </MemoryRouter>,
   )
 }
@@ -106,6 +122,15 @@ function mockReponsesParDefaut() {
   })
   vi.mocked(api.getExpositionConsolidee).mockResolvedValue(expositionConsolidee())
   vi.mocked(api.getDividendCalendar).mockResolvedValue([])
+  vi.mocked(api.getIndicateursSituation).mockResolvedValue({
+    matelas_securite_mois: 6,
+    taux_endettement_pct: 25,
+    part_immobilisee_pct: 40,
+    epargne_disponible: 12000,
+    depenses_mensuelles_moyennes: 2000,
+    mensualites_totales: 500,
+    revenus_nets_mensuels_moyens: 2000,
+  })
 }
 
 beforeEach(() => {
@@ -170,6 +195,24 @@ describe('AnalysePage — erreurs indépendantes de performance/coût de gestion
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
     await waitFor(() => expect(api.getCoutGestionConsolide).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('AnalysePage — indicateurs de situation (backlog 2.O.2, déplacés depuis Objectifs le 16/09/2026)', () => {
+  it('propriétaire : charge et affiche les indicateurs dans l’onglet Portefeuille', async () => {
+    renderPage()
+
+    await waitFor(() => expect(api.getIndicateursSituation).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('Indicateurs de situation')).toBeInTheDocument()
+    expect(screen.getByText('6 mois')).toBeInTheDocument()
+  })
+
+  it("membre : n'interroge jamais l'endpoint réservé au propriétaire, et n'affiche pas la carte", async () => {
+    renderPage('/analyse', authValue('membre'))
+
+    await screen.findByText('Score de diversification')
+    expect(api.getIndicateursSituation).not.toHaveBeenCalled()
+    expect(screen.queryByText('Indicateurs de situation')).not.toBeInTheDocument()
   })
 })
 

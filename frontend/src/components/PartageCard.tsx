@@ -28,7 +28,6 @@ export default function PartageCard() {
   const [inclureRepartition, setInclureRepartition] = useState(true)
   const [inclurePerformance, setInclurePerformance] = useState(true)
   const [inclureBudget, setInclureBudget] = useState(false)
-  const [inclureObjectifs, setInclureObjectifs] = useState(false)
   const [masquerValeurs, setMasquerValeurs] = useState(false)
   const [code, setCode] = useState('')
 
@@ -60,7 +59,6 @@ export default function PartageCard() {
         inclure_repartition: inclureRepartition,
         inclure_performance: inclurePerformance,
         inclure_budget: inclureBudget,
-        inclure_objectifs: inclureObjectifs,
         masquer_valeurs: masquerValeurs,
         code: code.trim() || null,
       })
@@ -93,8 +91,8 @@ export default function PartageCard() {
       <p className="mb-4 text-sm text-texte">
         Un lien anonyme, révocable à tout moment, donnant à un tiers (banque, notaire, famille) une vue en lecture
         seule limitée aux sections choisies ci-dessous — jamais le détail position par position, les transactions, ni
-        les comptes. Budget et objectifs ne sont pas filtrés par détenteur : n'active ces deux sections avec un
-        détenteur sélectionné que si tu veux les partager pour tout le foyer.
+        les comptes. Le budget n'est pas filtré par détenteur : n'active cette section avec un détenteur
+        sélectionné que si tu veux le partager pour tout le foyer.
       </p>
 
       {loading ? (
@@ -174,10 +172,6 @@ export default function PartageCard() {
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={inclureBudget} onChange={(e) => setInclureBudget(e.target.checked)} />
             Budget
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={inclureObjectifs} onChange={(e) => setInclureObjectifs(e.target.checked)} />
-            Objectifs
           </label>
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={masquerValeurs} onChange={(e) => setMasquerValeurs(e.target.checked)} />
