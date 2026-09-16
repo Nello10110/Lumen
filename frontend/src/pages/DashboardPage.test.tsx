@@ -14,6 +14,19 @@ vi.mock('../api/client', () => ({
     // Synthèse) : même philosophie que ci-dessus.
     getPatrimoineHistory: vi.fn().mockResolvedValue({ points: [] }),
     listHoldings: vi.fn().mockResolvedValue([]),
+    // Backlog § AF.4 : le bouton "Rallumer les cours" de l'encart passe par le même
+    // hook que celui de Portefeuille (`useRafraichissementCours`) — non testé en
+    // détail ici (déjà couvert par `PortefeuillePage.test.tsx`), résolutions neutres.
+    refreshMarketData: vi.fn().mockResolvedValue({ en_cours: false }),
+    getRefreshStatus: vi.fn().mockResolvedValue({
+      en_cours: false,
+      positions_traitees: 0,
+      positions_total: 0,
+      demarre_le: null,
+      termine_le: null,
+      statut: null,
+      message: null,
+    }),
   },
 }))
 
@@ -115,5 +128,72 @@ describe('DashboardPage — invitation à importer (portefeuille vide)', () => {
 
     await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
     expect(screen.queryByText(/Aucune position dans le portefeuille/)).not.toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.getPortfolioHistory).mockResolvedValue({ points: [] })
+    vi.mocked(api.getPatrimoineHistory).mockResolvedValue({ points: [] })
+    vi.mocked(api.refreshMarketData).mockResolvedValue({ en_cours: false } as never)
+    vi.mocked(api.getRefreshStatus).mockResolvedValue({
+      en_cours: false,
+      positions_traitees: 1,
+      positions_total: 1,
+      demarre_le: null,
+      termine_le: null,
+      statut: 'ok',
+      message: null,
+    })
+  })
+
+  function holdingAvecCotation(joursDepuisMaj: number) {
+    const maj = new Date(Date.now() - joursDepuisMaj * 24 * 60 * 60 * 1000).toISOString()
+    return { id: 1, market_data: { ticker: 'AAA', derniere_maj: maj } } as never
+  }
+
+  it("n'affiche rien quand la position la plus ancienne a été rafraîchie il y a moins de 3 jours", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holdingAvecCotation(1)])
+    renderPage()
+
+    await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
+    expect(screen.queryByText(/dorment/)).not.toBeInTheDocument()
+  })
+
+  it("n'affiche rien pour des positions sans cotation (saisie manuelle)", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([{ id: 1, market_data: null } as never])
+    renderPage()
+
+    await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
+    expect(screen.queryByText(/dorment/)).not.toBeInTheDocument()
+  })
+
+  it('affiche le rappel avec le nombre de jours de la position la plus ancienne', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holdingAvecCotation(1), holdingAvecCotation(5)])
+    renderPage()
+
+    expect(await screen.findByText(/Vos cours dorment depuis 5 jours/)).toBeInTheDocument()
+  })
+
+  it('le bouton "Rallumer les cours" déclenche le rafraîchissement et fait disparaître le rappel', async () => {
+    vi.mocked(api.listHoldings)
+      .mockResolvedValueOnce([holdingAvecCotation(5)])
+      .mockResolvedValueOnce([holdingAvecCotation(0)])
+    renderPage()
+    await screen.findByText(/Vos cours dorment depuis 5 jours/)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rallumer les cours' }))
+
+    await waitFor(() => expect(api.refreshMarketData).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByText(/dorment/)).not.toBeInTheDocument())
+  })
+
+  it("ne s'affiche jamais en même temps que l'invitation à importer (portefeuille vide)", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    renderPage()
+
+    await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
+    expect(screen.queryByText(/dorment/)).not.toBeInTheDocument()
   })
 })

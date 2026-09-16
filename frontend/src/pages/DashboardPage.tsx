@@ -7,6 +7,16 @@ import { SecondaryButton } from '../components/Controls'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
 import PortfolioHistoryChart, { ControlesCourbe } from '../components/PortfolioHistoryChart'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
+import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
+
+// Backlog § AF.4 (15/09/2026) — au-delà de ce nombre de jours sans qu'AUCUNE
+// position cotée n'ait été retouchée par un rafraîchissement (réussi ou en échec —
+// `MarketDataCache.derniere_maj` avance dans les deux cas, ce qui reste le bon
+// signal ici : « a-t-on RETENTÉ récemment », pas « a-t-on réussi »), l'encart
+// apparaît. 3 jours : assez pour ne jamais s'afficher à qui rafraîchit ne
+// serait-ce qu'occasionnellement, assez tôt pour ne pas laisser les cours dormir
+// des semaines sans un rappel.
+const SEUIL_JOURS_SANS_RAFRAICHISSEMENT = 3
 
 /** Écran d'accueil — délibérément court (demande directe de l'utilisateur du
  * 07/09/2026 : « je veux un écran d'accueil un peu plus light »).
@@ -52,6 +62,15 @@ export default function DashboardPage() {
   // n'a plus de raison d'être appelé depuis cet écran.
   const [portefeuilleVide, setPortefeuilleVide] = useState(false)
 
+  // Backlog § AF.4 : nombre de jours écoulés depuis le rafraîchissement le plus
+  // ANCIEN parmi les positions cotées (`market_data` non nul — un bien immobilier
+  // ou un livret saisis à la main n'ont simplement rien à rafraîchir) — la ligne la
+  // plus endormie fixe le message, pas une moyenne qui masquerait une position
+  // vraiment oubliée derrière des positions à jour. `null` = rien à signaler
+  // (aucune position cotée, ou toutes rafraîchies récemment).
+  const [joursSansRafraichissement, setJoursSansRafraichissement] = useState<number | null>(null)
+  const { enCours: rafraichissementEnCours, declencher: declencherRafraichissement } = useRafraichissementCours(chargerPortefeuilleVide)
+
   function chargerHistorique() {
     setChargementHistorique(true)
     setErreurHistorique(null)
@@ -72,14 +91,31 @@ export default function DashboardPage() {
       .finally(() => setChargementPatrimoineHistorique(false))
   }
 
-  // Silencieux en cas d'échec : ce drapeau ne pilote qu'un encart d'invitation. Une
-  // erreur réseau ne doit pas faire apparaître « aucune position » à quelqu'un qui en
-  // a — l'absence d'encart est le repli sûr.
+  // Silencieux en cas d'échec : ces deux drapeaux ne pilotent que des encarts
+  // d'invitation. Une erreur réseau ne doit faire apparaître ni « aucune
+  // position » ni « cours endormis » à quelqu'un qui n'est concerné par aucun des
+  // deux — l'absence d'encart est le repli sûr dans les deux cas.
   function chargerPortefeuilleVide() {
     api
       .listHoldings()
-      .then((lignes) => setPortefeuilleVide(lignes.length === 0))
-      .catch(() => setPortefeuilleVide(false))
+      .then((lignes) => {
+        setPortefeuilleVide(lignes.length === 0)
+        const dernieresMaj = lignes
+          .map((h) => h.market_data?.derniere_maj)
+          .filter((d): d is string => d != null)
+          .map((d) => new Date(d).getTime())
+        if (dernieresMaj.length === 0) {
+          setJoursSansRafraichissement(null)
+          return
+        }
+        const plusAncienne = Math.min(...dernieresMaj)
+        const jours = Math.floor((Date.now() - plusAncienne) / (1000 * 60 * 60 * 24))
+        setJoursSansRafraichissement(jours >= SEUIL_JOURS_SANS_RAFRAICHISSEMENT ? jours : null)
+      })
+      .catch(() => {
+        setPortefeuilleVide(false)
+        setJoursSansRafraichissement(null)
+      })
   }
 
   function chargerDonnees() {
@@ -133,6 +169,29 @@ export default function DashboardPage() {
             </Link>
             .
           </p>
+        </Card>
+      )}
+
+      {/* Backlog § AF.4 (15/09/2026) : rappel discret si les cours n'ont pas été
+          rafraîchis depuis longtemps. Ton neutre (pas d'orange d'alerte comme
+          l'encart ci-dessus) : rien n'est cassé, c'est une invitation, pas un
+          problème à résoudre. Le bouton déclenche le MÊME rafraîchissement que
+          celui de Portefeuille (`useRafraichissementCours`, § AH.2) — la ligne se
+          rallume aussi ici pendant l'attente puisque c'est le même hook. */}
+      {joursSansRafraichissement !== null && !portefeuilleVide && (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-texte-attenue">
+              Vos cours dorment depuis {joursSansRafraichissement} jour{joursSansRafraichissement > 1 ? 's' : ''} — les
+              rallumer&nbsp;?
+            </p>
+            <SecondaryButton
+              onClick={() => declencherRafraichissement(() => api.refreshMarketData())}
+              disabled={rafraichissementEnCours}
+            >
+              {rafraichissementEnCours ? 'Rallumage...' : 'Rallumer les cours'}
+            </SecondaryButton>
+          </div>
         </Card>
       )}
 
