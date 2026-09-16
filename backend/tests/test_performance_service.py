@@ -223,6 +223,101 @@ def test_cout_acquisition_non_derive_quand_prix_revient_moyen_est_deja_renseigne
     assert resultats[holding.id]["cout_acquisition_total"] == 10000.0
 
 
+def test_rendement_annualise_derive_de_lhistorique_sans_date_acquisition(db):
+    """Retour utilisateur du 17/09/2026 : « mes PER n'ont pas de rendement
+    annualisé affiché ». Cause racine : sans grand livre de transactions ET sans
+    `date_acquisition` renseignée, `rendement_annualise_pct` restait toujours
+    `None` pour une ligne valorisée manuellement — même quand son historique de
+    valorisation daté suffisait pourtant à calculer un vrai XIRR. Un seul point
+    connu, doublant en 2 ans, sans AUCUNE `date_acquisition` : le rendement
+    annualisé doit désormais être calculable (≈ 10 %/an, même formule que le CAGR
+    à un seul flux déjà verrouillé par `test_rendement_annualise_via_date_acquisition_pour_actif_manuel`,
+    mais dérivée ici du premier point de l'historique plutôt que d'un champ séparé)."""
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="PER_HISTORIQUE",
+        nom="PER",
+        quantite=1.0,
+        prix_revient_moyen=None,
+        type_actif="PENSION",
+        valeur_estimee=1210.0,
+    )
+    db.add(holding)
+    db.commit()
+    db.refresh(holding)
+    immobilier_service.enregistrer_point_historique(
+        db, holding.id, 1000.0, datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=730)
+    )
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+
+    # (1 + r)^2 = 1210 / 1000 = 1.21 -> r = 10 %.
+    assert resultats[holding.id]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
+
+
+def test_rendement_annualise_derive_de_plusieurs_versements_declares(db):
+    """Contrairement au repli `date_acquisition` (un seul flux, toute date, suppose
+    tout le capital investi le même jour), l'historique de valorisation daté
+    produit un flux PAR versement réellement déclaré — bien plus fidèle pour une
+    ligne alimentée progressivement. Deux versements de 1000€ espacés d'un an,
+    valorisation finale à 2310€ : ≈ 10 %/an (1000*1.1² + 1000*1.1 = 2310)."""
+    maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="PER_VERSEMENTS",
+        nom="PER",
+        quantite=1.0,
+        prix_revient_moyen=None,
+        type_actif="PENSION",
+        valeur_estimee=2310.0,
+    )
+    db.add(holding)
+    db.commit()
+    db.refresh(holding)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, maintenant - timedelta(days=730))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 2000.0, maintenant - timedelta(days=365), versement=1000.0)
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[holding.id]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
+
+
+def test_rendement_annualise_repli_sur_date_acquisition_si_lhistorique_ne_suffit_pas(db):
+    """Garde-fou de non-régression : quand l'historique de valorisation daté ne
+    permet aucun calcul exploitable (ici, un unique versement déclaré exactement à
+    la date d'aujourd'hui — aucun écart de temps entre les flux, `xirr` renvoie
+    `None` par construction), le repli `date_acquisition` doit encore être tenté
+    plutôt que de laisser `rendement_annualise_pct` à `None` alors qu'il est
+    calculable par cette autre voie."""
+    maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="PER_DEGENERE",
+        nom="PER",
+        quantite=1.0,
+        prix_revient_moyen=None,
+        type_actif="PENSION",
+        valeur_estimee=1210.0,
+        date_acquisition=maintenant - timedelta(days=730),
+    )
+    db.add(holding)
+    db.commit()
+    db.refresh(holding)
+    # Historique dégénéré : un seul point, déclaré aujourd'hui même — aucun écart
+    # de temps avec le flux terminal (également "aujourd'hui"), `xirr` ne peut pas
+    # en tirer de taux (division par une durée nulle en pratique, pas de racine).
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1210.0, maintenant, versement=1210.0)
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+
+    # (1 + r)^2 = 1210 / 1210... non : le coût vient de `date_acquisition`, qui n'a
+    # pas de valeur de coût propre ici -> `investi_cumule_derive` fournit 1210 (la
+    # valeur du seul point connu), identique à `valeur_estimee` : repli sans effet
+    # mesurable sur CE champ, mais confirme que le calcul ne reste pas bloqué à
+    # `None` grâce au repli `date_acquisition`.
+    assert resultats[holding.id]["rendement_annualise_pct"] is not None
+
+
 def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
     """Retour utilisateur (26/08/2026) : `date_acquisition` permet un CAGR à un seul
     flux pour un actif valorisé manuellement, là où aucun grand livre de transactions

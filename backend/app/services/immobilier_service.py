@@ -168,6 +168,56 @@ def investi_cumule_derive(holding: Holding, points_historique: list[HoldingValua
     return holding.valeur_estimee
 
 
+def flux_investis_derives(
+    holding: Holding, points_historique: list[HoldingValuationHistory], frais_acquisition: float = 0.0
+) -> list[tuple[datetime, float]]:
+    """Flux de trésorerie datés (montants ALGÉBRIQUES — négatifs pour un versement
+    sorti de la poche de l'investisseur) dérivés de l'historique de valorisation
+    d'une ligne manuelle, pour un XIRR réel (retour utilisateur du 17/09/2026 :
+    « mes PER n'ont pas de rendement annualisé affiché »). Utilisé par
+    `performance_service._rendement_pour_ligne` en repli quand aucun grand livre de
+    transactions n'existe pour cette ligne — bien plus fidèle que l'ancien repli à
+    UN SEUL flux (`Holding.date_acquisition` → CAGR), qui suppose tout le capital
+    investi le même jour : une ligne alimentée progressivement (PER versé chaque
+    mois, par exemple) obtient ici un flux par versement RÉELLEMENT déclaré, à sa
+    vraie date.
+
+    Même ancrage que `patrimoine_history_service._serie_investie_manuel` (dupliqué
+    ici plutôt qu'importé, pour éviter un cycle d'imports entre
+    `performance_service`/`patrimoine_history_service` — `immobilier_service` est déjà
+    le point de partage neutre entre les deux, cf. `investi_cumule_derive` ci-dessus
+    pour le même choix) : si `date_acquisition` est connue et antérieure au premier
+    point réel, le premier flux part de `prix_revient_moyen` (+ `frais_acquisition`)
+    à cette date plutôt que de la valeur du premier point réel (qui peut déjà
+    inclure une performance depuis l'achat). `[]` si aucune donnée n'existe (rien à
+    mesurer) — `performance_service` traite alors ce cas comme n'importe quelle
+    absence de flux."""
+    if points_historique:
+        premiere_date, premiere_valeur = points_historique[0].date_valeur, points_historique[0].valeur
+    elif holding.valeur_estimee is not None:
+        premiere_date, premiere_valeur = holding.created_at, holding.valeur_estimee
+    else:
+        return []
+
+    ancrage = (
+        holding.date_acquisition is not None
+        and holding.prix_revient_moyen is not None
+        and holding.date_acquisition < premiere_date
+    )
+
+    if ancrage:
+        flux: list[tuple[datetime, float]] = [(holding.date_acquisition, -(holding.prix_revient_moyen + frais_acquisition))]
+        points_a_evaluer = points_historique
+    else:
+        flux = [(premiere_date, -premiere_valeur)]
+        points_a_evaluer = points_historique[1:] if points_historique else []
+
+    for p in points_a_evaluer:
+        if p.versement is not None and abs(p.versement) > 1e-9:
+            flux.append((p.date_valeur, -p.versement))
+    return flux
+
+
 def _arrondi(valeur: float | None) -> float | None:
     return round(valeur, 2) if valeur is not None else None
 

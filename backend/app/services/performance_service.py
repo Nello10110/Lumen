@@ -301,6 +301,7 @@ def _rendement_pour_ligne(
     now: datetime,
     frais_acquisition: float = 0.0,
     investi_derive: float | None = None,
+    flux_derives: list[tuple[datetime, float]] | None = None,
 ) -> dict:
     """Calcul commun à `compute_holding_returns` (toutes les lignes) et
     `compute_holding_return` (une seule, cf. LOT 4.2) — factorisé pour que les deux
@@ -321,7 +322,16 @@ def _rendement_pour_ligne(
     uniquement via ce mécanisme sans jamais remplir le champ "prix de revient" séparé.
     Jamais additionné à `frais_acquisition` (cette dernière ne s'applique qu'au repli
     `prix_revient_moyen`, cf. `immobilier_service.investi_cumule_derive`, qui
-    l'exclut déjà pour la même raison)."""
+    l'exclut déjà pour la même raison).
+
+    `flux_derives` : repli pour `annualise` (retour utilisateur du 17/09/2026, cf.
+    `immobilier_service.flux_investis_derives`) — un flux de trésorerie PAR versement
+    réellement déclaré dans l'historique de valorisation daté, utilisé quand aucun
+    grand livre de transactions n'existe pour cette ligne. Essayé avant le repli
+    `date_acquisition` ci-dessous (un seul flux, toute date) car objectivement plus
+    fidèle dès qu'au moins un point de valorisation est connu — mais sans exclusivité :
+    si ce flux plus riche produit `None` (ex. tous les versements déclarés à la même
+    date que "maintenant"), le repli `date_acquisition` reste tenté ensuite."""
     h = v.holding
     # `valeur_estimee` (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/PER)
     # joue le rôle du prix actuel pour ces lignes : c'est un montant absolu, mais
@@ -353,13 +363,31 @@ def _rendement_pour_ligne(
     if state and state.cash_flows and (v.a_des_donnees or flux_realise):
         flows = list(state.cash_flows) + [(now, v.valeur)]
         annualise = xirr(flows)
-    elif h.date_acquisition is not None and cout_total and cout_total > EPSILON and v.a_des_donnees:
+
+    if annualise is None and flux_derives and v.a_des_donnees:
+        # Ligne valorisée manuellement, historique de valorisation daté disponible
+        # (retour utilisateur du 17/09/2026 : « mes PER n'ont pas de rendement
+        # annualisé affiché ») : un flux PAR versement réellement déclaré, à sa
+        # vraie date, plutôt que le repli à un seul flux ci-dessous — objectivement
+        # plus fidèle pour une ligne alimentée progressivement (PER versé chaque
+        # mois, par exemple), qui n'a jamais eu un unique jour d'achat portant tout
+        # le capital. Essayé avant le repli `date_acquisition` (pas un `elif` : si
+        # tous les versements déclarés tombent le même jour que "maintenant" — cas
+        # réel, un foyer qui déclare tout son historique en une fois à la date du
+        # jour — `xirr` renvoie `None` par construction, faute du moindre écart de
+        # temps entre les flux ; le repli suivant reste alors tenté plutôt que de
+        # rester bloqué sur un `None` que la branche ci-dessous aurait pu éviter).
+        annualise = xirr(list(flux_derives) + [(now, v.valeur)])
+
+    if annualise is None and h.date_acquisition is not None and cout_total and cout_total > EPSILON and v.a_des_donnees:
         # Ligne valorisée manuellement (immobilier/épargne... — retour utilisateur,
-        # 26/08/2026) : aucun grand livre de transactions, mais un seul flux connu
-        # (l'achat, à `date_acquisition`) suffit à `xirr()` — avec un seul flux
-        # entrant et un seul sortant, la formule money-weighted se réduit
-        # exactement à un CAGR classique. Mêmes garde-fous que le portefeuille
-        # financier (durée minimale 90 jours, plafond 1000 %, cf. `xirr`).
+        # 26/08/2026) : aucun grand livre de transactions ET aucun résultat exploitable
+        # depuis l'historique de valorisation daté (sans quoi la branche ci-dessus
+        # aurait déjà répondu) — un seul flux connu (l'achat, à `date_acquisition`)
+        # suffit à `xirr()` avec un seul flux entrant et un seul sortant, la formule
+        # money-weighted se réduit exactement à un CAGR classique. Mêmes garde-fous
+        # que le portefeuille financier (durée minimale 90 jours, plafond 1000 %, cf.
+        # `xirr`).
         annualise = xirr([(h.date_acquisition, -cout_total), (now, prix_actuel_effectif)])
 
     return {
@@ -383,9 +411,11 @@ def compute_holding_returns(
       ayant un prix de revient et un prix actuel (y compris les lignes saisies manuellement).
     - `annualise` : XIRR sur les flux de trésorerie réels de cette ligne (achats/ventes)
       pour une position reconstruite depuis l'historique de transactions ; pour une ligne
-      valorisée manuellement (immobilier/épargne...), un CAGR à un seul flux si
-      `Holding.date_acquisition` est renseignée (retour utilisateur, 26/08/2026 — cf.
-      `_rendement_pour_ligne`), sinon `None`.
+      valorisée manuellement (immobilier/épargne...) sans grand livre, un flux PAR
+      versement déclaré dans son historique de valorisation daté si disponible (retour
+      utilisateur, 17/09/2026 — cf. `immobilier_service.flux_investis_derives`), sinon un
+      CAGR à un seul flux si `Holding.date_acquisition` est renseignée (retour
+      utilisateur, 26/08/2026 — cf. `_rendement_pour_ligne`), sinon `None`.
 
     `user_id` : Milestone 2a, multi-utilisateur. `positions` : cf. LOT 4.3, résultat déjà
     calculé de `compute_positions(db, user_id)` à réutiliser si l'appelant l'a déjà en
@@ -418,16 +448,19 @@ def compute_holding_returns(
     ids_manuels = [h.id for h in holdings if h.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL]
     historiques_manuels = immobilier_service.historiques_valorisation_par_holding(db, ids_manuels)
 
-    return {
-        v.holding.id: _rendement_pour_ligne(
+    resultats = {}
+    for v in valued:
+        historique = historiques_manuels.get(v.holding.id, [])
+        frais_acquisition = immobilier_service.frais_acquisition_total(details_immobiliers.get(v.holding.id))
+        resultats[v.holding.id] = _rendement_pour_ligne(
             v,
             positions.get((v.holding.ticker, v.holding.compte_id)),
             now,
-            immobilier_service.frais_acquisition_total(details_immobiliers.get(v.holding.id)),
-            immobilier_service.investi_cumule_derive(v.holding, historiques_manuels.get(v.holding.id, [])),
+            frais_acquisition,
+            immobilier_service.investi_cumule_derive(v.holding, historique),
+            immobilier_service.flux_investis_derives(v.holding, historique, frais_acquisition),
         )
-        for v in valued
-    }
+    return resultats
 
 
 def compute_holding_return(db: Session, holding_id: int, user_id: int, position: PositionState | None = None) -> dict:
@@ -457,5 +490,7 @@ def compute_holding_return(db: Session, holding_id: int, user_id: int, position:
     now = datetime.now(UTC).replace(tzinfo=None)
 
     frais_acquisition = immobilier_service.frais_acquisition_total(immobilier_service.detail_immobilier(db, holding.id))
-    investi_derive = immobilier_service.investi_cumule_derive(holding, immobilier_service.historique_valorisation(db, holding.id))
-    return _rendement_pour_ligne(v, position, now, frais_acquisition, investi_derive)
+    historique = immobilier_service.historique_valorisation(db, holding.id)
+    investi_derive = immobilier_service.investi_cumule_derive(holding, historique)
+    flux_derives = immobilier_service.flux_investis_derives(holding, historique, frais_acquisition)
+    return _rendement_pour_ligne(v, position, now, frais_acquisition, investi_derive, flux_derives)
