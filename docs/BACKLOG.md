@@ -3819,21 +3819,20 @@ l'animation (icône remplacée instantanément).
 *« Bienvenue — faisons la lumière sur tes finances, ensemble. »*, jamais répétée sur les étapes
 suivantes.
 
-#### AF.4 — `validé` (15/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
+#### AF.4 — `traité` (16/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
 
-Au-delà d'un certain nombre de jours sans rafraîchissement réussi (`market_data_refresh`, déjà
-horodaté en base), un encart discret dans Réglages ou le tableau de bord : *« Vos cours dorment
-depuis N jours — les rallumer ? »*, avec le bouton de rafraîchissement déjà existant. Réutilise une
-donnée déjà en base (`ScheduledJobConfig.dernier_succes` ou équivalent) ; à vérifier avant de
-développer.
+Encart sur le tableau de bord dès que la position cotée la plus ancienne n'a pas été retouchée par un
+rafraîchissement (réussi ou en échec) depuis 3 jours. Basé sur `MarketDataCache.derniere_maj` (via
+`Holding.market_data`), **pas** `ScheduledJobConfig.derniere_execution` comme envisagé initialement :
+ce dernier ne reflète que les rafraîchissements planifiés, jamais les manuels (bouton « Rafraîchir »
+de Portefeuille) — l'aurait rendu faussement alarmant pour qui rafraîchit seulement à la main. Bouton
+« Rallumer les cours » branché sur le même hook que Portefeuille (`useRafraichissementCours`, § AH.2).
 
 #### AF.5 — `traité` (15/09/2026) — Renommer « Sombre » en « Éclipse » dans le sélecteur de thème
 
 Le sélecteur clair/sombre/système (`BasculeTheme.tsx`, `BarreControles.tsx`) affiche désormais
 « Éclipse » à la place de « Sombre » (libellé accessible conservé pour l'aide : « Éclipse (thème
 sombre) »).
-
-**Prochaine étape** : AF.4 reste à développer (§ AG ci-dessous entièrement traité en parallèle).
 
 ---
 
@@ -3849,55 +3848,56 @@ l'utilisateur avant de commencer. Garde-fou explicite conservé malgré le ton p
 ressemble à de la gamification de trading (aucune incitation à transacter plus), rien de social/cloud
 (l'application reste 100 % locale — cf. principe fondateur, § 0).
 
-#### AG.1 — `validé` (15/09/2026) — Mode « langage simple »
+#### AG.1 — `traité` (16/09/2026) — Mode « langage simple »
 
-La piste la plus directement anti-élitiste : un bouton bascule qui remplace le jargon (XIRR, TWR,
-drawdown, quotité...) par du langage courant partout dans l'application, avec un lien « en savoir
-plus » qui déplie le terme technique pour qui le veut. Le glossaire existant (« Petit glossaire »,
-`AidePage.tsx`) en serait la première source. Effort réel non trivial (chaque écran financier à
-auditer), mais c'est la fonctionnalité qui répond le plus frontalement à la demande.
+Préférence persistée (client, `usePreferencesAffichage` — jamais backend, contrairement à
+`methode_cout` : une pure préférence d'affichage) avec un bouton bascule dans Réglages → Général.
+Nouveau composant `LabelAdaptatif.tsx` : remplace un libellé technique par sa formulation en langage
+courant quand la préférence est active, avec un lien « terme technique » qui déplie le terme
+d'origine — jamais supprimé. **Portée volontairement réduite** aux quatre métriques les plus denses
+de `MetriquesAvanceesCard` (TWR cumulé/annualisé, volatilité, drawdown — déjà repérées par le
+glossaire § AG.9), pas un balayage de tous les écrans financiers : l'effort de l'audit exhaustif,
+explicitement qualifié de non trivial par ce backlog, reste à faire écran par écran si souhaité.
 
-#### AG.2 — `validé` (15/09/2026) — Chiffres traduits en équivalents concrets
+#### AG.2 — `traité` (16/09/2026) — Chiffres traduits en équivalents concrets
 
-Un pourcentage ou un montant abstrait parle peu à qui n'est pas déjà à l'aise avec la finance. À
-côté (jamais à la place) du chiffre : une traduction concrète — *« ça représente 3 mois de loyer »*,
-*« l'équivalent de 40 pleins d'essence »* — calculée sur des repères déclarés par l'utilisateur
-(loyer, dépense récurrente) plutôt que des moyennes nationales anonymes, pour rester honnête et
-personnel plutôt que vaguement moralisateur.
+Le montant restant à atteindre sur un objectif suivi s'accompagne désormais d'un « Il reste ≈ N mois
+de dépenses courantes », à côté (jamais à la place) du montant cible en euros — calculé sur
+`IndicateursSituation.depenses_mensuelles_moyennes`, déjà mesuré sur les dépenses réelles de ce foyer
+(matelas de sécurité, § O.2), pas une moyenne nationale anonyme. Absent si la donnée manque ou si
+l'objectif est déjà atteint.
 
-#### AG.3 — `validé` (15/09/2026) — Célébrations discrètes aux jalons
+#### AG.3 — `traité` (16/09/2026) — Célébrations discrètes aux jalons
 
-Un jalon franchi (premier import réussi, premier objectif atteint, une année de suivi complète) —
-une micro-animation ponctuelle et sobre (pas de confettis plein écran façon appli de courtage), un
-message chaleureux, jamais répété pour le même jalon. Aucune pression à en refaire un autre : ce
-sont des accusés de réception, pas des paliers à grinder.
+Nouveau composant `CelebrationJalon.tsx` (même patron que `LumenFaitAmusant.tsx`/
+`MiseAJourDisponible.tsx`) : à la connexion, le premier jalon personnel tout juste franchi (parmi les
+quatre de § AG.4) s'affiche en toast chaleureux, marqué célébré à la fermeture — jamais rejoué pour
+le même jalon. Backend : `services/jalons_service.py`, quatre jalons dérivés des données existantes
+(premier import, 3 mois/1 an de suivi, premier objectif atteint), sans nouvelle table — seule la
+« célébration déjà vue » est persistée.
 
-#### AG.4 — `validé` (15/09/2026) — Badges personnels, jamais sociaux
+#### AG.4 — `traité` (16/09/2026) — Badges personnels, jamais sociaux
 
-Une petite galerie privée dans Réglages (« Premier import », « 3 mois de suivi sans interruption »,
-« Premier objectif atteint »...) — strictement personnelle, jamais partageable ni comparée à qui que
-ce soit (l'application n'a pas de notion de classement, et ça doit le rester). Sert à valoriser la
-régularité, jamais le volume investi ou le risque pris — pour ne jamais dériver vers une incitation
-à « faire plus ».
+Nouvel onglet « Badges » de Réglages (`BadgesCard.tsx`) : galerie des quatre jalons ci-dessus,
+obtenus ET à venir, avec leur date d'obtention — strictement personnelle (aucun endpoint de
+comparaison entre comptes n'existe), jamais un chiffre en euros (valorise la régularité, jamais le
+volume investi). Même source que la célébration (`GET /api/jalons`), jamais d'appel à
+`marquer-célèbre` depuis cet écran.
 
-#### AG.5 — `validé` (15/09/2026, reformulée le 16/09/2026) — Ambiance visuelle qui respire la santé du patrimoine
+#### AG.5 — `traité` (16/09/2026, reformulée le même jour) — Ambiance visuelle qui respire la santé du patrimoine
 
-Le fond à halos déjà présent sur toute l'application (`body`, refonte « liquid glass ») pourrait très
-légèrement teinter sa chaleur selon la tendance générale du patrimoine — un effet d'ambiance, jamais
-un indicateur chiffré déguisé, à peine perceptible plutôt qu'un thème qui change de couleur
-franchement. Risque réel de trop en faire ; à essayer avec retenue, réversible si ça distrait plus que
-ça n'apaise. **Prudence renforcée depuis le retrait d'AD.2** (16/09/2026, « ça rend pas bien ») : le
-même principe (teinter une surface selon la santé du patrimoine) vient d'être jugé décevant en usage
-réel une première fois — à ne développer qu'après validation d'une maquette ou d'un aperçu concret
-avec l'utilisateur, pas en aveugle.
+Nouveau hook `useTendancePatrimoine` (délibérément distinct et plus simple qu'`useVariationPatrimoine`
+retiré le 16/09/2026 pour § AD.2) : lavis radial très subtil (opacité 0,03-0,04, très en-deçà des
+0,3-0,7 du halo retiré) posé en deçà du fond à halos existant sur `<body>` — vert en hausse, gris
+froid neutre en baisse, jamais de couleur d'alerte. Prudence tenue : opacité délibérément réduite
+d'un ordre de grandeur par rapport à AD.2 plutôt que de refaire la même erreur à l'identique.
 
-#### AG.6 — `validé` (15/09/2026) — Simulateur reformulé en histoires
+#### AG.6 — `traité` (16/09/2026) — Simulateur reformulé en histoires
 
-Le Simulateur existant (FIRE, achat/location) présente déjà un résultat, mais façon feuille de
-calcul. Une première phrase en langage humain avant le détail chiffré — *« Avec 50 € de plus par
-mois, tu prendrais ta retraite 8 mois plus tôt »* — le tableau détaillé restant disponible juste
-en dessous pour qui veut vérifier. Rend le simulateur utilisable sans comprendre immédiatement tous
-ses paramètres.
+Une phrase en langage humain précède désormais le détail chiffré du FIRE — *« Avec 50 € de plus par
+mois, tu prendrais ta retraite N mois plus tôt »* — calculée sur le même moteur (`calculerFire`) que
+le reste, jamais une formule séparée qui pourrait diverger. Absente si l'indépendance est déjà
+atteinte (rien à accélérer) ou si la différence arrondit à zéro mois.
 
 #### AG.7 — `validé` (15/09/2026) — Mode découverte avec données fictives
 
@@ -3905,15 +3905,20 @@ Avant d'importer ses vraies données, pouvoir explorer l'application avec un foy
 (actions, immobilier, budget) — baisse la barrière à l'entrée réelle constatée sur ce type d'outil
 (« je dois tout comprendre et tout saisir avant de voir si ça me plaît »). Techniquement : un jeu de
 données proche de `seed_e2e.py`, chargé à la demande dans un foyer de démonstration, jamais mélangé
-aux vraies données.
+aux vraies données. **Seule des 17 pistes restée en attente** (16/09/2026) : contrairement aux huit
+autres (des composants d'affichage), celle-ci implique un endpoint public non authentifié capable de
+créer un compte — un profil de risque (surface d'abus, croissance de la base) suffisamment différent
+pour mériter un arbitrage explicite avec l'utilisateur avant de coder, pas une simple exécution du
+mandat général « réalise-les toutes ».
 
-#### AG.8 — `validé` (15/09/2026) — Illustrations légères sur les états vides
+#### AG.8 — `traité` (16/09/2026) — Illustrations légères sur les états vides
 
-Les états vides (`EtatVide`) sont aujourd'hui du texte seul. Une petite illustration au trait, dans
-le bleu de marque, cohérente avec l'esthétique « verre liquide » du logo — jamais des photos stock,
-jamais un style enfantin qui déprécierait le sérieux de l'outil. Effort non négligeable (plusieurs
-illustrations à produire), à réserver aux 2-3 écrans les plus vus en premier (Portefeuille,
-Patrimoine, tableau de bord).
+`EtatVide` gagne une prop `illustration` facultative — réutilise le tracé de `LumenMark` lui-même,
+très pâle (opacité 0,08), plutôt qu'une nouvelle illustration à produire et maintenir : colle
+littéralement à la demande (« cohérente avec l'esthétique du logo »). Posée sur les deux écrans les
+plus vus en premier (Portefeuille/Patrimoine — même route et page — et le tableau de bord),
+uniquement sur le vide qui invite à commencer, jamais sur un état vide secondaire (filtre sans
+résultat).
 
 #### AG.9 — `traité` (15/09/2026) — Glossaire réécrit par analogies
 
@@ -3922,9 +3927,8 @@ définition par une analogie concrète avant le texte technique, qui reste dispo
 après (ex. XIRR : *« Comme un taux d'intérêt qui tiendrait compte du moment exact où vous avez versé
 chaque euro, pas juste du début et de la fin. »*).
 
-**Prochaine étape** : 17 pistes validées au total (§ AF + § AG + § AH). Restent à développer : AF.4,
-et huit pistes AG (AG.1 à AG.8, plus large effort — mode langage simple, équivalents concrets,
-célébrations, badges, ambiance visuelle, simulateur en histoires, mode découverte, illustrations).
+**16/09/2026** : 16 des 17 pistes validées (§ AF + § AG + § AH) traitées. Seule reste AG.7 (mode
+découverte), en attente d'un arbitrage explicite avec l'utilisateur — cf. § AG.7 ci-dessus.
 
 ---
 
