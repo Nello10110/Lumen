@@ -4413,6 +4413,44 @@ mesurer) ; renseigner `date_acquisition` sur la ligne reste alors la seule voie 
 estimation, moins précise mais mieux que rien.
 
 ---
+
+### AR. Historique de performance absent pour une ligne crypto (17/09/2026)
+
+#### AR.1 — `mineur` · `M` · `traité` (17/09/2026) — Historique de cours crypto via CoinGecko, branché dans la fiche détaillée
+
+Retour utilisateur direct : « Pour les Crypto monnaies, l'historique de performance n'est pas présent
+dans le détail de la ligne ». Cause confirmée : lors du passage de Yahoo Finance à CoinGecko pour le
+cours d'une ligne `CRYPTO` (§ AE, 15/09/2026), seul le PRIX COURANT (`coingecko_service.fetch_price`)
+avait été branché — l'historique (`_compute_holding_price_history`,
+`historical_performance_service.py`) court-circuitait explicitement toute ligne crypto avec un `return
+None`, documenté comme délibérément différé (§ AE.3) plutôt que résolu, faute de temps à l'époque.
+
+Nouvelle fonction `coingecko_service.fetch_market_chart` (`GET /coins/{id}/market_chart`, jusqu'à un an
+d'historique sur le plan Demo gratuit) — réutilise la MÊME résolution symbole → identifiant CoinGecko
+que `fetch_price` (factorisée dans `_resoudre_meilleure_correspondance`, déjà présente dans la réponse
+`/coins/markets`, jamais un appel réseau supplémentaire pour ça). `cours_service.py` (SEULE porte
+d'entrée vers l'historique de cours d'un ticker, backlog § AB) gagne un second chemin
+`rafraichir_crypto`/`serie_crypto_en_euros`, parallèle à `rafraichir`/`serie_en_euros` (yfinance) —
+même modèle de fraîcheur/reprise/écriture (factorisé dans `_rafraichir_avec`), même table
+`CoursHistorique`/`SerieCours`, mais source CoinGecko et jamais de conversion de change à faire
+(`vs_currency=eur` demandé explicitement, comme pour le prix courant). `_compute_holding_price_history`
+bascule sur ce chemin pour une ligne crypto au lieu de son ancien `return None` — jamais de résolution
+de ticker Yahoo pour elle, même garde que partout ailleurs dans l'application depuis le 15/09/2026.
+Branché aussi dans le job planifié de remplissage (`scheduler_service._run_cours_historiques`), qui
+séparait déjà les tickers crypto des autres (`continue` remplacé par un appel à `rafraichir_crypto`,
+temporisé comme le fait déjà `market_data_service.refresh_tickers` pour le prix courant).
+
+**Volontairement hors de ce correctif** : la courbe d'évolution du PORTEFEUILLE ENTIER
+(`_compute_portfolio_history`, toutes classes mélangées sur une seule grille) continue d'exclure la
+crypto et de retomber sur `prix_revient_moyen` pour ces positions — brancher CoinGecko en plus de
+yfinance sur cette courbe-là (mêmes questions de crédits/délai d'appel à multiplier par le nombre de
+positions détenues) reste un chantier séparé, non demandé ici. Aucun changement frontend : la fiche
+détaillée gérait déjà gracieusement l'historique absent (état vide dédié), elle affiche maintenant les
+points dès qu'ils existent, sans changement de contrat d'API. Nécessite `PATRIMOINE_COINGECKO_API_KEY`
+(§4 du manuel d'exploitation) comme le prix courant — absente chez l'utilisateur au moment de ce
+correctif, à créer (gratuit, sans carte bancaire) pour voir l'effet.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
