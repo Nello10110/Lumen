@@ -87,44 +87,6 @@ Accessible en cliquant sur une ligne du Portefeuille, sur une barre de répartit
 - **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique). En dessous, la répartition entre détenteurs déclarés (Réglages) et la part nette qui en résulte, si au moins un détenteur a été créé ;
 - **Paramètres** : édition des réglages propres à la ligne — aujourd'hui, les caractéristiques et le bloc location d'un bien immobilier (type de location, loyer, charges, surface, DPE...) ; pour toute autre nature, un message indique qu'il n'y a rien à régler pour l'instant.
 
-## Écran Objectifs
-
-Deux blocs sur un même écran : les objectifs suivis dans le temps, en haut ; le simulateur, calcul à la volée, en dessous.
-
-### Objectifs suivis (backlog § 2.O.1)
-
-Un objectif = un nom, un montant cible, une échéance, et éventuellement un ou plusieurs **actifs rattachés** — leur valeur cumulée mesure la progression réelle de l'objectif, pas un registre de versements séparé à tenir à jour soi-même. Le formulaire « Nouvel objectif » propose aussi un type prédéfini (indépendance financière, épargne de précaution, apport immobilier, remboursement anticipé, ou personnalisé) et des contributeurs (parmi les personnes/sociétés déclarées dans Réglages, si tu en as créé).
-
-Chaque objectif affiche :
-
-- **Valeur actuelle**, **montant cible**, **progression** en %.
-- **Diagnostic en langage naturel** : « Objectif atteint. », « En bonne voie. », « En retard de X mois au rythme actuel. », « Aucune progression mesurée pour l'instant. », ou « Échéance dépassée... » — comparé à une trajectoire cible qui va linéairement du montant de départ au montant cible entre la création et l'échéance.
-- **Rendement annuel requis** pour atteindre la cible sans versement supplémentaire, et **contribution mensuelle nécessaire** au taux hypothèse renseigné (0 % par défaut, modifiable à la création) pour combler l'écart.
-- Un graphique à deux courbes (cible en pointillés, réelle en trait plein) — la courbe réelle n'a que deux points (création, aujourd'hui), pas un historique complet, c'est indiqué sous le graphique.
-
-Le bouton « Supprimer » d'un objectif demande confirmation avant suppression définitive.
-
-### Indicateurs de situation (backlog § 2.O.2)
-
-Trois ratios, chacun avec sa formule affichée en dessous :
-
-- **Matelas de sécurité** (en mois) : épargne disponible (comptes courants + épargne réglementée) divisée par les dépenses mensuelles moyennes des 3 derniers mois de budget.
-- **Taux d'endettement** : mensualités totales des emprunts divisées par les revenus nets mensuels moyens.
-- **Part du patrimoine immobilisée** : le reste des actifs non boursiers (immobilier, SCPI, assurance-vie, PER...) rapporté au patrimoine brut.
-
-Un ratio affiche « — » plutôt qu'un chiffre trompeur s'il manque une donnée (aucun mouvement bancaire importé pour dépenses/revenus, aucun emprunt).
-
-### Simulateur
-
-Projette un capital dans le temps — une **hypothèse**, pas une promesse : les marchés ne progressent jamais de façon aussi régulière dans la réalité. Le **capital de départ** est préempli avec ton patrimoine net actuel, mais librement modifiable : laisse-le tel quel pour voir où en sera ton patrimoine réel, ou change-le pour tester n'importe quel autre scénario ("et si je plaçais 10 000 € à 6 % ?"). Un lien apparaît sous le champ pour revenir en un clic au patrimoine net actuel dès que tu l'as modifié.
-
-- **Hypothèses** : capital de départ (€), rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), versement mensuel (€), **intérêts déjà obtenus (€, facultatif)**, durée (boutons 5/10/20/30 ans). Tout se recalcule instantanément à chaque changement (aucun appel au serveur).
-- **Intérêts déjà obtenus** : préempli avec le gain/perte déjà réalisé sur ton portefeuille financier (la carte Rentabilité de l'écran Analyse), librement modifiable ou effaçable. Sert à indiquer que le capital de départ contient déjà des gains, pas seulement des versements — le tableau de détail en tient alors compte dès la ligne « Départ » au lieu de repartir de zéro, pour mieux distinguer les vrais intérêts déjà gagnés de ceux à venir.
-- **Versement mensuel** (backlog § 2.N.4 + 2.S.1) : préempli avec le versement moyen réellement observé sur le budget des 3 derniers mois (écran Budget) **additionné** aux versements mensuels déclarés sur tes comptes Épargne (assurance-vie, PER...), plutôt qu'une hypothèse saisie à la main — une légende sous le champ détaille les deux montants séparément, un lien apparaît pour revenir à leur somme en un clic si modifié. Reste à 0 si aucune des deux sources n'est renseignée, librement modifiable dans tous les cas.
-- **Graphique et tuiles** : valeur finale, total versé, intérêts gagnés, avec un graphique étagé (capital versé + gains).
-- **Tableau de détail** : sous le graphique, bascule **Annuelle** / **Mensuelle** listant, période par période, les versements, les intérêts gagnés, le capital, le versé cumulé et les intérêts cumulés à date. Chaque ligne est libellée par la **date réelle prévue** (ex. « 2028 » en vue annuelle, « 2027 Mars » en vue mensuelle) plutôt que par un compteur abstrait — seule la première ligne reste « Départ ». La vue mensuelle défile (jusqu'à 360 lignes sur 30 ans) dans un cadre à hauteur fixe, en-tête toujours visible.
-- **Indépendance financière (FIRE)** : renseigner une dépense annuelle cible et un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique parmi d'autres, pas une vérité universelle, librement modifiable) affiche le patrimoine nécessaire pour vivre de ce patrimoine, et le délai estimé pour l'atteindre avec les mêmes hypothèses de capital/rendement/versement que ci-dessus. Au-delà de 60 ans de projection, le résultat affiche « Non atteinte » plutôt qu'un nombre d'années trop lointain pour être fiable.
-
 ## Écran Épargne
 
 Pour tout ce qui ne se cote pas en bourse et se gère « à la main » — compte courant, épargne
@@ -228,7 +190,7 @@ titres), ou n'en contenir qu'une (ex. une assurance-vie, un bien immobilier).
 
 ## Écran Analyse
 
-Deux onglets, parce que ce sont deux questions différentes. L'ancien écran Dividendes et le repli « Détail » du Tableau de bord ont fusionné ici (07/09/2026) ; l'adresse `/dividendes` conduit directement à l'onglet Revenus.
+Plusieurs onglets, chacun une question différente. L'ancien écran Dividendes et le repli « Détail » du Tableau de bord ont fusionné ici (07/09/2026) ; l'adresse `/dividendes` conduit directement à l'onglet Revenus. Le Simulateur (ci-dessous) vivait jusqu'au 16/09/2026 sur l'écran Objectifs, alors retiré ; l'adresse `/objectifs` conduit désormais ici.
 
 ### Onglet Portefeuille
 
@@ -276,6 +238,14 @@ de l'écran, recharge toutes ces données.
   tant qu'elle n'atteint pas 100 %.
 - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne,
   concentration géographique.
+- **Indicateurs de situation** (backlog § 2.O.2, réservé au propriétaire — un membre du foyer ne
+  voit pas cette carte) : trois ratios, chacun avec sa formule affichée en dessous. **Matelas de
+  sécurité** (en mois) : épargne disponible (comptes courants + épargne réglementée) divisée par
+  les dépenses mensuelles moyennes des 3 derniers mois de budget. **Taux d'endettement** :
+  mensualités totales des emprunts divisées par les revenus nets mensuels moyens. **Part du
+  patrimoine immobilisée** : le reste des actifs non boursiers (immobilier, SCPI, assurance-vie,
+  PER...) rapporté au patrimoine brut. Un ratio affiche « — » plutôt qu'un chiffre trompeur s'il
+  manque une donnée (aucun mouvement bancaire importé pour dépenses/revenus, aucun emprunt).
 
 ### Onglet Revenus
 
@@ -290,6 +260,17 @@ Ce que le patrimoine rapporte sans qu'on ait à le vendre.
    derniers mois réellement perçus — jamais une promesse pour les 12 prochains, la nuance est
    rappelée explicitement sous l'encart. N'apparaît vide que si aucune de ces quatre sources n'est
    détectée sur le patrimoine.
+
+### Onglet Simulateur
+
+Projette un capital dans le temps — une **hypothèse**, pas une promesse : les marchés ne progressent jamais de façon aussi régulière dans la réalité. Le **capital de départ** est préempli avec ton patrimoine net actuel, mais librement modifiable : laisse-le tel quel pour voir où en sera ton patrimoine réel, ou change-le pour tester n'importe quel autre scénario ("et si je plaçais 10 000 € à 6 % ?"). Un lien apparaît sous le champ pour revenir en un clic au patrimoine net actuel dès que tu l'as modifié.
+
+- **Hypothèses** : capital de départ (€), rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), versement mensuel (€), **intérêts déjà obtenus (€, facultatif)**, durée (boutons 5/10/20/30 ans). Tout se recalcule instantanément à chaque changement (aucun appel au serveur).
+- **Intérêts déjà obtenus** : préempli avec le gain/perte déjà réalisé sur ton portefeuille financier (la carte Rentabilité de l'onglet Portefeuille ci-dessus), librement modifiable ou effaçable. Sert à indiquer que le capital de départ contient déjà des gains, pas seulement des versements — le tableau de détail en tient alors compte dès la ligne « Départ » au lieu de repartir de zéro, pour mieux distinguer les vrais intérêts déjà gagnés de ceux à venir.
+- **Versement mensuel** (backlog § 2.N.4 + 2.S.1) : préempli avec le versement moyen réellement observé sur le budget des 3 derniers mois (écran Budget) **additionné** aux versements mensuels déclarés sur tes comptes Épargne (assurance-vie, PER...), plutôt qu'une hypothèse saisie à la main — une légende sous le champ détaille les deux montants séparément, un lien apparaît pour revenir à leur somme en un clic si modifié. Reste à 0 si aucune des deux sources n'est renseignée, librement modifiable dans tous les cas.
+- **Graphique et tuiles** : valeur finale, total versé, intérêts gagnés, avec un graphique étagé (capital versé + gains).
+- **Tableau de détail** : sous le graphique, bascule **Annuelle** / **Mensuelle** listant, période par période, les versements, les intérêts gagnés, le capital, le versé cumulé et les intérêts cumulés à date. Chaque ligne est libellée par la **date réelle prévue** (ex. « 2028 » en vue annuelle, « 2027 Mars » en vue mensuelle) plutôt que par un compteur abstrait — seule la première ligne reste « Départ ». La vue mensuelle défile (jusqu'à 360 lignes sur 30 ans) dans un cadre à hauteur fixe, en-tête toujours visible.
+- **Indépendance financière (FIRE)** : renseigner une dépense annuelle cible et un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique parmi d'autres, pas une vérité universelle, librement modifiable) affiche le patrimoine nécessaire pour vivre de ce patrimoine, et le délai estimé pour l'atteindre avec les mêmes hypothèses de capital/rendement/versement que ci-dessus. Au-delà de 60 ans de projection, le résultat affiche « Non atteinte » plutôt qu'un nombre d'années trop lointain pour être fiable.
 
 ## Écran Budget
 
@@ -373,8 +354,8 @@ Organisé en deux temps, du plus important au reste — le chiffre, puis la cour
 
 ## Sur mobile
 
-- **Barre du bas** : Synthèse, Patrimoine, Objectifs, Comptes, puis **« Plus »** — qui ouvre une
-  feuille avec les autres écrans (Analyse, Rapport, Salaire, Import, Réglages, Aide), le thème et la
+- **Barre du bas** : Synthèse, Patrimoine, Comptes, Analyse, puis **« Plus »** — qui ouvre une
+  feuille avec les autres écrans (Budget, Rapport, Salaire, Import, Réglages, Aide), le thème et la
   déconnexion. La feuille se ferme de trois façons : le bouton, un appui n'importe où sur le fond, ou
   un **glissement vers le bas**.
 - **En-tête** : le titre de l'écran, la ligne de contexte (« Foyer · vue nette ») — **touchez-la pour
@@ -423,7 +404,7 @@ Section visible uniquement par le propriétaire du compte.
 
 - **Comptes du foyer** : le propriétaire crée les comptes des autres membres du foyer (nom
   d'utilisateur, mot de passe, rôle). Un **membre** peut consulter et saisir des actifs, emprunts et
-  transactions comme le propriétaire, mais pas modifier les objectifs ni la sécurité. Un **invité**
+  transactions comme le propriétaire, mais pas voir les indicateurs de situation ni modifier la sécurité. Un **invité**
   ne voit, en lecture seule, que le patrimoine net et le portefeuille des personnes/sociétés qui lui
   sont explicitement assignées (aucun accès par défaut tant qu'aucun détenteur n'est coché).
   Il n'existe plus d'inscription libre au-delà du tout premier compte du serveur.
@@ -443,7 +424,7 @@ Trois boutons téléchargent chacun un fichier CSV (positions, transactions, syn
 À ne pas confondre avec les exports ci-dessus : ceux-là produisent des **documents à lire** (Excel,
 PDF), celui-ci produit un **fichier de sauvegarde ré-importable**. Un seul fichier JSON contenant tout
 le patrimoine du foyer — positions, transactions, immobilier, emprunts, comptes et établissements,
-détenteurs et répartitions, épargne, objectifs, salaires, budget et préférences.
+détenteurs et répartitions, épargne, salaires, budget et préférences.
 
 Deux usages : se faire une sauvegarde avant une manipulation risquée, ou déménager vers une autre
 installation de l'application.
@@ -482,10 +463,10 @@ Section visible uniquement par le propriétaire du compte — un membre du foyer
 Un lien de partage donne à un tiers (une banque pour un prêt, un notaire, un membre de la famille) une page en lecture seule, accessible sans aucun compte ni mot de passe sur l'application — juste l'URL. Pour créer un lien :
 
 - **Nom** : un repère pour s'y retrouver soi-même dans la liste (« Pour la banque », par exemple) — jamais affiché tel quel comme titre de la page publique, seulement dans cette liste de gestion.
-- **Détenteur** : par défaut, le foyer entier. Restreindre à une personne ne filtre que le patrimoine net — budget, exposition consolidée et objectifs restent affichés pour tout le foyer si activés en même temps qu'un détenteur, un avertissement le rappelle dans le formulaire.
+- **Détenteur** : par défaut, le foyer entier. Restreindre à une personne ne filtre que le patrimoine net — budget et exposition consolidée restent affichés pour tout le foyer si activés en même temps qu'un détenteur, un avertissement le rappelle dans le formulaire.
 - **Durée** : entre 1 et 365 jours ; passé ce délai, le lien cesse de fonctionner de lui-même, sans action à faire.
 - **Code d'accès** : optionnel. S'il est renseigné, le visiteur doit le saisir avant de voir quoi que ce soit ; 5 codes incorrects verrouillent temporairement la consultation de ce lien précis pendant 15 minutes.
-- **Sections à inclure** : Patrimoine net, Exposition consolidée, Rentabilité, Budget, Objectifs — chacune indépendante des autres. Ce que l'application montre reste volontairement limité à des chiffres globaux : jamais la liste des positions ligne par ligne, jamais les transactions, jamais les libellés de compte.
+- **Sections à inclure** : Patrimoine net, Exposition consolidée, Rentabilité, Budget — chacune indépendante des autres. Ce que l'application montre reste volontairement limité à des chiffres globaux : jamais la liste des positions ligne par ligne, jamais les transactions, jamais les libellés de compte.
 - **Masquer les montants** : remplace chaque montant par son pourcentage dans la répartition — la forme reste visible (« 60 % en immobilier »), pas l'échelle en euros.
 
 Chaque lien créé apparaît dans la liste avec son URL complète (à copier-coller), un badge s'il est révoqué, expiré, ou protégé par un code. **Révoquer** coupe l'accès immédiatement et définitivement — le visiteur qui rouvre le lien voit un message d'indisponibilité, sans plus de détail (impossible de deviner si le lien a expiré, a été révoqué, ou n'a jamais existé).

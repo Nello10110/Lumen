@@ -1455,7 +1455,7 @@ importés, versement mensuel du Simulateur préempli avec la valeur observée.
 Le simulateur (§ B.1, B.2) calcule une projection à la volée, mais rien n'est conservé. Un objectif
 suivi dans le temps est une fonctionnalité différente d'une simulation.
 
-#### O.1 — `majeur` · `M` · `P1` · `traité` (24/08/2026) — Objectifs suivis
+#### O.1 — `majeur` · `M` · `P1` · `retiré` (16/09/2026, cf. § AJ) — Objectifs suivis
 
 - Objectif = **nom, montant cible, échéance, actifs rattachés, contributeurs**.
 - **Trajectoire** : deux courbes, la trajectoire cible et la trajectoire réelle des versements.
@@ -1481,7 +1481,15 @@ projection à la volée en dessous, dans cet ordre car c'est l'écran que le bac
 plus important). Vérifié en conditions réelles : création avec actif rattaché, diagnostic « en
 bonne voie » cohérent avec la progression, suppression.
 
-#### O.2 — `mineur` · `S` · `P2` · `traité` (24/08/2026) — Indicateurs de situation
+**Retiré le 16/09/2026 (cf. § AJ)** : retour utilisateur direct — « on pourrait tout supprimer je
+pense même » — la fonctionnalité avait perdu son intérêt (mécanique d'actifs rattachés artificielle
+pour un objectif portant sur tout le patrimoine, chevauchement avec le Simulateur § AI). Tables
+`objectifs`/`objectif_actifs`/`objectif_contributeurs`, service, routeur et écran `/objectifs`
+supprimés ; migration de suppression, aucune donnée réelle perdue (0 ligne en base au moment du
+retrait). Les indicateurs de situation (§ O.2 ci-dessous), logiquement distincts, ont survécu au
+retrait et rejoint l'onglet Portefeuille d'Analyse.
+
+#### O.2 — `mineur` · `S` · `P2` · `traité` (24/08/2026, déplacé 16/09/2026, cf. § AJ) — Indicateurs de situation
 
 Trois ratios, calculables à partir de ce que nous aurons alors, à afficher avec leur formule :
 
@@ -1497,9 +1505,13 @@ Finary les vend dans le module « Profil de l'investisseur » ; ils tiennent en 
 sur les 3 derniers mois de mouvements bancaires (même fenêtre que N.2/N.4) ; « actifs non liquides »
 = le reste de `TYPES_ACTIF_PATRIMOINE_MANUEL` ; « patrimoine brut » = `actifs_totaux` déjà calculé
 par `patrimoine_service`. Chaque ratio affiche « — » plutôt qu'un chiffre trompeur quand une donnée
-manque (aucun mouvement bancaire importé, aucun emprunt). Carte affichée juste sous les objectifs
-suivis, sur le même écran `/objectifs`. Vérifié en conditions réelles : les trois ratios calculés
-correctement sur des données réelles (épargne, emprunt, mouvements bancaires).
+manque (aucun mouvement bancaire importé, aucun emprunt). Vérifié en conditions réelles : les trois
+ratios calculés correctement sur des données réelles (épargne, emprunt, mouvements bancaires).
+
+**Déplacé le 16/09/2026 (cf. § AJ)** : vivait jusque-là juste sous les objectifs suivis, sur l'écran
+`/objectifs` — au retrait du suivi d'objectifs (§ O.1), rejoint l'onglet Portefeuille de l'écran
+Analyse (`patrimoine_service.compute_indicateurs_situation`, `GET /api/analysis/indicateurs-situation`,
+toujours réservé au propriétaire). Aucun changement de calcul.
 
 ---
 
@@ -3993,6 +4005,58 @@ lot, conservée telle quelle pour ne pas casser ses marque-pages). `/objectifs` 
 `pages/ObjectifsPage.tsx`, quelques lignes) ne porte plus que les objectifs suivis. L'ancienne URL
 `/simulateur` redirige désormais vers `/analyse?onglet=projection` au lieu de `/objectifs`. Aucune
 donnée ni endpoint touché des deux côtés : un pur déplacement d'écran. Effort `XS`.
+
+---
+
+### AJ. Retrait du suivi d'objectifs (16/09/2026)
+
+Le déplacement du Simulateur hors d'Objectifs (§ AI, plus haut, même jour) a laissé l'écran
+`/objectifs` ne porter plus que le suivi d'objectifs (§ O.1) seul — l'occasion de reposer la
+question de son intérêt réel. Réponse de l'utilisateur, en trois temps : d'abord un rappel de ce que
+fait l'écran, puis « est-ce que l'utilisateur va vraiment s'en servir ? tel quel je vois pas trop
+l'intérêt que ça présente », puis, après un diagnostic honnête du défaut de conception (la mécanique
+d'« actifs rattachés » n'a de sens que pour un objectif adossé à une poche dédiée — fonds d'urgence
+sur un livret précis, apport immobilier sur un compte précis — pas pour un objectif portant sur tout
+le patrimoine comme l'indépendance financière, où elle force un rattachement artificiel et fait
+double emploi avec le Simulateur FIRE) : « Ouais on pourrait tout supprimer je pense même ».
+
+Seule question de cadrage restée ouverte : que faire des indicateurs de situation (§ O.2), bloc
+distinct vivant sur le même écran mais sans rapport avec le suivi d'un objectif précis. Réponse :
+les garder, relocalisés sur l'onglet Portefeuille d'Analyse plutôt que supprimés avec le reste —
+matelas de sécurité, taux d'endettement et part immobilisée restent pertinents indépendamment de
+tout objectif suivi.
+
+#### AJ.1 — `majeur` · `M` · `retiré` (16/09/2026) — Suivi d'objectifs supprimé, indicateurs de situation relocalisés
+
+**Backend** : tables `objectifs`/`objectif_actifs`/`objectif_contributeurs`, `services/objectifs_service.py`,
+`routers/objectifs.py`, `schemas/objectifs.py` supprimés ; nouvelle migration de suppression
+(down_revision sur la tête existante) — aucune perte de donnée réelle constatée (0 ligne en base au
+moment du retrait, vérifié avant d'écrire la migration). `compute_indicateurs_situation` déplacée
+dans `patrimoine_service.py` (même module que `compute_patrimoine_net`, qu'elle appelle déjà) et
+exposée par un nouvel endpoint `GET /api/analysis/indicateurs-situation`, restreint au propriétaire
+par une dépendance de rôle posée sur cette seule route (le reste du routeur `analysis` reste ouvert
+au membre) plutôt qu'en déplaçant tout le routeur derrière cette restriction. Le jalon personnel
+« premier objectif atteint » (§ AG.3/AG.4) est retiré avec sa dépendance : trois jalons restent
+(premier import, 3 mois de suivi, un an de suivi). L'intégration au partage public (interrupteur
+« partager les objectifs », `LienPartage.inclure_objectifs`, section `PartageObjectif` de la charge
+utile) est retirée avec le reste — plus rien à y partager. Export/import de données : `VERSION` du
+format incrémentée (retrait de table, changement non rétrocompatible par la propre convention du
+module) — un ancien fichier d'export doit être régénéré, pas réimporté tel quel.
+
+**Frontend** : `pages/ObjectifsPage.tsx` et `components/ObjectifsSuivisSection.tsx` supprimés, route
+`/objectifs` retirée de la navigation (barre latérale, barre inférieure) et redirige désormais vers
+`/analyse` pour les marque-pages existants (même patron que les autres redirections d'écrans
+renommés/fusionnés). Nouveau composant autonome `IndicateursSituationCard.tsx` (extrait tel quel de
+l'ancien écran) monté en bas de l'onglet Portefeuille d'Analyse, gate côté client sur
+`user.role === 'proprietaire'` — la page Analyse elle-même reste ouverte au membre, seule cette carte
+lui est masquée, cohérent avec la restriction déjà posée côté backend. Réglages → Partage : case à
+cocher « Objectifs » retirée du formulaire de création de lien. Assistant de bienvenue et carte de
+sauvegarde/réinitialisation des données : mentions du mot « objectifs » retirées des textes
+descriptifs, pour ne jamais promettre une fonctionnalité qui n'existe plus. Vérifié en conditions
+réelles (base isolée) : `/objectifs` redirige vers Analyse, la navigation ne montre plus d'entrée
+Objectifs, l'onglet Portefeuille d'Analyse affiche les indicateurs de situation pour un propriétaire
+et les masque pour un membre, le formulaire de partage n'a plus de case Objectifs. Suite complète
+backend (pytest) et frontend (vitest/tsc/oxlint) au vert. Effort `M`.
 
 ---
 ## 3. Hors périmètre (assumé)

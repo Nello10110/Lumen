@@ -31,8 +31,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : ell
 | Fiche détaillée | `/patrimoine/:holdingId` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier/épargne, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
 | Épargne | `/epargne` | (backlog § 2.S.1) Comptes courants/épargne réglementée/épargne salariale/assurance-vie/PER : liste de comptes avec valeur actuelle datée, versement mensuel déclaré (additionné au préremplissage du Simulateur), historique de valorisation à date choisie par l'utilisateur (jamais figée à « maintenant »), petit graphique d'évolution, modification/suppression d'un compte |
 | Comptes | `/comptes`, `/comptes/:id` (backlog § X.1) | Vue façon Actual Budget : tous les comptes du foyer (financier, épargne, immobilier, assurance-vie...), groupés par établissement, avec le solde de chacun. Création d'un compte et gestion des établissements en feuilles ouvertes depuis l'en-tête, crayon d'édition sur chaque en-tête d'établissement, suppression d'un compte au bas de sa fiche (07/09/2026, paquet de design) — **toutes natures d'actif confondues** (remplace l'ancienne carte « Répartition par compte » du Tableau de bord, restreinte au seul portefeuille financier). Fiche détail par compte (modale ou page pleine page) : renommage, rattachement à un établissement, lignes du compte, et **répartition entre détenteurs pour tout le compte en une fois** (cf. § 3.7) |
-| Objectifs | `/objectifs` (`/simulateur` redirige) | Deux blocs sur un même écran (backlog § 2.O.1) : **Objectifs suivis**, persistés — nom, montant cible, échéance, actifs rattachés dont la valeur cumulée mesure la progression réelle, trajectoire cible/réelle, diagnostic en langage naturel, rendement requis et contribution mensuelle nécessaire — et **indicateurs de situation** (§ 2.O.2, matelas de sécurité, taux d'endettement, part immobilisée) ; puis le **Simulateur**, calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel et le versement mensuel observé sur le budget (§ 2.N.4) additionné aux versements Épargne déclarés (§ 2.S.1), horizon réglable (5/10/20/30 ans), tableau de détail annuel/mensuel, indépendance financière (FIRE). Tout le Simulateur est calculé côté client hormis les préremplissages |
-| Analyse | `/analyse` (`/dividendes` redirige vers `?onglet=revenus`) | Deux onglets (07/09/2026, fusion de l'ancien écran Dividendes et du repli « Détail » du Tableau de bord) : **Portefeuille** (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, indicateurs de risque, répartition géo/sectorielle réelle, qualité des données, exposition consolidée tous actifs — § 2.P.1, coût de gestion) et **Revenus** (calendrier des dividendes perçus groupés par mois avec détail dépliable, revenus passifs projetés certain/estimé — § 2.P.3) |
+| Analyse | `/analyse` (`/dividendes` redirige vers `?onglet=revenus`, `/simulateur` vers `?onglet=projection`, `/objectifs` retiré 16/09/2026 — cf. § AJ du backlog) | Plusieurs onglets (07/09/2026, fusion de l'ancien écran Dividendes et du repli « Détail » du Tableau de bord ; 16/09/2026, le Simulateur rejoint depuis l'ancien écran Objectifs) : **Portefeuille** (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, indicateurs de risque, répartition géo/sectorielle réelle, qualité des données, exposition consolidée tous actifs — § 2.P.1, coût de gestion, et **indicateurs de situation** réservés au propriétaire — § 2.O.2, matelas de sécurité, taux d'endettement, part immobilisée), **Revenus** (calendrier des dividendes perçus groupés par mois avec détail dépliable, revenus passifs projetés certain/estimé — § 2.P.3), **Achat vs location** et **Simulateur** (calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel et le versement mensuel observé sur le budget — § 2.N.4 — additionné aux versements Épargne déclarés — § 2.S.1, horizon réglable 5/10/20/30 ans, tableau de détail annuel/mensuel, indépendance financière FIRE ; calculé côté client hormis les préremplissages) |
 | Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, **décomposition « investi » (argent ajouté) vs « généré » (plus-value, dividendes, intérêts)**, dividendes perçus, cinq plus gros mouvements de la période |
 | Salaire | `/salaire` (propriétaire seul) | (backlog § 2.R.1) Calculateur brut/net — **plusieurs entrées par année** (un revenu par conjoint, chacune nommée et avec son propre taux d'imposition), montant brut ou net, mensuel ou annuel, cadre ou non-cadre, nombre de versements dans l'année, aperçu instantané côté client avant enregistrement. Chaque entrée affiche son détail brut/net avant-après impôt. **Taux d'épargne du foyer** : agrégat de toutes les entrées d'une année (revenu net total rapporté au montant réellement investi en achats de titres) — historique par année et moyenne, volontairement distinct du rendement de marché (carte Performance) |
@@ -503,25 +502,27 @@ courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires
   préremplit son « Versement mensuel » avec le disponible moyen observé sur les 3 derniers mois de
   budget, librement modifiable ensuite.
 
-### 3.19 Objectifs suivis et indicateurs de situation (backlog § 2.O.1/2.O.2)
+### 3.19 Indicateurs de situation (backlog § 2.O.2)
 
-Distinct du Simulateur (§ 3.12, calcul à la volée sans rien conserver) : un objectif est persisté.
+Le suivi d'objectifs qui occupait initialement cette section (§ 2.O.1) a été **retiré le 16/09/2026**
+(retour utilisateur direct — cf. `docs/BACKLOG.md` § AJ pour le détail) : mécanique d'« actifs
+rattachés » qui n'avait de sens que pour un objectif adossé à une poche dédiée, jamais pour un
+objectif portant sur tout le patrimoine, et chevauchement avec le Simulateur (§ 3.12). Numéro de
+section conservé plutôt que renuméroté (même convention que § 3.6, devenue vacante lors d'un retrait
+antérieur), pour ne pas invalider les références croisées existantes.
 
-- **Progression réelle** = valeur actuelle des actifs rattachés (pas de registre de versements
-  séparé — réutilise la valorisation déjà en place). **Trajectoire réelle** ancrée sur deux mesures
-  seulement : `valeur_a_la_creation` (instantané figé au moment de la création) et la valeur
-  actuelle recalculée à la lecture — pas un historique continu.
-- **Diagnostic** : `atteint` (valeur actuelle ≥ cible), `echeance_depassee`, `en_bonne_voie`
-  (valeur actuelle ≥ trajectoire cible linéaire à ce jour), `en_retard` (retard exprimé en mois, au
-  rythme constaté depuis la création), `aucune_progression` (rythme nul ou négatif).
-- **Rendement annuel requis** (sans versement supplémentaire) et **contribution mensuelle
-  nécessaire** (au taux hypothèse renseigné par ligne, 0 % par défaut) : formules fermées, pas de
-  bissection nécessaire (contrairement au XIRR de § 3.5).
-- **Indicateurs de situation** : matelas de sécurité (épargne `CASH_ACCOUNT`/`REGULATED_SAVINGS` /
-  dépenses mensuelles moyennes sur 3 mois de budget), taux d'endettement (mensualités des emprunts /
-  revenus nets mensuels moyens), part du patrimoine immobilisée (le reste de
-  `TYPES_ACTIF_PATRIMOINE_MANUEL` / patrimoine brut). `null` plutôt qu'un chiffre trompeur si une
-  donnée manque (aucun mouvement bancaire importé, aucun emprunt).
+Les indicateurs de situation, logiquement distincts du suivi d'objectifs, ont survécu au retrait et
+vivent désormais dans l'onglet Portefeuille de l'écran Analyse (§ AI/§ AJ du backlog), réservés au
+propriétaire :
+
+- **Matelas de sécurité** : épargne `CASH_ACCOUNT`/`REGULATED_SAVINGS` / dépenses mensuelles
+  moyennes sur 3 mois de budget.
+- **Taux d'endettement** : mensualités des emprunts / revenus nets mensuels moyens.
+- **Part du patrimoine immobilisée** : le reste de `TYPES_ACTIF_PATRIMOINE_MANUEL` / patrimoine
+  brut.
+
+`null` plutôt qu'un chiffre trompeur si une donnée manque (aucun mouvement bancaire importé, aucun
+emprunt).
 
 ### 3.20 Exposition consolidée tous actifs (backlog § 2.P.1)
 
@@ -578,9 +579,10 @@ sous-ensemble du patrimoine. Gestion (création/liste/révocation) réservée à
 en lecture/écriture sur les données du foyer mais ne peut pas les exposer publiquement.
 
 - **Sections activables indépendamment** : patrimoine net (§ 3.11), exposition consolidée (§ 3.20),
-  rentabilité (§ 3.5), budget (mois en cours, § 3.18), objectifs (§ 3.19). Réutilisent telles quelles
-  les fonctions de calcul déjà servies aux écrans authentifiés — jamais de duplication de logique
-  métier, seulement une conversion vers des schémas dédiés au partage.
+  rentabilité (§ 3.5), budget (mois en cours, § 3.18). Réutilisent telles quelles les fonctions de
+  calcul déjà servies aux écrans authentifiés — jamais de duplication de logique métier, seulement
+  une conversion vers des schémas dédiés au partage. (L'interrupteur « partager les objectifs » a été
+  retiré le 16/09/2026 avec le suivi d'objectifs lui-même, § 3.19/§ AJ du backlog.)
 - **Surface volontairement restreinte** : jamais le détail position par position, les transactions, ni
   les libellés de compte — même un lien deviné/fuité n'expose donc jamais autant qu'un compte
   `invite` authentifié.
@@ -588,7 +590,7 @@ en lecture/écriture sur les données du foyer mais ne peut pas les exposer publ
   silencieusement (la forme de la répartition reste visible, jamais son échelle) ; les ratios déjà
   relatifs (rendement, concentration) ne sont jamais masqués.
 - **`detenteur_id`** ne filtre que la section patrimoine net (seul calcul qui le supporte
-  aujourd'hui, § 3.11) — budget/objectifs/exposition consolidée restent vue foyer complète si activés
+  aujourd'hui, § 3.11) — budget/exposition consolidée restent vue foyer complète si activés
   à côté d'un détenteur, limite assumée et signalée à la création du lien.
 - **Code d'accès optionnel** : même hachage `pbkdf2_sha256` que les mots de passe
   (`auth_service.hash_password`). Verrouillage temporaire par LIEN (pas par compte, un lien public
@@ -624,7 +626,7 @@ sur un grand nombre d'identifiants).
   JJ/MM/AAAA » (`Holding.valeur_estimee` renseignée), « Cours de marché au JJ/MM/AAAA » (cotation
   disponible), ou « Prix de revient (non coté) » (repli sans cotation).
 - **Profil emprunteur optionnel** (`inclure_profil`) : revenus nets/dépenses mensuels moyens et taux
-  d'endettement (`objectifs_service.compute_indicateurs_situation`, moyenne glissante 3 mois — même
+  d'endettement (`patrimoine_service.compute_indicateurs_situation`, moyenne glissante 3 mois — même
   fenêtre que § 3.19/O.2), reste à vivre (`budget_service.compute_jonction_patrimoine`, mois en cours
   — même fenêtre que § 3.18/N.4), et **taux d'imposition** — un réglage SAISI par l'utilisateur
   (`Preferences.taux_imposition_pct`, `None` par défaut), repris tel quel, jamais un calcul fiscal
