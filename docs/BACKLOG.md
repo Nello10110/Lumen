@@ -4595,8 +4595,27 @@ plutôt que de mentir en visant 100 %, elle avance vite au début puis ralentit 
 où elle se fige jusqu'à l'arrivée réelle des données. Deux nouvelles animations CSS
 (`lumen-pouls`, `lumen-progression`), toutes deux désactivées sous `prefers-reduced-motion`.
 
----
-## 3. Hors périmètre (assumé)
+#### AW.1 — `mineur` · `XS` · `traité` (17/09/2026) — Deux tests E2E cassés par le retrait du type détenteur (§ AU.1)
+
+Retour utilisateur direct : « les github actions ne sont encore pas passé, ça fait plusieurs fois ces
+derniers temps ». Cause exacte, distincte des épisodes précédents (§ AS.1, casse par une AUTRE session
+le même jour) : cette fois, une régression que j'ai moi-même introduite en livrant § AU.1 (retrait du
+type « société ») sans relancer la suite E2E (`frontend/e2e/`) avant de pousser — seule la suite
+unitaire/composants (`vitest`) avait été vérifiée. Deux specs assertaient encore l'ancien texte
+(`reglages.spec.ts` : `"Alice (Personne)"` ; `parcours-utilisateur.spec.ts` : carte titrée
+`"Personnes et sociétés"`), devenu faux après le renommage de la carte en « Personnes » et la
+suppression du suffixe de type.
+
+Corrigé : locators alignés sur le nouveau texte, `reglages.spec.ts` scopé via `cardByTitle` (même
+garde-fou que `parcours-utilisateur.spec.ts`) plutôt qu'un texte nu ambigu. Suite E2E complète (81
+tests) relancée localement et vérifiée au vert avant de pousser.
+
+**Correctif de fond, pas seulement ce cas précis** (demande explicite : « tu peux revoir le workflow
+pour que ça n'arrive plus ») — le pipeline CI (`​.github/workflows/ci.yml`) fonctionne comme prévu, il
+a détecté la régression à chaque fois : ce qui manquait, c'est de faire tourner `npx playwright test`
+(pas seulement `npx vitest run`) EN LOCAL avant de pousser, dès qu'un changement touche un texte ou une
+structure visible d'un écran couvert par l'E2E. Mémorisé comme règle systématique pour la suite,
+plutôt qu'un rappel à refaire à chaque session.
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
 
