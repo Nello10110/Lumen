@@ -4479,6 +4479,83 @@ Aucun changement de code applicatif : uniquement les tests, qui n'avaient pas su
 d'interface distinctes du même jour. Suite E2E complète (81 tests) relancée localement et vérifiée au
 vert avant de pousser.
 
+#### AT.1 — `mineur` · `M` · `traité` (17/09/2026) — Le suivi du rafraîchissement des cours survit à la navigation
+
+Retour utilisateur direct, trois points sur le bouton « Rafraîchir les cours » — premier point :
+« il faut que ça continue quand on change de page, mais pas que ça coupe comme ça et que ça indique
+quand c'est bon ». Le rafraîchissement en tâche de fond côté backend (`market_data_refresh.py`, LOT
+4B) était déjà entièrement découplé de toute requête HTTP — un simple `threading.Thread` avec un état
+global consultable via `GET /api/market-data/refresh/status`. Le problème était donc purement
+frontend : `useRafraichissementCours` portait `etat`/`declenchementEnCours`/`erreur` et son intervalle
+de sondage dans un `useState`/`useEffect` **local à chaque composant appelant** (le bouton du
+Portefeuille, celui du Tableau de bord, chacune des 5 `JobCard` de Réglages) — dès que l'utilisateur
+changeait de page, le composant démontait, l'intervalle de sondage était nettoyé, et plus personne ne
+savait où en était le rafraîchissement.
+
+Correctif : `useRafraichissementCours` est réparti en trois fichiers, même schéma que
+`PreferencesAffichageContext` — `contexts/rafraichissementCoursContextObject.ts` (le `Context`),
+`contexts/RafraichissementCoursContext.tsx` (`RafraichissementCoursProvider`, monté une seule fois
+dans `App.tsx`, à l'intérieur d'`AppAuthentifiee`), et `hooks/useRafraichissementCoursEtat.ts` (le
+moteur d'état + sondage, désormais partagé). Le hook public `useRafraichissementCours(onTermine?)`
+lit ce Context ; s'il est absent (tests unitaires qui rendent une page isolément, sans reconstituer
+`App.tsx`), il retombe silencieusement sur une instance locale — même comportement qu'avant, sans
+qu'aucun test existant n'ait eu besoin d'être réécrit pour ce point précis. Chaque `onTermine` est
+désormais déclenché par une détection de transition dédupliquée par identité d'objet (jamais rejoué
+pour un événement déjà ancien à l'ouverture d'un nouvel écran, qui recharge de toute façon ses propres
+données à son montage).
+
+Un nouveau composant, `RafraichissementCoursIndicateur.tsx` (monté aux côtés du Provider, portail vers
+`document.body` comme `MiseAJourDisponible.tsx`), rend ce suivi **visible** quel que soit l'écran
+affiché : une bannière de progression pendant le rafraîchissement, puis « Cours à jour » (ou le
+message d'échec) pendant quelques secondes à la fin, avant de s'effacer seule.
+
+Vérifié par un test dédié au niveau du Provider (`RafraichissementCoursContext.test.tsx`) qui simule
+exactement le scénario du retour utilisateur : un composant démonte en cours de rafraîchissement, le
+sondage continue malgré tout, et un composant monté ensuite voit l'état déjà en cours plutôt que de
+repartir de zéro.
+
+#### AT.2 — `mineur` · `M` · `traité` (17/09/2026) — Les lignes structurellement non cotables (Bricks.co) ne sont plus interrogées par défaut
+
+Deuxième point du même retour : « quand on rafraîchit les cours, il cherche tous les bricks.co. On
+pourrait pas faire en sorte que les cotations indisponibles ne soient plus recherchées sauf si on
+force le truc avec un bouton spécifique genre dans réglage ? ». `market_data_service.refresh_tickers`
+sautait déjà les classes d'actif à saisie manuelle (immobilier/SCPI/...), mais pas les ~145 lignes
+synthétiques `BRICKS-*` (classées `BOND` pour préserver leur XIRR, cf. § AO.2) : chacune traversait
+quand même la temporisation réseau (`DELAI_ENTRE_APPELS_SECONDES`, ≈0,25s) avant d'échouer sur un
+`resolve_ticker` déjà mis en cache en échec structurel permanent (`echec_structurel`,
+`est_symbole_non_cotable`) — près de 36 secondes perdues à chaque rafraîchissement, en plus de gonfler
+artificiellement le total affiché à la progression.
+
+`refresh_tickers` gagne un paramètre `forcer_non_cotables: bool = False`, qui court-circuite ces
+symboles internes (`PREFIXES_SYMBOLES_INTERNES`) avant même la temporisation, sauf si explicitement
+forcé. Fil de plomberie jusqu'à un nouveau bouton dédié : `demarrer_rafraichissement` ->
+`scheduler_service.run_job_now` -> `POST /api/settings/jobs/{job_key}/run-now?forcer_non_cotables=true`
+-> `api.runJobNow(jobKey, true)` -> un second bouton « Forcer aussi les cotations indisponibles »,
+affiché uniquement sur la carte `market_data_refresh` de Réglages (jamais sur le bouton
+« Rafraîchir les cours » du Portefeuille, qui reste sur le comportement par défaut). Les classes
+d'actif à saisie manuelle, elles, restent sautées inconditionnellement : aucune intégration
+fournisseur n'existe pour elles, forcer n'aurait aucun sens.
+
+#### AT.3 — `mineur` · `S` · `traité` (17/09/2026) — Balayage lumineux échelonné ligne par ligne, animation plus longue et plus douce
+
+Troisième point : « l'animation des lignes [...] c'est possible de faire ça ligne par ligne et pas par
+paquets et de façon plus smooth, avec une animation plus longue et qui n'a pas l'air de cutter ? ».
+Deux causes cumulées dans `PortefeuillePage.tsx` (balayage lumineux, § AH.2) : le sondage à 2000ms
+regroupait plusieurs lignes traitées entre deux sondages, toutes allumées **simultanément** en un seul
+`setLignesEnCoursAllumage`, et le fondu CSS (`lumen-balayage-ligne`, `index.css`) passait de pleine
+opacité à transparent en 700ms linéaire — perçu comme un « cut ».
+
+Trois ajustements : le sondage (`useRafraichissementCoursEtat.ts`) passe à 600ms, pour un grain plus
+fin. Quand plusieurs lignes arrivent dans le même sondage, chacune programme désormais son propre
+allumage échelonné (`DELAI_ENTRE_ALLUMAGES_MS = 90`) via des `setTimeout` indépendants, plutôt qu'un
+seul lot simultané — avec un piège identifié en construisant ce correctif : le nettoyage de l'ancien
+code annulait TOUS les minuteurs à chaque nouveau lot, ce qui aurait laissé des lignes allumées pour de
+bon dès que deux lots se chevauchent (plausible désormais, sondage plus rapide + animation plus
+longue) — corrigé en isolant les minuteurs dans un registre purgé uniquement au démontage du
+composant, jamais entre deux lots. La courbe CSS elle-même (`@keyframes lumen-balayage-ligne`) monte
+en 12% du temps puis redescend en fondu sur le reste d'une durée bien plus généreuse (1400ms, contre
+700ms), pour un allumage qui semble respirer plutôt que couper.
+
 ---
 ## 3. Hors périmètre (assumé)
 
