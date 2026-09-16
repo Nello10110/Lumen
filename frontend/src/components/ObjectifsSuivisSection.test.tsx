@@ -226,3 +226,38 @@ describe('ObjectifsSuivisSection — indicateurs de situation (backlog 2.O.2)', 
     await screen.findByText(/Nécessite des mouvements bancaires importés/)
   })
 })
+
+describe('ObjectifsSuivisSection — montant restant traduit en équivalent concret (backlog § AG.2)', () => {
+  it("affiche le montant restant en mois de dépenses courantes réellement observées", async () => {
+    // montant_cible 50000 - valeur_actuelle 20000 = 30000 restants ; 2000 €/mois
+    // de dépenses courantes (cf. `indicateurs()`) => 15 mois.
+    mockChargement({ objectifs: [objectif()] })
+    render(<ObjectifsSuivisSection />)
+
+    expect(await screen.findByText('Il reste ≈ 15 mois de dépenses courantes')).toBeInTheDocument()
+  })
+
+  it("n'affiche rien quand les dépenses mensuelles moyennes ne sont pas connues", async () => {
+    mockChargement({ objectifs: [objectif()], indicateurs: indicateurs({ depenses_mensuelles_moyennes: null }) })
+    render(<ObjectifsSuivisSection />)
+
+    await screen.findByText(objectif().nom)
+    expect(screen.queryByText(/mois de dépenses courantes/)).not.toBeInTheDocument()
+  })
+
+  it("n'affiche rien quand l'objectif est déjà atteint (rien ne reste à traduire)", async () => {
+    mockChargement({ objectifs: [objectif({ valeur_actuelle: 60000 })] })
+    render(<ObjectifsSuivisSection />)
+
+    await screen.findByText(objectif().nom)
+    expect(screen.queryByText(/mois de dépenses courantes/)).not.toBeInTheDocument()
+  })
+
+  it('ne remplace jamais le montant cible en euros — toujours affiché à côté', async () => {
+    mockChargement({ objectifs: [objectif()] })
+    render(<ObjectifsSuivisSection />)
+
+    await screen.findByText('Il reste ≈ 15 mois de dépenses courantes')
+    expect(screen.getByText('50 000 €')).toBeInTheDocument()
+  })
+})

@@ -52,7 +52,30 @@ function toneDiagnostic(o: ObjectifDetail): 'good' | 'warning' | 'neutral' {
   return 'neutral'
 }
 
-function ObjectifCard({ objectif, onDeleted }: { objectif: ObjectifDetail; onDeleted: () => void }) {
+/** Backlog § AG.2 (15/09/2026) — un montant abstrait traduit en équivalent concret,
+ * JAMAIS à la place du chiffre (toujours affiché juste à côté, jamais en
+ * remplacement) : calculé sur les dépenses mensuelles RÉELLEMENT observées de ce
+ * foyer (`IndicateursSituation.depenses_mensuelles_moyennes`, déjà mesuré pour le
+ * matelas de sécurité) plutôt qu'une moyenne nationale anonyme — reste honnête et
+ * personnel plutôt que vaguement moralisateur. `null` si la donnée manque
+ * (budget pas encore assez rempli) ou si le montant est nul/négatif (objectif
+ * déjà atteint, rien à traduire). */
+function equivalentDepensesCourantes(montant: number, depensesMensuellesMoyennes: number | null): string | null {
+  if (depensesMensuellesMoyennes === null || depensesMensuellesMoyennes <= 0 || montant <= 0) return null
+  const mois = Math.round(montant / depensesMensuellesMoyennes)
+  if (mois < 1) return null
+  return `≈ ${mois} mois de dépenses courantes`
+}
+
+function ObjectifCard({
+  objectif,
+  onDeleted,
+  depensesMensuellesMoyennes,
+}: {
+  objectif: ObjectifDetail
+  onDeleted: () => void
+  depensesMensuellesMoyennes: number | null
+}) {
   const { montantsMasques } = usePreferencesAffichage()
   const [suppression, setSuppression] = useState(false)
 
@@ -75,6 +98,8 @@ function ObjectifCard({ objectif, onDeleted }: { objectif: ObjectifDetail; onDel
 
   const tone = toneDiagnostic(objectif)
   const toneClass = tone === 'good' ? 'text-positif' : tone === 'warning' ? 'text-negatif' : 'text-texte-attenue'
+  const montantRestant = objectif.montant_cible - objectif.valeur_actuelle
+  const equivalentRestant = equivalentDepensesCourantes(montantRestant, depensesMensuellesMoyennes)
 
   return (
     <Card>
@@ -102,6 +127,10 @@ function ObjectifCard({ objectif, onDeleted }: { objectif: ObjectifDetail; onDel
         <div>
           <Label>Montant cible</Label>
           <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(objectif.montant_cible, 0, montantsMasques)}</p>
+          {/* Backlog § AG.2 : jamais à la place du montant cible ci-dessus, toujours
+              en complément — absent si la donnée manque, jamais une valeur
+              approximative qui ferait croire à une précision qu'elle n'a pas. */}
+          {equivalentRestant && <p className="mt-0.5 text-[11px] text-texte-attenue">Il reste {equivalentRestant}</p>}
         </div>
         <div>
           <Label>Progression</Label>
@@ -374,7 +403,14 @@ export default function ObjectifsSuivisSection() {
               <EtatVide titre="Aucun objectif suivi pour l'instant." description="Crée-en un avec le formulaire ci-dessous." />
             </Card>
           ) : (
-            objectifs.map((o) => <ObjectifCard key={o.id} objectif={o} onDeleted={chargerTout} />)
+            objectifs.map((o) => (
+              <ObjectifCard
+                key={o.id}
+                objectif={o}
+                onDeleted={chargerTout}
+                depensesMensuellesMoyennes={indicateurs?.depenses_mensuelles_moyennes ?? null}
+              />
+            ))
           )}
 
           <NouvelObjectifForm holdings={holdings} detenteurs={detenteurs} onCreated={chargerTout} />
