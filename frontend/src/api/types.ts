@@ -13,5 +13,5 @@ export type { ActifRattache, ContributeurObjectif, DiagnosticObjectif, Indicateu
 export type { DeclarationPatrimoineInput, LienPartage, LienPartageInput, PartageBudget, PartageExposition, PartageMeta, PartageObjectif, PartagePatrimoineNet, PartagePayload, PartagePerformance, PartageRepartitionItem } from './types/partage'
 export type { ExpositionConsolidee, FundTopHoldingItem, HoldingDetail, HoldingImmobilier, HoldingImmobilierInput, Loan, LoanInput, LoanUpdateInput, PatrimoineHistoryPoint, PatrimoineHistoryResponse, PatrimoineNet } from './types/patrimoine'
 export type { MouvementRapport, RapportEpargnePeriode, RapportPeriode, RepartitionEpargneLigne } from './types/rapport'
-export type { EtatRafraichissement, Preferences, PreferencesUpdateResponse, ScheduledJob, ZoneGeographiqueInfo } from './types/reglages'
+export type { EtatRafraichissement, Jalon, Preferences, PreferencesUpdateResponse, ScheduledJob, ZoneGeographiqueInfo } from './types/reglages'
 export type { SalaireDonnees, SalaireIn, SalaireResume, SyntheseAnnee } from './types/salaire'

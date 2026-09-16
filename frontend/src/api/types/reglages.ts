@@ -42,3 +42,16 @@ export interface ZoneGeographiqueInfo {
   zone: string
   pays: string[]
 }
+
+// Jalons personnels — célébrations et galerie de badges (backlog §§ AG.3/AG.4).
+export interface Jalon {
+  id: string
+  titre: string
+  description: string
+  atteint: boolean
+  date_atteint: string | null
+  // Atteint mais jamais encore célébré : n'affiche la toast de célébration
+  // (backlog § AG.3) qu'une fois, `marquerJalonCelebre` bascule ce champ à
+  // `false` pour de bon — jamais rejoué à la connexion suivante.
+  nouveau: boolean
+}

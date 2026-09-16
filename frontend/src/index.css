@@ -423,3 +423,22 @@ summary,
     transition: none;
   }
 }
+
+/* Backlog § AG.5 (16/09/2026, reformulée le même jour) — ambiance visuelle qui
+   respire la tendance générale du patrimoine, posée en DEÇÀ du fond à halos déjà
+   présent sur `<body>` (`--app-bg`, `styles/tokens-glass.css`) : un lavis
+   supplémentaire, à peine perceptible, jamais un second dégradé qui viendrait le
+   concurrencer. Prudence renforcée depuis le retrait d'AD.2 (« ça rend pas bien ») :
+   opacité volontairement très en deçà de ce que portait le halo du logo (0,03-0,04
+   ici contre 0,3-0,7 là-bas) — un élément d'AMBIANCE, vu en vision périphérique,
+   n'a pas besoin (et n'a pas le droit) d'être aussi affirmé qu'un élément FIXEMENT
+   regardé. En baisse : un lavis froid neutre, jamais une couleur d'alerte — même
+   principe que le halo retiré (« l'app n'est pas là pour stresser »), poussé plus
+   loin (aucune couleur d'alerte du tout, pas seulement « pas de rouge »).
+   Statique par construction : rien à désactiver pour `prefers-reduced-motion`. */
+.lumen-ambiance-hausse {
+  background: radial-gradient(1200px 800px at 50% -10%, rgba(34, 148, 105, 0.035), transparent 70%);
+}
+.lumen-ambiance-baisse {
+  background: radial-gradient(1200px 800px at 50% -10%, rgba(120, 130, 145, 0.03), transparent 70%);
+}

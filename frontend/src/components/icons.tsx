@@ -343,3 +343,12 @@ export function IconMaison({ className }: IconProps) {
     </svg>
   )
 }
+
+export function IconBadge({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="10" cy="7.5" r="4.5" />
+      <path d="M7.2 11.3 L5.5 17 L10 14.5 L14.5 17 L12.8 11.3" />
+    </svg>
+  )
+}

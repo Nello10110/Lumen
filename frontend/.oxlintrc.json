@@ -56,7 +56,7 @@
       // `role="status"` les annonce aux lecteurs d'écran sans voler le focus, alors
       // que `<output>`, l'équivalent natif suggéré par la règle, porte un sens
       // sémantique différent (résultat d'un calcul déclenché par l'utilisateur).
-      "files": ["src/components/MiseAJourDisponible.tsx", "src/components/LumenFaitAmusant.tsx"],
+      "files": ["src/components/MiseAJourDisponible.tsx", "src/components/LumenFaitAmusant.tsx", "src/components/CelebrationJalon.tsx"],
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
     {

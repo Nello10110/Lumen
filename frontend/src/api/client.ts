@@ -38,6 +38,7 @@ import type {
   IndicateursSituation,
   JonctionPatrimoine,
   ImportResult,
+  Jalon,
   Loan,
   LoanInput,
   LoanUpdateInput,
@@ -407,6 +408,10 @@ export const api = {
   updateSalaire: (id: number, payload: SalaireIn) =>
     request<SalaireResume>(`/salaire/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteSalaire: (id: number) => request<void>(`/salaire/${id}`, { method: 'DELETE' }),
+
+  // Jalons personnels — célébrations et badges (backlog §§ AG.3/AG.4)
+  listJalons: () => request<Jalon[]>('/jalons/'),
+  marquerJalonCelebre: (jalonId: string) => request<void>(`/jalons/${jalonId}/marquer-celebre`, { method: 'POST' }),
 
   // Réglages (tâches planifiées)
   listJobs: () => request<ScheduledJob[]>('/settings/jobs'),

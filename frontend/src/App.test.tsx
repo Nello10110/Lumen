@@ -38,6 +38,15 @@ vi.mock('./api/client', () => ({
     getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     listHoldings: vi.fn().mockResolvedValue([]),
     completeOnboarding: vi.fn(),
+    // Jalons personnels (backlog § AG.3) : `App` (propriétaire uniquement) les
+    // consulte une fois par connexion pour d'éventuelles célébrations — non
+    // testé ici, résolution neutre (aucun jalon nouveau).
+    listJalons: vi.fn().mockResolvedValue([]),
+    marquerJalonCelebre: vi.fn().mockResolvedValue(undefined),
+    // Ambiance visuelle (backlog § AG.5) : `useTendancePatrimoine` la consulte
+    // pour tout utilisateur connecté (pas seulement le propriétaire) — non testée
+    // ici, résolution neutre (historique vide, aucune ambiance).
+    getPatrimoineHistory: vi.fn().mockResolvedValue({ points: [] }),
   },
 }))
 
@@ -82,6 +91,98 @@ describe('App — flash lumineux à la connexion (backlog § AH.1)', () => {
 
     await screen.findByRole('link', { name: 'Lumen' })
     expect(container.querySelector('.lumen-flash-connexion')).toBeNull()
+  })
+})
+
+describe('App — célébration des jalons personnels (backlog § AG.3)', () => {
+  const jalon = { id: 'premier_import', titre: 'Premier import', description: 'Un premier import réussi.', atteint: true, date_atteint: '2026-09-01', nouveau: true }
+
+  it('affiche la célébration du jalon nouvellement atteint, puis la marque célébrée à la fermeture', async () => {
+    vi.mocked(api.listJalons).mockResolvedValue([jalon])
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Premier import')).toBeInTheDocument()
+    expect(screen.getByText(/Un premier import réussi/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer' }))
+
+    await waitFor(() => expect(api.marquerJalonCelebre).toHaveBeenCalledWith('premier_import'))
+    expect(screen.queryByText('Premier import')).not.toBeInTheDocument()
+  })
+
+  it("n'affiche rien quand aucun jalon n'est nouveau", async () => {
+    vi.mocked(api.listJalons).mockResolvedValue([{ ...jalon, nouveau: false }])
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('link', { name: 'Lumen' })
+    expect(screen.queryByText('Premier import')).not.toBeInTheDocument()
+  })
+
+  it("ne consulte jamais les jalons pour un membre du foyer (réservé au propriétaire côté backend)", async () => {
+    // Ce fichier ne réinitialise jamais l'historique des mocks entre tests
+    // (pas de `vi.clearAllMocks()` dans son `beforeEach`) : on compare un AVANT/
+    // APRÈS plutôt qu'un `not.toHaveBeenCalled()` absolu, qui échouerait à tort
+    // sur les appels déjà accumulés par les tests précédents du fichier.
+    const appelsAvant = vi.mocked(api.listJalons).mock.calls.length
+    vi.mocked(api.getMe).mockResolvedValue({ id: 2, username: 'membre', role: 'membre', onboarding_termine: true, holdings_sans_compte: 0 })
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('link', { name: 'Lumen' })
+    expect(vi.mocked(api.listJalons).mock.calls.length).toBe(appelsAvant)
+  })
+})
+
+describe('App — ambiance visuelle liée à la tendance du patrimoine (backlog § AG.5)', () => {
+  it('pose un lavis « hausse » quand le patrimoine a progressé sur tout son historique', async () => {
+    vi.mocked(api.getPatrimoineHistory).mockResolvedValue({
+      points: [{ date: '2026-01-01', patrimoine_net: 10000 } as never, { date: '2026-06-01', patrimoine_net: 15000 } as never],
+    })
+    const { container } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(container.querySelector('.lumen-ambiance-hausse')).not.toBeNull())
+    expect(container.querySelector('.lumen-ambiance-baisse')).toBeNull()
+  })
+
+  it('pose un lavis « baisse » quand le patrimoine a reculé', async () => {
+    vi.mocked(api.getPatrimoineHistory).mockResolvedValue({
+      points: [{ date: '2026-01-01', patrimoine_net: 15000 } as never, { date: '2026-06-01', patrimoine_net: 10000 } as never],
+    })
+    const { container } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(container.querySelector('.lumen-ambiance-baisse')).not.toBeNull())
+    expect(container.querySelector('.lumen-ambiance-hausse')).toBeNull()
+  })
+
+  it("n'affiche aucune ambiance sans historique suffisant", async () => {
+    vi.mocked(api.getPatrimoineHistory).mockResolvedValue({ points: [] })
+    const { container } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('link', { name: 'Lumen' })
+    expect(container.querySelector('[class*="lumen-ambiance-"]')).toBeNull()
   })
 })
 

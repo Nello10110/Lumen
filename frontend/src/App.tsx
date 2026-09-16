@@ -1,7 +1,10 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router-dom'
+import { api } from './api/client'
+import type { Jalon } from './api/types'
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
+import CelebrationJalon from './components/CelebrationJalon'
 import EnTeteMobile from './components/EnTeteMobile'
 import LumenMark from './components/LumenMark'
 import MiseAJourDisponible from './components/MiseAJourDisponible'
@@ -17,6 +20,7 @@ import { PAGE_COMPONENTS } from './layout/pageComponents'
 import { ROUTES } from './layout/routes'
 import LoginPage from './pages/LoginPage'
 import PageIntrouvablePage from './pages/PageIntrouvablePage'
+import { useTendancePatrimoine } from './hooks/useTendancePatrimoine'
 import { consommerFlashConnexion } from './utils/flashConnexion'
 
 // `/partage/:token` (backlog 2.Q.1) est une page publique, jamais dans `ROUTES`
@@ -75,6 +79,38 @@ function AppAuthentifiee() {
     />
   )
 
+  // Backlog § AG.3 (16/09/2026) : jalons franchis depuis la dernière connexion,
+  // célébrés un par un (file d'attente plutôt qu'un seul — plusieurs peuvent
+  // tomber le même jour) via `CelebrationJalon`. Réservé au propriétaire, seul
+  // rôle autorisé côté backend (`/api/jalons`, cf. `main.py`) — même restriction
+  // que l'assistant de bienvenue ci-dessous. Chargé une seule fois par connexion,
+  // jamais reconsulté au fil de la session : un jalon franchi PENDANT la session
+  // (ex. un objectif qui vient d'être atteint) attendra la prochaine connexion,
+  // cohérent avec « ne dérange jamais en plein travail ».
+  const [jalonsACelebrer, setJalonsACelebrer] = useState<Jalon[]>([])
+  useEffect(() => {
+    if (!user || user.role !== 'proprietaire') return
+    api
+      .listJalons()
+      .then((jalons) => setJalonsACelebrer(jalons.filter((j) => j.nouveau)))
+      .catch(() => {})
+  }, [user])
+  function fermerCelebration() {
+    const [premier, ...reste] = jalonsACelebrer
+    if (premier) api.marquerJalonCelebre(premier.id).catch(() => {})
+    setJalonsACelebrer(reste)
+  }
+  const celebration = jalonsACelebrer[0] && <CelebrationJalon jalon={jalonsACelebrer[0]} onFermer={fermerCelebration} />
+
+  // Backlog § AG.5 : ambiance visuelle discrète, réévaluée à chaque connexion
+  // (comme le reste de cette fonction) plutôt que suivie en continu — un effet
+  // d'AMBIANCE n'a pas besoin d'être recalculé à chaque changement du portefeuille
+  // pendant la session, seulement de refléter la tendance générale du moment.
+  const tendance = useTendancePatrimoine(!!user)
+  const ambiance = tendance && (
+    <div aria-hidden="true" className={`pointer-events-none fixed inset-0 -z-10 lumen-ambiance-${tendance}`} />
+  )
+
   if (loading) {
     // Backlog § AD.4 (15/09/2026) : un point lumineux qui grandit jusqu'au logo
     // plein (< 600 ms, `animate-lumen-allumage` posée dans `index.css`), plutôt
@@ -118,6 +154,8 @@ function AppAuthentifiee() {
   return (
     <PreferencesAffichageProvider>
       {flash}
+      {celebration}
+      {ambiance}
       {/* Coque de la refonte « liquid glass » (étape 3) : la racine ne défile jamais
           et laisse voir le fond à halos porté par `<body>` (plus de `bg-surface-elevee`
           opaque par-dessus). Les panneaux flottent dessus, séparés de 14 px. */}
