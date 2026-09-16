@@ -2,16 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
-import type { Holding, PortfolioHistoryPoint } from '../api/types'
+import type { Detenteur, Holding, LignePatrimoineFiltree, PatrimoineHistoryPoint } from '../api/types'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
-import { DeltaBadge, SegmentedControl } from './Controls'
-import { DegradeAire, STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
+import { DeltaBadge, Pill, SegmentedControl } from './Controls'
+import { AXE_VALEURS, DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
-import { SkeletonGraphique } from './Skeleton'
+import LignesPatrimoineTable from './LignesPatrimoineTable'
+import { SkeletonGraphique, SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { dateVersISO, formatDate, formatEuro } from '../utils/format'
+import { dateVersISO, formatDate, formatEuro, formatEuroAxe } from '../utils/format'
 import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
 import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, variationSurPeriode, PERIODES_RELATIVES, type Periode, type PeriodeRelative } from '../utils/periode'
 
@@ -21,7 +22,7 @@ import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, variationSurPeri
 // Depuis le 16/09/2026 (retour utilisateur : « je ne peux pas sélectionner le
 // PER »), ce graphique couvre TOUTES les classes, financières ET valorisées
 // manuellement (immobilier/SCPI/assurance-vie/PER/épargne...) — cf.
-// `patrimoine_history_service.compute_portfolio_history_filtre` côté backend, qui
+// `patrimoine_history_service.compute_patrimoine_history` côté backend, qui
 // combine désormais grand livre de transactions et historique de valorisation daté.
 const LABEL_TYPE_ACTIF: Record<string, string> = Object.fromEntries(
   TYPE_ACTIF_OPTIONS.filter((o) => o.value !== '').map((o) => [o.value, o.label]),
@@ -29,10 +30,16 @@ const LABEL_TYPE_ACTIF: Record<string, string> = Object.fromEntries(
 
 type FiltreGroupe = { type: 'compte' | 'etablissement'; id: number } | null
 type ModeDate = PeriodeRelative | 'PERSO'
+type LentilleLocale = 'brut' | 'net'
 
 const OPTIONS_PERIODE: { valeur: ModeDate; label: string }[] = [
   ...PERIODES_RELATIVES,
   { valeur: 'PERSO', label: 'Personnalisé' },
+]
+
+const OPTIONS_LENTILLE_LOCALE: { valeur: LentilleLocale; label: string }[] = [
+  { valeur: 'net', label: 'Net' },
+  { valeur: 'brut', label: 'Brut' },
 ]
 
 /** Onglet « Évolution » de l'écran Analyse (retour utilisateur du 13/09/2026) —
@@ -43,6 +50,18 @@ const OPTIONS_PERIODE: { valeur: ModeDate; label: string }[] = [
  * lentille/mode étagé du tableau de bord (`usePreferencesAffichage`), que cet
  * onglet ne doit JAMAIS toucher — changer la période ici ne doit pas changer celle
  * du tableau de bord (cf. `RapportPage.tsx`, même doctrine d'état local).
+ *
+ * Complété le 17/09/2026 (§ AX, retour utilisateur direct : « pouvoir afficher le
+ * mode étagé, un bouton brut net [...] les boutons du dessus [ne soient] pas pris
+ * en compte, [...] rajouter le sélecteur de personne [...] l'échelle du montant
+ * euro à la vertical, et [...] en dessous du graphique les lignes correspondantes
+ * pour voir le détail ») — lentille Brut/Net ET détenteur sont ici des états
+ * LOCAUX, comme la période ci-dessus, jamais `usePreferencesAffichage()` : passe
+ * de `GET /performance/history` (financier seul, jamais netté d'emprunt) à
+ * `GET /patrimoine/historique` (§ AX étend ses filtres classe/compte/établissement,
+ * déjà là pour le mode étagé Net/Brut du tableau de bord), qui renvoie EN UN SEUL
+ * appel les deux lentilles Brut/Net — le bouton ne redemande donc rien au réseau,
+ * il choisit seulement quel champ du point déjà reçu afficher.
  *
  * Couvre toute ligne du portefeuille — financière (grand livre de transactions)
  * ET valorisée manuellement (immobilier/SCPI/assurance-vie/PER/épargne...), cf.
@@ -57,6 +76,11 @@ export default function EvolutionFinanciereCard() {
       .listHoldings()
       .then(setHoldings)
       .catch((err) => setErreurHoldings(err.message))
+  }, [])
+
+  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  useEffect(() => {
+    api.listDetenteurs().then(setDetenteurs).catch(() => setDetenteurs([]))
   }, [])
 
   const holdingsPertinents = useMemo(
@@ -85,6 +109,9 @@ export default function EvolutionFinanciereCard() {
 
   const [typeActif, setTypeActif] = useState<string | null>(null)
   const [filtreGroupe, setFiltreGroupe] = useState<FiltreGroupe>(null)
+  const [detenteurId, setDetenteurId] = useState<number | null>(null)
+  const [lentille, setLentille] = useState<LentilleLocale>('net')
+  const [stacked, setStacked] = useState(false)
 
   const valeurSelectGroupe = filtreGroupe ? `${filtreGroupe.type === 'compte' ? 'c' : 'e'}:${filtreGroupe.id}` : ''
   function onChangeGroupe(valeur: string) {
@@ -114,7 +141,7 @@ export default function EvolutionFinanciereCard() {
     [modeDate, dateDebutPerso, dateFinPerso],
   )
 
-  const [points, setPoints] = useState<PortfolioHistoryPoint[] | null>(null)
+  const [points, setPoints] = useState<PatrimoineHistoryPoint[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Compteur de génération plutôt qu'une détection d'erreur d'annulation : le
@@ -133,7 +160,8 @@ export default function EvolutionFinanciereCard() {
     setLoading(true)
     setError(null)
     api
-      .getPortfolioHistory(
+      .getPatrimoineHistory(
+        detenteurId,
         {
           typeActif: typeActif ?? undefined,
           compteId: filtreGroupe?.type === 'compte' ? filtreGroupe.id : undefined,
@@ -151,8 +179,45 @@ export default function EvolutionFinanciereCard() {
         if (generation === generationRef.current) setLoading(false)
       })
     return () => controller.abort()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenché uniquement par les filtres réseau (classe/compte/établissement) ; la période reste un filtrage client sur la série déjà reçue, cf. `filtered` ci-dessous.
-  }, [typeActif, filtreGroupe, holdingsPertinents.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- déclenché uniquement par les filtres réseau (classe/compte/établissement/détenteur) ; la période reste un filtrage client sur la série déjà reçue (cf. `filtered` ci-dessous), et la lentille Brut/Net ne fait que choisir un champ déjà présent dans chaque point.
+  }, [typeActif, filtreGroupe, detenteurId, holdingsPertinents.length])
+
+  // Lignes composant le total actuel (§ AX, tableau de détail) — mêmes filtres
+  // réseau que la courbe ci-dessus, mais indépendant de la période/lentille/mode
+  // étagé : `LignePatrimoineFiltree` porte déjà `valeur`/`valeur_nette`, la lentille
+  // choisit seulement la colonne affichée côté `LignesPatrimoineTable`.
+  const [lignes, setLignes] = useState<LignePatrimoineFiltree[] | null>(null)
+  const [loadingLignes, setLoadingLignes] = useState(false)
+  const [erreurLignes, setErreurLignes] = useState<string | null>(null)
+  const generationLignesRef = useRef(0)
+
+  useEffect(() => {
+    if (holdingsPertinents.length === 0) return
+    const generation = ++generationLignesRef.current
+    const controller = new AbortController()
+    setLoadingLignes(true)
+    setErreurLignes(null)
+    api
+      .getLignesPatrimoine(
+        {
+          typeActif: typeActif ?? undefined,
+          compteId: filtreGroupe?.type === 'compte' ? filtreGroupe.id : undefined,
+          etablissementId: filtreGroupe?.type === 'etablissement' ? filtreGroupe.id : undefined,
+          detenteurId: detenteurId ?? undefined,
+        },
+        controller.signal,
+      )
+      .then((reponse) => {
+        if (generation === generationLignesRef.current) setLignes(reponse.lignes)
+      })
+      .catch((err) => {
+        if (generation === generationLignesRef.current) setErreurLignes(err.message)
+      })
+      .finally(() => {
+        if (generation === generationLignesRef.current) setLoadingLignes(false)
+      })
+    return () => controller.abort()
+  }, [typeActif, filtreGroupe, detenteurId, holdingsPertinents.length])
 
   const filtered = useMemo(() => {
     if (!points || periodeInvalide) return []
@@ -160,11 +225,20 @@ export default function EvolutionFinanciereCard() {
     return bornes ? points.filter((p) => p.date >= bornes.dateDebut && p.date <= bornes.dateFin) : points
   }, [points, periode, periodeInvalide])
 
-  const data = useMemo(() => filtered.map((p) => ({ date: p.date, Valeur: p.valeur_portefeuille })), [filtered])
+  const data = useMemo(
+    () =>
+      filtered.map((p) => ({
+        date: p.date,
+        Valeur: lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net,
+        Investi: lentille === 'brut' ? p.valeur_investie : p.valeur_investie_nette,
+        Gains: (lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net) + p.valeur_realisee_cumulee - (lentille === 'brut' ? p.valeur_investie : p.valeur_investie_nette),
+      })),
+    [filtered, lentille],
+  )
   const reperesAxe = useMemo(() => reperesTemporels(data, 'date', formatDate), [data])
 
-  const variationPct = useMemo(() => variationSurPeriode(filtered.map((p) => ({ valeur: p.valeur_portefeuille }))), [filtered])
-  const delta = useMemo(() => deltaSurPeriode(filtered.map((p) => ({ valeur: p.valeur_portefeuille }))), [filtered])
+  const variationPct = useMemo(() => variationSurPeriode(filtered.map((p) => ({ valeur: lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net }))), [filtered, lentille])
+  const delta = useMemo(() => deltaSurPeriode(filtered.map((p) => ({ valeur: lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net }))), [filtered, lentille])
 
   if (erreurHoldings) return <EtatErreur message={erreurHoldings} />
   if (holdings === null) return <SkeletonGraphique />
@@ -192,7 +266,7 @@ export default function EvolutionFinanciereCard() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Classe d'actif">
           <Select value={typeActif ?? ''} onChange={(e) => setTypeActif(e.target.value || null)}>
             <option value="">Tout</option>
@@ -226,6 +300,18 @@ export default function EvolutionFinanciereCard() {
             )}
           </Select>
         </Field>
+        {detenteurs.length > 0 && (
+          <Field label="Détenteur">
+            <Select value={detenteurId ?? ''} onChange={(e) => setDetenteurId(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">Foyer</option>
+              {detenteurs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nom}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -236,27 +322,39 @@ export default function EvolutionFinanciereCard() {
           taille="sm"
           ariaLabel="Période du graphique"
         />
-        {modeDate === 'PERSO' && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="date"
-              value={dateDebutPerso}
-              max={dateVersISO(new Date())}
-              onChange={(e) => setDateDebutPerso(e.target.value)}
-              aria-label="Date de début"
-              className="w-auto"
-            />
-            <span className="text-sm text-texte-attenue">au</span>
-            <Input
-              type="date"
-              value={dateFinPerso}
-              max={dateVersISO(new Date())}
-              onChange={(e) => setDateFinPerso(e.target.value)}
-              aria-label="Date de fin"
-              className="w-auto"
-            />
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {modeDate === 'PERSO' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                type="date"
+                value={dateDebutPerso}
+                max={dateVersISO(new Date())}
+                onChange={(e) => setDateDebutPerso(e.target.value)}
+                aria-label="Date de début"
+                className="w-auto"
+              />
+              <span className="text-sm text-texte-attenue">au</span>
+              <Input
+                type="date"
+                value={dateFinPerso}
+                max={dateVersISO(new Date())}
+                onChange={(e) => setDateFinPerso(e.target.value)}
+                aria-label="Date de fin"
+                className="w-auto"
+              />
+            </div>
+          )}
+          <Pill actif={stacked} onClick={() => setStacked((v) => !v)} title="Superpose l'investi sous le total : la tranche visible entre les deux courbes, ce sont les gains.">
+            Mode étagé
+          </Pill>
+          <SegmentedControl
+            options={OPTIONS_LENTILLE_LOCALE.map((o) => ({ valeur: o.valeur, libelle: o.label }))}
+            valeur={lentille}
+            onChange={setLentille}
+            taille="sm"
+            ariaLabel="Brut ou net (emprunts déduits)"
+          />
+        </div>
       </div>
 
       {periodeInvalide && <EtatErreur message="La date de fin doit être postérieure ou égale à la date de début." />}
@@ -279,8 +377,21 @@ export default function EvolutionFinanciereCard() {
 
       {!periodeInvalide && !loading && !error && data.length > 0 && (
         <>
+          {stacked && (
+            <div className="mb-2 flex justify-end gap-3 text-[11px] text-ink3">
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />
+                Investi
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />
+                Gains
+              </span>
+            </div>
+          )}
+
           {delta !== null && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               {variationPct !== null && (
                 <DeltaBadge
                   valeur={`${variationPct >= 0 ? '↑' : '↓'} ${Math.abs(variationPct).toFixed(1)} %`}
@@ -300,9 +411,12 @@ export default function EvolutionFinanciereCard() {
                 <DegradeAire id="aireEvolutionFinanciere" />
               </defs>
               <XAxis dataKey="date" hide />
-              <YAxis hide domain={['dataMin', 'dataMax']} />
+              {/* Seule exception au langage « pas d'axe dessiné » de `ChartFrame` —
+                  demande explicite (§ AX) : cet onglet veut une lecture précise,
+                  contrairement au chiffre héros du tableau de bord. */}
+              <YAxis domain={['dataMin', 'dataMax']} tickFormatter={(v) => formatEuroAxe(Number(v), montantsMasques)} {...AXE_VALEURS} />
               <Tooltip
-                formatter={(value) => [formatEuro(Number(value), 0, montantsMasques), 'Valeur']}
+                formatter={(value, nom) => [formatEuro(Number(value), 0, montantsMasques), nom]}
                 labelFormatter={(date) => formatDate(String(date))}
                 {...STYLE_INFOBULLE}
               />
@@ -315,8 +429,40 @@ export default function EvolutionFinanciereCard() {
                 dot={false}
                 isAnimationActive={false}
               />
+              {/* Mode étagé : l'investi par-dessus l'aire du total, depuis la même
+                  ligne de base — la tranche visible entre les deux courbes, ce sont
+                  les gains (même motif que `PortfolioHistoryChart`). */}
+              {stacked && (
+                <Area
+                  type="monotone"
+                  dataKey="Investi"
+                  stroke="var(--s3)"
+                  strokeWidth={TRAIT_REPERE}
+                  strokeDasharray={POINTILLES_REPERE}
+                  fill="var(--s4)"
+                  fillOpacity={0.55}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              )}
             </AreaChart>
           </ChartFrame>
+
+          {stacked && (
+            <p className="mt-2 text-[11px] text-ink4">
+              Pour l'immobilier/l'épargne, seul un versement explicitement déclaré compte comme « Investi » — une hausse non
+              déclarée est traitée comme un gain.
+            </p>
+          )}
+
+          <div className="mt-4 border-t border-bordure pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-texte">Détail des lignes</h3>
+            {loadingLignes && <SkeletonTexte lignes={3} />}
+            {!loadingLignes && erreurLignes && <EtatErreur message={erreurLignes} />}
+            {!loadingLignes && !erreurLignes && lignes && (
+              <LignesPatrimoineTable lignes={lignes} lentille={lentille} detenteurFiltre={detenteurId !== null} />
+            )}
+          </div>
         </>
       )}
     </div>

@@ -71,6 +71,31 @@ class PatrimoineHistoryResponse(BaseModel):
     points: list[PatrimoineHistoryPoint]
 
 
+class LignePatrimoineFiltree(BaseModel):
+    """Une ligne du patrimoine, à sa valeur ACTUELLE (pas une reconstruction
+    historique), correspondant aux mêmes filtres que le graphique Évolution de
+    l'écran Analyse — `services/patrimoine_service.lignes_patrimoine_filtrees`
+    (§ AX, retour utilisateur du 17/09/2026 : tableau de détail sous le graphique)."""
+
+    holding_id: int
+    ticker: str
+    nom: str | None
+    type_actif_label: str
+    compte_nom: str | None
+    etablissement_nom: str | None
+    quantite: float
+    valeur: float
+    valeur_nette: float
+    # `None` sans filtre détenteur (ligne à 100 % foyer) ; sinon la quote-part de ce
+    # détenteur sur cette ligne — `valeur`/`valeur_nette` ci-dessus sont alors déjà
+    # sa part, pas la valeur totale de la ligne.
+    quotite_pct: float | None
+
+
+class LignesPatrimoineFiltreesResponse(BaseModel):
+    lignes: list[LignePatrimoineFiltree]
+
+
 class ExpositionConsolidee(BaseModel):
     """Backlog 2.P.1 — `services/patrimoine_service.compute_exposition_consolidee`.
     Champs sans suffixe = valeur BRUTE ; `_nette` = chaque ligne nettée de son emprunt

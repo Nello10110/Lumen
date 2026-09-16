@@ -95,6 +95,60 @@ def test_patrimoine_historique_detenteur_dun_autre_utilisateur_renvoie_404(clien
     assert reponse.status_code == 404
 
 
+def test_patrimoine_historique_filtre_par_type_actif(client, db):
+    """§ AX (retour utilisateur du 17/09/2026) : mêmes filtres que
+    `GET /api/performance/history`, désormais aussi sur cette route."""
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+
+    reponse = client.get("/api/patrimoine/historique?type_actif=REAL_ESTATE")
+
+    assert reponse.status_code == 200
+    points = reponse.json()["points"]
+    assert points[-1]["actifs_totaux"] == 300000.0  # AAA (financier) exclu par le filtre
+
+
+def test_patrimoine_historique_compte_et_etablissement_mutuellement_exclusifs(client, db):
+    reponse = client.get("/api/patrimoine/historique?compte_id=1&etablissement_id=1")
+
+    assert reponse.status_code == 400
+
+
+def test_patrimoine_lignes_vide(client):
+    reponse = client.get("/api/patrimoine/lignes")
+
+    assert reponse.status_code == 200
+    assert reponse.json() == {"lignes": []}
+
+
+def test_patrimoine_lignes_filtrees_par_type_actif(client, db):
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+
+    reponse = client.get("/api/patrimoine/lignes?type_actif=REAL_ESTATE")
+
+    assert reponse.status_code == 200
+    lignes = reponse.json()["lignes"]
+    assert [l["ticker"] for l in lignes] == ["MAISON"]
+    assert lignes[0]["valeur"] == 300000.0
+    assert lignes[0]["type_actif_label"] == "Immobilier"
+
+
+def test_patrimoine_lignes_detenteur_dun_autre_utilisateur_renvoie_404(client, db):
+    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    reponse = client.get(f"/api/patrimoine/lignes?detenteur_id={id_detenteur_a}")
+
+    assert reponse.status_code == 404
+
+
+def test_patrimoine_lignes_compte_et_etablissement_mutuellement_exclusifs(client, db):
+    reponse = client.get("/api/patrimoine/lignes?compte_id=1&etablissement_id=1")
+
+    assert reponse.status_code == 400
+
+
 def test_exposition_consolidee_vide(client):
     reponse = client.get("/api/patrimoine/exposition-consolidee")
 

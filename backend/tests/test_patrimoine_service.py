@@ -7,7 +7,7 @@ from datetime import datetime
 from app.models import Loan
 from app.services import detenteurs_service, patrimoine_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding
 
 
 def test_actifs_totaux_couvre_le_portefeuille_financier_et_le_patrimoine_manuel(db):
@@ -564,3 +564,66 @@ class TestCompositionCategorieConsolidee:
 
         assert resultat["lignes"] == []
         assert resultat["valeur_totale"] == 0.0
+
+
+# --- lignes_patrimoine_filtrees (§ AX, tableau de détail de l'onglet Évolution) --
+
+
+class TestLignesPatrimoineFiltrees:
+    def test_sans_filtre_renvoie_toutes_les_lignes_triees_par_valeur_decroissante(self, db):
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+        make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
+
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST)
+
+        assert [l["ticker"] for l in lignes] == ["MAISON", "AAA"]
+        assert lignes[0]["valeur"] == 250000.0
+        assert lignes[0]["type_actif_label"] == "Immobilier"
+
+    def test_filtre_type_actif_exclut_les_autres_classes(self, db):
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+        make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
+
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST, type_actif="STOCK")
+
+        assert [l["ticker"] for l in lignes] == ["AAA"]
+
+    def test_filtre_compte_exclut_les_lignes_dun_autre_compte(self, db):
+        compte_a = make_compte(db, nom="Compte A")
+        compte_b = make_compte(db, nom="Compte B")
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0, compte_id=compte_a.id)
+        make_holding(db, ticker="BBB", type_actif="STOCK", quantite=5, prix_revient_moyen=50.0, compte_id=compte_b.id)
+
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST, compte_id=compte_a.id)
+
+        assert [l["ticker"] for l in lignes] == ["AAA"]
+        assert lignes[0]["compte_nom"] == "Compte A"
+
+    def test_valeur_nette_deduit_lemprunt_rattache(self, db):
+        maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST, libelle="Crédit", holding_id=maison.id, capital_initial=200000.0,
+                taux_annuel_pct=1.5, mensualite=1000.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
+                capital_restant_du_manuel=180000.0,
+            )
+        )
+        db.commit()
+
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST)
+
+        assert lignes[0]["valeur"] == 300000.0
+        assert lignes[0]["valeur_nette"] == 120000.0
+
+    def test_filtre_detenteur_ne_garde_que_les_lignes_reparties_avec_leur_quote_part(self, db):
+        alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+        bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # jamais répartie
+        maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+        detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, maison, [(alice.id, 60.0), (bob.id, 40.0)])
+
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+
+        assert [l["ticker"] for l in lignes] == ["MAISON"]
+        assert lignes[0]["valeur"] == 180000.0  # 60% de 300000
+        assert lignes[0]["quotite_pct"] == 60.0

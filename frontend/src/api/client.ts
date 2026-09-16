@@ -40,6 +40,7 @@ import type {
   JonctionPatrimoine,
   ImportResult,
   Jalon,
+  LignesPatrimoineFiltreesResponse,
   Loan,
   LoanInput,
   LoanUpdateInput,
@@ -460,8 +461,39 @@ export const api = {
   // départ.
   getPatrimoineNet: (detenteurId?: number | null) =>
     request<PatrimoineNet>(`/patrimoine/net${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
-  getPatrimoineHistory: (detenteurId?: number | null) =>
-    request<PatrimoineHistoryResponse>(`/patrimoine/historique${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
+  // `filtre` (§ AX, onglet Évolution d'Analyse, retour utilisateur du 17/09/2026 :
+  // bouton Brut/Net local + sélecteur de personne, combinables avec les filtres
+  // classe/compte/établissement déjà offerts par `getPortfolioHistory`) : mêmes
+  // règles de combinaison (`compteId`/`etablissementId` mutuellement exclusifs côté
+  // serveur). Omis : comportement inchangé (sert le mode étagé Net/Brut du tableau
+  // de bord, jamais filtré).
+  getPatrimoineHistory: (
+    detenteurId?: number | null,
+    filtre?: { typeActif?: string | null; compteId?: number | null; etablissementId?: number | null },
+    signal?: AbortSignal,
+  ) => {
+    const params = new URLSearchParams()
+    if (detenteurId) params.set('detenteur_id', String(detenteurId))
+    if (filtre?.typeActif) params.set('type_actif', filtre.typeActif)
+    if (filtre?.compteId != null) params.set('compte_id', String(filtre.compteId))
+    if (filtre?.etablissementId != null) params.set('etablissement_id', String(filtre.etablissementId))
+    const qs = params.toString()
+    return request<PatrimoineHistoryResponse>(`/patrimoine/historique${qs ? `?${qs}` : ''}`, { signal })
+  },
+  // Composition actuelle du patrimoine filtrée par les mêmes critères que
+  // `getPatrimoineHistory` — tableau de détail sous le graphique Évolution (§ AX).
+  getLignesPatrimoine: (
+    filtre?: { typeActif?: string | null; compteId?: number | null; etablissementId?: number | null; detenteurId?: number | null },
+    signal?: AbortSignal,
+  ) => {
+    const params = new URLSearchParams()
+    if (filtre?.typeActif) params.set('type_actif', filtre.typeActif)
+    if (filtre?.compteId != null) params.set('compte_id', String(filtre.compteId))
+    if (filtre?.etablissementId != null) params.set('etablissement_id', String(filtre.etablissementId))
+    if (filtre?.detenteurId != null) params.set('detenteur_id', String(filtre.detenteurId))
+    const qs = params.toString()
+    return request<LignesPatrimoineFiltreesResponse>(`/patrimoine/lignes${qs ? `?${qs}` : ''}`, { signal })
+  },
   getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
   getExpositionConsolideeComposition: (dimension: 'geo' | 'classe', categorie: string, net: boolean) =>
     request<CategoryCompositionResponse>(

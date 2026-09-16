@@ -118,6 +118,8 @@ from .partage import (  # noqa: F401
 from .patrimoine import (  # noqa: F401
     ExpositionConsolidee,
     IndicateursSituation,
+    LignePatrimoineFiltree,
+    LignesPatrimoineFiltreesResponse,
     PatrimoineHistoryPoint,
     PatrimoineHistoryResponse,
     PatrimoineNetResponse,

@@ -82,13 +82,29 @@ def cle_historique_portefeuille(user_id: int, cles_filtres: set[tuple[str, int |
     return f"historique_portefeuille:{user_id}:{suffixe}"
 
 
-def cle_historique_patrimoine(user_id: int, detenteur_id: int | None = None) -> str:
+def cle_historique_patrimoine(
+    user_id: int,
+    detenteur_id: int | None = None,
+    type_actif: str | None = None,
+    compte_id: int | None = None,
+    etablissement_id: int | None = None,
+) -> str:
     """Clé de cache de l'historique combiné financier + immobilier/épargne − emprunts
     (`patrimoine_history_service.compute_patrimoine_history`) — scopée par utilisateur
     ET par détenteur (contrairement à `cle_historique_portefeuille`) : la série diffère
     selon la vue foyer/détenteur, cf. le ratio flou appliqué à la poche financière et le
-    filtrage exact des lignes/emprunts par quotité."""
-    return f"historique_patrimoine:{user_id}:{detenteur_id if detenteur_id is not None else 'foyer'}"
+    filtrage exact des lignes/emprunts par quotité.
+
+    `type_actif`/`compte_id`/`etablissement_id` (§ AX, filtres de l'onglet Évolution
+    d'Analyse) : les trois absents laissent la clé EXACTEMENT inchangée — le tableau
+    de bord (jamais filtré) continue de lire/écrire la même entrée qu'avant ce lot,
+    même principe que `cle_historique_portefeuille`/`cles_filtres` ci-dessus."""
+    base = f"historique_patrimoine:{user_id}:{detenteur_id if detenteur_id is not None else 'foyer'}"
+    if type_actif is None and compte_id is None and etablissement_id is None:
+        return base
+    compte_suffixe = compte_id if compte_id is not None else "-"
+    etablissement_suffixe = etablissement_id if etablissement_id is not None else "-"
+    return f"{base}:{type_actif or '-'}:{compte_suffixe}:{etablissement_suffixe}"
 
 
 def lire(db: Session, cle: str):

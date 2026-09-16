@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateHeure, formatEuro, formatPct, formatQuantite } from './format'
+import { formatDate, formatDateHeure, formatEuro, formatEuroAxe, formatPct, formatQuantite } from './format'
 
 describe('formatEuro', () => {
   it('affiche un tiret cadratin pour une valeur nulle', () => {
@@ -12,6 +12,28 @@ describe('formatEuro', () => {
 
   it('respecte le nombre de décimales demandé', () => {
     expect(formatEuro(1234.5, 0).replace(/\s/g, ' ')).toBe('1 235 €')
+  })
+})
+
+describe('formatEuroAxe (§ AX, échelle verticale du graphique Évolution)', () => {
+  it('formate en milliers pour une valeur >= 1000', () => {
+    expect(formatEuroAxe(253400)).toBe('253 k€')
+  })
+
+  it('formate en millions pour une valeur >= 1 000 000', () => {
+    expect(formatEuroAxe(1250000)).toBe('1,3 M€')
+  })
+
+  it('garde les euros en toutes lettres sous 1000', () => {
+    expect(formatEuroAxe(450)).toBe('450 €')
+  })
+
+  it('respecte le signe négatif (ex. passif net)', () => {
+    expect(formatEuroAxe(-5000)).toBe('-5 k€')
+  })
+
+  it('masque avec un espace réservé court, pas le même que formatEuro', () => {
+    expect(formatEuroAxe(253400, true)).toBe('••')
   })
 })
 

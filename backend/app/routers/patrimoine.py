@@ -15,7 +15,13 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Detenteur, User
-from ..schemas import CategoryCompositionResponse, ExpositionConsolidee, PatrimoineHistoryResponse, PatrimoineNetResponse
+from ..schemas import (
+    CategoryCompositionResponse,
+    ExpositionConsolidee,
+    LignesPatrimoineFiltreesResponse,
+    PatrimoineHistoryResponse,
+    PatrimoineNetResponse,
+)
 from ..services import auth_service, detenteurs_service, patrimoine_history_service, patrimoine_service
 
 router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
@@ -56,12 +62,46 @@ def get_patrimoine_net(
 @router.get("/historique", response_model=PatrimoineHistoryResponse)
 def get_patrimoine_historique(
     detenteur_id: int | None = None,
+    type_actif: str | None = None,
+    compte_id: int | None = None,
+    etablissement_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """`type_actif`/`compte_id`/`etablissement_id` (§ AX, onglet Évolution de l'écran
+    Analyse — retour utilisateur du 17/09/2026 : bouton Brut/Net local, combinable
+    avec le sélecteur de personne déjà offert par cette route) : mêmes règles de
+    combinaison que `routers/performance.py::get_portfolio_history` —
+    `compte_id`/`etablissement_id` mutuellement exclusifs, `type_actif` combinable
+    avec l'un des deux."""
+    if compte_id is not None and etablissement_id is not None:
+        raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
     _verifier_acces_detenteur(db, current_user, detenteur_id)
-    points = patrimoine_history_service.compute_patrimoine_history(db, auth_service.id_foyer(current_user), detenteur_id)
+    points = patrimoine_history_service.compute_patrimoine_history(
+        db, auth_service.id_foyer(current_user), detenteur_id, type_actif, compte_id, etablissement_id
+    )
     return PatrimoineHistoryResponse(points=points)
+
+
+@router.get("/lignes", response_model=LignesPatrimoineFiltreesResponse)
+def get_lignes_patrimoine(
+    type_actif: str | None = None,
+    compte_id: int | None = None,
+    etablissement_id: int | None = None,
+    detenteur_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Composition actuelle du patrimoine filtrée par les mêmes critères que
+    `/historique` ci-dessus — tableau de détail sous le graphique Évolution de
+    l'écran Analyse (§ AX, retour utilisateur du 17/09/2026)."""
+    if compte_id is not None and etablissement_id is not None:
+        raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
+    _verifier_acces_detenteur(db, current_user, detenteur_id)
+    lignes = patrimoine_service.lignes_patrimoine_filtrees(
+        db, auth_service.id_foyer(current_user), type_actif, compte_id, etablissement_id, detenteur_id
+    )
+    return LignesPatrimoineFiltreesResponse(lignes=lignes)
 
 
 @router.get("/exposition-consolidee", response_model=ExpositionConsolidee)

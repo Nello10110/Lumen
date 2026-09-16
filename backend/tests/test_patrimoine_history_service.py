@@ -14,7 +14,7 @@ from datetime import datetime
 from app.models import Loan
 from app.services import detenteurs_service, historical_performance_service, historique_cache, immobilier_service, patrimoine_history_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding
 
 
 def test_aucune_donnee_renvoie_liste_vide(db):
@@ -176,7 +176,7 @@ def test_valeur_investie_combine_poche_financiere_et_manuelle(db, monkeypatch):
     monkeypatch.setattr(
         historical_performance_service,
         "compute_portfolio_history",
-        lambda db_, user_id_: [
+        lambda db_, user_id_, cles_filtres=None: [
             {"date": "2024-01-01", "valeur_portefeuille": 5000.0, "valeur_investie": 4000.0, "valeur_realisee_cumulee": 100.0},
         ],
     )
@@ -499,3 +499,89 @@ def test_invalidation_purge_le_cache(db):
     historique_cache.invalider_historiques_patrimoine(db)
 
     assert historique_cache.lire(db, cle) is None
+
+
+# --- Filtres classe/compte/établissement (§ AX, onglet Évolution d'Analyse) ------
+
+
+def test_filtre_type_actif_exclut_les_lignes_manuelles_dune_autre_classe(db):
+    maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+    per = make_holding(db, ticker="PER1", type_actif="PENSION", quantite=1, prix_revient_moyen=10000.0, valeur_estimee=15000.0)
+    immobilier_service.enregistrer_point_historique(db, maison.id, 300000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, per.id, 15000.0, datetime(2024, 1, 1))
+
+    points_immo = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, type_actif="REAL_ESTATE")
+    points_per = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, type_actif="PENSION")
+
+    assert all(p["valeur_manuelle"] == 300000.0 for p in points_immo)
+    assert all(p["valeur_manuelle"] == 15000.0 for p in points_per)
+
+
+def test_filtre_compte_exclut_lemprunt_dun_autre_compte(db):
+    """Retour du 17/09/2026 (§ AX) : filtrer par compte ne doit soustraire QUE
+    l'emprunt rattaché à un bien de CE compte, jamais celui d'un autre bien."""
+    compte_a = make_compte(db, nom="Résidence principale")
+    compte_b = make_compte(db, nom="Locatif")
+    maison_a = make_holding(
+        db, ticker="MAISON-A", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0, compte_id=compte_a.id
+    )
+    maison_b = make_holding(
+        db, ticker="MAISON-B", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=150000.0, valeur_estimee=250000.0, compte_id=compte_b.id
+    )
+    immobilier_service.enregistrer_point_historique(db, maison_a.id, 300000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, maison_b.id, 250000.0, datetime(2024, 1, 1))
+    db.add(
+        Loan(
+            user_id=ID_UTILISATEUR_TEST, libelle="Crédit A", holding_id=maison_a.id, capital_initial=200000.0,
+            taux_annuel_pct=1.5, mensualite=1000.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
+            capital_restant_du_manuel=190000.0,
+        )
+    )
+    db.add(
+        Loan(
+            user_id=ID_UTILISATEUR_TEST, libelle="Crédit B", holding_id=maison_b.id, capital_initial=150000.0,
+            taux_annuel_pct=1.5, mensualite=800.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
+            capital_restant_du_manuel=140000.0,
+        )
+    )
+    db.commit()
+
+    points_a = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, compte_id=compte_a.id)
+    points_b = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, compte_id=compte_b.id)
+
+    assert all(p["passifs_totaux"] == 190000.0 for p in points_a)
+    assert all(p["actifs_totaux"] == 300000.0 for p in points_a)
+    assert all(p["passifs_totaux"] == 140000.0 for p in points_b)
+    assert all(p["actifs_totaux"] == 250000.0 for p in points_b)
+
+
+def test_filtre_avec_detenteur_restreint_aux_lignes_de_ce_detenteur(db):
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
+    maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+    immobilier_service.enregistrer_point_historique(db, maison.id, 300000.0, datetime(2024, 1, 1))
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, maison, [(alice.id, 60.0), (bob.id, 40.0)])
+
+    points_alice = patrimoine_history_service.compute_patrimoine_history(
+        db, ID_UTILISATEUR_TEST, detenteur_id=alice.id, type_actif="REAL_ESTATE"
+    )
+
+    assert all(p["valeur_manuelle"] == 180000.0 for p in points_alice)  # 60% de 300000
+
+
+def test_cle_de_cache_differe_selon_le_filtre(db):
+    """Le tableau de bord (jamais filtré) doit continuer de lire/écrire EXACTEMENT
+    la même clé qu'avant ce lot — seule une combinaison de filtres explicite obtient
+    sa propre entrée."""
+    cle_sans_filtre = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle_avec_filtre = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST, type_actif="REAL_ESTATE")
+
+    assert cle_sans_filtre == f"historique_patrimoine:{ID_UTILISATEUR_TEST}:foyer"
+    assert cle_avec_filtre != cle_sans_filtre
+
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+    patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, type_actif="REAL_ESTATE")
+
+    assert historique_cache.lire(db, cle_sans_filtre) is not None
+    assert historique_cache.lire(db, cle_avec_filtre) is not None

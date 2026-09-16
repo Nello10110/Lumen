@@ -18,7 +18,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from ..models import TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS, TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Loan
+from ..models import TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS, TYPES_ACTIF_PATRIMOINE_MANUEL, Compte, Holding, Loan
 from . import analysis_service, budget_service, detenteurs_service, loan_service
 from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
 
@@ -189,6 +189,72 @@ def _repartition_triee(totaux: dict[str, float], garder_negatifs: bool = False) 
         key=lambda item: item["valeur"],
         reverse=True,
     )
+
+
+def lignes_patrimoine_filtrees(
+    db: Session,
+    user_id: int,
+    type_actif: str | None = None,
+    compte_id: int | None = None,
+    etablissement_id: int | None = None,
+    detenteur_id: int | None = None,
+) -> list[dict]:
+    """Composition ACTUELLE du patrimoine (aujourd'hui, pas une reconstruction
+    historique à une date passée — plus simple et plus directement actionnable
+    qu'une valorisation rétroactive de chaque ligne, qu'aucun autre écran de
+    l'application n'offre) filtrée par les mêmes critères que le graphique Évolution
+    de l'écran Analyse (§ AX, retour utilisateur du 17/09/2026) : une ligne par actif
+    contribuant au total affiché par ce graphique, pour répondre à « de quoi est fait
+    ce total ».
+
+    `detenteur_id` : une ligne jamais répartie n'apparaît alors dans AUCUNE vue
+    détenteur individuelle (même règle que `compute_patrimoine_net` — 100 % foyer
+    implicite) ; `valeur`/`valeur_nette` deviennent la quote-part de ce détenteur,
+    pas la valeur totale de la ligne, et `quotite_pct` expose ce pourcentage."""
+    requete = db.query(Holding).filter(Holding.user_id == user_id)
+    if type_actif is not None:
+        requete = requete.filter(Holding.type_actif == type_actif)
+    if compte_id is not None:
+        requete = requete.filter(Holding.compte_id == compte_id)
+    if etablissement_id is not None:
+        requete = requete.join(Compte, Holding.compte_id == Compte.id).filter(Compte.etablissement_id == etablissement_id)
+    holdings = requete.all()
+
+    valued = analysis_service.value_holdings(holdings)
+    crd_par_holding, _ = _crd_par_ligne(db, user_id)
+
+    lignes: list[dict] = []
+    if detenteur_id is None:
+        for v in valued:
+            crd = crd_par_holding.get(v.holding.id, 0.0)
+            lignes.append(_ligne_depuis_valeur(v.holding, v.valeur, v.valeur - crd, None))
+    else:
+        parts_par_holding = detenteurs_service.compute_parts_bulk(db, [(v.holding, v.valeur) for v in valued])
+        for v in valued:
+            part = parts_par_holding.get(v.holding.id, {}).get(detenteur_id)
+            if part is None:
+                continue  # ligne non répartie ou pas de part pour ce détenteur : absente de sa vue
+            quotite_pct = round(part["part_detenue"] / v.valeur * 100, 1) if v.valeur else None
+            lignes.append(_ligne_depuis_valeur(v.holding, part["part_detenue"], part["part_nette"], quotite_pct))
+
+    lignes.sort(key=lambda ligne: ligne["valeur"], reverse=True)
+    return lignes
+
+
+def _ligne_depuis_valeur(holding: Holding, valeur: float, valeur_nette: float, quotite_pct: float | None) -> dict:
+    compte = holding.compte
+    return {
+        "holding_id": holding.id,
+        "ticker": holding.ticker,
+        "nom": holding.nom,
+        "type_actif_label": label_type_actif(holding),
+        "compte_nom": compte.nom if compte else None,
+        "etablissement_nom": compte.etablissement.nom if compte and compte.etablissement else None,
+        "quantite": holding.quantite,
+        "valeur": round(valeur, 2),
+        "valeur_nette": round(valeur_nette, 2),
+        "quotite_pct": quotite_pct,
+    }
 
 
 def _calculer_expo(db: Session, valued: list, valeur_totale: float, *, garder_negatifs: bool = False) -> dict:

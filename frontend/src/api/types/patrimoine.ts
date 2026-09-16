@@ -97,6 +97,28 @@ export interface PatrimoineHistoryResponse {
   points: PatrimoineHistoryPoint[]
 }
 
+// Composition actuelle du patrimoine filtrée par les mêmes critères que le
+// graphique Évolution de l'écran Analyse (§ AX, retour utilisateur du 17/09/2026) —
+// tableau de détail sous le graphique.
+export interface LignePatrimoineFiltree {
+  holding_id: number
+  ticker: string
+  nom: string | null
+  type_actif_label: string
+  compte_nom: string | null
+  etablissement_nom: string | null
+  quantite: number
+  valeur: number
+  valeur_nette: number
+  // `null` sans filtre détenteur (ligne à 100 % foyer) ; sinon la quote-part de ce
+  // détenteur — `valeur`/`valeur_nette` sont alors déjà sa part, pas la valeur totale.
+  quotite_pct: number | null
+}
+
+export interface LignesPatrimoineFiltreesResponse {
+  lignes: LignePatrimoineFiltree[]
+}
+
 // Exposition consolidée tous actifs (backlog 2.P.1) — une seule répartition géo/classe
 // financier ET immobilier/épargne confondus, distincte de `AnalysisResponse` (portefeuille
 // financier seul) et de `PatrimoineNet` (pas de vue géo/concentration).

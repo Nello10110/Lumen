@@ -90,6 +90,23 @@ export const AXE_CATEGORIES = {
   tick: STYLE_TICK_AXE,
 }
 
+/** Axe de VALEURS (montant en euros) d'une courbe — exception délibérée au langage
+ * graphique de `ChartFrame` (« ni grille ni axe dessiné, la courbe raconte une
+ * forme, pas des valeurs précises »), réservée aux écrans qui demandent
+ * explicitement une lecture précise (§ AX, onglet Évolution de l'écran Analyse,
+ * retour utilisateur du 17/09/2026 : « ajouter sur le graphique l'échelle du
+ * montant euro à la vertical »). Même sobriété que `AXE_CATEGORIES` — pas de ligne
+ * ni de graduations, seulement les libellés — pour ne pas réintroduire la grille
+ * que la refonte a justement retirée partout ailleurs. `tickFormatter` (compact,
+ * `formatEuroAxe`) reste à la charge de l'appelant : lui seul sait si les montants
+ * doivent être masqués. */
+export const AXE_VALEURS = {
+  axisLine: false,
+  tickLine: false,
+  tick: STYLE_TICK_AXE,
+  width: 56,
+}
+
 export const STYLE_INFOBULLE = {
   contentStyle: {
     backgroundColor: 'var(--panel-hi)',

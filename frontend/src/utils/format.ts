@@ -20,6 +20,18 @@ export function formatEuro(value: number | null, decimales: 0 | 2 = 2, masque = 
   return FORMATTEURS_EURO[decimales].format(value)
 }
 
+// Échelle verticale en euros d'un graphique (§ AX, onglet Évolution d'Analyse,
+// retour utilisateur du 17/09/2026) : format compact (k€/M€), le seul qui reste
+// lisible dans la bande étroite qu'un axe Recharts peut réserver sans écraser le
+// tracé — `formatEuro` (toujours en toutes lettres, ex. « 253 400,00 € ») déborderait.
+export function formatEuroAxe(value: number, masque = false): string {
+  if (masque) return '••'
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} M€`
+  if (abs >= 1_000) return `${(value / 1_000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} k€`
+  return `${value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`
+}
+
 /** Quantité détenue d'une position. Les positions reconstruites depuis l'historique
  * de transactions accumulent du bruit de virgule flottante (ex. 0.16835499999999995
  * au lieu de 0.168355) : arrondi à 8 décimales (précision suffisante même pour une
