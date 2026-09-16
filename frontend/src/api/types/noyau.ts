@@ -57,6 +57,11 @@ export interface CompteAvecSolde {
   // été supprimé depuis. `false` pour une répartition jamais commencée : c'est un
   // état valide (implicitement 100 % foyer), pas une alerte.
   repartition_incomplete: boolean
+  // Dernière activité utilisateur sur ce compte (demande directe du 16/09/2026) :
+  // le plus récent entre le compte lui-même (renommage...) et ses lignes
+  // (édition, import) — jamais la fraîcheur d'un cours de marché. `null` pour le
+  // bucket « Sans compte » ou un compte sans aucune ligne.
+  derniere_maj: string | null
 }
 
 export interface Holding {

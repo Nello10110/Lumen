@@ -17,7 +17,7 @@ import PlusValueParCompteCard from '../components/PlusValueParCompteCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPES_EPARGNE } from '../utils/holdingCategories'
-import { formatEuro } from '../utils/format'
+import { formatDate, formatEuro } from '../utils/format'
 
 const SANS_ETABLISSEMENT = 'Sans établissement'
 
@@ -201,6 +201,10 @@ export default function ComptesPage() {
                         )}
                         <span className="ml-2 text-xs text-texte-attenue">
                           {ligne.nombre_lignes} ligne{ligne.nombre_lignes > 1 ? 's' : ''}
+                          {/* Dernière activité utilisateur sur ce compte (demande
+                              directe du 16/09/2026) — absente pour le bucket « Sans
+                              compte » ou un compte tout juste créé sans aucune ligne. */}
+                          {ligne.derniere_maj && <> · mise à jour le {formatDate(ligne.derniere_maj)}</>}
                         </span>
                         {/* Retour utilisateur du 09/09/2026 : une répartition entre
                             détenteurs commencée puis rompue (le plus souvent la

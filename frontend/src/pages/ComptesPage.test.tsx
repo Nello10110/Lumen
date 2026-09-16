@@ -55,7 +55,7 @@ function compte(overrides: Partial<Compte> = {}): Compte {
 }
 
 function ligne(overrides: Partial<CompteAvecSolde> = {}): CompteAvecSolde {
-  return { compte: compte(), solde: 1000, nombre_lignes: 2, repartition_incomplete: false, ...overrides }
+  return { compte: compte(), solde: 1000, nombre_lignes: 2, repartition_incomplete: false, derniere_maj: null, ...overrides }
 }
 
 function holding(overrides: Partial<Holding> = {}): Holding {
@@ -128,6 +128,26 @@ describe('ComptesPage', () => {
 
     await screen.findByText('PEA')
     expect(screen.getByRole('img', { name: /répartition.*incomplète/i })).toBeInTheDocument()
+  })
+
+  // Demande directe du 16/09/2026 : dernière activité utilisateur affichée par
+  // compte, absente quand elle n'a pas de sens (bucket « Sans compte »).
+  it('affiche la date de dernière mise à jour quand elle est connue', async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 1, nom: 'PEA' }), derniere_maj: '2026-09-10T14:32:00' }),
+    ])
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    expect(screen.getByText(/mise à jour le 10\/09\/2026/)).toBeInTheDocument()
+  })
+
+  it("n'affiche aucune date de mise à jour pour le bucket \"Sans compte\"", async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: null, derniere_maj: null })])
+    render(<ComptesPage />)
+
+    await screen.findByText('Sans compte')
+    expect(screen.queryByText(/mise à jour le/)).not.toBeInTheDocument()
   })
 
   it('le bucket "Sans compte" (compte === null) est affiché mais non cliquable', async () => {
