@@ -3658,18 +3658,21 @@ monogramme « P » (dégradé générique de l'ex-« Application Patrimoine »).
 soumises. Posée sous le titre de la page de connexion (`LoginPage.tsx`, remplace la simple mention
 « Lumen », redondante avec le logo juste à côté) et en tête du README, en italique sous le titre.
 
-#### AD.2 — `majeur` · `S` · `P2` · `traité` (15/09/2026) — Logo réactif à la santé du patrimoine
+#### AD.2 — `majeur` · `S` · `P2` · `retiré` (16/09/2026, livré le 15/09/2026) — Logo réactif à la santé du patrimoine
 
-Le logo de la sidebar porte désormais un halo CSS (`filter: drop-shadow`) dont l'intensité suit la
-variation du patrimoine sur la lentille/période/détenteur **actuellement affichés** — nouveau hook
-`useVariationPatrimoine` (`hooks/useVariationPatrimoine.ts`), réutilisant les préférences globales
-déjà partagées avec le tableau de bord et le Rapport (`usePreferencesAffichage`), plutôt qu'un état
-parallèle qui risquerait de diverger. En hausse : halo vert (`--positif`), intensité croissante avec
-l'amplitude (plafonnée à 20 %, cf. `utils/lumenHalo.ts`). En baisse : le logo se désature/s'assombrit
-légèrement — **jamais de rouge**, conformément à la demande explicite (« l'app n'est pas là pour
-stresser »). Aucune donnée (chargement, erreur réseau silencieuse, historique insuffisant) : logo
-dans son état par défaut, sans filtre. Statique par construction (pas de boucle d'animation) : rien
-à désactiver pour `prefers-reduced-motion`.
+Le logo de la sidebar portait un halo CSS (`filter: drop-shadow`) dont l'intensité suivait la
+variation du patrimoine sur la lentille/période/détenteur **actuellement affichés** — hook
+`useVariationPatrimoine`, réutilisant les préférences globales déjà partagées avec le tableau de
+bord et le Rapport (`usePreferencesAffichage`). En hausse : halo vert (`--positif`), intensité
+croissante avec l'amplitude (plafonnée à 20 %). En baisse : le logo se désaturait/s'assombrissait
+légèrement — jamais de rouge, conformément à la demande explicite (« l'app n'est pas là pour
+stresser »).
+
+**Retiré le 16/09/2026** : retour utilisateur direct après usage réel (« ça rend pas bien »).
+`hooks/useVariationPatrimoine.ts` et `utils/lumenHalo.ts` supprimés, le logo repasse à ses couleurs
+fixes de marque sans aucune exception. § AG.5 ci-dessous, qui se présentait comme une extension de ce
+halo, reformulée en conséquence — elle reste un objectif autonome, pas une extension d'un effet
+disparu.
 
 #### AD.3 — `mineur` · `XS` · `P2` · `traité` (15/09/2026) — Micro-textes thématiques
 
@@ -3877,13 +3880,16 @@ ce soit (l'application n'a pas de notion de classement, et ça doit le rester). 
 régularité, jamais le volume investi ou le risque pris — pour ne jamais dériver vers une incitation
 à « faire plus ».
 
-#### AG.5 — `validé` (15/09/2026) — Ambiance visuelle qui respire la santé du patrimoine
+#### AG.5 — `validé` (15/09/2026, reformulée le 16/09/2026) — Ambiance visuelle qui respire la santé du patrimoine
 
-Extension du halo du logo (§ AD.2) : le fond à halos déjà présent sur toute l'application (`body`,
-refonte « liquid glass ») pourrait très légèrement teinter sa chaleur selon la tendance générale du
-patrimoine — un effet d'ambiance, jamais un indicateur chiffré déguisé, à peine perceptible plutôt
-qu'un thème qui change de couleur franchement. Risque réel de trop en faire ; à essayer avec
-retenue, réversible si ça distrait plus que ça n'apaise.
+Le fond à halos déjà présent sur toute l'application (`body`, refonte « liquid glass ») pourrait très
+légèrement teinter sa chaleur selon la tendance générale du patrimoine — un effet d'ambiance, jamais
+un indicateur chiffré déguisé, à peine perceptible plutôt qu'un thème qui change de couleur
+franchement. Risque réel de trop en faire ; à essayer avec retenue, réversible si ça distrait plus que
+ça n'apaise. **Prudence renforcée depuis le retrait d'AD.2** (16/09/2026, « ça rend pas bien ») : le
+même principe (teinter une surface selon la santé du patrimoine) vient d'être jugé décevant en usage
+réel une première fois — à ne développer qu'après validation d'une maquette ou d'un aperçu concret
+avec l'utilisateur, pas en aveugle.
 
 #### AG.6 — `validé` (15/09/2026) — Simulateur reformulé en histoires
 
@@ -4050,7 +4056,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 13 — Modèle des séries de cours** | AB.1, AB.2, AB.3, AB.4, AB.5, AB.6 | — | `L` | **Livré** 14/09/2026 (6/6) |
 | **Lot 14 — Provenance par compte du grand livre** | AC.1, AC.2, AC.3 | — | `L` | **Livré** 14/09/2026 (3/3) |
 | **Lot 15 — Cours des cryptomonnaies via CoinGecko** | AE.1, AE.2, AE.3 | — | `M` | **Livré** 15/09/2026 (3/3) |
-| **Lot 16 — Identité « Lumen »** | AD.1, AD.2, AD.3, AD.4, AD.5 | Logo intégré | `M` | **Livré** 15/09/2026 (5/5) |
+| **Lot 16 — Identité « Lumen »** | AD.1, AD.2, AD.3, AD.4, AD.5 | Logo intégré | `M` | **Livré** 15/09/2026 (5/5), AD.2 retiré le 16/09 |
 
 **Pourquoi cet ordre.**
 

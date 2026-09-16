@@ -1,9 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { useVariationPatrimoine } from '../hooks/useVariationPatrimoine'
 import { routesDuRang } from '../layout/routes'
-import { styleHaloLumen } from '../utils/lumenHalo'
 import { GlassPanel } from './GlassPanel'
 import LumenFaitAmusant from './LumenFaitAmusant'
 import LumenMark from './LumenMark'
@@ -31,14 +29,12 @@ const CLICS_REQUIS = 5
  * tout, seulement une encre atténuée. */
 export default function Sidebar() {
   const { user } = useAuth()
-  const variation = useVariationPatrimoine()
   const clicsLogo = useRef<number[]>([])
   const [faitAmusantVisible, setFaitAmusantVisible] = useState(false)
   // Référence stable (backlog § AD.5) : `LumenFaitAmusant` redémarre son minuteur
   // d'auto-fermeture à chaque changement de `onFermer` (cf. sa docstring) — sans
   // `useCallback`, une fonction fléchée inline serait recréée à chaque rendu de
-  // `Sidebar` (ex. quand `useVariationPatrimoine` reçoit une nouvelle valeur),
-  // remettant le minuteur à zéro indéfiniment.
+  // `Sidebar`, remettant le minuteur à zéro indéfiniment.
   const fermerFaitAmusant = useCallback(() => setFaitAmusantVisible(false), [])
 
   function gererClicLogo() {
@@ -62,12 +58,7 @@ export default function Sidebar() {
           onClick={gererClicLogo}
           className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink"
         >
-          {/* Halo réactif (backlog § AD.2) : la teinte/l'intensité suivent la
-              variation du patrimoine (lentille/période/détenteur actuellement
-              affichés, cf. `useVariationPatrimoine`) — jamais de rouge (§ AD.2,
-              « l'app n'est pas là pour stresser »), et statique (pas de
-              pulsation), donc rien à désactiver pour `prefers-reduced-motion`. */}
-          <LumenMark className="h-7 w-7 shrink-0" style={styleHaloLumen(variation)} />
+          <LumenMark className="h-7 w-7 shrink-0" />
           <span className="truncate">Lumen</span>
         </Link>
       </div>

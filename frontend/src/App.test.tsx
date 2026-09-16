@@ -38,10 +38,6 @@ vi.mock('./api/client', () => ({
     getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     listHoldings: vi.fn().mockResolvedValue([]),
     completeOnboarding: vi.fn(),
-    // Halo réactif du logo (backlog § AD.2) : `Sidebar` (rendue dans `App`) lit
-    // `getPatrimoineHistory()` via `useVariationPatrimoine` — non testé ici,
-    // résolution neutre (pas de halo).
-    getPatrimoineHistory: vi.fn().mockResolvedValue({ points: [] }),
   },
 }))
 

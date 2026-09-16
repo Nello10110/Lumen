@@ -1,5 +1,3 @@
-import type { CSSProperties } from 'react'
-
 /** Emblème « verre liquide » de Lumen (renommage du 15/09/2026, logo fourni par
  * l'utilisateur). Inline plutôt que `<img src="/favicon.svg">` : évite une requête
  * réseau supplémentaire sur les deux écrans qui l'affichent (Sidebar, LoginPage) et
@@ -10,12 +8,12 @@ import type { CSSProperties } from 'react'
  * l'emblème (mesurée via `getBBox`) à partir du fichier source
  * `docs/Ressources/lumen_logo.svg`, qui contient aussi le mot-symbole complet.
  *
- * `style` (backlog § AD.2, 15/09/2026) : passthrough facultatif — le halo réactif
- * de `Sidebar.tsx` (`utils/lumenHalo.styleHaloLumen`) est un `filter` CSS posé
- * ainsi, sans faire de ce composant partagé un composant spécifique au halo. */
-export default function LumenMark({ className, style }: { className?: string; style?: CSSProperties }) {
+ * Le halo réactif à la variation du patrimoine (§ AD.2, 15/09/2026) qui posait ici
+ * un `style` en passthrough a été retiré le 16/09/2026 (retour utilisateur direct :
+ * « ça rend pas bien ») — le logo reprend ses couleurs fixes, sans exception. */
+export default function LumenMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="269 52 744 744" aria-hidden="true" className={className} style={style}>
+    <svg viewBox="269 52 744 744" aria-hidden="true" className={className}>
       <defs>
         <linearGradient id="lumen-mark-glass" x1="0" y1="0" x2="0.9" y2="1">
           <stop offset="0" stopColor="#A9CEFF" />
