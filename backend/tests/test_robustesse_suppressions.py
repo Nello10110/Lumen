@@ -12,9 +12,9 @@ dépendaient : ils doivent tous répondre 200 avec une valeur cohérente.
 
 from datetime import datetime
 
-from app.models import Loan, QuotiteHolding, QuotiteLoan
+from app.models import Loan, QuotiteHolding, QuotiteLoan, Transaction
 
-from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding
+from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding, make_transaction
 
 ECRANS_AGREGES = [
     "/api/patrimoine/net",
@@ -193,23 +193,73 @@ def test_supprimer_un_actif_rattache_a_un_compte_laisse_le_compte_lisible(client
 
 
 # ---------------------------------------------------------------------------
-# Compte / établissement supprimés — le contenu retombe, jamais ne disparaît
+# Compte supprimé — cascade sur ses lignes ET ses transactions (revue du
+# 16/09/2026, demande directe) ; établissement supprimé — son contenu retombe,
+# ne disparaît jamais (comportement inchangé, un cran au-dessus)
 # ---------------------------------------------------------------------------
 
 
-def test_supprimer_un_compte_ne_fait_pas_disparaitre_son_contenu_du_patrimoine(client, db):
-    """Régression la plus coûteuse possible : supprimer un « contenant » ne doit
-    JAMAIS faire baisser le patrimoine net."""
+def test_supprimer_un_compte_supprime_ses_lignes_et_baisse_le_patrimoine_net(client, db):
+    """Comportement délibérément inversé le 16/09/2026 (demande explicite,
+    confirmée après clarification sur les transactions sous-jacentes) : supprimer
+    un compte supprime désormais tout ce qu'il contenait, y compris son impact sur
+    le patrimoine net — contrairement à la suppression d'un établissement, qui
+    reste une simple opération de regroupement."""
     compte = make_compte(db, nom="PEA")
     make_holding(db, ticker="AAA", compte_id=compte.id, quantite=10.0, prix_revient_moyen=100.0)
     net_avant = client.get("/api/patrimoine/net").json()["patrimoine_net"]
+    assert net_avant > 0
 
     assert client.delete(f"/api/comptes/{compte.id}").status_code == 200
 
-    assert client.get("/api/patrimoine/net").json()["patrimoine_net"] == net_avant
-    # La ligne existe toujours, simplement rattachée à aucun compte.
+    assert client.get("/api/patrimoine/net").json()["patrimoine_net"] == net_avant - 1000.0
     lignes = client.get("/api/portfolio/holdings").json()
-    assert any(h["ticker"] == "AAA" and h["compte"] is None for h in lignes)
+    assert not any(h["ticker"] == "AAA" for h in lignes)
+
+
+def test_supprimer_un_compte_supprime_aussi_les_transactions_du_grand_livre(client, db):
+    """Sans ce nettoyage, une ligne `origine=reconstruit` ressusciterait « Sans
+    compte » à la prochaine reconstruction du portefeuille — les transactions qui
+    lui donnent naissance doivent disparaître avec elle, pas seulement la ligne
+    `Holding` elle-même."""
+    compte = make_compte(db, nom="Compte Titres")
+    compte_id = compte.id
+    make_holding(db, ticker="AAA", compte_id=compte.id, quantite=10.0, prix_revient_moyen=100.0)
+    make_transaction(db, symbol="AAA", compte_id=compte.id)
+
+    assert client.delete(f"/api/comptes/{compte_id}").status_code == 200
+
+    assert db.query(Transaction).filter(Transaction.compte_id == compte_id).count() == 0
+    # La reconstruction du grand livre (ex. après un nouvel import) ne doit pas
+    # faire réapparaître la ligne supprimée.
+    assert client.post("/api/transactions/reconstruct").status_code == 200
+    lignes = client.get("/api/portfolio/holdings").json()
+    assert not any(h["ticker"] == "AAA" for h in lignes)
+
+
+def test_supprimer_un_compte_detache_sans_le_supprimer_un_emprunt_rattache(client, db):
+    """Même doctrine que la suppression d'une ligne individuelle
+    (`routers/portfolio.py::_detacher_references_avant_suppression`) : un emprunt
+    reste dû même si le bien qui le finançait sort du patrimoine."""
+    compte = make_compte(db, nom="Compte Immobilier")
+    h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", valeur_estimee=300000.0, compte_id=compte.id)
+    loan = Loan(
+        user_id=ID_UTILISATEUR_TEST,
+        libelle="Prêt",
+        capital_initial=200000.0,
+        taux_annuel_pct=3.0,
+        mensualite=1000.0,
+        date_debut=datetime(2020, 1, 1),
+        duree_mois=240,
+        holding_id=h.id,
+    )
+    db.add(loan)
+    db.commit()
+
+    assert client.delete(f"/api/comptes/{compte.id}").status_code == 200
+
+    assert db.get(Loan, loan.id) is not None
+    assert db.get(Loan, loan.id).holding_id is None
 
 
 def test_supprimer_un_etablissement_ne_fait_pas_disparaitre_ses_comptes(client):

@@ -137,3 +137,11 @@ class CompteAvecSoldeOut(BaseModel):
     # été supprimé depuis. `False` pour une répartition jamais commencée : c'est un
     # état valide, cf. `services/comptes_service._holdings_repartition_incomplete`.
     repartition_incomplete: bool
+    # Dernière activité utilisateur sur ce compte (demande directe du 16/09/2026) :
+    # le plus récent entre `Compte.updated_at` (renommage, changement
+    # d'établissement) et `Holding.updated_at` de chacune de ses lignes (édition,
+    # import qui les recalcule) — jamais la fraîcheur d'un cours de marché
+    # (`MarketDataCache.derniere_maj`, automatique), cf.
+    # `services/comptes_service.solde_par_compte`. `None` pour le bucket « Sans
+    # compte » (pas une entité, rien à dater) ou un compte sans aucune ligne.
+    derniere_maj: datetime | None

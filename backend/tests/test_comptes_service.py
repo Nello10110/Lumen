@@ -3,14 +3,14 @@
 le compte (bouclée sur `detenteurs_service.set_quotites_holding`, jamais une nouvelle
 table de quotités), solde tous types d'actifs confondus."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
-from app.models import Compte, Holding, Loan, QuotiteHolding, QuotiteLoan
+from app.models import Compte, Holding, Loan, QuotiteHolding, QuotiteLoan, Transaction
 from app.services import comptes_service, detenteurs_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
 
 
 def test_create_et_list_etablissements(db):
@@ -54,15 +54,28 @@ def test_delete_etablissement_ne_supprime_pas_les_comptes_rattaches(db):
     assert compte.etablissement_id is None
 
 
-def test_delete_compte_ne_supprime_pas_les_holdings_rattaches(db):
+def test_delete_compte_supprime_en_cascade_les_holdings_rattaches(db):
+    """Comportement délibérément inversé le 16/09/2026 (demande directe) —
+    contrairement à `delete_etablissement` ci-dessus, qui ne fait toujours que
+    détacher."""
     compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
-    holding = make_holding(db, ticker="AAA", compte_id=compte.id)
+    holding_id = make_holding(db, ticker="AAA", compte_id=compte.id).id
 
     comptes_service.delete_compte(db, compte)
 
-    db.refresh(holding)
-    assert db.get(Holding, holding.id) is not None
-    assert holding.compte_id is None
+    assert db.query(Holding).filter(Holding.id == holding_id).count() == 0
+
+
+def test_delete_compte_supprime_aussi_les_transactions_rattachees(db):
+    """Sans quoi une ligne `origine=reconstruit` ressusciterait « Sans compte » à
+    la prochaine reconstruction du portefeuille."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Compte Titres", None)
+    make_holding(db, ticker="AAA", compte_id=compte.id)
+    tx_id = make_transaction(db, symbol="AAA", compte_id=compte.id).id
+
+    comptes_service.delete_compte(db, compte)
+
+    assert db.query(Transaction).filter(Transaction.id == tx_id).count() == 0
 
 
 def test_get_or_create_compte_reutilise_un_compte_existant(db):
@@ -187,6 +200,33 @@ def test_solde_par_compte_inclut_un_compte_vide_a_zero(db):
     assert resultats[0]["compte"].id == compte.id
     assert resultats[0]["solde"] == 0.0
     assert resultats[0]["nombre_lignes"] == 0
+
+
+def test_solde_par_compte_derniere_maj_reflete_la_ligne_la_plus_recemment_modifiee(db):
+    """Demande directe du 16/09/2026 — le plus récent entre le compte lui-même
+    (`Compte.updated_at`) et ses lignes (`Holding.updated_at`), jamais la
+    fraîcheur d'un cours de marché."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    assert resultats[0]["derniere_maj"] == holding.updated_at
+
+    plus_tard = holding.updated_at + timedelta(days=1)
+    holding.updated_at = plus_tard
+    db.commit()
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    assert resultats[0]["derniere_maj"] == plus_tard
+
+
+def test_solde_par_compte_derniere_maj_absente_pour_le_bucket_sans_compte(db):
+    make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0)  # aucun compte_id
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["compte"] is None
+    assert resultats[0]["derniere_maj"] is None
 
 
 def test_solde_par_compte_avec_perimetre_invite_omet_les_comptes_sans_ligne_visible(db):

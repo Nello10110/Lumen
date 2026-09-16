@@ -10,8 +10,19 @@ entremêlé dans plusieurs services financiers testés."""
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from ..models import TYPES_ACTIF_SANS_ETABLISSEMENT, Compte, Etablissement, Holding, Loan, QuotiteHolding, QuotiteLoan
-from . import analysis_service, detenteurs_service
+from ..models import (
+    TYPES_ACTIF_SANS_ETABLISSEMENT,
+    Compte,
+    Etablissement,
+    Holding,
+    HoldingImmobilierDetail,
+    HoldingValuationHistory,
+    Loan,
+    QuotiteHolding,
+    QuotiteLoan,
+    Transaction,
+)
+from . import analysis_service, detenteurs_service, historique_cache
 
 
 def _verifier_nom_etablissement_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
@@ -116,12 +127,37 @@ def update_compte(db: Session, compte: Compte, **champs) -> Compte:
 
 
 def delete_compte(db: Session, compte: Compte) -> None:
-    """Les `Holding` rattachés retombent à `compte_id = None` (« Sans compte ») —
-    jamais supprimés, un compte n'est qu'un regroupement, jamais une donnée
-    constitutive d'une position."""
-    db.query(Holding).filter(Holding.compte_id == compte.id).update({"compte_id": None})
+    """Suppression en cascade (revue du 16/09/2026, demande directe de
+    l'utilisateur, confirmée après clarification explicite) : le compte, ses
+    lignes de patrimoine, ET les transactions du grand livre qui leur donnent
+    naissance disparaissent ensemble — contrairement à la doctrine « jamais en
+    cascade » qui prévaut ailleurs (`delete_etablissement` ci-dessus, qui ne
+    détache toujours QUE ses comptes). Une ligne `origine=reconstruit` (actions,
+    ETF, crypto...) ne peut pas être supprimée durablement en ne retirant que la
+    ligne `Holding` : elle ressusciterait « Sans compte » à la prochaine
+    reconstruction tant que les `Transaction` sous-jacentes existent encore — d'où
+    leur suppression ici aussi, pas seulement leur détachement. Même nettoyage des
+    tables filles qu'une suppression de ligne individuelle
+    (`routers/portfolio.py::_detacher_references_avant_suppression`) : quotités et
+    historique de valorisation/fiche immobilier disparaissent avec la ligne, un
+    `Loan` rattaché SURVIT (détaché seulement, un emprunt reste dû même si le bien
+    qu'il finançait sort du patrimoine)."""
+    holdings = db.query(Holding).filter(Holding.compte_id == compte.id).all()
+    holding_ids = [h.id for h in holdings]
+    if holding_ids:
+        db.query(QuotiteHolding).filter(QuotiteHolding.holding_id.in_(holding_ids)).delete(synchronize_session=False)
+        db.query(HoldingValuationHistory).filter(HoldingValuationHistory.holding_id.in_(holding_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id.in_(holding_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(Loan).filter(Loan.holding_id.in_(holding_ids)).update({"holding_id": None}, synchronize_session=False)
+        db.query(Holding).filter(Holding.id.in_(holding_ids)).delete(synchronize_session=False)
+    db.query(Transaction).filter(Transaction.compte_id == compte.id).delete(synchronize_session=False)
     db.delete(compte)
     db.commit()
+    historique_cache.invalider_historiques_patrimoine(db)
 
 
 def get_or_create_compte_sans_commit(db: Session, user_id: int, nom: str, etablissement_id: int | None = None) -> Compte:
@@ -281,10 +317,16 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
 
     comptes = list_comptes(db, user_id)
     par_compte_id: dict[int | None, dict] = {
-        compte.id: {"compte": compte, "solde": 0.0, "nombre_lignes": 0, "repartition_incomplete": False}
+        compte.id: {
+            "compte": compte,
+            "solde": 0.0,
+            "nombre_lignes": 0,
+            "repartition_incomplete": False,
+            "derniere_maj": compte.updated_at,
+        }
         for compte in comptes
     }
-    sans_compte = {"compte": None, "solde": 0.0, "nombre_lignes": 0, "repartition_incomplete": False}
+    sans_compte = {"compte": None, "solde": 0.0, "nombre_lignes": 0, "repartition_incomplete": False, "derniere_maj": None}
 
     for v in valued:
         cible = par_compte_id.get(v.holding.compte_id, sans_compte) if v.holding.compte_id is not None else sans_compte
@@ -292,6 +334,11 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
         cible["nombre_lignes"] += 1
         if v.holding.id in holdings_incomplets:
             cible["repartition_incomplete"] = True
+        # Le bucket « Sans compte » n'a pas de `derniere_maj` (pas une entité,
+        # cf. docstring de `CompteAvecSoldeOut`) : n'agrège cette valeur que pour
+        # un vrai compte.
+        if cible is not sans_compte and (cible["derniere_maj"] is None or v.holding.updated_at > cible["derniere_maj"]):
+            cible["derniere_maj"] = v.holding.updated_at
 
     resultats = list(par_compte_id.values())
     if holdings_visibles_ids is not None:

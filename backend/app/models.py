@@ -420,8 +420,11 @@ class Compte(Base):
     pratique sa propre ligne de compte (1:1), simple convention d'usage, rien
     n'impose cette cardinalité au niveau du schéma. `etablissement_id` nullable : un
     compte peut exister sans établissement rattaché (« Sans établissement » à
-    l'écran). Suppression : les `Holding` rattachés retombent à `compte_id = None`
-    (jamais supprimés en cascade, cf. `services/comptes_service.delete_compte`)."""
+    l'écran). Suppression (revue du 16/09/2026, demande directe) : les `Holding`
+    rattachés sont supprimés EN CASCADE, avec les transactions du grand livre qui
+    leur donnent naissance — contrairement à `Etablissement`, qui reste une simple
+    donnée de regroupement (ses comptes retombent à `etablissement_id = None`, cf.
+    `services/comptes_service.delete_compte`/`delete_etablissement`)."""
 
     __tablename__ = "comptes"
     __table_args__ = (UniqueConstraint("user_id", "nom", name="uq_compte_user_nom"),)
