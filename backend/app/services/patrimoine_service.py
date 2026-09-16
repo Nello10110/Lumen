@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from ..models import TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS, TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Loan
 from . import analysis_service, budget_service, detenteurs_service, loan_service
+from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
 
 # Types "liquides" au sens du matelas de sécurité (backlog 2.O.2) : disponibles
 # sans délai ni pénalité, contrairement au reste de `TYPES_ACTIF_PATRIMOINE_MANUEL`
@@ -54,6 +55,27 @@ LABEL_NON_RENSEIGNE = "Non renseigné"
 # finance aucune ligne en particulier (`Loan.holding_id is None`), afin que la somme
 # de `repartition_par_classe_nette` corresponde toujours exactement à `patrimoine_net`.
 LABEL_DETTES_NON_RATTACHEES = "Dettes non rattachées"
+
+
+def label_type_actif(holding: Holding) -> str:
+    """Libellé de classe d'actif affiché pour la répartition par classe — indexé sur
+    `LABEL_TYPE_ACTIF` (`type_actif`), avec un repli pour Bricks.co (crowdfunding
+    immobilier, retour utilisateur du 17/09/2026 : « ce sont des investissements
+    immobilier aussi, il faudrait que ce soit pris en compte » — dans la foulée du
+    repli géographique déjà posé pour ces lignes, § AO.1). `Holding.type_actif` reste
+    `BOND` pour ces lignes : c'est un choix assumé (§ AO.1) qui préserve leur
+    reconstruction depuis un VRAI grand livre de transactions (XIRR sur flux réels,
+    portefeuille financier) — un type `TYPES_ACTIF_PATRIMOINE_MANUEL` (dont
+    `REAL_ESTATE`) le casserait silencieusement, ces types n'ayant ni grand livre ni
+    historique de valorisation daté (`HoldingValuationHistory`) que Bricks.co ne
+    remplit jamais. Seul le LIBELLÉ affiché ici change, jamais le type stocké ni le
+    comportement de calcul — même principe que le repli géographique de
+    `analysis_service.value_holdings`, dont ce helper est le pendant pour la
+    dimension classe d'actif (pas de champ partagé équivalent à `ValuedHolding.region`
+    ici, chaque appelant relisait `type_actif` indépendamment avant ce helper)."""
+    if holding.ticker is not None and holding.ticker.startswith(PREFIXE_SYMBOLE_BRICKS):
+        return LABEL_TYPE_ACTIF["REAL_ESTATE"]
+    return LABEL_TYPE_ACTIF.get(holding.type_actif, LABEL_NON_RENSEIGNE)
 
 
 def _crd_par_ligne(db: Session, user_id: int) -> tuple[dict[int, float], float]:
@@ -94,7 +116,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         par_classe: dict[str, float] = {}
         par_classe_nette: dict[str, float] = {}
         for v in valued:
-            label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
+            label = label_type_actif(v.holding)
             par_classe[label] = par_classe.get(label, 0.0) + v.valeur
             valeur_nette = v.valeur - crd_par_holding.get(v.holding.id, 0.0)
             par_classe_nette[label] = par_classe_nette.get(label, 0.0) + valeur_nette
@@ -109,7 +131,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
 
         par_classe_financiere: dict[str, float] = {}
         for v in valued_financier:
-            label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
+            label = label_type_actif(v.holding)
             par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + v.valeur
     else:
         actifs_totaux = 0.0
@@ -126,7 +148,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
                 continue  # ligne non répartie ou pas de part pour ce détenteur : vue foyer seule
             actifs_totaux += part["part_detenue"]
             passifs_totaux += part["part_detenue"] - part["part_nette"]
-            label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
+            label = label_type_actif(v.holding)
             par_classe[label] = par_classe.get(label, 0.0) + part["part_detenue"]
             # `part_nette` (déjà = part_detenue − part de l'emprunt rattaché à CETTE
             # ligne, cf. `detenteurs_service.compute_parts`) est exactement la même
@@ -143,7 +165,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
             part = parts_par_holding.get(h.id, {}).get(detenteur_id)
             if part is not None:
                 patrimoine_financier += part["part_detenue"]
-                label = LABEL_TYPE_ACTIF.get(h.type_actif, LABEL_NON_RENSEIGNE)
+                label = label_type_actif(h)
                 par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + part["part_detenue"]
 
     return {
@@ -186,7 +208,7 @@ def _calculer_expo(db: Session, valued: list, valeur_totale: float, *, garder_ne
 
     totaux_classe: dict[str, float] = {}
     for v in valued:
-        label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
+        label = label_type_actif(v.holding)
         totaux_classe[label] = totaux_classe.get(label, 0.0) + v.valeur
     repartition_classe = _repartition_triee(totaux_classe, garder_negatifs=garder_negatifs)
 
@@ -312,7 +334,7 @@ def compute_composition_categorie_consolidee(db: Session, user_id: int, dimensio
                 # ticker (un compte chacune) — cf. `CategoryCompositionItem`.
                 {"id": v.holding.id, "ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(v.valeur, 2)}
                 for v in valued
-                if LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE) == categorie and abs(v.valeur) > 1e-9
+                if label_type_actif(v.holding) == categorie and abs(v.valeur) > 1e-9
             ),
             key=lambda ligne: -ligne["valeur"],
         )

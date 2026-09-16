@@ -138,7 +138,17 @@ export function valeurProjeteeUnAn(valeurEstimee: number | null, tauxPct: number
   return valeurEstimee * (1 + tauxPct / 100)
 }
 
+// Préfixe des symboles synthétiques Bricks.co (crowdfunding immobilier, même
+// constante que `bricks_import.PREFIXE_SYMBOLE` côté backend) — utilisé ci-dessous
+// pour regrouper ces lignes sous l'onglet "Immobilier & Épargne" plutôt
+// qu'"Obligations", sans toucher `type_actif` (reste `BOND`, cf. retour utilisateur
+// du 17/09/2026 et `patrimoine_service.label_type_actif` pour la justification
+// complète — préserve le grand livre de transactions/XIRR réel de ces lignes,
+// qu'un type `TYPES_PATRIMOINE` casserait silencieusement).
+const PREFIXE_TICKER_BRICKS = 'BRICKS-'
+
 export function categorieDe(h: Holding): Categorie {
+  if (h.ticker.startsWith(PREFIXE_TICKER_BRICKS)) return 'PATRIMOINE'
   if (h.type_actif && TYPES_PATRIMOINE.has(h.type_actif)) return 'PATRIMOINE'
   if (
     h.type_actif === 'STOCK' ||

@@ -62,6 +62,25 @@ def test_repartition_par_classe_groupe_par_type_actif_avec_libelles_francais(db)
     assert categories_triees == ["Immobilier", "Actions", "Non renseigné"]
 
 
+def test_repartition_par_classe_groupe_bricks_avec_limmobilier(db):
+    """Retour utilisateur du 17/09/2026 : « ce sont des investissements immobilier
+    aussi » — une ligne Bricks.co (crowdfunding immobilier, `type_actif="BOND"` par
+    construction, cf. § AO.1) doit se regrouper avec l'immobilier direct dans la
+    répartition par classe, pas former sa propre part sous "Obligations". Vérifie
+    aussi qu'une obligation Trade Republic ordinaire (même `type_actif`, mais sans
+    le préfixe de ticker Bricks.co) reste bien sous "Obligations"."""
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=100000.0, valeur_estimee=150000.0)
+    make_holding(db, ticker="BRICKS-ABCDEF0123", type_actif="BOND", quantite=1, prix_revient_moyen=5000.0)
+    make_holding(db, ticker="FR0000120271", type_actif="BOND", quantite=1, prix_revient_moyen=2000.0)
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+
+    par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe"]}
+    assert par_categorie["Immobilier"] == 155000.0  # 150000 (MAISON) + 5000 (Bricks.co)
+    assert par_categorie["Obligations"] == 2000.0  # FR0000120271 seule, jamais Bricks.co
+    assert "Non renseigné" not in par_categorie
+
+
 def test_repartition_par_classe_omet_les_categories_a_valeur_nulle(db):
     make_holding(db, ticker="PE", type_actif="PRIVATE_FUND", quantite=1, prix_revient_moyen=0.0)
 

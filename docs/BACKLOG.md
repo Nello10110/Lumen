@@ -4247,7 +4247,12 @@ l'absence de rafraîchissement de cours en environnement de test isolé, pas à 
 
 ---
 
-### AO. Lignes Bricks.co non catégorisées géographiquement (17/09/2026)
+### AO. Lignes Bricks.co non catégorisées géographiquement, ni comme immobilier (17/09/2026)
+
+Deux demandes liées dans la même conversation : « les investissements de Bricks.co sont tous des
+investissements européens, mais ils sont marqués comme non catégorisés » (AO.1), puis « j'ai oublié de
+te dire mais ce sont des investissements immobilier aussi, il faudrait que ce soit pris en compte
+également » (AO.2).
 
 #### AO.1 — `mineur` · `XS` · `traité` (17/09/2026) — Repli Europe pour les lignes Bricks.co dans la répartition géographique
 
@@ -4274,6 +4279,38 @@ supplémentaire — la répartition géographique de l'écran Analyse (Portefeui
 consolidée tous actifs (`patrimoine_service.compute_exposition_consolidee`, § P.1) partagent la même
 fonction. Repli lisible malgré tout si `market_data` porte un jour une région mesurée pour un tel
 symbole (cas non observé en pratique) : elle prime sur le repli structurel.
+
+#### AO.2 — `mineur` · `S` · `traité` (17/09/2026) — Bricks.co regroupé avec l'immobilier dans la répartition par classe
+
+Même mécanisme que AO.1, appliqué cette fois à la dimension « classe d'actif » : `LABEL_TYPE_ACTIF`
+(`patrimoine_service.py`) classait toute ligne `type_actif="BOND"` — Bricks.co compris — sous
+« Obligations », dans la répartition par classe ET dans la carte « Par type d'investissement » du
+tableau de bord (`PatrimoineNetCard.tsx`, mêmes données) ET l'onglet du Portefeuille
+(`holdingCategories.ts::categorieDe`).
+
+`Holding.type_actif` reste délibérément `BOND` pour ces lignes (ne change PAS avec ce correctif) : c'est
+la condition qui préserve leur reconstruction depuis un vrai grand livre de transactions
+(achats/ventes/dividendes réels, XIRR sur flux réels, appartenance au « portefeuille financier ») — un
+type `TYPES_ACTIF_PATRIMOINE_MANUEL` (dont `REAL_ESTATE`) casserait silencieusement ce calcul, ces types
+n'ayant ni grand livre ni historique de valorisation daté (`HoldingValuationHistory`) que Bricks.co ne
+remplit jamais. Seul le LIBELLÉ affiché change :
+
+- Backend : nouvelle fonction `patrimoine_service.label_type_actif(holding)` — repli sur le libellé
+  `REAL_ESTATE` (« Immobilier ») quand le ticker porte le préfixe Bricks.co, sinon `LABEL_TYPE_ACTIF`
+  inchangé. Remplace les 6 appels directs à `LABEL_TYPE_ACTIF.get(...)` de ce module (répartition par
+  classe brute/nette, vue foyer ET par détenteur, lentille financière, détail d'une catégorie) — pas de
+  champ équivalent à `ValuedHolding.region` (AO.1) à réutiliser ici, chaque appelant relisait
+  `type_actif` indépendamment.
+- Frontend : `categorieDe()` (`holdingCategories.ts`) regroupe désormais un ticker Bricks.co sous
+  `PATRIMOINE` (onglet « Immobilier & Épargne » du Portefeuille) au lieu de `BOND` (onglet
+  « Obligations ») — sans toucher `TYPES_PATRIMOINE` (qui pilote aussi l'affichage de la Quantité/Zone
+  géographique dans le formulaire d'ajout manuel, sans objet pour Bricks.co qui garde ses vraies
+  quantité/prix issus du grand livre).
+
+Le « Type » technique affiché sur la fiche d'une ligne (`HoldingDetailContent.tsx::libelleTypeActif`,
+`TYPE_ACTIF_OPTIONS`) reste volontairement « Obligation » — c'est la nature juridique réelle de
+l'instrument Bricks.co (une fraction d'obligation/prêt), seule sa lecture ÉCONOMIQUE agrégée (classe
+d'actif, onglet de navigation) est reclassée en immobilier.
 
 ---
 ## 3. Hors périmètre (assumé)
