@@ -4066,6 +4066,64 @@ et les masque pour un membre, le formulaire de partage n'a plus de case Objectif
 backend (pytest) et frontend (vitest/tsc/oxlint) au vert. Effort `M`.
 
 ---
+
+### AK. Quatre retours terrain (16/09/2026)
+
+Quatre demandes ponctuelles, sans lien entre elles, regroupées ici comme les autres lots de retours
+terrain (§ 9) plutôt que dispersées en « hors lot ».
+
+#### AK.1 — `mineur` · `XS` · `traité` (16/09/2026) — Onglet « Patrimoine » renommé « Actifs »
+
+Renommage pur du libellé de navigation et du titre d'onglet (`layout/routes.ts`, `path: '/patrimoine'`
+inchangé) — jamais touché : « patrimoine net », un concept distinct affiché ailleurs dans l'app
+(Synthèse, `PatrimoineNetCard`...), ni le titre de la page elle-même (`PortefeuillePage.tsx`, qui
+affichait déjà « Portefeuille », pas « Patrimoine »).
+
+#### AK.2 — `majeur` · `M` · `traité` (16/09/2026) — Suppression d'un compte : cascade sur ses lignes ET ses transactions
+
+**Inverse délibérément** la doctrine « jamais en cascade » qui prévalait jusqu'ici pour un compte
+(cf. § X.1) — demande directe, confirmée après double clarification : d'abord sur le principe (« il
+faut supprimer les lignes associées », contre le comportement actuel documenté et testé), puis sur
+une subtilité technique repérée en creusant l'implémentation — une ligne `origine=reconstruit`
+(actions, ETF, crypto...) ne peut pas être supprimée durablement en ne retirant que la ligne
+`Holding` : elle ressuscite « Sans compte » à la prochaine reconstruction du portefeuille tant que
+les `Transaction` sous-jacentes existent encore en base. Confirmé : oui, supprimer aussi les
+transactions du grand livre rattachées à ce compte.
+
+`comptes_service.delete_compte` : pour chaque `Holding` du compte, même nettoyage des tables filles
+qu'une suppression de ligne individuelle (`routers/portfolio.py::_detacher_references_avant_suppression`
+— quotités et historique de valorisation/fiche immobilier disparaissent, un `Loan` rattaché SURVIT,
+seulement détaché) puis suppression de la ligne elle-même ; toutes les `Transaction.compte_id`
+correspondantes supprimées ; invalidation du cache d'historique de patrimoine (`historique_cache`,
+jusqu'ici pas nécessaire puisque rien ne changeait). La suppression d'un **établissement** reste,
+elle, inchangée : ses comptes retombent à `etablissement_id = NULL`, jamais supprimés — seule la
+suppression d'un compte cascade désormais, pas celle de son établissement. Vérifié : patrimoine net
+qui baisse après suppression (comportement inverse de l'ancien test verrouillé), transactions
+purgées et absence de résurrection après `POST /api/transactions/reconstruct`, emprunt rattaché
+détaché sans être supprimé.
+
+#### AK.3 — `mineur` · `S` · `traité` (16/09/2026) — Rendement par défaut du simulateur = rendement réellement observé
+
+Le champ « Rendement annuel moyen » du Simulateur (onglet Analyse) partait d'une hypothèse
+arbitraire fixe (5 %). Préempli désormais avec `rendement_annualise_pct` (money-weighted/XIRR, même
+calcul que la carte Rentabilité), réutilisant l'appel `GET /api/performance` déjà fait par ce
+composant pour « Intérêts déjà obtenus » — aucune requête réseau supplémentaire. Repli sur 5 % si la
+donnée est `null`, négative ou nulle (pas encore d'historique exploitable) ; lien « Revenir au
+rendement observé » sous le curseur une fois la valeur modifiée à la main, même patron que le
+capital de départ et le versement mensuel suggéré juste à côté.
+
+#### AK.4 — `mineur` · `S` · `traité` (16/09/2026) — Date de dernière mise à jour par compte
+
+Écran Comptes : chaque ligne affiche désormais « mise à jour le JJ/MM/AAAA » à côté du nombre de
+lignes qu'elle contient. `Compte.updated_at` existait déjà (`onupdate=utcnow`) mais ne bougeait que
+sur une édition du compte lui-même (renommage, changement d'établissement) — signal trop rare pour
+être utile seul. `comptes_service.solde_par_compte` calcule maintenant le plus récent entre
+`Compte.updated_at` et le `Holding.updated_at` de chacune de ses lignes (édition manuelle, import qui
+les recalcule) — jamais la fraîcheur d'un cours de marché (`MarketDataCache.derniere_maj`,
+automatique, pas une activité utilisateur). Absent pour le bucket « Sans compte » (pas une entité) ou
+un compte tout juste créé sans aucune ligne.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
