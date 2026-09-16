@@ -4576,6 +4576,25 @@ simplifié (elle ne créait de toute façon que des personnes). Carte renommée 
 (`BarreControles.tsx`, `DetenteursSection.tsx`, `EtapeDetenteurs.tsx`, `SauvegardeDonneesCard.tsx`,
 `docs/MANUEL_UTILISATEUR.md`).
 
+#### AV.1 — `mineur` · `S` · `traité` (17/09/2026) — Attente Lumen pour le calcul de l'historique
+
+Retour utilisateur direct : « quand le graphique de la page synthèse s'actualise [...] on a une
+animation qui montre que ça charge mais franchement pas fou [...] une barre de chargement qui avance,
+[pour] mieux patienter ». Le squelette gris générique (`SkeletonGraphique`) pendant le calcul de
+l'historique du patrimoine — jusqu'à une minute pour des titres jamais téléchargés,
+`PortfolioHistoryChart.tsx` — ne disait rien de cette attente ni de sa progression.
+
+Nouveau composant `ChargementCourbeLumen.tsx` : le mark Lumen respire doucement en boucle
+(`animate-lumen-pouls`, variante bouclée de `lumen-respire` du chiffre héros, § AH.3) sous le texte
+« Lumen fait la lumière sur votre historique… » — le jeu de mot demandé, littéral (Lumen = unité de
+lumière) et idiomatique (« faire la lumière sur » = clarifier, exactement ce que fait ce calcul).
+En dessous, une barre de progression « à la confiance » (même famille que les installations npm ou
+GitHub Actions) : aucun signal de progression réel n'existe pour ce calcul monolithique (une seule
+requête, pas d'étapes dénombrables côté backend, contrairement au rafraîchissement des cours du § AT) —
+plutôt que de mentir en visant 100 %, elle avance vite au début puis ralentit en s'approchant de 92 %,
+où elle se fige jusqu'à l'arrivée réelle des données. Deux nouvelles animations CSS
+(`lumen-pouls`, `lumen-progression`), toutes deux désactivées sous `prefers-reduced-motion`.
+
 ---
 ## 3. Hors périmètre (assumé)
 
