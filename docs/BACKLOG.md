@@ -4617,6 +4617,50 @@ a détecté la régression à chaque fois : ce qui manquait, c'est de faire tour
 structure visible d'un écran couvert par l'E2E. Mémorisé comme règle systématique pour la suite,
 plutôt qu'un rappel à refaire à chaque session.
 
+#### AX.1 — `mineur` · `L` · `traité` (17/09/2026) — Mode étagé, Brut/Net local, sélecteur de personne, échelle euro et détail des lignes sur l'onglet Évolution
+
+Retour utilisateur direct, quatre demandes sur le graphique de l'onglet Évolution d'Analyse
+(`EvolutionFinanciereCard.tsx`) : « pouvoir afficher le mode étagé, un bouton brut net (j'aime plutôt
+bien que pour cette vue spécifiquement, les boutons du dessus ne soient pas pris en compte), pareil
+rajouter le sélecteur de personne, ajouter sur le graphique l'échelle du montant euro à la vertical, et
+ajouter en dessous du graphique les lignes correspondantes pour voir le détail ». Cadrage confirmé
+avant développement : Brut/Net à deux options (pas trois — la vue reste distincte de la lentille
+Net/Brut/Financier globale, cohérent avec la doctrine déjà en place « jamais `usePreferencesAffichage()`
+ici », cf. `RapportPage.tsx`) ; le tableau de détail montre la composition ACTUELLE du patrimoine
+(aujourd'hui), pas une reconstruction historique à une date passée.
+
+Cette carte appelait jusqu'ici `GET /performance/history` (financier seul, jamais netté d'un emprunt).
+Basculée vers `GET /patrimoine/historique` (`patrimoine_history_service.compute_patrimoine_history`),
+déjà utilisée pour le mode étagé Net/Brut du tableau de bord et déjà filtrable par détenteur — étendue
+ici pour accepter EN PLUS les filtres classe d'actif/compte/établissement déjà offerts par
+`compute_portfolio_history_filtre` (financière) : les deux fonctions partageaient déjà la même logique
+de série par ligne (immobilier/épargne, netting d'emprunt), seule la façade différait. Un point réponse
+porte désormais `actifs_totaux`/`patrimoine_net` (Brut/Net) EN MÊME TEMPS : le bouton Brut/Net ne
+redemande donc rien au réseau, il choisit seulement quel champ du point déjà reçu afficher. Ratio de
+répartition par détenteur de la poche financière (déjà « flou », documenté comme tel) recalculé sur le
+seul sous-ensemble FILTRÉ quand un filtre classe/compte/établissement est actif, pas sur tout le
+foyer — sinon un détenteur possédant 100 % d'un compte filtré mais une part différente du reste du
+foyer aurait hérité à tort du ratio global. Emprunts scopés de la même façon (seul celui rattaché à une
+ligne qui matche elle-même le filtre est déduit en mode Net).
+
+Nouveau backend pour le tableau de détail : `patrimoine_service.lignes_patrimoine_filtrees` +
+`GET /api/patrimoine/lignes`, mêmes filtres (classe/compte/établissement/détenteur) que
+`/historique` — renvoie chaque ligne contribuant au total affiché, avec sa quote-part si un détenteur
+est filtré. Frontend : `LignesPatrimoineTable.tsx` (nouveau composant), colonnes Ligne/Classe/Compte/
+Quantité/Quote-part (si détenteur filtré)/Valeur, total en pied de tableau. Échelle verticale :
+exception délibérée et documentée au langage graphique de `ChartFrame` (« ni grille ni axe dessiné »,
+en place partout ailleurs) — nouveau `AXE_VALEURS` (`chartTheme.tsx`) et `formatEuroAxe` (`format.ts`,
+notation compacte k€/M€, seule lisible dans la bande étroite d'un axe Recharts).
+
+Migration de cache : `historique_cache.cle_historique_patrimoine` étendue avec les trois nouveaux
+filtres en suffixe optionnel — absents, la clé reste EXACTEMENT celle d'avant ce lot (le tableau de
+bord, jamais filtré, continue de lire/écrire la même entrée). Vérifié en conditions réelles (page de
+test isolée, backend simulé) : filtres, bascule Brut/Net sans appel réseau, mode étagé, sélecteur de
+détenteur et tableau de détail fonctionnent ensemble, dans les deux thèmes.
+
+---
+## 3. Hors périmètre (assumé)
+
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
 
 **Sortis du hors-périmètre :**
