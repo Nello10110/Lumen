@@ -84,4 +84,17 @@ describe('Sidebar (backlog 2.K.2)', () => {
       expect(screen.getByRole('status')).toBeInTheDocument()
     })
   })
+
+  // Demande directe du 16/09/2026 : une lueur dans l'accent du thème au survol du
+  // logo. jsdom ne simule pas réellement `:hover` (posé en CSS pur, cf.
+  // `index.css` — testé visuellement au navigateur, cf. commit), ce test-ci
+  // verrouille seulement le câblage React : la classe qui porte l'effet est bien
+  // posée sur le logo, à l'intérieur du lien qui porte le déclencheur `:hover`.
+  it('porte la classe de l’éclat au survol, à l’intérieur du lien du logo', () => {
+    renderSidebar()
+    const lien = screen.getByRole('link', { name: 'Lumen' })
+    expect(lien).toHaveClass('lumen-logo-link')
+    const svg = lien.querySelector('svg')
+    expect(svg?.getAttribute('class')).toContain('lumen-eclat-survol')
+  })
 })

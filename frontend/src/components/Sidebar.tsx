@@ -56,9 +56,9 @@ export default function Sidebar() {
           to="/"
           aria-label="Lumen"
           onClick={gererClicLogo}
-          className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink"
+          className="lumen-logo-link flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink"
         >
-          <LumenMark className="h-7 w-7 shrink-0" />
+          <LumenMark className="lumen-eclat-survol h-7 w-7 shrink-0" />
           <span className="truncate">Lumen</span>
         </Link>
       </div>

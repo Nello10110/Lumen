@@ -383,3 +383,28 @@ summary,
     animation: none;
   }
 }
+
+/* Éclat au survol du logo (16/09/2026, demande directe) : lueur dans l'accent DU
+   THÈME (`var(--accent)`, pas une couleur fixe) au passage du curseur sur le logo
+   de la sidebar — seul exemplaire cliquable (celui de la connexion reste
+   statique, purement identitaire, hors de propos ici). `var(--accent)` plutôt
+   qu'un bleu codé en dur : la lueur suit le thème clair/sombre, comme tout le
+   reste de l'interface. Déclenchée sur `.lumen-logo-link` (le lien entier, pas le
+   seul SVG) pour qu'un survol n'importe où sur « Lumen » — texte compris —
+   allume le logo, plus indulgent qu'une zone de survol limitée à l'icône.
+   `:focus-visible` en plus de `:hover` : même retour visuel au clavier. Une
+   transition d'état, pas une boucle : rien à rejouer, contrairement aux
+   animations `@keyframes` ci-dessus — seule la transition elle-même est coupée
+   pour `prefers-reduced-motion`, l'effet reste visible, juste sans fondu. */
+.lumen-eclat-survol {
+  transition: filter 200ms ease;
+}
+.lumen-logo-link:hover .lumen-eclat-survol,
+.lumen-logo-link:focus-visible .lumen-eclat-survol {
+  filter: drop-shadow(0 0 4px var(--accent)) drop-shadow(0 0 11px var(--accent));
+}
+@media (prefers-reduced-motion: reduce) {
+  .lumen-eclat-survol {
+    transition: none;
+  }
+}
