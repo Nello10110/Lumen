@@ -30,7 +30,7 @@ const OPTIONS_LENTILLE: { valeur: Lentille; label: string; aide: string }[] = [
 ]
 
 const AIDE_DETENTEUR =
-  "Filtre tout l'écran sur la part d'une seule personne/société du foyer, selon les répartitions (quotités) que vous avez saisies. « Foyer » = tout le patrimoine, sans filtre."
+  "Filtre tout l'écran sur la part d'une seule personne du foyer, selon les répartitions (quotités) que vous avez saisies. « Foyer » = tout le patrimoine, sans filtre."
 
 const AIDE_MONTANTS_MASQUES =
   'Remplace tous les montants par des points — pratique pour une démonstration, une capture d\'écran ou une consultation en public. Les pourcentages restent visibles.'
@@ -68,8 +68,8 @@ function optionsTheme(themeActif: Theme): { valeur: Theme; libelle: React.ReactN
 
 /** Barre de contrôles transverses (backlog 2.K.3/2.L.1), persistante et visible sur
  * tous les écrans (montée une seule fois dans `App.tsx`, en tête de `<main>`) —
- * lentille patrimoine net/brut/financier, filtre Détenteur (foyer ou une personne/
- * société précise), bascule "masquer les montants" et thème.
+ * lentille patrimoine net/brut/financier, filtre Détenteur (foyer ou une personne
+ * précise), bascule "masquer les montants" et thème.
  *
  * La pilule qui rappelait l'écran courant a été retirée le 07/09/2026 (« je ne vois
  * pas l'intérêt ») : elle disait une troisième fois ce que l'item actif de la barre

@@ -1,4 +1,4 @@
-"""Personnes/sociétés du foyer et quotités de propriété (backlog 2.L.1) — à qui
+"""Personnes du foyer et quotités de propriété (backlog 2.L.1) — à qui
 appartient quoi, indépendamment du compte de connexion (`User`, isolation stricte
 entre foyers différents). Deux répartitions distinctes et indépendantes existent :
 sur l'actif (`QuotiteHolding`) et sur l'emprunt éventuellement rattaché
@@ -39,9 +39,9 @@ def _verifier_nom_detenteur_libre(db: Session, user_id: int, nom: str, id_exclu:
         raise ValueError(f"Un détenteur nommé « {nom} » existe déjà.")
 
 
-def create_detenteur(db: Session, user_id: int, nom: str, type_: str) -> Detenteur:
+def create_detenteur(db: Session, user_id: int, nom: str) -> Detenteur:
     _verifier_nom_detenteur_libre(db, user_id, nom)
-    detenteur = Detenteur(user_id=user_id, nom=nom, type=type_)
+    detenteur = Detenteur(user_id=user_id, nom=nom)
     db.add(detenteur)
     db.commit()
     db.refresh(detenteur)

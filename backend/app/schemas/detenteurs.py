@@ -4,12 +4,9 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
-from ..models import TYPES_DETENTEUR_VALIDES
-
 
 class DetenteurBase(BaseModel):
     nom: str
-    type: str  # "personne" | "societe"
 
     @field_validator("nom")
     @classmethod
@@ -19,13 +16,6 @@ class DetenteurBase(BaseModel):
             raise ValueError("Le nom ne peut pas être vide")
         return v
 
-    @field_validator("type")
-    @classmethod
-    def _valider_type(cls, v: str) -> str:
-        if v not in TYPES_DETENTEUR_VALIDES:
-            raise ValueError(f"Type de détenteur invalide : doit être l'un de {TYPES_DETENTEUR_VALIDES}")
-        return v
-
 
 class DetenteurCreate(DetenteurBase):
     pass
@@ -33,7 +23,6 @@ class DetenteurCreate(DetenteurBase):
 
 class DetenteurUpdate(BaseModel):
     nom: str | None = None
-    type: str | None = None
 
     @field_validator("nom")
     @classmethod
@@ -43,13 +32,6 @@ class DetenteurUpdate(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("Le nom ne peut pas être vide")
-        return v
-
-    @field_validator("type")
-    @classmethod
-    def _valider_type(cls, v: str | None) -> str | None:
-        if v is not None and v not in TYPES_DETENTEUR_VALIDES:
-            raise ValueError(f"Type de détenteur invalide : doit être l'un de {TYPES_DETENTEUR_VALIDES}")
         return v
 
 

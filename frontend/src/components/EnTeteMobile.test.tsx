@@ -26,7 +26,7 @@ function auth(overrides: Partial<AuthContextValue['user']> = {}): AuthContextVal
 }
 
 function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
-  return { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+  return { id: 1, nom: 'Alice', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
 function renderEnTete(path = '/', valeurAuth = auth()) {

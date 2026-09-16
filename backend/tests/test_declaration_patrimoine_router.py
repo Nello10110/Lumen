@@ -31,7 +31,7 @@ def test_selection_holding_ids_restreint_le_contenu(client, db):
 
 
 def test_detenteur_dun_autre_foyer_404(client, db):
-    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
     basculer_utilisateur(db, ID_UTILISATEUR_B, "test-b")
 
     reponse = client.post("/api/export/declaration-patrimoine.pdf", json={"detenteur_id": id_detenteur_a})

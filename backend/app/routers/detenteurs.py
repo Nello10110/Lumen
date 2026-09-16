@@ -1,4 +1,4 @@
-"""CRUD des détenteurs (personnes/sociétés du foyer, backlog 2.L.1) — distincts des
+"""CRUD des détenteurs (personnes du foyer, backlog 2.L.1) — distincts des
 comptes de connexion (`User`)."""
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,7 +21,7 @@ def list_detenteurs(db: Session = Depends(get_db), current_user: User = Depends(
 @router.post("", response_model=DetenteurOut)
 def create_detenteur(payload: DetenteurCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        return detenteurs_service.create_detenteur(db, auth_service.id_foyer(current_user), payload.nom, payload.type)
+        return detenteurs_service.create_detenteur(db, auth_service.id_foyer(current_user), payload.nom)
     except ValueError as exc:
         # Doublon de nom : deux détenteurs homonymes seraient indiscernables dans
         # tous les sélecteurs de quotités (recette du 02/09/2026).

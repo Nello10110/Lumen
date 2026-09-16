@@ -7,11 +7,9 @@ import { Field, Input } from './Field'
 import Modale from './Modale'
 
 /** Petite pop-up « juste le nom » (retour utilisateur du 09/09/2026, écran Salaire :
- * pouvoir ajouter une personne du foyer sans quitter le formulaire en cours) — crée
- * un `Detenteur` de type "personne" (le cas de très loin le plus courant depuis un
- * formulaire de salaire ; une société se crée toujours via l'écran dédié,
- * `DetenteursCard.tsx`, qui expose le choix du type). `onCree` reçoit le détenteur
- * fraîchement créé pour que l'appelant le sélectionne immédiatement. */
+ * pouvoir ajouter une personne du foyer sans quitter le formulaire en cours). `onCree`
+ * reçoit le détenteur fraîchement créé pour que l'appelant le sélectionne
+ * immédiatement. */
 export default function AjoutDetenteurModale({ onClose, onCree }: { onClose: () => void; onCree: (detenteur: Detenteur) => void }) {
   const [nom, setNom] = useState('')
   const [creation, setCreation] = useState(false)
@@ -23,7 +21,7 @@ export default function AjoutDetenteurModale({ onClose, onCree }: { onClose: () 
     setCreation(true)
     setErreur(null)
     api
-      .createDetenteur(nomTrim, 'personne')
+      .createDetenteur(nomTrim)
       .then((detenteur) => onCree(detenteur))
       .catch((err) => setErreur((err as Error).message))
       .finally(() => setCreation(false))

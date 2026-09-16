@@ -405,7 +405,7 @@ Section visible uniquement par le propriétaire du compte.
 - **Comptes du foyer** : le propriétaire crée les comptes des autres membres du foyer (nom
   d'utilisateur, mot de passe, rôle). Un **membre** peut consulter et saisir des actifs, emprunts et
   transactions comme le propriétaire, mais pas voir les indicateurs de situation ni modifier la sécurité. Un **invité**
-  ne voit, en lecture seule, que le patrimoine net et le portefeuille des personnes/sociétés qui lui
+  ne voit, en lecture seule, que le patrimoine net et le portefeuille des personnes qui lui
   sont explicitement assignées (aucun accès par défaut tant qu'aucun détenteur n'est coché).
   Il n'existe plus d'inscription libre au-delà du tout premier compte du serveur.
 - **Sessions actives** : chaque appareil ou navigateur connecté avec ce compte, avec sa dernière

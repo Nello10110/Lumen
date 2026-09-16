@@ -7,8 +7,8 @@ export default function EtapeDetenteurs() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-texte">
-        Si le patrimoine est partagé (conjoint, société civile...), déclare ici les personnes et sociétés concernées —
-        utile pour répartir la propriété des actifs plus tard. Sans objet ? Cette étape se passe sans rien saisir.
+        Si le patrimoine est partagé (conjoint, enfant...), déclare ici les personnes concernées — utile pour répartir
+        la propriété des actifs plus tard. Sans objet ? Cette étape se passe sans rien saisir.
       </p>
       <DetenteursCard />
     </div>

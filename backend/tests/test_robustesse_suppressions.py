@@ -41,8 +41,8 @@ def test_supprimer_un_detenteur_qui_porte_des_quotites_ne_laisse_pas_de_quotite_
     `compute_parts` continue de répartir vers un détenteur inexistant, et la fiche
     de l'actif affiche une ligne sans nom."""
     h = make_holding(db, ticker="AAA")
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
-    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob"}).json()
     client.put(
         f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 50.0}, {"detenteur_id": bob["id"], "quotite_pct": 50.0}]},
@@ -73,7 +73,7 @@ def test_supprimer_un_detenteur_qui_porte_des_quotites_demprunt_ne_laisse_pas_do
     db.add(loan)
     db.commit()
     db.refresh(loan)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     client.put(f"/api/loans/{loan.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]})
 
     assert client.delete(f"/api/detenteurs/{alice['id']}").status_code == 200
@@ -85,7 +85,7 @@ def test_supprimer_un_detenteur_qui_porte_des_quotites_demprunt_ne_laisse_pas_do
 def test_supprimer_un_detenteur_associe_a_un_salaire_desassocie_lentree_sans_la_supprimer(client, db):
     """Contrairement aux quotités, une entrée de salaire n'est jamais supprimée avec le
     détenteur — seule l'association disparaît (`detenteur_id` repasse à `None`)."""
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     salaire = client.post(
         "/api/salaire",
         json={
@@ -150,7 +150,7 @@ def test_supprimer_un_actif_ne_laisse_aucune_reference_pendante_dans_les_4_table
     from app.models import HoldingImmobilierDetail, HoldingValuationHistory
 
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", valeur_estimee=300000.0)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     client.put(f"/api/portfolio/holdings/{h.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]})
     client.put(f"/api/portfolio/holdings/{h.id}/immobilier", json={"type_location": "nue", "loyer_mensuel": 1000.0})
     client.put(f"/api/portfolio/holdings/{h.id}/valorisation", json={"valeur": 310000.0, "date": "2025-01-01"})

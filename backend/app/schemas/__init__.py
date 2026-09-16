@@ -77,7 +77,6 @@ from .comptes import (  # noqa: F401
     ZoneGeoCompteUpdate,
 )
 from .detenteurs import (  # noqa: F401
-    TYPES_DETENTEUR_VALIDES,
     DetenteurBase,
     DetenteurCreate,
     DetenteurOut,

@@ -77,7 +77,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
 }
 
 function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
-  return { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+  return { id: 1, nom: 'Alice', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
 // Fiche à onglets (backlog 2.M.4) : Aperçu est l'onglet par défaut, Analyse (détenteurs,

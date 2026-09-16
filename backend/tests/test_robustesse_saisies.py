@@ -139,7 +139,7 @@ def test_compte_rattache_a_un_etablissement_inexistant_refuse(client):
 
 def test_quotite_negative_refusee(client, db):
     h = make_holding(db, ticker="AAA")
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     reponse = client.put(
         f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": -10.0}]},
@@ -149,7 +149,7 @@ def test_quotite_negative_refusee(client, db):
 
 def test_quotite_superieure_a_100_refusee(client, db):
     h = make_holding(db, ticker="AAA")
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     reponse = client.put(
         f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 150.0}]},
@@ -168,8 +168,8 @@ def test_quotites_avec_detenteur_inexistant_refusees(client, db):
 
 def test_quotites_somme_superieure_a_100_refusee(client, db):
     h = make_holding(db, ticker="AAA")
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
-    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob"}).json()
     reponse = client.put(
         f"/api/portfolio/holdings/{h.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 70.0}, {"detenteur_id": bob["id"], "quotite_pct": 70.0}]},
@@ -179,7 +179,7 @@ def test_quotites_somme_superieure_a_100_refusee(client, db):
 
 def test_quotites_compte_avec_detenteur_dun_autre_foyer_refusees(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus", "type": "personne"}).json()
+    detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus"}).json()
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     compte = make_compte(db, nom="CTO")
@@ -310,16 +310,12 @@ def test_salaire_taux_imposition_superieur_a_100_refuse(client):
 
 
 def test_detenteur_nom_vide_refuse(client):
-    assert client.post("/api/detenteurs", json={"nom": "  ", "type": "personne"}).status_code in REFUS
-
-
-def test_detenteur_type_invalide_refuse(client):
-    assert client.post("/api/detenteurs", json={"nom": "Alice", "type": "extraterrestre"}).status_code in REFUS
+    assert client.post("/api/detenteurs", json={"nom": "  "}).status_code in REFUS
 
 
 def test_detenteur_en_doublon_refuse(client):
-    client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"})
-    assert client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).status_code in REFUS
+    client.post("/api/detenteurs", json={"nom": "Alice"})
+    assert client.post("/api/detenteurs", json={"nom": "Alice"}).status_code in REFUS
 
 
 # ---------------------------------------------------------------------------

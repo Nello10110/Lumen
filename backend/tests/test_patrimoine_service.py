@@ -134,7 +134,7 @@ def test_repartition_par_classe_financiere_exclut_le_patrimoine_manuel(db):
 def test_repartition_par_classe_financiere_filtree_par_detenteur(db):
     h_action = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
     detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h_action, [(alice.id, 100.0)])
 
     resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
@@ -241,7 +241,7 @@ def test_repartition_par_classe_nette_detenteur_reutilise_part_nette(db):
         )
     )
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
     detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
 
     resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
@@ -273,7 +273,7 @@ def test_actif_non_reparti_est_invisible_dans_la_vue_dun_detenteur(db):
     """Un actif jamais réparti reste 100 % foyer implicite (K.1/L.1) — il n'apparaît
     dans la vue d'AUCUN détenteur individuel, seulement dans la vue foyer."""
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
 
     resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
 
@@ -303,8 +303,8 @@ def test_detenteur_id_filtre_a_la_part_de_ce_detenteur(db):
     )
     db.add(loan)
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
     detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
 
     vue_alice = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)

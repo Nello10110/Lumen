@@ -47,7 +47,6 @@ from sqlalchemy.orm import Session
 from ..models import (
     ORIGINE_MANUEL,
     ORIGINE_RECONSTRUIT,
-    TYPES_DETENTEUR_VALIDES,
     BudgetCible,
     CategorieBudget,
     Compte,
@@ -124,7 +123,7 @@ class TableExportee:
 TABLES: list[TableExportee] = [
     TableExportee("etablissements", Etablissement),
     TableExportee("comptes", Compte, references={"etablissement_id": "etablissements"}),
-    TableExportee("detenteurs", Detenteur, valeurs_autorisees={"type": frozenset(TYPES_DETENTEUR_VALIDES)}),
+    TableExportee("detenteurs", Detenteur),
     TableExportee(
         "holdings",
         Holding,

@@ -57,7 +57,7 @@ def test_patrimoine_net_actifs_moins_passifs(client, db):
 def test_detenteur_id_dun_autre_utilisateur_renvoie_404(client, db):
     """IDOR (backlog 2.L.1) : impossible de lire le patrimoine filtré sur le
     détenteur d'un autre compte, même en devinant son id."""
-    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get(f"/api/patrimoine/net?detenteur_id={id_detenteur_a}")
@@ -87,7 +87,7 @@ def test_patrimoine_historique_combine_financier_et_manuel(client, db):
 
 
 def test_patrimoine_historique_detenteur_dun_autre_utilisateur_renvoie_404(client, db):
-    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get(f"/api/patrimoine/historique?detenteur_id={id_detenteur_a}")

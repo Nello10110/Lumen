@@ -5,29 +5,23 @@ from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, 
 
 
 def test_creer_lister_detenteur(client):
-    reponse = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"})
+    reponse = client.post("/api/detenteurs", json={"nom": "Alice"})
     assert reponse.status_code == 200
     corps = reponse.json()
     assert corps["nom"] == "Alice"
-    assert corps["type"] == "personne"
 
     reponse = client.get("/api/detenteurs")
     assert reponse.status_code == 200
     assert [d["nom"] for d in reponse.json()] == ["Alice"]
 
 
-def test_creer_detenteur_type_invalide_est_rejete(client):
-    reponse = client.post("/api/detenteurs", json={"nom": "Alice", "type": "chat"})
-    assert reponse.status_code == 400
-
-
 def test_creer_detenteur_nom_vide_est_rejete(client):
-    reponse = client.post("/api/detenteurs", json={"nom": "   ", "type": "personne"})
+    reponse = client.post("/api/detenteurs", json={"nom": "   "})
     assert reponse.status_code == 400
 
 
 def test_modifier_detenteur(client):
-    id_detenteur = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    id_detenteur = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
 
     reponse = client.patch(f"/api/detenteurs/{id_detenteur}", json={"nom": "Alicia"})
 
@@ -36,7 +30,7 @@ def test_modifier_detenteur(client):
 
 
 def test_supprimer_detenteur(client):
-    id_detenteur = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    id_detenteur = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
 
     reponse = client.delete(f"/api/detenteurs/{id_detenteur}")
 
@@ -45,7 +39,7 @@ def test_supprimer_detenteur(client):
 
 
 def test_detenteur_dun_autre_utilisateur_est_inaccessible(client, db):
-    id_detenteur = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    id_detenteur = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     assert client.get("/api/detenteurs").json() == []

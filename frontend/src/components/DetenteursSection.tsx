@@ -53,8 +53,8 @@ export default function DetenteursSection({
   return (
     <Card title="Détenteurs">
       <p className="mb-4 text-sm text-texte">
-        Répartition de cette ligne entre les personnes/sociétés déclarées dans Réglages — la somme doit faire 100 % (ou
-        rester à 0 % pour ne pas répartir, 100 % foyer implicite).
+        Répartition de cette ligne entre les personnes déclarées dans Réglages — la somme doit faire 100 % (ou rester à
+        0 % pour ne pas répartir, 100 % foyer implicite).
         {compte && (
           <>
             {' '}

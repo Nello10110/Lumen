@@ -152,7 +152,7 @@ describe('WelcomeWizard', () => {
 
   it("l'étape Détenteurs affiche les détenteurs déjà déclarés (état réel, pas un formulaire vide)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([
-      { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' },
+      { id: 1, nom: 'Alice', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' },
     ])
     renderWizard(utilisateurFactice())
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))

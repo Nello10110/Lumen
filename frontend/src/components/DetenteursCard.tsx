@@ -1,23 +1,26 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, TypeDetenteur } from '../api/types'
+import type { Detenteur } from '../api/types'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
-import { Field, Input, Select } from './Field'
+import { Field, Input } from './Field'
 import { SkeletonTexte } from './Skeleton'
 
-/** Personnes et sociétés du foyer (backlog 2.L.1) : déclarées une fois ici,
- * réutilisées ensuite pour répartir la propriété des actifs (quotités, sur la
- * fiche détaillée de chaque position) et filtrer le patrimoine par détenteur
- * (barre de contrôles). */
+/** Personnes du foyer (backlog 2.L.1) : déclarées une fois ici, réutilisées
+ * ensuite pour répartir la propriété des actifs (quotités, sur la fiche
+ * détaillée de chaque position) et filtrer le patrimoine par détenteur (barre
+ * de contrôles).
+ *
+ * Portait jusqu'au 17/09/2026 un type Personne/Société — retiré (retour
+ * utilisateur direct) : purement déclaratif, aucune société n'était en
+ * réalité utilisée. Cf. `docs/BACKLOG.md`. */
 export default function DetenteursCard() {
   const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [nom, setNom] = useState('')
-  const [type, setType] = useState<TypeDetenteur>('personne')
   const [saving, setSaving] = useState(false)
 
   function load() {
@@ -37,7 +40,7 @@ export default function DetenteursCard() {
     setSaving(true)
     setError(null)
     try {
-      await api.createDetenteur(nom.trim(), type)
+      await api.createDetenteur(nom.trim())
       setNom('')
       load()
     } catch (err) {
@@ -58,7 +61,7 @@ export default function DetenteursCard() {
   }
 
   return (
-    <Card title="Personnes et sociétés">
+    <Card title="Personnes">
       <p className="mb-4 text-sm text-texte">
         Déclarées une fois, réutilisées pour répartir la propriété des actifs et des emprunts (quotités, depuis la fiche
         détaillée de chaque position) et filtrer le patrimoine par détenteur (barre de contrôles, en haut de l'écran).
@@ -72,9 +75,7 @@ export default function DetenteursCard() {
         <ul className="mb-4 divide-y divide-bordure">
           {detenteurs.map((d) => (
             <li key={d.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="text-texte">
-                {d.nom} <span className="text-xs text-texte-attenue">({d.type === 'personne' ? 'Personne' : 'Société'})</span>
-              </span>
+              <span className="text-texte">{d.nom}</span>
               <button onClick={() => handleDelete(d.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
                 Supprimer
               </button>
@@ -86,12 +87,6 @@ export default function DetenteursCard() {
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
         <Field label="Nom" className="w-40">
           <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Alice" />
-        </Field>
-        <Field label="Type">
-          <Select value={type} onChange={(e) => setType(e.target.value as TypeDetenteur)}>
-            <option value="personne">Personne</option>
-            <option value="societe">Société</option>
-          </Select>
         </Field>
         <PrimaryButton type="submit" disabled={saving}>
           Ajouter

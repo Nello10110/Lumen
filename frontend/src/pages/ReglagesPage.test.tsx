@@ -46,11 +46,11 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ langageSimple: false, toggleLangageSimple: toggleLangageSimpleMock }),
 }))
 
-// Ce fichier ne verrouille que la section "Personnes et sociétés" (backlog 2.L.1) —
-// le reste de la page (préférences, tâches planifiées, export) est hors de son objet.
+// Ce fichier ne verrouille que la section "Personnes" (backlog 2.L.1) — le reste
+// de la page (préférences, tâches planifiées, export) est hors de son objet.
 // Sessions/journal d'accès/comptes du foyer (backlog 2.L.2) : hors de l'objet de ce
 // fichier, stubs neutres (listes vides) pour que les nouvelles cartes de la page ne
-// fassent pas planter les tests existants sur "Personnes et sociétés".
+// fassent pas planter les tests existants sur "Personnes".
 vi.mock('../api/client', () => ({
   api: {
     listDetenteurs: vi.fn(),
@@ -107,14 +107,13 @@ function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
   return {
     id: 1,
     nom: 'Alice',
-    type: 'personne',
     created_at: '2026-01-01T00:00:00',
     updated_at: '2026-01-01T00:00:00',
     ...overrides,
   }
 }
 
-describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
+describe('ReglagesPage — Personnes (backlog 2.L.1)', () => {
   it("affiche un message quand aucun détenteur n'est déclaré", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     renderReglages()
@@ -123,15 +122,13 @@ describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
     await screen.findByText('Aucun détenteur déclaré.')
   })
 
-  it('liste les détenteurs déclarés avec leur type', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice', type: 'personne' }), detenteur({ id: 2, nom: 'SCI Famille', type: 'societe' })])
+  it('liste les détenteurs déclarés', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     renderReglages()
     ouvrirOnglet('Détenteurs')
 
     await screen.findByText('Alice')
-    expect(screen.getByText('SCI Famille')).toBeInTheDocument()
-    expect(screen.getByText('(Personne)')).toBeInTheDocument()
-    expect(screen.getByText('(Société)')).toBeInTheDocument()
+    expect(screen.getByText('Bob')).toBeInTheDocument()
   })
 
   it('ajouter un détenteur appelle createDetenteur puis recharge la liste', async () => {
@@ -151,7 +148,7 @@ describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
     fireEvent.click(within(formulaire).getByRole('button', { name: 'Ajouter' }))
 
     await screen.findByText('Bob')
-    expect(api.createDetenteur).toHaveBeenCalledWith('Bob', 'personne')
+    expect(api.createDetenteur).toHaveBeenCalledWith('Bob')
   })
 
   it('supprimer un détenteur appelle deleteDetenteur puis recharge la liste', async () => {

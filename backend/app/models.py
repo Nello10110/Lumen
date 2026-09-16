@@ -457,26 +457,22 @@ class Compte(Base):
     etablissement: Mapped["Etablissement | None"] = relationship("Etablissement", lazy="selectin")
 
 
-# Types de détenteur — déclarés ici, avec les autres énumérations du modèle, plutôt
-# que dans `schemas.py` : l'import de données (`donnees_service`) doit pouvoir les
-# valider sans qu'un service ait à importer les schémas, ce qui inverserait le sens
-# des dépendances du projet (c'est `schemas` qui importe les services, jamais
-# l'inverse).
-TYPES_DETENTEUR_VALIDES = {"personne", "societe"}
-
-
 class Detenteur(Base):
-    """Personne (conjoint, enfant...) ou société (SCI, holding...) du foyer, déclarée
-    une fois et réutilisée pour répartir la propriété des actifs et des emprunts
-    (backlog 2.L.1) — distincte de `User` (compte de connexion) : un enfant mineur
-    peut être détenteur d'une quotité sans jamais avoir de compte."""
+    """Personne (conjoint, enfant...) du foyer, déclarée une fois et réutilisée pour
+    répartir la propriété des actifs et des emprunts (backlog 2.L.1) — distincte de
+    `User` (compte de connexion) : un enfant mineur peut être détenteur d'une
+    quotité sans jamais avoir de compte.
+
+    Portait jusqu'au 17/09/2026 un `type` ("personne" | "societe") — retiré (retour
+    utilisateur direct) : purement déclaratif, il ne changeait rien au calcul des
+    quotités ni à aucun autre traitement, et aucune société n'était en réalité
+    utilisée. Cf. migration `51b2a3201f9a`."""
 
     __tablename__ = "detenteurs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
-    type: Mapped[str] = mapped_column(String)  # "personne" | "societe"
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

@@ -370,7 +370,7 @@ def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incompl
 def _creer_detenteur(db, nom: str) -> int:
     from app.models import Detenteur
 
-    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom=nom, type="personne")
+    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom=nom)
     db.add(detenteur)
     db.commit()
     db.refresh(detenteur)
@@ -383,7 +383,7 @@ def test_repartir_un_compte_est_atomique(db, monkeypatch):
     Du point de vue de l'utilisateur, « répartir ce compte » est UNE action : elle
     aboutit, ou elle ne change rien."""
     compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Compte atomique", None)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Atomique Alice", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Atomique Alice")
     lignes = [make_holding(db, ticker=f"ATOM{i}") for i in range(3)]
     for h in lignes:
         h.compte_id = compte.id

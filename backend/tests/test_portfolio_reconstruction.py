@@ -657,7 +657,7 @@ def test_rebuild_holdings_preserve_les_quotites_par_detenteur(db):
     filtre par détenteur, déclaration de patrimoine) tout en laissant des lignes
     orphelines en base. Régression d'autant plus sournoise que le compte, lui,
     était bien reporté : rien ne signalait que la propriété ne l'était pas."""
-    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom="Alice", type="personne")
+    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom="Alice")
     db.add(detenteur)
     db.commit()
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
@@ -677,7 +677,7 @@ def test_rebuild_holdings_preserve_les_quotites_par_detenteur(db):
 def test_rebuild_holdings_ne_laisse_aucune_quotite_orpheline(db):
     """Un ticker qui SORT du portefeuille (position soldée) ne doit pas laisser sa
     répartition derrière lui."""
-    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom="Alice", type="personne")
+    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom="Alice")
     db.add(detenteur)
     db.commit()
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)

@@ -243,8 +243,8 @@ def test_valeur_investie_scoping_detenteur(db):
     holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 1300.0, datetime(2024, 2, 1), versement=300.0)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
     detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice.id, 100.0)])
 
     points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
@@ -409,8 +409,8 @@ def test_detenteur_id_scoping_ligne_manuelle_et_emprunt_rattache_herite(db):
         )
     )
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
     # Alice possède 100 % de l'actif ; aucune quotité d'emprunt explicite -> hérite de
     # celle de l'actif (même règle que `detenteurs_service.compute_parts`).
     detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice.id, 100.0)])
@@ -441,7 +441,7 @@ def test_emprunt_non_rattache_invisible_pour_un_detenteur_individuel(db):
         )
     )
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
 
     points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
     points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)

@@ -255,7 +255,7 @@ describe('SalairePage', () => {
     vi.mocked(api.getSalaires)
       .mockResolvedValueOnce(donnees())
       .mockResolvedValueOnce(donnees({ entrees: [entree({ detenteur_id: 7, detenteur_nom: 'Julie' })], syntheses: [synthese()] }))
-    vi.mocked(api.listDetenteurs).mockResolvedValue([{ id: 7, nom: 'Julie', type: 'personne', created_at: '', updated_at: '' }])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([{ id: 7, nom: 'Julie', created_at: '', updated_at: '' }])
     vi.mocked(api.createSalaire).mockResolvedValue(entree({ detenteur_id: 7, detenteur_nom: 'Julie' }))
 
     render(<SalairePage />)
@@ -272,7 +272,7 @@ describe('SalairePage', () => {
 
   it('crée une nouvelle personne du foyer via la pop-up puis la sélectionne', async () => {
     vi.mocked(api.getSalaires).mockResolvedValue(donnees())
-    vi.mocked(api.createDetenteur).mockResolvedValue({ id: 9, nom: 'Marc', type: 'personne', created_at: '', updated_at: '' })
+    vi.mocked(api.createDetenteur).mockResolvedValue({ id: 9, nom: 'Marc', created_at: '', updated_at: '' })
 
     render(<SalairePage />)
     await screen.findByText(/Aucun salaire enregistré pour cette année/)
@@ -282,7 +282,7 @@ describe('SalairePage', () => {
     fireEvent.change(await screen.findByLabelText('Nom'), { target: { value: 'Marc' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
 
-    await waitFor(() => expect(api.createDetenteur).toHaveBeenCalledWith('Marc', 'personne'))
+    await waitFor(() => expect(api.createDetenteur).toHaveBeenCalledWith('Marc'))
     expect(screen.queryByLabelText('Nom')).not.toBeInTheDocument() // pop-up refermée
     expect(screen.getByLabelText('Personne du foyer (optionnel)')).toHaveValue('9')
   })

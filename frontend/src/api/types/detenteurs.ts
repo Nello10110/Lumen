@@ -1,10 +1,7 @@
-// Personnes/sociétés du foyer et quotités (backlog 2.L.1).
-export type TypeDetenteur = 'personne' | 'societe'
-
+// Personnes du foyer et quotités (backlog 2.L.1).
 export interface Detenteur {
   id: number
   nom: string
-  type: TypeDetenteur
   created_at: string
   updated_at: string
 }

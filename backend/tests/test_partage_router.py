@@ -29,7 +29,7 @@ def test_create_lien_avec_code_trop_court_rejete(client):
 def test_create_lien_detenteur_dun_autre_foyer_404(client, db):
     from .conftest import ID_UTILISATEUR_B, basculer_utilisateur
 
-    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice"}).json()["id"]
     basculer_utilisateur(db, ID_UTILISATEUR_B, "test-b")
 
     reponse = client.post("/api/partage", json={"nom": "Test", "detenteur_id": id_detenteur_a})

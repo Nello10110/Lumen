@@ -107,8 +107,8 @@ def test_destinataire_et_synthese(db):
 
 
 def test_filtre_detenteur_ne_montre_que_ses_quotites(db):
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
     h_partage = make_holding(db, ticker="AAA", nom="Bien partagé", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
     make_holding(db, ticker="BBB", nom="Bien non reparti", type_actif="STOCK", quantite=1, prix_revient_moyen=5000.0)
     detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h_partage, [(alice.id, 60.0), (bob.id, 40.0)])
@@ -122,7 +122,7 @@ def test_filtre_detenteur_ne_montre_que_ses_quotites(db):
 
 
 def test_filtre_detenteur_affiche_la_part_dette_de_lemprunt_rattache(db):
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
     h = make_holding(db, ticker="MAISON", nom="Maison", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
     detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
     loan = Loan(

@@ -15,7 +15,7 @@ vi.mock('../api/client', () => ({
 }))
 
 function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
-  return { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+  return { id: 1, nom: 'Alice', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
 // `MemoryRouter` conservé même si la barre ne lit plus la route depuis le retrait de

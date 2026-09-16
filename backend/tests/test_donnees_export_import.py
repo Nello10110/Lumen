@@ -32,8 +32,8 @@ def _peupler_foyer(client, db) -> dict:
     quotité→ligne+détenteur, emprunt→ligne)."""
     etablissement = client.post("/api/comptes/etablissements", json={"nom": "Banque Test"}).json()
     compte = client.post("/api/comptes", json={"nom": "PEA", "etablissement_id": etablissement["id"]}).json()
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
-    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "societe"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob"}).json()
 
     action = client.post(
         "/api/portfolio/holdings",
@@ -362,7 +362,6 @@ def test_les_dates_survivent_a_laller_retour(client, db):
 @pytest.mark.parametrize(
     ("table", "colonne", "valeur"),
     [
-        ("detenteurs", "type", "administrateur"),
         ("holdings", "origine", "n_importe_quoi"),
         ("salaires", "periodicite", "hebdomadaire"),
     ],
@@ -395,7 +394,7 @@ def test_import_refuse_laisse_les_donnees_intactes(db):
     nombre_holdings = len(avant["donnees"]["holdings"])
 
     document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
-    document["donnees"]["detenteurs"] = [{"id": 1, "nom": "X", "type": "extraterrestre"}]
+    document["donnees"]["salaires"] = [{"id": 1, "detenteur_id": None, "periodicite": "hebdomadaire"}]
 
     with pytest.raises(donnees_service.ValeurInvalideError):
         donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
@@ -467,7 +466,7 @@ def test_reinitialiser_foyer_efface_les_perimetres_invites_et_resiste_a_la_reuti
     par SQLite après une suppression totale ferait courir le risque qu'un vieux
     périmètre d'invité donne accès à une donnée totalement différente créée après
     coup."""
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     invite = client.post(
         "/api/auth/household-members",
         json={"username": "invite-test", "password": "mot-de-passe-solide", "role": "invite", "detenteur_ids": [alice["id"]]},
@@ -480,7 +479,7 @@ def test_reinitialiser_foyer_efface_les_perimetres_invites_et_resiste_a_la_reuti
 
     # Un nouveau détenteur créé après coup ne doit jamais hériter, via un id
     # réutilisé par SQLite, d'un périmètre laissé par l'ancienne Alice.
-    nouveau = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    nouveau = client.post("/api/detenteurs", json={"nom": "Bob"}).json()
     assert (
         db.query(PerimetreInvite)
         .filter(PerimetreInvite.user_id == invite["id"], PerimetreInvite.detenteur_id == nouveau["id"])

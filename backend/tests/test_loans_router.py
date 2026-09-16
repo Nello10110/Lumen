@@ -137,8 +137,8 @@ def test_rattacher_un_emprunt_a_lactif_dun_autre_utilisateur_est_refuse(client, 
 
 def test_repartir_un_emprunt_entre_deux_detenteurs(client):
     cree = client.post("/api/loans", json=_payload()).json()
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
-    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob"}).json()
 
     reponse = client.put(
         f"/api/loans/{cree['id']}/quotites",
@@ -150,7 +150,7 @@ def test_repartir_un_emprunt_entre_deux_detenteurs(client):
 
 def test_quotites_emprunt_somme_non_100_refusee(client):
     cree = client.post("/api/loans", json=_payload()).json()
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
 
     reponse = client.put(f"/api/loans/{cree['id']}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 60.0}]})
 
@@ -167,7 +167,7 @@ def test_quotites_emprunt_avec_un_detenteur_dun_autre_compte_est_refuse(client, 
     (`test_holding_quotites.py`)."""
     cree = client.post("/api/loans", json=_payload()).json()
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus", "type": "personne"}).json()
+    detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus"}).json()
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     reponse = client.put(

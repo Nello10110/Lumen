@@ -8,8 +8,8 @@ from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, 
 
 def test_repartir_un_actif_entre_deux_detenteurs(client, db):
     h = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
-    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob"}).json()
 
     reponse = client.put(
         f"/api/portfolio/holdings/{h.id}/quotites",
@@ -27,7 +27,7 @@ def test_repartir_un_actif_entre_deux_detenteurs(client, db):
 
 def test_repartition_dont_la_somme_nest_pas_100_est_refusee(client, db):
     h = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
 
     reponse = client.put(
         f"/api/portfolio/holdings/{h.id}/quotites",
@@ -39,7 +39,7 @@ def test_repartition_dont_la_somme_nest_pas_100_est_refusee(client, db):
 
 def test_liste_vide_retire_toute_repartition(client, db):
     h = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     client.put(f"/api/portfolio/holdings/{h.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]})
 
     reponse = client.put(f"/api/portfolio/holdings/{h.id}/quotites", json={"quotites": []})
@@ -58,7 +58,7 @@ def test_repartir_avec_un_detenteur_dun_autre_compte_est_refuse(client, db):
     d'un autre compte, même en devinant son id."""
     h = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus", "type": "personne"}).json()
+    detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus"}).json()
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     reponse = client.put(
@@ -71,7 +71,7 @@ def test_repartir_avec_un_detenteur_dun_autre_compte_est_refuse(client, db):
 
 def test_quotite_a_zero_est_refusee(client, db):
     h = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
 
     reponse = client.put(
         f"/api/portfolio/holdings/{h.id}/quotites",
@@ -95,7 +95,7 @@ def test_valeur_estimee_est_utilisee_pour_le_calcul_des_parts(client, db):
     `prix_revient_moyen * quantite` — sinon la part détenue/nette est fausse pour
     tout bien valorisé manuellement."""
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     client.put(f"/api/portfolio/holdings/{h.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]})
 
     detail = client.get(f"/api/portfolio/holdings/{h.id}/detail").json()

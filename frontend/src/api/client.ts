@@ -75,7 +75,6 @@ import type {
   TransactionImportApercu,
   TransactionImportConfirmInput,
   TransactionImportResult,
-  TypeDetenteur,
   ValorisationInput,
   ValuationHistoryPoint,
   ZoneGeographiqueInfo,
@@ -502,11 +501,10 @@ export const api = {
   // défini (vérifié côté serveur, cf. `routers/donnees.py::effacer`).
   effacerFoyer: (confirmation: string) => request<{ ok: boolean }>('/donnees/effacer', { method: 'POST', body: JSON.stringify({ confirmation }) }),
 
-  // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
+  // Personnes du foyer et quotités (backlog 2.L.1).
   listDetenteurs: () => request<Detenteur[]>('/detenteurs'),
-  createDetenteur: (nom: string, type: TypeDetenteur) =>
-    request<Detenteur>('/detenteurs', { method: 'POST', body: JSON.stringify({ nom, type }) }),
-  updateDetenteur: (id: number, payload: { nom?: string; type?: TypeDetenteur }) =>
+  createDetenteur: (nom: string) => request<Detenteur>('/detenteurs', { method: 'POST', body: JSON.stringify({ nom }) }),
+  updateDetenteur: (id: number, payload: { nom?: string }) =>
     request<Detenteur>(`/detenteurs/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteDetenteur: (id: number) => request<{ ok: boolean }>(`/detenteurs/${id}`, { method: 'DELETE' }),
   setHoldingQuotites: (holdingId: number, quotites: QuotiteEntree[]) =>

@@ -14,7 +14,7 @@ import { SecondaryButton } from './Controls'
 const LIBELLES: Record<string, string> = {
   etablissements: 'établissements',
   comptes: 'comptes',
-  detenteurs: 'détenteurs (personnes/sociétés)',
+  detenteurs: 'détenteurs (personnes)',
   holdings: 'lignes de patrimoine',
   holding_immobilier_details: 'fiches immobilier',
   holding_valuation_history: 'points de valorisation',

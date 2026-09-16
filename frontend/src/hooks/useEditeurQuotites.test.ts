@@ -7,8 +7,8 @@ vi.mock('../api/client', () => ({ api: { listDetenteurs: vi.fn() } }))
 
 const HORODATAGE = '2026-01-01T00:00:00'
 const DETENTEURS = [
-  { id: 1, nom: 'Alice', type: 'personne' as const, created_at: HORODATAGE, updated_at: HORODATAGE },
-  { id: 2, nom: 'Bob', type: 'personne' as const, created_at: HORODATAGE, updated_at: HORODATAGE },
+  { id: 1, nom: 'Alice', created_at: HORODATAGE, updated_at: HORODATAGE },
+  { id: 2, nom: 'Bob', created_at: HORODATAGE, updated_at: HORODATAGE },
 ]
 
 describe('useEditeurQuotites', () => {

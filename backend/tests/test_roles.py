@@ -70,7 +70,7 @@ def test_proprietaire_peut_tout_faire(client_reel):
         == 200
     )
     assert client_reel.get("/api/detenteurs", headers=_en_tete(token)).status_code == 200
-    assert client_reel.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}, headers=_en_tete(token)).status_code == 200
+    assert client_reel.post("/api/detenteurs", json={"nom": "Alice"}, headers=_en_tete(token)).status_code == 200
     assert client_reel.get("/api/settings/jobs", headers=_en_tete(token)).status_code == 200
 
 
@@ -146,8 +146,8 @@ def test_second_foyer_isole(db_vide, client_reel):
 
 def test_invite_est_filtre_a_son_perimetre(client_reel):
     token_proprio = _fonder_foyer(client_reel)
-    alice = client_reel.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}, headers=_en_tete(token_proprio)).json()
-    bob = client_reel.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}, headers=_en_tete(token_proprio)).json()
+    alice = client_reel.post("/api/detenteurs", json={"nom": "Alice"}, headers=_en_tete(token_proprio)).json()
+    bob = client_reel.post("/api/detenteurs", json={"nom": "Bob"}, headers=_en_tete(token_proprio)).json()
 
     holding_alice = client_reel.post(
         "/api/portfolio/holdings",
@@ -203,8 +203,8 @@ def test_invite_refuse_en_ecriture(client_reel):
 
 def test_invite_refuse_hors_de_son_perimetre_sur_patrimoine_net(client_reel):
     token_proprio = _fonder_foyer(client_reel)
-    alice = client_reel.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}, headers=_en_tete(token_proprio)).json()
-    bob = client_reel.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}, headers=_en_tete(token_proprio)).json()
+    alice = client_reel.post("/api/detenteurs", json={"nom": "Alice"}, headers=_en_tete(token_proprio)).json()
+    bob = client_reel.post("/api/detenteurs", json={"nom": "Bob"}, headers=_en_tete(token_proprio)).json()
     token_invite = _creer_invite(client_reel, token_proprio, [alice["id"]])
 
     refuse = client_reel.get(f"/api/patrimoine/net?detenteur_id={bob['id']}", headers=_en_tete(token_invite))

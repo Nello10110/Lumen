@@ -325,8 +325,8 @@ def test_repartir_un_compte_entre_deux_detenteurs(client, db):
     compte = make_compte(db, nom="CTO")
     holding_a = make_holding(db, ticker="AAA", compte_id=compte.id)
     holding_b = make_holding(db, ticker="BBB", compte_id=compte.id)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
-    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob"}).json()
 
     reponse = client.put(
         f"/api/comptes/{compte.id}/quotites",
@@ -346,7 +346,7 @@ def test_quotites_compte_somme_non_100_refusee(client, db):
     # la validation « somme = 100 % » ne peut s'observer que sur un compte peuplé.
     compte = make_compte(db, nom="CTO")
     make_holding(db, ticker="AAA", compte_id=compte.id)
-    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
 
     reponse = client.put(f"/api/comptes/{compte.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 60.0}]})
 

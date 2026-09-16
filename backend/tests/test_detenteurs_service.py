@@ -11,12 +11,12 @@ from app.services import detenteurs_service
 from .conftest import ID_UTILISATEUR_TEST, make_holding
 
 
-def make_detenteur(db, nom="Alice", type_="personne"):
-    return detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, nom, type_)
+def make_detenteur(db, nom="Alice"):
+    return detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, nom)
 
 
 def test_create_list_update_delete_detenteur(db):
-    d = make_detenteur(db, nom="Alice", type_="personne")
+    d = make_detenteur(db, nom="Alice")
     assert d.id is not None
     assert [x.nom for x in detenteurs_service.list_detenteurs(db, ID_UTILISATEUR_TEST)] == ["Alice"]
 
@@ -46,7 +46,7 @@ def test_set_quotites_holding_rejette_un_detenteur_en_double(db):
 
 def test_set_quotites_holding_rejette_un_detenteur_dun_autre_compte(db):
     h = make_holding(db)
-    detenteur_autre_compte = detenteurs_service.create_detenteur(db, user_id=999, nom="Intrus", type_="personne")
+    detenteur_autre_compte = detenteurs_service.create_detenteur(db, user_id=999, nom="Intrus")
 
     with pytest.raises(ValueError, match="introuvable"):
         detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(detenteur_autre_compte.id, 100.0)])
@@ -197,8 +197,8 @@ def test_compute_parts_bulk_donne_exactement_le_meme_resultat_que_ligne_a_ligne(
     On couvre volontairement les cas tordus : plusieurs emprunts sur un même bien,
     un emprunt avec ses propres quotités (qui priment) et un autre sans (qui hérite
     de celles de l'actif), et une ligne sans aucune quotité."""
-    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Alice", "personne")
-    d2 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Bob", "personne")
+    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Alice")
+    d2 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Bob")
 
     reparti = make_holding(db, ticker="REPARTI", quantite=1, prix_revient_moyen=100_000.0)
     non_reparti = make_holding(db, ticker="NONREPARTI", quantite=1, prix_revient_moyen=50_000.0)
@@ -243,7 +243,7 @@ def test_compute_parts_bulk_ne_fait_pas_de_requete_par_ligne(db):
     correctif sur base réelle : 207 requêtes pour 51 lignes."""
     from sqlalchemy import event
 
-    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Compteur Alice", "personne")
+    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Compteur Alice")
     couples = []
     for i in range(12):
         h = make_holding(db, ticker=f"BULK{i}", quantite=1, prix_revient_moyen=1000.0)
