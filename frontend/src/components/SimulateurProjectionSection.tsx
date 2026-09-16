@@ -8,7 +8,7 @@ import StatTile from './StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { ChartFrame } from './ChartFrame'
 import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
-import { dateVersISO, formatEuro } from '../utils/format'
+import { dateVersISO, formatEuro, formatPct } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel, type ResultatFire } from '../utils/interetsComposes'
 import { SegmentedControl } from './Controls'
 
@@ -186,6 +186,10 @@ export default function SimulateurProjectionSection() {
 
   const [erreurPatrimoine, setErreurPatrimoine] = useState<string | null>(null)
   const [erreurInterets, setErreurInterets] = useState<string | null>(null)
+  // Rendement annuel moyen réellement observé sur le portefeuille (backlog,
+  // demande directe du 16/09/2026) — même appel que « Intérêts déjà obtenus »
+  // ci-dessous (`GET /api/performance`), pour ne pas dupliquer la requête.
+  const [rendementObserve, setRendementObserve] = useState<number | null>(null)
   const [versementSuggere, setVersementSuggere] = useState<number | null>(null)
   // Versement mensuel déclaré sur les comptes Épargne (backlog 2.S.1) — ADDITIONNÉ à
   // `versementSuggere` (dérivé du Budget, 2.N.4), jamais fusionné en une seule
@@ -210,16 +214,28 @@ export default function SimulateurProjectionSection() {
       .finally(() => setChargementPatrimoine(false))
   }
 
-  // Préremplit « Intérêts déjà obtenus » avec le gain/perte déjà réalisé sur le
-  // portefeuille financier (`GET /api/performance`, déjà utilisé par la carte
-  // Rentabilité du Tableau de bord) — reste un champ facultatif et modifiable,
-  // une moins-value éventuelle (négative) n'a pas de sens ici et devient 0. Même
+  // Préremplit « Intérêts déjà obtenus » ET « Rendement annuel moyen » à partir
+  // du même appel (`GET /api/performance`, déjà utilisé par la carte Rentabilité
+  // du Tableau de bord) — reste des champs facultatifs et modifiables. Le
+  // rendement observé (`rendement_annualise_pct`, money-weighted/XIRR) remplace
+  // l'hypothèse arbitraire de 5 % par la performance RÉELLE de ce portefeuille,
+  // même principe que le versement mensuel préempli plus bas (backlog 2.N.4) —
+  // `null`/négatif/absent (pas encore d'historique exploitable) : le champ garde
+  // son défaut de 5 %, jamais bloquant. Une moins-value éventuelle (négative)
+  // n'a pas de sens pour « intérêts déjà obtenus » et devient 0. Même
   // dégradation non bloquante que ci-dessus si l'appel échoue.
-  function chargerInteretsDejaObtenus() {
+  function chargerPerformance() {
     setErreurInterets(null)
     api
       .getPerformance()
-      .then((perf) => setInteretsDejaObtenus(String(Math.max(0, perf.gain_perte_total))))
+      .then((perf) => {
+        setInteretsDejaObtenus(String(Math.max(0, perf.gain_perte_total)))
+        if (perf.rendement_annualise_pct !== null && perf.rendement_annualise_pct > 0) {
+          const arrondi = Math.round(perf.rendement_annualise_pct * 10) / 10
+          setRendementObserve(arrondi)
+          setTaux(String(arrondi))
+        }
+      })
       .catch((err) => setErreurInterets(err.message))
   }
 
@@ -247,7 +263,7 @@ export default function SimulateurProjectionSection() {
 
   useEffect(() => {
     chargerPatrimoineNet()
-    chargerInteretsDejaObtenus()
+    chargerPerformance()
     chargerVersementSuggere()
   }, [])
 
@@ -376,7 +392,17 @@ export default function SimulateurProjectionSection() {
             min={0}
             max={15}
             pas={0.1}
-          />
+          >
+            {rendementObserve !== null && tauxNum !== rendementObserve && (
+              <button
+                type="button"
+                onClick={() => setTaux(String(rendementObserve))}
+                className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
+              >
+                Revenir au rendement observé ({formatPct(rendementObserve)})
+              </button>
+            )}
+          </CurseurHypothese>
           <CurseurHypothese
             libelle="Versement mensuel"
             unite="€"
@@ -433,13 +459,15 @@ export default function SimulateurProjectionSection() {
         <p className="mt-3 text-xs text-texte-attenue">
           « Intérêts déjà obtenus » (optionnel) : la part du capital de départ déjà constituée de gains plutôt que de
           versements — pour un tableau de détail qui distingue les vrais intérêts déjà gagnés des futurs. Préempli avec le
-          gain/perte de ton portefeuille financier, librement modifiable ou effaçable.
+          gain/perte de ton portefeuille financier, librement modifiable ou effaçable. « Rendement annuel moyen » est de
+          même préempli avec le rendement annualisé réellement observé sur ce portefeuille (même calcul que la carte
+          Rentabilité de l'écran Analyse) plutôt qu'une hypothèse arbitraire de 5 %, tant qu'il est positif et mesurable.
         </p>
         {erreurInterets && (
           <div className="mt-2">
             <EtatErreur
-              message={`Le gain/perte du portefeuille n'a pas pu être précalculé (${erreurInterets}). Le champ reste modifiable à la main.`}
-              onReessayer={chargerInteretsDejaObtenus}
+              message={`Le gain/perte et le rendement du portefeuille n'ont pas pu être précalculés (${erreurInterets}). Les champs restent modifiables à la main.`}
+              onReessayer={chargerPerformance}
             />
           </div>
         )}

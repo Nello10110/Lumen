@@ -260,6 +260,46 @@ describe('SimulateurProjectionSection', () => {
     })
   })
 
+  describe('Rendement annuel moyen préempli (demande directe du 16/09/2026)', () => {
+    it('préremplit le taux avec le rendement annualisé réellement observé', async () => {
+      vi.mocked(api.getPerformance).mockResolvedValue(performance({ rendement_annualise_pct: 7.34 }))
+      render(<SimulateurProjectionSection />)
+
+      await waitFor(() => expect(screen.getByLabelText('Rendement annuel moyen (%)')).toHaveValue(7.3))
+    })
+
+    it("garde le défaut de 5 % quand le rendement observé n'est pas encore mesurable (null)", async () => {
+      vi.mocked(api.getPerformance).mockResolvedValue(performance({ rendement_annualise_pct: null }))
+      render(<SimulateurProjectionSection />)
+
+      await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(0))
+      expect(screen.getByLabelText('Rendement annuel moyen (%)')).toHaveValue(5)
+    })
+
+    it('garde le défaut de 5 % quand le rendement observé est négatif ou nul', async () => {
+      vi.mocked(api.getPerformance).mockResolvedValue(performance({ rendement_annualise_pct: -2.1 }))
+      render(<SimulateurProjectionSection />)
+
+      await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(0))
+      expect(screen.getByLabelText('Rendement annuel moyen (%)')).toHaveValue(5)
+    })
+
+    it('propose de revenir au rendement observé une fois le taux modifié à la main', async () => {
+      vi.mocked(api.getPerformance).mockResolvedValue(performance({ rendement_annualise_pct: 6 }))
+      render(<SimulateurProjectionSection />)
+      await waitFor(() => expect(screen.getByLabelText('Rendement annuel moyen (%)')).toHaveValue(6))
+
+      expect(screen.queryByRole('button', { name: /Revenir au rendement observé/ })).not.toBeInTheDocument()
+
+      fireEvent.change(screen.getByLabelText('Rendement annuel moyen (%)'), { target: { value: '9' } })
+      const boutonReset = await screen.findByRole('button', { name: /Revenir au rendement observé/ })
+
+      fireEvent.click(boutonReset)
+      expect(screen.getByLabelText('Rendement annuel moyen (%)')).toHaveValue(6)
+      expect(screen.queryByRole('button', { name: /Revenir au rendement observé/ })).not.toBeInTheDocument()
+    })
+  })
+
   describe('Versement mensuel suggéré (backlog 2.N.4)', () => {
     it('préremplit le versement mensuel avec la suggestion issue du budget observé', async () => {
       vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: 350 }))
