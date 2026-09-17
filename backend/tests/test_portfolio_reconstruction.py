@@ -148,6 +148,53 @@ def test_dividende_entre_dans_cash_flows_net_de_frais_et_taxes(db):
     assert etat.shares == 10.0
 
 
+def test_interet_ne_modifie_jamais_la_quantite(db):
+    """Un versement d'intérêt (coupon obligataire, crowdfunding...) référence lui
+    aussi le nombre de titres détenus à la date de versement dans son `shares`
+    (même convention que DIVIDEND, cf. test ci-dessus) — jamais une acquisition.
+    Avant correctif, cette ligne ne correspondait à AUCUNE branche dédiée de
+    `_apply_transaction` et retombait dans le traitement générique des opérations
+    sur titres ("action gratuite reçue"), qui AJOUTAIT `shares` à la position à
+    coût nul : un simple versement d'intérêt de quelques euros pouvait ainsi
+    doubler silencieusement la quantité détenue."""
+    make_transaction(db, transaction_id="tx-1", symbol="GGG", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="GGG",
+        category="CASH",
+        type="INTEREST_PAYMENT",
+        shares=10.0,
+        amount=15.0,
+        datetime_utc=datetime(2024, 2, 1),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("GGG", None)]
+    assert etat.shares == 10.0
+    assert etat.cost_basis == 1000.0
+
+
+def test_interet_entre_dans_cash_flows_net_de_frais_et_taxes(db):
+    make_transaction(db, transaction_id="tx-1", symbol="GGG", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(
+        db,
+        transaction_id="tx-2",
+        symbol="GGG",
+        category="CASH",
+        type="INTEREST_PAYMENT",
+        shares=10.0,
+        amount=15.0,
+        fee=0.0,
+        tax=-3.0,
+        datetime_utc=datetime(2024, 2, 1),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)[("GGG", None)]
+
+    assert etat.cash_flows == [(datetime(2024, 1, 1), -1000.0), (datetime(2024, 2, 1), 12.0)]
+    assert etat.shares == 10.0
+
+
 def test_operation_sur_titre_ajuste_quantite_a_cout_nul(db):
     make_transaction(db, transaction_id="tx-1", symbol="FFF", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
     cost_basis_avant = compute_positions(db, ID_UTILISATEUR_TEST)[("FFF", None)].cost_basis

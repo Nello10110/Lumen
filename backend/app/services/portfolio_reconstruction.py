@@ -231,6 +231,21 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
         # mais pas pour le XIRR, ni par ligne ni au niveau du foyer.
         state.cash_flows.append((tx.datetime_utc, tx.amount + tx.fee + tx.tax))
 
+    elif tx.category == "CASH" and tx.type == "INTEREST_PAYMENT":
+        # Même remarque que DIVIDEND ci-dessus, et pour la même raison : un intérêt
+        # versé sur une obligation/un produit à coupon référence lui aussi le nombre
+        # de titres détenus à la date de versement (info de référence), jamais une
+        # acquisition. Avant ce correctif, ce type de mouvement n'avait AUCUNE
+        # branche dédiée ici (seul `performance_service`/`revenus_passifs_service`
+        # le reconnaissaient, pour son seul montant) : une ligne CASH/INTEREST_PAYMENT
+        # porteuse d'un `shares` non nul retombait donc dans la branche générique
+        # "opération sur titres qui ajoute des titres" juste en-dessous — traitée à
+        # tort comme une action gratuite reçue, gonflant silencieusement la quantité
+        # détenue et diluant le prix de revient moyen de toute la position (cas
+        # constaté en audit : 20 titres deviennent 40 avec un seul versement
+        # d'intérêt de quelques euros, sans aucun signalement d'anomalie).
+        state.cash_flows.append((tx.datetime_utc, tx.amount + tx.fee + tx.tax))
+
     elif tx.shares is not None and tx.shares >= -EPSILON:
         # Opération sur titres qui AJOUTE des titres (split, action gratuite reçue,
         # migration...) : coût nul, cf. docstring de module — ces titres n'ont rien

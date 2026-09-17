@@ -168,11 +168,14 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
 
     # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
     # carte reste volontairement scopée à l'activité BOURSIÈRE pure (increment 5) —
-    # `gains_latents` ci-dessous se base sur `cout_base_ouvert`, qui ne connaît que les
-    # positions reconstruites depuis le grand livre de transactions ; y inclure un bien
-    # immobilier sans coût de base associé gonflerait le gain latent de sa valeur
-    # entière. Ces actifs entrent dans le patrimoine net (`patrimoine_service.py`), pas
-    # dans la rentabilité boursière.
+    # `holdings_financiers` les exclut en amont, jamais comptés dans `valeur_positions`
+    # ni dans `cout_base_ouvert` ci-dessous ; y inclure un bien immobilier sans coût de
+    # base associé gonflerait le gain latent de sa valeur entière. Ces actifs entrent
+    # dans le patrimoine net (`patrimoine_service.py`), pas dans la rentabilité
+    # boursière. `cout_base_ouvert` connaît, lui, deux sources : les positions
+    # reconstruites depuis le grand livre de transactions ET, en repli, le
+    # `prix_revient_moyen` déclaré d'une ligne financière saisie directement (cf.
+    # boucle juste après son calcul).
     holdings = analysis_service.holdings_financiers(db, user_id)
     valued = analysis_service.value_holdings(holdings)
     valeur_positions = sum(v.valeur for v in valued)
@@ -181,6 +184,21 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
         positions = portfolio_reconstruction.compute_positions(db, user_id)
     gains_realises = sum(state.realized_gain for state in positions.values())
     cout_base_ouvert = sum(state.cost_basis for state in positions.values() if state.shares > portfolio_reconstruction.EPSILON)
+    # Une ligne financière (STOCK/FUND/CRYPTO/BOND/PRIVATE_FUND...) saisie
+    # directement (pas d'import de grand livre pour son `(ticker, compte_id)` —
+    # aucune `Transaction`, donc absente de `positions` ci-dessus) reste comptée
+    # dans `valeur_positions` (`holdings_financiers` ne l'exclut pas, contrairement
+    # à l'immobilier/SCPI/assurance-vie/PER — cf. commentaire au-dessus) mais son
+    # coût de revient n'existait jusqu'ici NULLE PART dans ce calcul : `gains_latents`
+    # comptait alors sa valeur de marché ENTIÈRE comme un gain latent (bug trouvé en
+    # audit, 17/09/2026 : une ligne saisie à la main, jamais vendue ni achetée via un
+    # import, gonflait le gain affiché du montant total investi dessus). Repli sur
+    # `Holding.prix_revient_moyen` — même source que `_rendement_pour_ligne` pour le
+    # rendement PAR ligne, ici agrégée au niveau du foyer.
+    for v in valued:
+        cle_position = (v.holding.ticker, v.holding.compte_id)
+        if cle_position not in positions and v.holding.prix_revient_moyen is not None:
+            cout_base_ouvert += v.holding.prix_revient_moyen * v.holding.quantite
     gains_latents = valeur_positions - cout_base_ouvert
 
     gain_perte_total = gains_latents + gains_realises + dividendes_percus + interets_percus + autres_revenus

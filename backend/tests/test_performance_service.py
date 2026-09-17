@@ -379,6 +379,34 @@ def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
     assert resultat["gains_latents"] == pytest.approx(500.0)  # 1500 - 1000 (coût de base d'ABC)
 
 
+def test_compute_performance_deduit_le_cout_dune_ligne_financiere_saisie_manuellement(db):
+    """Bug trouvé en audit (17/09/2026) : une ligne financière (STOCK/FUND/CRYPTO/
+    BOND...) créée directement via l'écran Portefeuille, sans jamais importer de
+    grand livre pour elle, n'a AUCUNE `PositionState` reconstruite (`positions` ne
+    connaît que les `Transaction` importées) — son coût de revient n'était donc nulle
+    part retranché dans `gains_latents`, qui comptait alors sa valeur de marché
+    ENTIÈRE comme un gain latent. Distinct du test
+    `test_compute_performance_exclut_le_patrimoine_valorise_manuellement` ci-dessus :
+    ici la ligne reste bien un actif FINANCIER (`STOCK`), à raison comptée dans
+    `valeur_positions` — seul son coût manquait."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="MANUEL",
+            quantite=10.0,
+            prix_revient_moyen=100.0,
+            type_actif="STOCK",
+        )
+    )
+    db.add(MarketDataCache(ticker="MANUEL", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+
+    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
+
+    assert resultat["valeur_positions"] == 1500.0
+    assert resultat["gains_latents"] == pytest.approx(500.0)  # 1500 - 1000 (coût de revient déclaré)
+
+
 def test_rendement_annualise_du_foyer_inclut_desormais_les_dividendes(db):
     """Le XIRR agrégé du foyer (`compute_performance`) sommait déjà
     `state.cash_flows` de toutes les positions (achats/ventes), mais PAS les
