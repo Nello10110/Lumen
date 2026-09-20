@@ -57,6 +57,13 @@ export interface CompteAvecSolde {
   // été supprimé depuis. `false` pour une répartition jamais commencée : c'est un
   // état valide (implicitement 100 % foyer), pas une alerte.
   repartition_incomplete: boolean
+  // Retour utilisateur du 20/09/2026 : au moins une ligne de ce compte n'a AUCUNE
+  // répartition entre détenteurs (jamais renseignée, pas rompue) — invite à la
+  // définir, jamais la même alerte que `repartition_incomplete` ci-dessus (sens
+  // différent : une erreur à corriger vs. une case pas encore remplie). `false`
+  // si le foyer a moins de deux détenteurs déclarés, ou pour le bucket « Sans
+  // compte » (pas de fiche à ouvrir pour y répondre).
+  repartition_non_renseignee: boolean
   // Dernière activité utilisateur sur ce compte (demande directe du 16/09/2026) :
   // le plus récent entre le compte lui-même (renommage...) et ses lignes
   // (édition, import) — jamais la fraîcheur d'un cours de marché. `null` pour le

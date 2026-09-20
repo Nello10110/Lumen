@@ -259,6 +259,7 @@ def get_soldes(db: Session = Depends(get_db), current_user: User = Depends(get_c
             solde=round(r["solde"], 2),
             nombre_lignes=r["nombre_lignes"],
             repartition_incomplete=r["repartition_incomplete"],
+            repartition_non_renseignee=r["repartition_non_renseignee"],
             derniere_maj=r["derniere_maj"],
         )
         for r in resultats

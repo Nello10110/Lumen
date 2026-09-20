@@ -158,6 +158,14 @@ class CompteAvecSoldeOut(BaseModel):
     # été supprimé depuis. `False` pour une répartition jamais commencée : c'est un
     # état valide, cf. `services/comptes_service._holdings_repartition_incomplete`.
     repartition_incomplete: bool
+    # Retour utilisateur du 20/09/2026 : au moins une ligne de ce compte n'a AUCUNE
+    # répartition entre détenteurs (jamais renseignée, pas rompue) — signalé pour
+    # INVITER à la définir, jamais avec la même alerte que `repartition_incomplete`
+    # ci-dessus, dont le sens (une erreur à corriger) est tout autre. Toujours
+    # `False` si le foyer a moins de deux détenteurs déclarés (rien à répartir), et
+    # toujours `False` pour le bucket « Sans compte » (pas de fiche à ouvrir pour y
+    # répondre), cf. `services/comptes_service.solde_par_compte`.
+    repartition_non_renseignee: bool
     # Dernière activité utilisateur sur ce compte (demande directe du 16/09/2026) :
     # le plus récent entre `Compte.updated_at` (renommage, changement
     # d'établissement) et `Holding.updated_at` de chacune de ses lignes (édition,

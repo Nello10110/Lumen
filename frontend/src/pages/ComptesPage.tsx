@@ -7,7 +7,7 @@ import CompteDetailModal from '../components/CompteDetailModal'
 import { PrimaryButton, SecondaryButton } from '../components/Controls'
 import EtablissementEditModal from '../components/EtablissementEditModal'
 import EtablissementLogo from '../components/EtablissementLogo'
-import { IconAvertissement, IconChevron, IconCrayon } from '../components/icons'
+import { IconAvertissement, IconChevron, IconCrayon, IconPersonne } from '../components/icons'
 import EtablissementsCard from '../components/EtablissementsCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
@@ -209,9 +209,10 @@ export default function ComptesPage() {
                         {/* Retour utilisateur du 09/09/2026 : une répartition entre
                             détenteurs commencée puis rompue (le plus souvent la
                             suppression d'un détenteur qui y avait une part) laissait
-                            un compte à moitié réparti sans le moindre indice —
-                            jamais pour une répartition simplement jamais commencée,
-                            un état valide (cf. `repartition_incomplete` côté API). */}
+                            un compte à moitié réparti sans le moindre indice — pour
+                            une répartition simplement jamais commencée, un état
+                            valide, voir l'icône neutre `repartition_non_renseignee`
+                            juste en dessous plutôt que ce triangle. */}
                         {ligne.repartition_incomplete && (
                           <span
                             className="ml-1.5 inline-flex shrink-0"
@@ -220,6 +221,21 @@ export default function ComptesPage() {
                             title="Répartition entre détenteurs incomplète sur au moins une ligne de ce compte"
                           >
                             <IconAvertissement className="h-4 w-4 text-warn" />
+                          </span>
+                        )}
+                        {/* Retour utilisateur du 20/09/2026 : distinct du triangle
+                            ci-dessus (une erreur à corriger) — invite plutôt à
+                            renseigner une répartition jamais commencée, un état
+                            valide (100 % foyer implicite), pas une alerte. Icône et
+                            couleur neutres pour ne jamais se lire comme un problème. */}
+                        {ligne.repartition_non_renseignee && (
+                          <span
+                            className="ml-1.5 inline-flex shrink-0"
+                            role="img"
+                            aria-label="Répartition entre détenteurs non renseignée pour ce compte — clique pour la définir"
+                            title="Répartition entre détenteurs non renseignée pour ce compte — clique pour la définir"
+                          >
+                            <IconPersonne className="h-4 w-4 text-ink4" />
                           </span>
                         )}
                       </span>

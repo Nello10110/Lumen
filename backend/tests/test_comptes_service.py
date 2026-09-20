@@ -367,6 +367,55 @@ def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incompl
     assert resultats[0]["repartition_incomplete"] is True
 
 
+def test_solde_par_compte_non_renseignee_absente_avec_un_seul_detenteur(db):
+    """Retour utilisateur du 20/09/2026 : sans au moins deux détenteurs déclarés, il
+    n'y a personne entre qui répartir — jamais d'invitation à le faire."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+    _creer_detenteur(db, "Alice")
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["repartition_non_renseignee"] is False
+
+
+def test_solde_par_compte_non_renseignee_avec_deux_detenteurs_et_aucune_quotite(db):
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+    _creer_detenteur(db, "Alice")
+    _creer_detenteur(db, "Bob")
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["repartition_non_renseignee"] is True
+
+
+def test_solde_par_compte_non_renseignee_fausse_des_qu_une_quotite_existe(db):
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+    alice_id = _creer_detenteur(db, "Alice")
+    _creer_detenteur(db, "Bob")
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice_id, 100.0)])
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["repartition_non_renseignee"] is False
+
+
+def test_solde_par_compte_non_renseignee_jamais_sur_le_bucket_sans_compte(db):
+    """Le bucket « Sans compte » n'est pas cliquable dans l'écran (pas de fiche à
+    ouvrir pour répondre à l'invitation) : jamais signalé, contrairement à
+    `repartition_incomplete`."""
+    make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=None)
+    _creer_detenteur(db, "Alice")
+    _creer_detenteur(db, "Bob")
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    sans_compte = next(r for r in resultats if r["compte"] is None)
+    assert sans_compte["repartition_non_renseignee"] is False
+
+
 def _creer_detenteur(db, nom: str) -> int:
     from app.models import Detenteur
 

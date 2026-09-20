@@ -326,6 +326,24 @@ def _holdings_repartition_incomplete(db: Session, holding_ids: list[int]) -> set
     return incomplets
 
 
+def _holdings_repartition_non_renseignee(db: Session, holding_ids: list[int]) -> set[int]:
+    """Holdings (parmi `holding_ids`) SANS AUCUNE ligne `QuotiteHolding` — une
+    répartition jamais renseignée, retombant implicitement à 100 % foyer (état
+    valide, cf. `_holdings_repartition_incomplete` ci-dessus et la docstring de
+    `models.QuotiteHolding`). Signalé séparément dans la vue des comptes (retour
+    utilisateur du 20/09/2026) pour INVITER à la renseigner, jamais avec la même
+    icône que `repartition_incomplete` : l'une pointe une erreur (une répartition
+    rompue après coup), l'autre une simple case pas encore remplie. N'a de sens que
+    si le foyer a déclaré au moins deux détenteurs — sans quoi il n'y a personne
+    entre qui répartir ; à l'appelant de filtrer sur ce critère."""
+    if not holding_ids:
+        return set()
+    holdings_avec_quotite = {
+        row[0] for row in db.query(QuotiteHolding.holding_id.distinct()).filter(QuotiteHolding.holding_id.in_(holding_ids)).all()
+    }
+    return set(holding_ids) - holdings_avec_quotite
+
+
 def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] | None = None) -> list[dict]:
     """Solde de chaque compte du foyer, TOUS types d'actifs confondus (contrairement
     à `analysis_service.repartition_par_compte`, restreinte au portefeuille
@@ -344,6 +362,14 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
         holdings = [h for h in holdings if h.id in holdings_visibles_ids]
     valued = analysis_service.value_holdings(holdings)
     holdings_incomplets = _holdings_repartition_incomplete(db, [h.id for h in holdings])
+    # `repartition_non_renseignee` (retour utilisateur du 20/09/2026) : n'a de sens
+    # que si le foyer a au moins deux détenteurs déclarés — avec 0 ou 1, il n'y a
+    # personne entre qui répartir, chaque ligne est légitimement à 100 % implicite.
+    holdings_non_renseignees = (
+        _holdings_repartition_non_renseignee(db, [h.id for h in holdings])
+        if len(detenteurs_service.list_detenteurs(db, user_id)) >= 2
+        else set()
+    )
 
     comptes = list_comptes(db, user_id)
     par_compte_id: dict[int | None, dict] = {
@@ -352,11 +378,23 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
             "solde": 0.0,
             "nombre_lignes": 0,
             "repartition_incomplete": False,
+            "repartition_non_renseignee": False,
             "derniere_maj": compte.updated_at,
         }
         for compte in comptes
     }
-    sans_compte = {"compte": None, "solde": 0.0, "nombre_lignes": 0, "repartition_incomplete": False, "derniere_maj": None}
+    # Bucket « Sans compte » exclu de `repartition_non_renseignee` (contrairement à
+    # `repartition_incomplete`, ci-dessous) : ce n'est pas un compte réel, ligne non
+    # cliquable dans l'écran (pas de fiche à ouvrir pour y répondre) — l'inviter à
+    # « définir la répartition » y serait une impasse.
+    sans_compte = {
+        "compte": None,
+        "solde": 0.0,
+        "nombre_lignes": 0,
+        "repartition_incomplete": False,
+        "repartition_non_renseignee": False,
+        "derniere_maj": None,
+    }
 
     for v in valued:
         cible = par_compte_id.get(v.holding.compte_id, sans_compte) if v.holding.compte_id is not None else sans_compte
@@ -364,6 +402,8 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
         cible["nombre_lignes"] += 1
         if v.holding.id in holdings_incomplets:
             cible["repartition_incomplete"] = True
+        if cible is not sans_compte and v.holding.id in holdings_non_renseignees:
+            cible["repartition_non_renseignee"] = True
         # Le bucket « Sans compte » n'a pas de `derniere_maj` (pas une entité,
         # cf. docstring de `CompteAvecSoldeOut`) : n'agrège cette valeur que pour
         # un vrai compte.

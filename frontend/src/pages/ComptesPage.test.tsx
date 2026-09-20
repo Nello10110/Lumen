@@ -55,7 +55,15 @@ function compte(overrides: Partial<Compte> = {}): Compte {
 }
 
 function ligne(overrides: Partial<CompteAvecSolde> = {}): CompteAvecSolde {
-  return { compte: compte(), solde: 1000, nombre_lignes: 2, repartition_incomplete: false, derniere_maj: null, ...overrides }
+  return {
+    compte: compte(),
+    solde: 1000,
+    nombre_lignes: 2,
+    repartition_incomplete: false,
+    repartition_non_renseignee: false,
+    derniere_maj: null,
+    ...overrides,
+  }
 }
 
 function holding(overrides: Partial<Holding> = {}): Holding {
@@ -129,6 +137,19 @@ describe('ComptesPage', () => {
 
     await screen.findByText('PEA')
     expect(screen.getByRole('img', { name: /répartition.*incomplète/i })).toBeInTheDocument()
+  })
+
+  // Retour utilisateur du 20/09/2026 : inviter à renseigner une répartition jamais
+  // commencée — icône distincte du triangle ci-dessus (état valide, pas une erreur).
+  it('affiche une icône neutre sur un compte dont la répartition entre détenteurs est non renseignée', async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 1, nom: 'PEA' }), repartition_non_renseignee: true }),
+      ligne({ compte: compte({ id: 2, nom: 'Livret A' }), repartition_non_renseignee: false }),
+    ])
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    expect(screen.getByRole('img', { name: /répartition.*non renseignée/i })).toBeInTheDocument()
   })
 
   // Demande directe du 16/09/2026 : dernière activité utilisateur affichée par
