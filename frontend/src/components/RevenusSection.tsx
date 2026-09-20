@@ -13,9 +13,9 @@ import {
   AXE_CATEGORIES,
   CURSEUR_BARRE,
   EPAISSEUR_BARRE,
-  RAYON_BARRE_HORIZONTALE,
+  HAUTEUR,
+  RAYON_BARRE_VERTICALE,
   STYLE_INFOBULLE,
-  hauteurBarres,
 } from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
 
@@ -23,6 +23,15 @@ function libelleMois(mois: string): string {
   const [annee, m] = mois.split('-')
   const date = new Date(Number(annee), Number(m) - 1, 1)
   const libelle = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  return libelle.charAt(0).toUpperCase() + libelle.slice(1)
+}
+
+/** Libellé court pour l'axe des mois (ex. « sept. 26 ») — `libelleMois` (« Septembre
+ * 2026 ») déborderait une fois posé à l'horizontale sur une douzaine de catégories. */
+function libelleMoisCourt(mois: string): string {
+  const [annee, m] = mois.split('-')
+  const date = new Date(Number(annee), Number(m) - 1, 1)
+  const libelle = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
   return libelle.charAt(0).toUpperCase() + libelle.slice(1)
 }
 
@@ -90,7 +99,11 @@ export default function RevenusSection() {
   if (!calendrier) return <SkeletonTexte />
 
   const total = calendrier.reduce((acc, m) => acc + m.montant_total, 0)
-  const donneesGraphique = calendrier.map((m) => ({ mois: libelleMois(m.mois), montant: m.montant_total }))
+  const donneesGraphique = calendrier.map((m) => ({
+    mois: libelleMois(m.mois),
+    moisCourt: libelleMoisCourt(m.mois),
+    montant: m.montant_total,
+  }))
 
   return (
     <div className="space-y-[14px]">
@@ -114,16 +127,17 @@ export default function RevenusSection() {
           </GlassPanel>
 
           <Card title="Par mois">
-            <ResponsiveContainer width="100%" height={hauteurBarres(donneesGraphique.length)}>
-              <BarChart data={donneesGraphique} layout="vertical" margin={{ left: 0, right: 8 }} barSize={EPAISSEUR_BARRE}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="mois" width={130} {...AXE_CATEGORIES} />
+            <ResponsiveContainer width="100%" height={HAUTEUR.panneau}>
+              <BarChart data={donneesGraphique} margin={{ left: 0, right: 8, bottom: 4 }} barSize={EPAISSEUR_BARRE}>
+                <XAxis dataKey="moisCourt" interval={0} {...AXE_CATEGORIES} />
+                <YAxis hide />
                 <Tooltip
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.mois ?? ''}
                   formatter={(value) => formatEuro(Number(value), 2, montantsMasques)}
                   cursor={CURSEUR_BARRE}
                   {...STYLE_INFOBULLE}
                 />
-                <Bar dataKey="montant" fill="var(--s1)" radius={RAYON_BARRE_HORIZONTALE} isAnimationActive={false} />
+                <Bar dataKey="montant" fill="var(--s1)" radius={RAYON_BARRE_VERTICALE} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
