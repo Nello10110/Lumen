@@ -122,6 +122,21 @@ summary,
   -webkit-user-select: none;
 }
 
+/* Anneau de focus parasite au clic sur une barre (retour utilisateur du 20/09/2026,
+   Plus-value par compte : « des carré de sélections qui n'ont pas lieu d'être ») —
+   même famille de bug que le `user-select` ci-dessus, cause différente : Recharts pose
+   un `.focus()` PAR SCRIPT sur le `<g>` interne de la barre cliquée (sa propre couche
+   d'accessibilité, pour synchroniser l'infobulle), pas seulement au clavier. Le
+   navigateur reconnaît bien qu'il ne s'agit pas d'une navigation clavier
+   (`:focus-visible` ne matche pas sur ce `<g>`, vérifié), mais lui applique quand même
+   son anneau de focus PAR DÉFAUT du navigateur — pas celui de la règle `:focus-visible`
+   ci-dessus, qui ne s'applique donc jamais ici. `:focus:not(:focus-visible)` cible
+   exactement ce cas et lui seul : un vrai focus clavier sur un graphique (rare, mais
+   possible) garde son anneau `--accent` habituel. */
+.recharts-wrapper :focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* Chiffre héros en mobile (refonte, étape 5) : 40 px au lieu de 54 — la maquette
    mobile le réduit pour que le montant tienne sur une ligne dans 390 px de large.
    Redéfinir la variable du jeton plutôt que d'ajouter une variante utilitaire :
