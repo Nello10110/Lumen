@@ -57,6 +57,31 @@ function formatDelai(mois: number): string {
   return `${ans} an${ans > 1 ? 's' : ''}`
 }
 
+/** Année calendaire, `moisOffset` mois après aujourd'hui — pour la date
+ * d'indépendance financière. Additionner directement une fraction d'année à
+ * l'année en cours (l'ancien calcul) donnait un chiffre comme « 2036.5 », un
+ * artefact d'affichage pris à tort pour une vraie date (retour utilisateur du
+ * 20/09/2026). Passer par `Date.setMonth` reste correct même en fin d'année
+ * (décembre + 3 mois retombe bien sur l'année suivante, pas sur une soustraction
+ * de calendrier à la main). */
+function anneeCalendairePlusMois(moisOffset: number): number {
+  const d = new Date()
+  d.setMonth(d.getMonth() + moisOffset)
+  return d.getFullYear()
+}
+
+/** Délai avant indépendance financière en langage courant — « X ans et Y mois »,
+ * jamais une année à décimale (même bug que `anneeCalendairePlusMois` ci-dessus,
+ * même retour utilisateur). Sous un an : uniquement des mois. Années pleines :
+ * pas de « et 0 mois » superflu. */
+function formatDureeFire(moisTotal: number): string {
+  const ans = Math.floor(moisTotal / 12)
+  const mois = moisTotal % 12
+  if (ans === 0) return `${mois} mois`
+  if (mois === 0) return `${ans} an${ans > 1 ? 's' : ''}`
+  return `${ans} an${ans > 1 ? 's' : ''} et ${mois} mois`
+}
+
 /** Backlog § AG.6 — la phrase en langage humain qui précède le détail chiffré du
  * FIRE : ce que 50 €/mois de plus changeraient concrètement, calculé sur le MÊME
  * moteur que le reste (`calculerFire`), jamais une formule séparée qui pourrait
@@ -66,21 +91,24 @@ function formatDelai(mois: number): string {
 function phraseFireEnHistoire(fire: ResultatFire | null, fireAvecPlus50: ResultatFire | null): string | null {
   if (!fire || !fireAvecPlus50) return null
   // Déjà atteinte : rien à accélérer.
-  if (fire.anneesAvantIndependance === 0) return null
+  if (fire.moisAvantIndependance === 0) return null
 
-  if (fire.anneesAvantIndependance === null) {
+  if (fire.moisAvantIndependance === null) {
     // Jamais atteinte dans l'horizon de recherche (60 ans) SANS les 50 € de plus —
     // mais avec, ça devient possible : un cas où « plus tôt » n'a pas de sens,
     // « devient possible » si.
-    if (fireAvecPlus50.anneesAvantIndependance !== null) {
+    if (fireAvecPlus50.moisAvantIndependance !== null) {
       return `Avec 50 € de plus par mois, l'indépendance financière deviendrait atteignable — plutôt que jamais d'ici 60 ans.`
     }
     return null
   }
 
-  if (fireAvecPlus50.anneesAvantIndependance === null) return null // ne devrait pas arriver (plus de versement ne peut qu'aider), garde-fou silencieux
+  if (fireAvecPlus50.moisAvantIndependance === null) return null // ne devrait pas arriver (plus de versement ne peut qu'aider), garde-fou silencieux
 
-  const moisPlusTot = Math.round((fire.anneesAvantIndependance - fireAvecPlus50.anneesAvantIndependance) * 12)
+  // Différence de deux comptes de mois EXACTS (plus de double arrondi : l'ancien
+  // calcul soustrayait deux années déjà arrondies à 0,1 près avant de reconvertir en
+  // mois, ce qui pouvait décaler ce délai d'un mois pour rien).
+  const moisPlusTot = fire.moisAvantIndependance - fireAvecPlus50.moisAvantIndependance
   if (moisPlusTot < 1) return null
 
   return `Avec 50 € de plus par mois, tu prendrais ta retraite ${formatDelai(moisPlusTot)} plus tôt.`
@@ -186,6 +214,15 @@ export default function SimulateurProjectionSection() {
 
   const [depenseCible, setDepenseCible] = useState('')
   const [tauxRetrait, setTauxRetrait] = useState('4')
+  // Aide au chiffrage de la dépense cible (retour utilisateur du 20/09/2026) :
+  // beaucoup arrivent avec un revenu en tête plutôt qu'un budget annuel déjà
+  // chiffré. Annuel et mensuel restent DEUX champs synchronisés plutôt qu'un seul
+  // avec une bascule — même logique que « Capital de départ »/« Versement mensuel »
+  // ailleurs dans cette section : on modifie celui qu'on a sous les yeux, l'autre
+  // suit tout seul.
+  const [revenuAnnuel, setRevenuAnnuel] = useState('')
+  const [revenuMensuel, setRevenuMensuel] = useState('')
+  const [tauxImpot, setTauxImpot] = useState('')
 
   const [erreurPatrimoine, setErreurPatrimoine] = useState<string | null>(null)
   const [erreurInterets, setErreurInterets] = useState<string | null>(null)
@@ -330,6 +367,32 @@ export default function SimulateurProjectionSection() {
           const point = data[Math.round((i * (data.length - 1)) / 4)]
           return point ? `+${point.annee} an${point.annee > 1 ? 's' : ''}` : ''
         })
+
+  // Le champ modifié fait foi, l'autre se recalcule dessus — jamais l'inverse, sinon
+  // les deux se marchent dessus dès qu'on tape un chiffre.
+  function onChangeRevenuAnnuel(v: string) {
+    setRevenuAnnuel(v)
+    const n = Number(v.replace(',', '.'))
+    setRevenuMensuel(Number.isFinite(n) ? String(arrondi(n / 12)) : '')
+  }
+  function onChangeRevenuMensuel(v: string) {
+    setRevenuMensuel(v)
+    const n = Number(v.replace(',', '.'))
+    setRevenuAnnuel(Number.isFinite(n) ? String(arrondi(n * 12)) : '')
+  }
+
+  const revenuAnnuelNum = Number(revenuAnnuel.replace(',', '.'))
+  const tauxImpotNum = Number(tauxImpot.replace(',', '.'))
+  const revenuNetEstime =
+    revenuAnnuel !== '' &&
+    Number.isFinite(revenuAnnuelNum) &&
+    revenuAnnuelNum >= 0 &&
+    tauxImpot !== '' &&
+    Number.isFinite(tauxImpotNum) &&
+    tauxImpotNum >= 0 &&
+    tauxImpotNum <= 100
+      ? arrondi(revenuAnnuelNum * (1 - tauxImpotNum / 100))
+      : null
 
   const depenseCibleNum = Number(depenseCible)
   const tauxRetraitNum = Number(tauxRetrait)
@@ -620,6 +683,68 @@ export default function SimulateurProjectionSection() {
           vérité universelle, à ajuster selon ta propre prudence. Utilise le capital de départ, le rendement et le versement
           mensuel renseignés ci-dessus.
         </p>
+
+        {/* Aide au chiffrage de la dépense cible (retour utilisateur du 20/09/2026) :
+            beaucoup connaissent leur revenu, pas directement leur budget annuel — ce
+            bloc convertit l'un en l'autre plutôt que de forcer un calcul à la main.
+            Purement local à cette section : ne modifie `Dépense annuelle cible`
+            qu'au clic explicite sur le bouton, jamais tout seul en tapant, comme les
+            autres suggestions de la page (« Revenir au patrimoine net actuel »...). */}
+        <div className="mb-4 grid grid-cols-2 gap-4 rounded-card border border-stroke bg-panel p-3 sm:grid-cols-3">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Revenu annuel (€)
+            <input
+              value={revenuAnnuel}
+              onChange={(e) => onChangeRevenuAnnuel(e.target.value)}
+              type="number"
+              step="any"
+              min={0}
+              placeholder="ex. 40000"
+              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Revenu mensuel (€)
+            <input
+              value={revenuMensuel}
+              onChange={(e) => onChangeRevenuMensuel(e.target.value)}
+              type="number"
+              step="any"
+              min={0}
+              placeholder="ex. 3333"
+              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Taux d'impôt (%)
+            <input
+              value={tauxImpot}
+              onChange={(e) => setTauxImpot(e.target.value)}
+              type="number"
+              step="any"
+              min={0}
+              max={100}
+              placeholder="ex. 20"
+              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+
+          {revenuNetEstime !== null && (
+            <div className="col-span-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm sm:col-span-3">
+              <span className="text-texte-attenue">Revenu net estimé :</span>
+              <span className="font-semibold text-texte">{formatEuro(revenuNetEstime, 0, montantsMasques)}/an</span>
+              <span className="text-texte-attenue">({formatEuro(revenuNetEstime / 12, 0, montantsMasques)}/mois)</span>
+              <button
+                type="button"
+                onClick={() => setDepenseCible(String(Math.round(revenuNetEstime)))}
+                className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
+              >
+                Utiliser comme dépense annuelle cible
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Dépense annuelle cible (€)
@@ -659,17 +784,17 @@ export default function SimulateurProjectionSection() {
         {fire && depenseCible && (
           <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="text-[13px] font-medium text-ink3">Indépendance financière atteinte en</span>
-            {fire.anneesAvantIndependance === null ? (
+            {fire.moisAvantIndependance === null ? (
               <span className="text-[48px] font-semibold leading-none tracking-hero text-avertissement">
                 jamais d'ici 60 ans
               </span>
             ) : (
               <>
                 <span className="text-[48px] font-semibold leading-none tracking-hero text-ink">
-                  {new Date().getFullYear() + fire.anneesAvantIndependance}
+                  {anneeCalendairePlusMois(fire.moisAvantIndependance)}
                 </span>
                 <span className="text-[22px] font-medium text-ink3">
-                  {fire.anneesAvantIndependance === 0 ? '· déjà atteinte' : `· dans ${fire.anneesAvantIndependance} ans`}
+                  {fire.moisAvantIndependance === 0 ? '· déjà atteinte' : `· dans ${formatDureeFire(fire.moisAvantIndependance)}`}
                 </span>
               </>
             )}
@@ -682,13 +807,13 @@ export default function SimulateurProjectionSection() {
             <StatTile
               label="Indépendance financière"
               value={
-                fire.anneesAvantIndependance === null
+                fire.moisAvantIndependance === null
                   ? 'Non atteinte (60 ans)'
-                  : fire.anneesAvantIndependance === 0
+                  : fire.moisAvantIndependance === 0
                     ? 'Déjà atteinte'
-                    : `Dans ${fire.anneesAvantIndependance} ans`
+                    : `Dans ${formatDureeFire(fire.moisAvantIndependance)}`
               }
-              tone={fire.anneesAvantIndependance === null ? 'warning' : 'good'}
+              tone={fire.moisAvantIndependance === null ? 'warning' : 'good'}
             />
           </div>
         )}

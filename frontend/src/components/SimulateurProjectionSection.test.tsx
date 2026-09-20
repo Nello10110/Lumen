@@ -385,7 +385,7 @@ describe('SimulateurProjectionSection', () => {
 
       const fire = calculerFire(10000, 5, 500, 40000, 4)
       const fireAvecPlus50 = calculerFire(10000, 5, 550, 40000, 4)
-      const moisGagnes = Math.round((fire.anneesAvantIndependance! - fireAvecPlus50.anneesAvantIndependance!) * 12)
+      const moisGagnes = fire.moisAvantIndependance! - fireAvecPlus50.moisAvantIndependance!
       const delaiAttendu = moisGagnes < 12 ? `${moisGagnes} mois` : `${Math.round(moisGagnes / 12)} an`
 
       const phrase = await screen.findByText(/Avec 50 € de plus par mois, tu prendrais ta retraite/)
