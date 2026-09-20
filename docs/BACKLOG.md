@@ -4730,7 +4730,7 @@ philosophie déjà actée du produit, spécifiées ici avec un niveau de détail
 codées sans aller-retour : modèle de données exact, signatures, formules chiffrées, fichiers
 précis à toucher, tests attendus.
 
-#### AZ.1 — `mineur` · `M` · `non traité` (proposé le 20/09/2026) — Score patrimonial consolidé
+#### AZ.1 — `mineur` · `M` · `traité` (20/09/2026) — Score patrimonial consolidé
 
 **Constat.** Trois indicateurs de qualité existent déjà, mais dispersés et scopés au seul
 portefeuille financier : `score_diversification` (`analysis_service.compute_risk_indicators`,
@@ -4883,10 +4883,22 @@ class ScorePatrimonialResponse(BaseModel):
     sous_scores: list[SousScorePatrimonial]
 ```
 
-**Frontend.** Nouveau composant `components/ScorePatrimonialCard.tsx` (même patron que
-`IndicateursSituationCard.tsx` pour le chargement/erreur), monté sur `DashboardPage.tsx`
-immédiatement après `PatrimoineNetCard`. Nouvelle méthode `api.getScorePatrimonial()`
-(`api/client.ts`) et type `ScorePatrimonialResponse` (`api/types/patrimoine.ts`).
+**Frontend.** Nouveau composant `components/ScorePatrimonialCard.tsx` (même patron
+d'auto-chargement/erreur que `PatrimoineNetCard.tsx`/`ExpositionConsolideeCard.tsx`).
+**Correction apportée à l'implémentation (20/09/2026)** par rapport à la première
+version de cette spécification, qui proposait `DashboardPage.tsx` : ce dernier porte
+sa propre docstring, explicite, listant tout ce qui n'a PAS sa place sur cet écran —
+« rentabilité, métriques avancées, répartitions géographique et sectorielle, qualité
+des données, exposition consolidée, coût de gestion, revenus » ont « rejoint l'écran
+`Analyse`, où [ils sont] rangé[s] par question plutôt qu'empilé[s] » — un score
+patrimonial est exactement ce genre d'indicateur diagnostique. Monté à la place sur
+`AnalysePage.tsx`, onglet « Portefeuille » (celui par défaut), juste après
+`<ExpositionConsolideeCard />` : c'est la seule autre carte de cet onglet qui porte
+déjà sur tout le patrimoine (pas seulement le financier), donc le voisinage le plus
+cohérent. Même garde d'accès que sa voisine — un compte `invité` y verra `EtatErreur`
+comme pour `ExpositionConsolideeCard` (comportement déjà existant sur cet onglet,
+pas une régression introduite ici). Nouvelle méthode `api.getScorePatrimonial()`
+(`api/client.ts`) et type `ScorePatrimonial`/`SousScorePatrimonial` (`api/types/patrimoine.ts`).
 
 - Le chiffre `score_global` s'affiche en grand (même composant `StatTile` que le reste de
   l'application), avec `tone` : `< 40` → `'warning'`, `40` à `69` inclus → `'neutral'`, `>= 70` →
@@ -5077,11 +5089,14 @@ class ComparaisonInseeResponse(BaseModel):
   précisant l'usage unique de cette donnée (« sert uniquement à choisir la bonne tranche d'âge de
   comparaison, jamais stockée ni utilisée ailleurs »), pour couper court à toute inquiétude sur une
   donnée personnelle nouvellement collectée.
-- Nouveau composant `components/ComparaisonInseeCard.tsx`, monté sur `DashboardPage.tsx` (après
-  `ScorePatrimonialCard` si § AZ.1 est également livré, sinon après `PatrimoineNetCard`). **Ne
-  s'affiche pas du tout** (composant retourne `null`, pas un état vide) si l'API renvoie `null` —
-  jamais une invite culpabilisante à renseigner son année de naissance sur l'écran d'accueil,
-  cohérent avec le ton du produit (cf. § AG). Le champ reste découvrable depuis Réglages.
+- Nouveau composant `components/ComparaisonInseeCard.tsx`, monté sur `AnalysePage.tsx`, onglet
+  « Portefeuille », après `<ScorePatrimonialCard />` (§ AZ.1, `traité` le 20/09/2026) — **pas
+  `DashboardPage.tsx`** : cet écran porte sa propre docstring listant tout ce qui n'a PAS sa place
+  sur le tableau de bord (rentabilité, répartitions, qualité des données, exposition consolidée...,
+  cf. la correction de placement déjà appliquée à § AZ.1 ci-dessus), et une comparaison externe au
+  patrimoine est le même genre d'indicateur diagnostique. **Ne s'affiche pas du tout** (composant
+  retourne `null`, pas un état vide) si l'API renvoie `null` — jamais une invite culpabilisante à
+  renseigner son année de naissance. Le champ reste découvrable depuis Réglages.
 - Contenu si les données existent : « Votre patrimoine brut : **{actifs_totaux_foyer} €**. Médiane
   française pour votre tranche d'âge ({age_utilise} ans) : **{mediane_reference} €**. » suivi de
   `ecart_pct` reformulé en phrase (jamais juste un signe +/-, cf. § AG.2/AG.6 déjà actés sur ce

@@ -217,6 +217,17 @@ def test_patrimoine_net_ne_compte_pas_les_actifs_dun_autre_utilisateur(client, d
     assert reponse.json()["actifs_totaux"] == 0
 
 
+def test_score_patrimonial_ne_compte_pas_les_actifs_dun_autre_utilisateur(client, db):
+    make_holding(db, ticker="MAISON", user_id=ID_UTILISATEUR_TEST, type_actif="REAL_ESTATE", valeur_estimee=250000.0, quantite=1)
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    reponse = client.get("/api/patrimoine/score")
+
+    assert reponse.status_code == 200
+    # Foyer B sans aucun actif : score neutre, jamais dérivé des 250 000 € de A.
+    assert reponse.json()["score_global"] == 0
+
+
 def test_performance_dun_utilisateur_ignore_les_transactions_dun_autre(client, db):
     make_transaction(db, symbol="AAA", user_id=ID_UTILISATEUR_TEST, shares=10.0, amount=-1000.0)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)

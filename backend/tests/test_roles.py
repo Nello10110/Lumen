@@ -241,6 +241,24 @@ def test_proprietaire_et_membre_accedent_a_exposition_consolidee(client_reel):
     assert client_reel.get("/api/patrimoine/exposition-consolidee", headers=_en_tete(token_membre)).status_code == 200
 
 
+def test_invite_refuse_sur_score_patrimonial(client_reel):
+    """Backlog § AZ.1 : `/api/patrimoine/score` porte sur le foyer consolidé, sans
+    variante par détenteur — même garde `_pas_invite` et même raison que
+    `/exposition-consolidee` ci-dessus."""
+    token_proprio = _fonder_foyer(client_reel)
+    token_invite = _creer_invite(client_reel, token_proprio, [])
+
+    assert client_reel.get("/api/patrimoine/score", headers=_en_tete(token_invite)).status_code == 403
+
+
+def test_proprietaire_et_membre_accedent_au_score_patrimonial(client_reel):
+    token_proprio = _fonder_foyer(client_reel)
+    token_membre = _creer_membre(client_reel, token_proprio)
+
+    assert client_reel.get("/api/patrimoine/score", headers=_en_tete(token_proprio)).status_code == 200
+    assert client_reel.get("/api/patrimoine/score", headers=_en_tete(token_membre)).status_code == 200
+
+
 def test_invite_refuse_sur_composition_exposition_consolidee(client_reel):
     """Même dépendance de rôle (`_pas_invite`) que `/exposition-consolidee` ci-dessus."""
     token_proprio = _fonder_foyer(client_reel)

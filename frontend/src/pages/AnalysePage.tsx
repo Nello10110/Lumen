@@ -15,6 +15,7 @@ import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PerformanceCard from '../components/PerformanceCard'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
 import RevenusSection from '../components/RevenusSection'
+import ScorePatrimonialCard from '../components/ScorePatrimonialCard'
 import SimulateurAchatLocationCard from '../components/SimulateurAchatLocationCard'
 import SimulateurProjectionSection from '../components/SimulateurProjectionSection'
 import { SkeletonTexte } from '../components/Skeleton'
@@ -269,6 +270,8 @@ export default function AnalysePage() {
           )}
 
           <ExpositionConsolideeCard />
+
+          <ScorePatrimonialCard />
 
           {chargementCoutGestion && <SkeletonTexte lignes={2} />}
           {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}

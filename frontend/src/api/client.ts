@@ -58,6 +58,7 @@ import type {
   Preferences,
   PreferencesUpdateResponse,
   QuotiteEntree,
+  ScorePatrimonial,
   RecurrenceDetectee,
   RegleCategorisation,
   RegleReapplicationResult,
@@ -494,6 +495,10 @@ export const api = {
     const qs = params.toString()
     return request<LignesPatrimoineFiltreesResponse>(`/patrimoine/lignes${qs ? `?${qs}` : ''}`, { signal })
   },
+  // Score patrimonial consolidé (backlog § AZ.1) — foyer uniquement, jamais de
+  // variante par détenteur (même garde `_pas_invite` côté serveur que
+  // `getExpositionConsolidee` juste en-dessous).
+  getScorePatrimonial: () => request<ScorePatrimonial>('/patrimoine/score'),
   getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
   getExpositionConsolideeComposition: (dimension: 'geo' | 'classe', categorie: string, net: boolean) =>
     request<CategoryCompositionResponse>(

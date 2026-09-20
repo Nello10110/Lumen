@@ -122,6 +122,30 @@ class ExpositionConsolidee(BaseModel):
     part_estimee_manuelle_pct_nette: float
 
 
+class SousScorePatrimonial(BaseModel):
+    """Un des sous-scores composant `ScorePatrimonialResponse.score_global`
+    (backlog § AZ.1) — `explication` est le texte affiché tel quel côté client,
+    jamais reformulé : le backend reste la seule source de vérité du discours
+    autant que du chiffre (transparence du calcul, cf. § 1.2 du backlog)."""
+
+    id: str
+    label: str
+    score: int
+    poids_pct: int
+    explication: str
+
+
+class ScorePatrimonialResponse(BaseModel):
+    """Backlog § AZ.1 — `services/score_patrimonial_service.compute_score_patrimonial`.
+    `score_global` : moyenne pondérée des `sous_scores` INCLUS (un sous-score
+    exclu, comme la qualité des données sans portefeuille financier, n'apparaît
+    simplement pas dans la liste — son poids est redistribué aux autres, jamais
+    une entrée avec un score neutre)."""
+
+    score_global: int
+    sous_scores: list[SousScorePatrimonial]
+
+
 class IndicateursSituation(BaseModel):
     matelas_securite_mois: float | None
     taux_endettement_pct: float | None

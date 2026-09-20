@@ -131,6 +131,11 @@ const QUESTIONS_CHIFFRES: QuestionReponse[] = [
       'Basé sur l’indice de Herfindahl-Hirschman (un classique en économie pour mesurer la concentration) : plus une seule ligne pèse lourd dans le portefeuille, plus le score baisse. 100/100 serait un portefeuille parfaitement réparti entre un très grand nombre de lignes égales ; un score qui chute signale qu’une poignée de positions domine tout.',
   },
   {
+    question: '🧭 Le score patrimonial, comment il est calculé ?',
+    reponse:
+      'Une moyenne pondérée de trois notes sur 100 : la diversification de vos actifs (40 %), la qualité des données de votre portefeuille financier (30 %, absente du calcul si vous n’avez pas de portefeuille financier — son poids est alors reporté sur les deux autres), et votre niveau d’endettement (30 %). Le détail des trois notes est toujours visible en dépliant la carte — jamais un chiffre sans sa méthode.',
+  },
+  {
     question: '🧩 Pourquoi la répartition géo d’un ETF est parfois "estimée" ?',
     reponse:
       'Certains fournisseurs de données ne donnent pas toujours le détail pays/secteur d’un fonds. Dans ce cas, l’appli déduit une estimation à partir de l’indice suivi (ex. un "MSCI World" suit une répartition mondiale connue et stable) plutôt que d’afficher "Non catégorisé". L’écran "Qualité des données" du Tableau de bord indique toujours si un chiffre est mesuré ou estimé.',

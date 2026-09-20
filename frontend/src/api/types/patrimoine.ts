@@ -66,6 +66,25 @@ export interface PatrimoineNet {
   repartition_par_classe_nette: RepartitionParClasseItem[]
 }
 
+// Score patrimonial consolidé (backlog § AZ.1) — un chiffre 0-100, moyenne
+// pondérée de sous-scores dont la méthode reste toujours visible (`explication`),
+// jamais une boîte noire. Foyer uniquement, pas de variante par détenteur.
+export interface SousScorePatrimonial {
+  id: string
+  label: string
+  score: number
+  poids_pct: number
+  explication: string
+}
+
+export interface ScorePatrimonial {
+  score_global: number
+  // Un sous-score inapplicable (ex. qualité des données sans portefeuille
+  // financier) est simplement ABSENT de cette liste — jamais une entrée à 0/100
+  // ni un texte "non applicable" à gérer côté client.
+  sous_scores: SousScorePatrimonial[]
+}
+
 // Historique combiné financier + immobilier/épargne − emprunts (feature Net/Brut/
 // Financier sur toute la page Synthèse) — distinct de `PortfolioHistoryPoint`
 // (financier seul). Cf. `services/patrimoine_history_service.py` pour les deux

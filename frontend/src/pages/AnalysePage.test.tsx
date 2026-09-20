@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
     getPerformance: vi.fn(),
     getCoutGestionConsolide: vi.fn(),
     getExpositionConsolidee: vi.fn(),
+    getScorePatrimonial: vi.fn(),
     getDividendCalendar: vi.fn().mockResolvedValue([]),
     getIndicateursSituation: vi.fn(),
   },
@@ -121,6 +122,7 @@ function mockReponsesParDefaut() {
     cout_annuel_estime: 0,
   })
   vi.mocked(api.getExpositionConsolidee).mockResolvedValue(expositionConsolidee())
+  vi.mocked(api.getScorePatrimonial).mockResolvedValue({ score_global: 0, sous_scores: [] })
   vi.mocked(api.getDividendCalendar).mockResolvedValue([])
   vi.mocked(api.getIndicateursSituation).mockResolvedValue({
     matelas_securite_mois: 6,

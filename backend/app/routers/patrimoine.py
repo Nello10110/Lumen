@@ -21,8 +21,9 @@ from ..schemas import (
     LignesPatrimoineFiltreesResponse,
     PatrimoineHistoryResponse,
     PatrimoineNetResponse,
+    ScorePatrimonialResponse,
 )
-from ..services import auth_service, detenteurs_service, patrimoine_history_service, patrimoine_service
+from ..services import auth_service, detenteurs_service, patrimoine_history_service, patrimoine_service, score_patrimonial_service
 
 router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
 
@@ -102,6 +103,16 @@ def get_lignes_patrimoine(
         db, auth_service.id_foyer(current_user), type_actif, compte_id, etablissement_id, detenteur_id
     )
     return LignesPatrimoineFiltreesResponse(lignes=lignes)
+
+
+@router.get("/score", response_model=ScorePatrimonialResponse)
+def get_score_patrimonial(db: Session = Depends(get_db), current_user: User = Depends(_pas_invite)):
+    """Backlog § AZ.1 — score consolidé du FOYER, sans variante par détenteur
+    (même garde `_pas_invite` que `/exposition-consolidee` juste en-dessous, et
+    pour la même raison : un compte invité, dont le périmètre est censé être
+    limité à un ou plusieurs détenteurs, n'a pas vocation à voir le score
+    consolidé de tout le foyer)."""
+    return ScorePatrimonialResponse(**score_patrimonial_service.compute_score_patrimonial(db, auth_service.id_foyer(current_user)))
 
 
 @router.get("/exposition-consolidee", response_model=ExpositionConsolidee)

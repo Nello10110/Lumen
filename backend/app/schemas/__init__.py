@@ -123,6 +123,8 @@ from .patrimoine import (  # noqa: F401
     PatrimoineHistoryPoint,
     PatrimoineHistoryResponse,
     PatrimoineNetResponse,
+    ScorePatrimonialResponse,
+    SousScorePatrimonial,
 )
 from .performance import (  # noqa: F401
     BenchmarkOption,
