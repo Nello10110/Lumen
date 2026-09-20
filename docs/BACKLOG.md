@@ -4700,6 +4700,469 @@ autres suggestions préremplies de cette section (« Revenir au patrimoine net a
 explicite, pas une valeur qui change sous les yeux de l'utilisateur.
 
 ---
+
+### AZ. Trois pistes issues d'une revue concurrentielle (Baggr.fr, 20/09/2026)
+
+Revue du site public de Baggr.fr (plateforme d'analyse et de screener boursier, hors périmètre de
+Lumen sur son cœur de métier — cf. § 3) : deux idées écartées d'emblée (screener/valorisation
+d'actions, communauté/thèses) parce qu'elles transformeraient Lumen en concurrent direct d'un outil
+qui a des années d'avance sur ce terrain précis. Trois pistes retenues, compatibles avec la
+philosophie déjà actée du produit, spécifiées ici avec un niveau de détail suffisant pour être
+codées sans aller-retour : modèle de données exact, signatures, formules chiffrées, fichiers
+précis à toucher, tests attendus.
+
+#### AZ.1 — `mineur` · `M` · `non traité` (proposé le 20/09/2026) — Score patrimonial consolidé
+
+**Constat.** Trois indicateurs de qualité existent déjà, mais dispersés et scopés au seul
+portefeuille financier : `score_diversification` (`analysis_service.compute_risk_indicators`,
+HHI sur `breakdown_with_lookthrough`), la qualité des données géographiques
+(`analysis_service.compute_data_quality`), et implicitement le ratio d'endettement (déductible de
+`patrimoine_service.compute_patrimoine_net`, jamais affiché comme tel). Finary et Baggr affichent
+chacun une note synthétique ; le backlog note déjà (§ 1.1, ligne « Analyse ») que Lumen n'a pas
+d'équivalent consolidé. **Différence volontaire avec Finary** (§ 1.2, point 2 : « le mur payant
+abîme l'écran d'analyse... le diagnostic anxiogène est offert, le remède est vendu ») : la méthode
+de calcul doit toujours être visible, jamais une boîte noire.
+
+**Nouveau fichier** `backend/app/services/score_patrimonial_service.py` — une seule fonction
+publique, aucune nouvelle table, aucun nouvel appel réseau : recombine des chiffres déjà calculés
+ailleurs.
+
+```python
+POIDS_DIVERSIFICATION = 40
+POIDS_QUALITE_DONNEES = 30
+POIDS_ENDETTEMENT = 30
+
+SEUIL_ENDETTEMENT_SAIN = 0.30   # ratio passifs/actifs en-dessous duquel le sous-score vaut 100
+SEUIL_ENDETTEMENT_ELEVE = 0.80  # ratio à partir duquel le sous-score vaut 0 (interpolation linéaire entre les deux)
+
+
+def _score_diversification(repartition_par_classe: list[dict], actifs_totaux: float) -> int:
+    """HHI sur `repartition_par_classe` (sortie de `compute_patrimoine_net`, déjà
+    filtrée aux valeurs positives) — même principe que `score_diversification`
+    existant, mais sur TOUTES les classes d'actif du patrimoine, pas le seul
+    portefeuille financier. `actifs_totaux <= 0` ou une seule classe représentée
+    (patrimoine entièrement concentré, HHI = 1) renvoient 0, jamais une division
+    par zéro ni un score positif trompeur."""
+    if actifs_totaux <= 0 or not repartition_par_classe:
+        return 0
+    hhi = sum((item["valeur"] / actifs_totaux) ** 2 for item in repartition_par_classe)
+    return round((1 - hhi) * 100)
+
+
+def _score_qualite_donnees(qualite: dict, patrimoine_financier: float) -> int | None:
+    """`None` si le foyer n'a AUCUN portefeuille financier (100 % immobilier/
+    épargne, par exemple) : ce sous-score n'a alors rien à mesurer, et lui donner
+    une valeur par défaut (0 OU 100) fausserait le score global dans un sens ou
+    l'autre. `compute_data_quality` renvoie déjà des pourcentages 0-100 pour
+    `pct_non_categorisee`/`pct_sans_cotation` (non exclusifs entre eux, cf. sa
+    docstring) : la formule ci-dessous peut donc descendre sous 0, d'où le clamp."""
+    if patrimoine_financier <= 0:
+        return None
+    score = 100 - qualite["pct_non_categorisee"] - qualite["pct_sans_cotation"]
+    return round(max(0.0, min(100.0, score)))
+
+
+def _score_endettement(actifs_totaux: float, passifs_totaux: float) -> int:
+    """`actifs_totaux <= 0` (patrimoine nul ou négatif) renvoie 0, jamais une
+    division par zéro. Entre les deux seuils, interpolation linéaire simple —
+    pas de courbe plus sophistiquée, la précision au pourcent près n'a pas de
+    sens pour un ratio d'endettement de toute façon approximatif (CRD théorique
+    vs recalé manuellement, cf. `loan_service`)."""
+    if actifs_totaux <= 0:
+        return 0
+    ratio = passifs_totaux / actifs_totaux
+    if ratio <= SEUIL_ENDETTEMENT_SAIN:
+        return 100
+    if ratio >= SEUIL_ENDETTEMENT_ELEVE:
+        return 0
+    return round(100 * (SEUIL_ENDETTEMENT_ELEVE - ratio) / (SEUIL_ENDETTEMENT_ELEVE - SEUIL_ENDETTEMENT_SAIN))
+
+
+def compute_score_patrimonial(db: Session, user_id: int) -> dict:
+    """Un chiffre 0-100, moyenne PONDÉRÉE des sous-scores APPLICABLES (le poids
+    d'un sous-score exclu — aujourd'hui, seul `qualite_donnees` peut l'être — est
+    redistribué proportionnellement aux autres, jamais perdu ni comblé par une
+    valeur neutre). Portée : le FOYER uniquement (pas de variante par détenteur
+    en V1 — `compute_patrimoine_net` est appelé sans `detenteur_id`), pas de
+    filtre `compte_id`/`etablissement_id` non plus."""
+    net = patrimoine_service.compute_patrimoine_net(db, user_id)
+    valued_financier = analysis_service.value_holdings(analysis_service.holdings_financiers(db, user_id))
+    qualite = analysis_service.compute_data_quality(db, valued_financier)
+
+    s_diversification = _score_diversification(net["repartition_par_classe"], net["actifs_totaux"])
+    s_qualite = _score_qualite_donnees(qualite, net["patrimoine_financier"])
+    s_endettement = _score_endettement(net["actifs_totaux"], net["passifs_totaux"])
+
+    sous_scores = [
+        {
+            "id": "diversification",
+            "label": "Diversification par classe d'actif",
+            "score": s_diversification,
+            "poids_pct": POIDS_DIVERSIFICATION,
+            "explication": "Basé sur l'indice de Herfindahl-Hirschman appliqué à la répartition de "
+            "tout le patrimoine par classe d'actif (immobilier, actions, épargne...) — un score bas "
+            "signale qu'une seule classe domine.",
+        },
+        {
+            "id": "endettement",
+            "label": "Endettement",
+            "score": s_endettement,
+            "poids_pct": POIDS_ENDETTEMENT,
+            "explication": f"100 si les emprunts représentent moins de {int(SEUIL_ENDETTEMENT_SAIN * 100)} % "
+            f"du patrimoine brut, 0 à partir de {int(SEUIL_ENDETTEMENT_ELEVE * 100)} %, interpolé entre les deux.",
+        },
+    ]
+    poids_total = POIDS_DIVERSIFICATION + POIDS_ENDETTEMENT
+    somme_ponderee = s_diversification * POIDS_DIVERSIFICATION + s_endettement * POIDS_ENDETTEMENT
+    if s_qualite is not None:
+        sous_scores.insert(
+            1,
+            {
+                "id": "qualite_donnees",
+                "label": "Qualité des données du portefeuille financier",
+                "score": s_qualite,
+                "poids_pct": POIDS_QUALITE_DONNEES,
+                "explication": "Part du portefeuille financier dont la géographie est mesurée "
+                "(composition réelle ou estimée par indice) plutôt que non catégorisée ou sans cotation.",
+            },
+        )
+        poids_total += POIDS_QUALITE_DONNEES
+        somme_ponderee += s_qualite * POIDS_QUALITE_DONNEES
+
+    score_global = round(somme_ponderee / poids_total) if poids_total > 0 else 0
+    return {"score_global": score_global, "sous_scores": sous_scores}
+```
+
+**API.** Nouvel endpoint `GET /api/patrimoine/score` dans `routers/patrimoine.py`. **Attention à la
+dépendance d'accès** : ce score porte sur le FOYER CONSOLIDÉ, sans variante par détenteur (comme
+`/exposition-consolidee` juste au-dessus dans le même fichier, jamais comme `/net` qui accepte un
+`detenteur_id`) — utiliser `current_user: User = Depends(_pas_invite)` (déjà défini en tête de
+fichier), PAS `Depends(get_current_user)` seul. Sans cette restriction, un compte `invité` (dont le
+périmètre est censé être limité à un ou plusieurs détenteurs précis, cf. `_verifier_acces_detenteur`
+un peu plus haut dans ce même fichier) pourrait lire le score consolidé de tout le foyer — une fuite
+au même titre que celle que `_pas_invite` empêche déjà sur `/exposition-consolidee`. Même patron
+exact que `get_exposition_consolidee` :
+
+```python
+@router.get("/score", response_model=ScorePatrimonialResponse)
+def get_score_patrimonial(db: Session = Depends(get_db), current_user: User = Depends(_pas_invite)):
+    return ScorePatrimonialResponse(**score_patrimonial_service.compute_score_patrimonial(db, auth_service.id_foyer(current_user)))
+```
+
+Nouveau schéma dans `schemas/patrimoine.py` :
+
+```python
+class SousScorePatrimonial(BaseModel):
+    id: str
+    label: str
+    score: int
+    poids_pct: int
+    explication: str
+
+class ScorePatrimonialResponse(BaseModel):
+    score_global: int
+    sous_scores: list[SousScorePatrimonial]
+```
+
+**Frontend.** Nouveau composant `components/ScorePatrimonialCard.tsx` (même patron que
+`IndicateursSituationCard.tsx` pour le chargement/erreur), monté sur `DashboardPage.tsx`
+immédiatement après `PatrimoineNetCard`. Nouvelle méthode `api.getScorePatrimonial()`
+(`api/client.ts`) et type `ScorePatrimonialResponse` (`api/types/patrimoine.ts`).
+
+- Le chiffre `score_global` s'affiche en grand (même composant `StatTile` que le reste de
+  l'application), avec `tone` : `< 40` → `'warning'`, `40` à `69` inclus → `'neutral'`, `>= 70` →
+  `'good'`. **Ces seuils sont volontairement à trois paliers**, contrairement au seul
+  `score_diversification` existant d'`AnalysePage.tsx` (binaire `< 50`/`>= 50`) : c'est l'indicateur
+  le plus visible de l'écran d'accueil, il mérite une granularité un cran au-dessus.
+- Un bouton « Comment c'est calculé ? » déplie la liste des `sous_scores` reçus de l'API — chaque
+  ligne affiche `label`, `score/100`, `poids_pct`, et `explication` telle quelle (jamais de texte
+  recalculé ou reformulé côté client : le backend est la seule source de vérité du discours autant
+  que du chiffre). Repli explicite si `sous_scores` ne contient que 2 entrées (qualité exclue) :
+  aucune ligne fantôme, aucun texte du type « non applicable » à afficher.
+- Ajouter une entrée `GLOSSAIRE` sur `AidePage.tsx` (cf. § AZ.3 ci-dessous) et une nouvelle question
+  dans `QUESTIONS_CHIFFRES`, sur le modèle exact de celle déjà présente pour
+  `score_diversification` (« 🎯 Le score de diversification, comment il est calculé ? ») :
+
+  > 🧭 Le score patrimonial, comment il est calculé ?
+  > Une moyenne pondérée de trois notes sur 100 : la diversification de vos actifs (40 %), la
+  > qualité des données de votre portefeuille financier (30 %, absente du calcul si vous n'avez pas
+  > de portefeuille financier — son poids est alors reporté sur les deux autres), et votre niveau
+  > d'endettement (30 %). Le détail des trois notes est toujours visible en dépliant la carte —
+  > jamais un chiffre sans sa méthode.
+
+**Tests.**
+- `backend/tests/test_score_patrimonial_service.py` (nouveau) : cas nominal avec les trois
+  sous-scores ; foyer sans portefeuille financier (qualité exclue, poids redistribué,
+  `score_global` recalculé sur 70 au lieu de 100 de base) ; `actifs_totaux == 0` (les trois
+  sous-scores à 0, `score_global == 0`, pas de `ZeroDivisionError`) ; ratio d'endettement exactement
+  à 0,30 et à 0,80 (valeurs de seuil incluses, cf. `<=`/`>=` de la fonction) ; patrimoine concentré
+  sur une seule classe d'actif (`score_diversification == 0`).
+- Ajouter un cas à `backend/tests/test_isolation_utilisateurs.py` : `GET /api/patrimoine/score` ne
+  doit jamais refléter les données d'un autre foyer (même patron que
+  `test_patrimoine_net_ne_compte_pas_les_actifs_dun_autre_utilisateur`).
+- Ajouter un cas à `backend/tests/test_roles.py` : un compte `invité` reçoit 403 sur
+  `GET /api/patrimoine/score` (même patron que le test existant couvrant `/exposition-consolidee`
+  pour ce rôle) — c'est la garde `_pas_invite` ci-dessus qui doit être vérifiée, pas seulement
+  l'isolation entre foyers.
+- `frontend/src/components/ScorePatrimonialCard.test.tsx` (nouveau) : rendu du chiffre, des trois
+  tons selon les seuils, dépliage du détail, cas 2 sous-scores (qualité absente).
+
+---
+
+#### AZ.2 — `mineur` · `M` · `non traité` (proposé le 20/09/2026) — Comparaison au patrimoine médian français (INSEE), par tranche d'âge
+
+**Ce que ce n'est PAS.** Le backlog exclut explicitement (§ 3) les « fonctionnalités
+communautaires (classement des investissements, percentile face à la population française,
+forum) », au motif que « sans base d'utilisateurs, un classement n'est pas calculable », et retient
+« la comparaison à un indice de référence » comme équivalent honnête. **Cette piste n'est pas ce
+classement écarté** : elle ne compare jamais un foyer Lumen à un autre foyer Lumen (aucune base
+d'utilisateurs requise, aucun appel réseau, 100 % local — cf. principe fondateur § 0). Elle compare
+le patrimoine BRUT du foyer à une table STATIQUE de valeurs déjà publiées par l'INSEE, au même
+titre que la comparaison à un indice boursier (CAC 40, S&P 500...) compare déjà une performance à
+un repère externe publié. C'est la même famille de fonctionnalité, appliquée au patrimoine plutôt
+qu'au portefeuille financier.
+
+**Source et méthodologie — à respecter à la lettre.** INSEE, *Insee Focus n° 371*, « Les montants
+de patrimoine détenus par les ménages en 2024 », enquête *Histoire de vie et Patrimoine 2023-2024*
+(collecte juin 2023 - janvier 2024). Table « Figure 3a — Montants de patrimoine BRUT selon l'âge de
+la personne de référence du ménage début 2024 » (médiane, en euros) :
+
+| Tranche d'âge | Médiane patrimoine brut |
+|---|---|
+| Moins de 30 ans | 26 100 € |
+| 30-39 ans | 146 200 € |
+| 40-49 ans | 215 200 € |
+| 50-59 ans | 254 100 € |
+| 60-69 ans | 245 000 € |
+| 70 ans ou plus | 247 600 € |
+
+**Ce tableau porte sur le patrimoine BRUT (avant déduction des emprunts), jamais sur le patrimoine
+net.** Comparer le `patrimoine_net` de Lumen (actifs − passifs) à cette table serait une erreur
+méthodologique (on comparerait deux grandeurs différentes) — la comparaison DOIT se faire sur
+`actifs_totaux` (sortie de `patrimoine_service.compute_patrimoine_net`), et l'écran doit
+explicitement libeller cette valeur « patrimoine brut » à l'endroit de la comparaison, même si le
+reste de l'application met en avant le patrimoine net par défaut.
+
+**Nouveau champ de préférence.** `backend/app/services/preferences_service.py` — même patron exact
+que `taux_imposition_pct` (une donnée saisie par l'utilisateur, jamais déduite, jamais de calcul
+d'âge à partir d'une date de naissance complète : seule l'ANNÉE suffit pour choisir une tranche,
+inutile de collecter une date de naissance complète, plus sensible, pour un besoin qui n'en a pas
+besoin) :
+
+```python
+_CLE_ANNEE_NAISSANCE_FOYER = "annee_naissance_foyer"
+
+def lire_annee_naissance_foyer(db: Session, user_id: int) -> int | None:
+    """Année de naissance de la personne de référence du foyer, saisie par
+    l'utilisateur (backlog AZ.2) — sert uniquement à choisir la bonne tranche
+    d'âge de comparaison INSEE, jamais un autre calcul. `None` tant que jamais
+    renseignée : la carte de comparaison reste alors masquée (cf. frontend),
+    jamais une tranche devinée par défaut."""
+    valeur = _lire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, user_id)
+    if valeur is None:
+        return None
+    try:
+        return int(valeur)
+    except ValueError:
+        return None
+```
+
+Intégrer à `lire_preferences`/`enregistrer_preferences` exactement comme `taux_imposition_pct` :
+paramètre `annee_naissance_foyer: int | None = None` ajouté à `enregistrer_preferences`,
+`None` efface la valeur (`db.query(UserParametre).filter(...).delete()`), sinon
+`_ecrire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, user_id, str(annee_naissance_foyer))`.
+Champ ajouté à `Preferences`/`PreferencesUpdate` (`schemas/reglages.py`), avec un validateur
+`_valider_annee_naissance` : `if v is not None and not (1900 <= v <= date.today().year - 16): raise ValueError("Année de naissance invalide")` (borne basse arbitraire large, borne haute excluant les foyers manifestement mineurs — une valeur indicative, jamais une vérification d'identité).
+
+**Nouveau module de données** `backend/app/services/reference_patrimoine_insee.py` (à côté de
+`reference_indices.py`, même esprit : données statiques versionnées dans le code, jamais un appel
+réseau) :
+
+```python
+"""Table de référence : patrimoine BRUT médian des ménages français par tranche
+d'âge (INSEE, Insee Focus n° 371, enquête Histoire de vie et Patrimoine 2023-2024,
+données début 2024). À mettre à jour lors de la prochaine publication INSEE
+(périodicité observée : tous les 3 ans environ) — ne JAMAIS extrapoler ni
+interpoler entre deux publications, remplacer la table entière quand une
+nouvelle est disponible."""
+
+SOURCE_LIBELLE = "INSEE, Histoire de vie et Patrimoine 2023-2024 (Insee Focus n° 371)"
+
+# Bornes incluses à gauche, exclues à droite, sauf la dernière tranche (ouverte).
+MEDIANE_PATRIMOINE_BRUT_PAR_TRANCHE_AGE: list[tuple[int, int | None, float]] = [
+    (0, 30, 26_100.0),
+    (30, 40, 146_200.0),
+    (40, 50, 215_200.0),
+    (50, 60, 254_100.0),
+    (60, 70, 245_000.0),
+    (70, None, 247_600.0),
+]
+
+
+def mediane_pour_age(age: int) -> float | None:
+    """`None` seulement si `age < 0` (donnée saisie aberrante) — la dernière
+    tranche est ouverte, un âge de 110 ans retombe donc sur la même médiane que
+    70 ans plutôt que `None`."""
+    if age < 0:
+        return None
+    for borne_basse, borne_haute, mediane in MEDIANE_PATRIMOINE_BRUT_PAR_TRANCHE_AGE:
+        if age >= borne_basse and (borne_haute is None or age < borne_haute):
+            return mediane
+    return None  # inatteignable si la table ci-dessus reste correcte, gardé par sûreté
+```
+
+**Backend — endpoint.** Nouvelle fonction `patrimoine_service.compute_comparaison_insee(db, user_id) -> dict | None` :
+
+```python
+def compute_comparaison_insee(db: Session, user_id: int) -> dict | None:
+    annee_naissance = preferences_service.lire_annee_naissance_foyer(db, user_id)
+    if annee_naissance is None:
+        return None
+    age = date.today().year - annee_naissance
+    mediane = reference_patrimoine_insee.mediane_pour_age(age)
+    if mediane is None:
+        return None
+    net = compute_patrimoine_net(db, user_id)
+    actifs_totaux = net["actifs_totaux"]
+    ecart_pct = round((actifs_totaux / mediane - 1) * 100, 1) if mediane > 0 else None
+    return {
+        "actifs_totaux_foyer": round(actifs_totaux, 2),
+        "mediane_reference": mediane,
+        "ecart_pct": ecart_pct,
+        "age_utilise": age,
+        "source": reference_patrimoine_insee.SOURCE_LIBELLE,
+    }
+```
+
+Endpoint `GET /api/patrimoine/comparaison-insee` (`routers/patrimoine.py`), **même garde d'accès que
+§ AZ.1** : `current_user: User = Depends(_pas_invite)`, jamais `Depends(get_current_user)` seul — ce
+chiffre porte sur `actifs_totaux` du foyer consolidé, sans variante par détenteur, donc hors du
+périmètre qu'un compte `invité` peut légitimement consulter. `response_model`
+`ComparaisonInseeResponse | None` (FastAPI sérialise `None` en corps `null`, code 200 — jamais un
+404 : l'absence d'année de naissance renseignée n'est pas une erreur, c'est un état normal avant
+configuration). Schéma :
+
+```python
+class ComparaisonInseeResponse(BaseModel):
+    actifs_totaux_foyer: float
+    mediane_reference: float
+    ecart_pct: float | None
+    age_utilise: int
+    source: str
+```
+
+**Frontend.**
+- `ReglagesPage.tsx` / `PreferencesCard.tsx` : nouveau champ « Année de naissance (pour la
+  comparaison patrimoniale) », même patron exact que le champ `taux_imposition_pct` déjà présent
+  (input nombre, `defaultValue`, `onBlur` déclenchant `api.updatePreferences`) — libellé explicite
+  précisant l'usage unique de cette donnée (« sert uniquement à choisir la bonne tranche d'âge de
+  comparaison, jamais stockée ni utilisée ailleurs »), pour couper court à toute inquiétude sur une
+  donnée personnelle nouvellement collectée.
+- Nouveau composant `components/ComparaisonInseeCard.tsx`, monté sur `DashboardPage.tsx` (après
+  `ScorePatrimonialCard` si § AZ.1 est également livré, sinon après `PatrimoineNetCard`). **Ne
+  s'affiche pas du tout** (composant retourne `null`, pas un état vide) si l'API renvoie `null` —
+  jamais une invite culpabilisante à renseigner son année de naissance sur l'écran d'accueil,
+  cohérent avec le ton du produit (cf. § AG). Le champ reste découvrable depuis Réglages.
+- Contenu si les données existent : « Votre patrimoine brut : **{actifs_totaux_foyer} €**. Médiane
+  française pour votre tranche d'âge ({age_utilise} ans) : **{mediane_reference} €**. » suivi de
+  `ecart_pct` reformulé en phrase (jamais juste un signe +/-, cf. § AG.2/AG.6 déjà actés sur ce
+  produit — « traduire un chiffre en équivalent concret ») : `ecart_pct >= 0` → « Vous êtes {X} %
+  au-dessus de cette médiane. » ; sinon → « Vous êtes {|X|} % en-dessous de cette médiane. » Toujours
+  accompagné, en petit texte, de la `source` reçue de l'API et de la mention « patrimoine brut, hors
+  emprunts déduits » — jamais l'ambiguïté avec le patrimoine net mis en avant ailleurs dans
+  l'application.
+- **Ton à respecter** : jamais de couleur d'alerte (rouge) ni de vocabulaire de comparaison
+  compétitive (« vous êtes en retard », « rattrapez ») — un simple repère factuel, dans l'esprit
+  déjà posé par § AG (« rendre la finance accessible et agréable », jamais anxiogène).
+
+**Tests.**
+- `backend/tests/test_reference_patrimoine_insee.py` (nouveau) : `mediane_pour_age` sur chaque
+  borne exacte (29/30, 39/40, 49/50, 59/60, 69/70), et un âge très élevé (110 ans → dernière
+  tranche).
+- `backend/tests/test_preferences_service.py` : ajout de cas pour
+  `lire_annee_naissance_foyer`/écriture/effacement (`None`), même patron que les tests existants de
+  `taux_imposition_pct`.
+- `backend/tests/test_patrimoine_service.py` : `compute_comparaison_insee` renvoie `None` sans
+  année de naissance renseignée ; renvoie un résultat cohérent avec une année renseignée ; `ecart_pct`
+  positif et négatif.
+- Cas à `test_isolation_utilisateurs.py` : l'année de naissance et la comparaison d'un foyer ne
+  fuient jamais vers un autre. Cas à `test_roles.py` : un compte `invité` reçoit 403 sur
+  `GET /api/patrimoine/comparaison-insee` (même garde `_pas_invite` que § AZ.1).
+- `frontend/src/components/ComparaisonInseeCard.test.tsx` (nouveau) : ne rend rien si l'API renvoie
+  `null` ; rend le texte attendu (au-dessus/en-dessous) selon le signe de `ecart_pct`.
+
+---
+
+#### AZ.3 — `mineur` · `S` · `non traité` (proposé le 20/09/2026) — Glossaire étendu (quotité, capital restant dû, rentabilité, XIRR, look-through)
+
+**Constat précis.** § AG.9 (traité, 15/09/2026) a déjà posé le mécanisme et le ton (analogie
+d'abord, définition technique ensuite) sur `AidePage.tsx` — tableau `GLOSSAIRE` (ETF, ISIN, PEA/CTO,
+TER, Drawdown, Volatilité, Plus-value latente/réalisée) et une poignée de questions plus longues
+dans `QUESTIONS_CHIFFRES` (look-through, XIRR, coût moyen pondéré/FIFO, score de diversification,
+non catégorisé vs autres zones). **Ce qui manque, concrètement** : Quotité et Capital restant dû
+n'apparaissent nulle part dans cette documentation, alors qu'ils sont affichés sans aucune
+explication contextuelle sur `DetenteursSection.tsx` (colonne « Quotité », ligne 74) et
+`LoansCard.tsx` (« Capital restant dû », lignes 166 et 518). XIRR et look-through existent déjà en
+`QUESTIONS_CHIFFRES` mais pas comme entrées `GLOSSAIRE` (donc absents de la vue condensée en tête de
+page). Rentabilité brute/nette et Cashflow mensuel (`ImmobilierApercu.tsx`, lignes 36-55) sont, eux,
+**déjà auto-documentés en place** (une formule en petit texte sous chaque valeur, ex. « loyer −
+charges − frais/12 − mensualité ») — ne pas les toucher au niveau de l'écran, seulement leur ajouter
+une entrée `GLOSSAIRE` pour la recherche/consultation centralisée.
+
+**1. Quatre entrées à ajouter au tableau `GLOSSAIRE` de `frontend/src/pages/AidePage.tsx`** (même
+forme exacte que les sept entrées existantes — un objet `{ terme, definition }`, analogie d'abord,
+séparée par un tiret cadratin du texte technique) :
+
+```typescript
+{ terme: 'Quotité', definition: 'La part du gâteau qui revient à chaque personne du foyer sur un bien ou un emprunt — comme des parts dans une indivision. En pourcentage, la somme des quotités d\'une même ligne doit toujours faire 100 %.' },
+{ terme: 'Capital restant dû', definition: 'Ce qu\'il reste à rembourser sur un emprunt à un instant donné — comme le solde qui reste sur une carte de fidélité à points. Diminue à chaque mensualité payée, jusqu\'à atteindre zéro à la fin du prêt.' },
+{ terme: 'Rentabilité brute / nette', definition: 'Brute : le loyer annuel rapporté au prix d\'achat, sans rien retirer — comme un salaire "brut" avant charges. Nette : la même chose après avoir retiré charges, frais et taxes — l\'équivalent d\'un salaire "net".' },
+{ terme: 'XIRR (rendement annualisé)', definition: 'Comme un taux d\'intérêt qui tiendrait compte du moment exact où vous avez versé chaque euro, pas juste du début et de la fin. Voir la question détaillée ci-dessus pour l\'explication complète.' },
+```
+
+Insérer ces quatre lignes dans le tableau `GLOSSAIRE` existant, triées par ordre alphabétique du
+`terme` avec les sept entrées déjà présentes (ordre alphabétique déjà respecté aujourd'hui : ETF,
+ISIN, PEA/CTO, TER, Drawdown, Volatilité — **à vérifier avant d'insérer** : l'ordre actuel n'est en
+fait PAS strictement alphabétique dans le fichier existant ; conserver l'ordre de lecture actuel et
+ajouter les quatre nouvelles entrées à la fin du tableau plutôt que de réordonner les sept
+existantes, pour ne pas produire un diff qui déplace du texte inchangé).
+
+Ne PAS dupliquer « Look-through » dans `GLOSSAIRE` avec une définition différente de celle déjà
+écrite dans `QUESTIONS_CHIFFRES` (risque de divergence entre les deux textes s'ils sont maintenus
+séparément) : ajouter à la place une entrée courte qui renvoie à la question déjà présente sur la
+même page, aucun texte dupliqué :
+
+```typescript
+{ terme: 'Look-through', definition: 'Regarder DANS un fonds pour savoir ce qu\'il contient vraiment (pays, secteurs), plutôt que de s\'arrêter à son nom. Voir la question détaillée ci-dessus pour l\'explication complète.' },
+```
+
+**2. Infobulles contextuelles** — réutiliser le composant `InfoBulle.tsx` déjà existant
+(`<InfoBulle texte="..." />`, infobulle native du navigateur via l'attribut `title`, zéro nouvelle
+dépendance) à deux endroits précis :
+
+- `frontend/src/components/DetenteursSection.tsx`, ligne 74 : `<th className="py-2 pr-4">Quotité</th>`
+  devient `<th className="py-2 pr-4">Quotité <InfoBulle texte="La part du gâteau qui revient à chaque personne sur ce bien ou cet emprunt. La somme des quotités d'une ligne fait toujours 100 %." /></th>`.
+- `frontend/src/components/LoansCard.tsx`, lignes 166 ET 518 (les DEUX occurrences : la vue carte et
+  la vue tableau) : `<span className="block text-xs text-texte-attenue">Capital restant dû</span>`
+  devient `<span className="flex items-center gap-1 text-xs text-texte-attenue">Capital restant dû <InfoBulle texte="Ce qu'il reste à rembourser sur cet emprunt aujourd'hui — diminue à chaque mensualité, jusqu'à zéro en fin de prêt." /></span>` (et l'équivalent pour l'en-tête de colonne `<th>` ligne 518).
+
+**3. Ne PAS étendre `LabelAdaptatif`** à ces termes : ce composant remplace un libellé par sa
+version simplifiée AVEC un lien pour revenir au terme technique — pertinent pour un terme qui
+apparaît seul dans une phrase dense (TWR, volatilité...). Quotité/Capital restant dû sont déjà des
+en-têtes de colonne courts avec leur valeur juste à côté ; une infobulle au survol est le bon niveau
+d'effort, un remplacement de libellé serait une régression pour qui connaît déjà le terme (il
+faudrait cliquer pour voir l'en-tête de colonne dans son tableau).
+
+**Tests.**
+- `frontend/src/pages/AidePage.test.tsx` : vérifier la présence des quatre nouvelles entrées dans le
+  rendu du glossaire (recherche du `terme` exact).
+- `frontend/src/components/DetenteursSection.test.tsx` et `LoansCard.test.tsx` : vérifier la
+  présence de l'infobulle (attribut `title` sur l'élément rendu par `InfoBulle`) sans casser les
+  sélecteurs de texte existants (`InfoBulle` est déjà conçu — cf. sa docstring — pour ne jamais
+  s'ajouter au `textContent`/nom accessible de l'élément englobant, donc `getByText('Quotité')` ou
+  `getByRole('columnheader', { name: 'Quotité' })` doivent continuer à matcher sans modification).
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
