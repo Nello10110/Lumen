@@ -425,6 +425,53 @@ summary,
   }
 }
 
+/* Backlog § AY.3 (20/09/2026, retour utilisateur — « la taille et la forme du
+   message [...] pas incroyables » à propos du chiffre héros de l'encart FIRE,
+   `SimulateurProjectionSection.tsx`) : l'année d'indépendance financière n'était
+   qu'un nombre posé à plat, sans le moindre égard visuel — alors que c'est
+   littéralement LE jour où « la lumière » (Lumen) est faite sur l'indépendance de
+   quelqu'un. `IconSoleil` se lève depuis l'horizon en s'éclaircissant plutôt que
+   d'apparaître d'un coup — jamais en boucle (rejoué une seule fois par réponse,
+   `key={mois}` sur le conteneur, même mécanique de remontage que
+   `PatrimoineNetCard.tsx`) : un lever de soleil qui recommencerait sans fin
+   perdrait tout son sens. Le nombre lui-même garde `lumen-allumage`, déjà en
+   place — les deux animations parlent la même langue (« quelque chose s'allume »)
+   plutôt que d'en inventer une troisième. */
+@keyframes lumen-lever-soleil {
+  0% {
+    opacity: 0;
+    transform: translateY(9px) scale(0.55);
+    filter: drop-shadow(0 0 0 rgba(37, 116, 240, 0));
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.2);
+    filter: drop-shadow(0 0 10px rgba(37, 116, 240, 0.6));
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 0 3px rgba(37, 116, 240, 0.25));
+  }
+}
+.animate-lumen-lever-soleil {
+  animation: lumen-lever-soleil 900ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-lumen-lever-soleil {
+    animation: none;
+  }
+}
+
+/* Fond de l'encart FIRE — même famille que `.lumen-ambiance-hausse` ci-dessous
+   (radial-gradient très doux, posé en arrière-plan), mais borné à ce SEUL
+   encart plutôt qu'à toute la page : c'est un rayon de soleil localisé, pas une
+   ambiance générale. Statique, jamais animé : c'est le soleil ci-dessus qui porte
+   le mouvement, un fond qui bouge aussi ferait deux effets en compétition. */
+.lumen-horizon-fire {
+  background: radial-gradient(420px 260px at 14% 20%, rgba(37, 116, 240, 0.14), transparent 70%);
+}
+
 /* Attente Lumen (17/09/2026, retour utilisateur — « franchement pas fou » à propos
    du squelette générique gris affiché pendant le calcul de l'historique du
    patrimoine, `PortfolioHistoryChart.tsx`, qui peut prendre jusqu'à une minute pour
