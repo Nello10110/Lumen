@@ -141,10 +141,15 @@ export function agregerParAnnee(pointsMensuels: PointMensuel[]): PointAnnuel[] {
 
 export interface ResultatFire {
   patrimoineNecessaire: number
-  // Délai estimé en années (1 décimale), 0 si déjà atteint, `null` si non atteint
-  // dans l'horizon de recherche (60 ans) — jamais un nombre au-delà, qui laisserait
-  // croire à une précision que le calcul n'a pas sur un horizon aussi lointain.
-  anneesAvantIndependance: number | null
+  // Délai exact en MOIS avant d'atteindre le patrimoine nécessaire, 0 si déjà
+  // atteint, `null` si non atteint dans l'horizon de recherche (60 ans). Un compte
+  // de mois entier, jamais une année à décimale : le moteur avance déjà mois par
+  // mois (même boucle que `calculerTrajectoireMensuelle`), autant garder l'unité
+  // exacte qu'il calcule plutôt que la ré-arrondir en fraction d'année — c'est cet
+  // arrondi qui, additionné directement à l'année en cours côté affichage,
+  // produisait une "indépendance atteinte en 2036.5" (retour utilisateur du
+  // 20/09/2026). Convertir en années/mois reste à la charge de l'affichage.
+  moisAvantIndependance: number | null
 }
 
 const HORIZON_MAX_ANNEES = 60
@@ -164,7 +169,7 @@ export function calculerFire(
   const patrimoineNecessaire = arrondi(depenseAnnuelleCible / (tauxRetraitPct / 100))
 
   if (capitalInitial >= patrimoineNecessaire) {
-    return { patrimoineNecessaire, anneesAvantIndependance: 0 }
+    return { patrimoineNecessaire, moisAvantIndependance: 0 }
   }
 
   const tauxMensuel = tauxAnnuelPct / 100 / 12
@@ -172,10 +177,10 @@ export function calculerFire(
   for (let mois = 1; mois <= HORIZON_MAX_ANNEES * 12; mois++) {
     valeur = valeur * (1 + tauxMensuel) + versementMensuel
     if (valeur >= patrimoineNecessaire) {
-      return { patrimoineNecessaire, anneesAvantIndependance: Math.round((mois / 12) * 10) / 10 }
+      return { patrimoineNecessaire, moisAvantIndependance: mois }
     }
   }
-  return { patrimoineNecessaire, anneesAvantIndependance: null }
+  return { patrimoineNecessaire, moisAvantIndependance: null }
 }
 
 export function arrondi(n: number): number {

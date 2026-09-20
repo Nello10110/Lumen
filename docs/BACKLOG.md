@@ -4658,6 +4658,47 @@ bord, jamais filtré, continue de lire/écrire la même entrée). Vérifié en c
 test isolée, backend simulé) : filtres, bascule Brut/Net sans appel réseau, mode étagé, sélecteur de
 détenteur et tableau de détail fonctionnent ensemble, dans les deux thèmes.
 
+#### AY.1 — `mineur` · `XS` · `traité` (20/09/2026) — Anneau de focus parasite au clic sur un graphique Recharts
+
+Retour utilisateur direct : « quand je clique sur le graphique [Plus-value par compte] avec mon
+ordinateur, ça me fait des carrés de sélection qui n'ont pas lieu d'être ». Distinct du correctif de
+sélection de texte déjà posé le 13/09/2026 (`.recharts-wrapper { user-select: none }`) : reproduit en
+conditions réelles (environnement isolé, données de test), la cause n'était pas la sélection native du
+navigateur mais un `.focus()` posé PAR SCRIPT par Recharts sur le `<g>` interne de la barre cliquée (sa
+propre couche d'accessibilité, pour synchroniser l'infobulle) — pas seulement au clavier. Le navigateur
+reconnaît bien qu'il ne s'agit pas d'une navigation clavier (`:focus-visible` ne matchait pas sur ce
+`<g>`, vérifié par script), mais lui appliquait quand même son anneau de focus PAR DÉFAUT plutôt que la
+règle `:focus-visible` déjà en place dans l'application (`index.css`, audit du 03/09/2026) — qui ne
+s'applique jamais à ce cas précis. Corrigé par `.recharts-wrapper :focus:not(:focus-visible) { outline:
+none }`, ciblant exactement ce cas : un vrai focus clavier sur un graphique garde son anneau `--accent`
+habituel.
+
+#### AY.2 — `mineur` · `M` · `traité` (20/09/2026) — Simulateur FIRE : revenu net estimé, et fin de l'année/durée fractionnaire
+
+Deux demandes sur la carte « Indépendance financière (FIRE) » (`SimulateurProjectionSection.tsx`) :
+un chiffrage direct de la dépense annuelle cible à partir d'un revenu (« pouvoir mettre le revenu
+annuel et aussi mensuel ainsi que le taux d'impôt qui s'affiche avec le revenu net estimé »), et un bug
+(« indépendance financière atteinte en 2036.5 · dans 10.5 ans [...] certaines de ces valeurs sont
+éronées »).
+
+Le bug : `calculerFire` retournait un délai en ANNÉES à une décimale (`10.5`), directement additionné à
+l'année en cours côté affichage (`2026 + 10.5 = "2036.5"`) et interpolé tel quel dans « dans 10.5 ans »
+— une fraction d'année affichée comme si elle avait un sens calendaire. Corrigé à la racine plutôt qu'en
+façade : `ResultatFire.moisAvantIndependance` (renommé) porte désormais le compte de MOIS EXACT que
+calcule déjà la boucle mensuelle du moteur, sans ré-arrondi. Deux nouveaux formateurs
+(`anneeCalendairePlusMois`, `Date.setMonth` plutôt qu'une addition naïve — gère aussi le report d'année
+en fin de calendrier ; `formatDureeFire`, « X ans et Y mois ») remplacent l'affichage direct du nombre.
+Effet de bord positif : la phrase « avec 50 €/mois de plus » (§ AG.6) comparait jusqu'ici deux délais
+déjà arrondis chacun à 0,1 an avant de les soustraire — un double arrondi pouvant décaler le mois gagné
+affiché. Elle soustrait désormais deux comptes de mois exacts.
+
+La demande de chiffrage : nouveau bloc « Revenu annuel (€) / Revenu mensuel (€) / Taux d'impôt (%) »
+dans la carte FIRE, les deux premiers champs synchronisés (modifier l'un recalcule l'autre, comme
+`onChangeRevenuAnnuel`/`onChangeRevenuMensuel`), affichant un « Revenu net estimé » annuel et mensuel
+avec un bouton « Utiliser comme dépense annuelle cible » — jamais automatique, même principe que les
+autres suggestions préremplies de cette section (« Revenir au patrimoine net actuel »...) : un clic
+explicite, pas une valeur qui change sous les yeux de l'utilisateur.
+
 ---
 ## 3. Hors périmètre (assumé)
 

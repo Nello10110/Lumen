@@ -97,20 +97,20 @@ describe('calculerFire', () => {
     expect(resultat.patrimoineNecessaire).toBeCloseTo(1_000_000, 6)
   })
 
-  it('déjà indépendant : 0 année, patrimoine nécessaire inchangé', () => {
+  it('déjà indépendant : 0 mois, patrimoine nécessaire inchangé', () => {
     const resultat = calculerFire(1_500_000, 5, 0, 40000, 4)
     expect(resultat.patrimoineNecessaire).toBeCloseTo(1_000_000, 6)
-    expect(resultat.anneesAvantIndependance).toBe(0)
+    expect(resultat.moisAvantIndependance).toBe(0)
   })
 
-  it('sans rendement, 10 000€/mois pour 1 000 000€ : exactement 100 mois ≈ 8,3 ans', () => {
+  it('sans rendement, 10 000€/mois pour 1 000 000€ : exactement 100 mois', () => {
     const resultat = calculerFire(0, 0, 10000, 40000, 4)
-    expect(resultat.anneesAvantIndependance).toBeCloseTo(8.3, 6)
+    expect(resultat.moisAvantIndependance).toBe(100)
   })
 
   it("non atteint dans l'horizon de 60 ans sans rendement ni versement : null", () => {
     const resultat = calculerFire(0, 0, 0, 1_000_000, 4)
-    expect(resultat.anneesAvantIndependance).toBeNull()
+    expect(resultat.moisAvantIndependance).toBeNull()
   })
 
   it('un taux de retrait plus bas exige un patrimoine plus important', () => {
