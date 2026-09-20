@@ -152,17 +152,24 @@ def generer_pdf_declaration(
     lignes_passifs: list[tuple[Loan, float]] = []
     if detenteur_id is not None:
         for v in valued:
-            # `loans` est déjà filtré sur `loan_ids` ci-dessus : cette recherche ne
-            # considère donc que les emprunts explicitement sélectionnés.
-            emprunt = next((loan for loan in loans if loan.holding_id == v.holding.id), None)
-            if emprunt is None:
-                continue
             part = parts_par_holding.get(v.holding.id, {}).get(detenteur_id)
             if part is None:
-                continue
-            part_dette = round(part["part_detenue"] - part["part_nette"], 2)
-            if part_dette > 0:
-                lignes_passifs.append((emprunt, part_dette))
+                continue  # aucune part de l'actif pour ce détenteur : même règle que compute_parts
+            # Un bien peut porter PLUSIEURS emprunts (crédit principal + prêt
+            # travaux, cas réel) : ne retenir que le premier trouvé (`next(...)`,
+            # avant ce correctif du 20/09/2026) fusionnait à tort la part de dette
+            # de TOUS les emprunts du bien (déjà correctement sommée dans
+            # `part["part_nette"]` par `compute_parts_bulk`) sous le libellé d'un
+            # seul d'entre eux. Chaque emprunt rattaché obtient ici sa PROPRE ligne,
+            # avec sa propre quotité (`compute_pourcentage_emprunt`, même repli que
+            # `compute_parts`) — `loans` est déjà filtré sur `loan_ids` ci-dessus.
+            for emprunt in (loan for loan in loans if loan.holding_id == v.holding.id):
+                pct = detenteurs_service.compute_pourcentage_emprunt(db, v.holding, emprunt).get(detenteur_id)
+                if pct is None:
+                    continue
+                part_dette = round(pct / 100 * loan_service.compute_capital_restant_du(emprunt), 2)
+                if part_dette > 0:
+                    lignes_passifs.append((emprunt, part_dette))
     else:
         lignes_passifs = [(loan, loan_service.compute_capital_restant_du(loan)) for loan in loans]
     total_passifs = sum(valeur for _, valeur in lignes_passifs)

@@ -85,6 +85,20 @@ def test_ignore_un_mouvement_dont_la_derniere_occurrence_est_trop_ancienne(db):
     assert resultats == []
 
 
+def test_ignore_deux_occurrences_le_meme_mois(db):
+    """Garde explicite (`mois_distincts < 2`) jamais exercé par un test avant cet
+    audit (20/09/2026) : deux mouvements du même libellé/montant recouvrent le
+    critère "vu au moins deux fois" mais pas "sur au moins deux mois distincts" —
+    ne doit jamais être classé comme récurrent (ex. deux prélèvements du même
+    abonnement le même mois par erreur de facturation, pas un abonnement mensuel)."""
+    make_mouvement(db, date="2026-02-03", libelle="Salle de sport", montant=-30.0)
+    make_mouvement(db, date="2026-02-20", libelle="Salle de sport", montant=-30.0)
+
+    resultats = budget_recurrences_service.detect_recurrences(db, ID_UTILISATEUR_TEST, aujourdhui=date(2026, 2, 25))
+
+    assert resultats == []
+
+
 def test_classe_irreguliere_une_periodicite_non_mensuelle(db):
     make_mouvement(db, date="2025-08-05", libelle="Pressing", montant=-20.0)
     make_mouvement(db, date="2026-01-20", libelle="Pressing", montant=-20.0)

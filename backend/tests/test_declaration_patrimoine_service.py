@@ -8,7 +8,7 @@ from datetime import datetime
 
 from pypdf import PdfReader
 
-from app.models import Loan
+from app.models import Loan, MarketDataCache
 from app.services import declaration_patrimoine_service, detenteurs_service, preferences_service
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
@@ -73,6 +73,21 @@ def test_prix_de_revient_non_cote_sans_cours(db):
     texte = _texte_pdf(_generer(db))
 
     assert "Prix de revient (non coté)" in texte
+
+
+def test_ligne_cotee_affiche_le_cours_de_marche(db):
+    """Branche `_methode_valorisation` jamais exercée jusqu'à cet audit (20/09/2026)
+    — pourtant le cas le plus fréquent en pratique (action/ETF avec une cotation
+    connue), contrairement à `test_prix_de_revient_non_cote_sans_cours` ci-dessus."""
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    db.add(MarketDataCache(ticker="AAA", prix_actuel=150.0, derniere_maj=datetime(2026, 3, 15)))
+    db.commit()
+
+    texte = _texte_pdf(_generer(db))
+
+    assert "Cours de marché au" in texte
+    assert "15/03/2026" in texte
+    assert "1 500 €" in texte  # 10 * 150
 
 
 def test_passifs_affiches_par_defaut(db):
@@ -143,6 +158,40 @@ def test_filtre_detenteur_affiche_la_part_dette_de_lemprunt_rattache(db):
 
     assert "Crédit immo" in texte
     assert "100 000 €" in texte  # 100 % de la quotité actif, héritée par l'emprunt
+
+
+def test_filtre_detenteur_affiche_chaque_emprunt_rattache_separement(db):
+    """Bug trouvé en audit (20/09/2026) : quand un bien porte PLUSIEURS emprunts, la
+    déclaration filtrée par détenteur ne retenait que le premier trouvé (`next(...)`)
+    et lui attribuait à tort la dette CUMULÉE des deux — un seul libellé apparaissait
+    au lieu de deux, chacun avec sa propre part."""
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    h = make_holding(db, ticker="MAISON", nom="Maison", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    for libelle, crd in (("Crédit immo", 100000.0), ("Prêt travaux", 20000.0)):
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST,
+                libelle=libelle,
+                capital_initial=crd,
+                taux_annuel_pct=0.0,
+                mensualite=500.0,
+                date_debut=datetime(2020, 1, 1),
+                duree_mois=200,
+                capital_restant_du_manuel=crd,
+                holding_id=h.id,
+            )
+        )
+    db.commit()
+
+    texte = _texte_pdf(_generer(db, detenteur_id=alice.id))
+
+    # Les deux emprunts apparaissent séparément, chacun avec SA PROPRE part (100 %
+    # de la quotité actif, héritée) — jamais fusionnés sous un seul libellé.
+    assert "Crédit immo" in texte
+    assert "Prêt travaux" in texte
+    assert "100 000 €" in texte
+    assert "20 000 €" in texte
 
 
 def test_inclure_profil_ajoute_la_section_avec_taux_imposition(db):

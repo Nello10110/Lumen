@@ -44,6 +44,20 @@ def test_trois_mois_et_un_an_de_suivi_selon_l_anciennete_du_compte(client, db):
     assert un_an["atteint"] is False
 
 
+def test_un_an_de_suivi_atteint_apres_365_jours(db, client):
+    """Complète le test ci-dessus, qui ne vérifie `un_an_suivi` qu'à `False` (100
+    jours) — jamais à `True` avant cet audit (20/09/2026)."""
+    utilisateur = db.get(User, ID_UTILISATEUR_TEST)
+    utilisateur.created_at = datetime.now() - timedelta(days=400)
+    db.commit()
+
+    corps = client.get("/api/jalons/").json()
+    trois_mois = next(j for j in corps if j["id"] == "trois_mois_suivi")
+    un_an = next(j for j in corps if j["id"] == "un_an_suivi")
+    assert trois_mois["atteint"] is True
+    assert un_an["atteint"] is True
+
+
 def test_marquer_celebre_rend_le_jalon_non_nouveau_sans_en_changer_l_etat(client, db):
     make_transaction(db)
     avant = client.get("/api/jalons/").json()

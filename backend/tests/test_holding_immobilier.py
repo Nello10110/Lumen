@@ -292,6 +292,37 @@ def test_cashflow_retranche_la_mensualite_de_lemprunt_rattache(client, db):
     assert immo["emprunt_mensualite"] == 800.0
 
 
+def test_cashflow_retranche_la_mensualite_de_tous_les_emprunts_rattaches(client, db):
+    """Bug trouvé en audit (20/09/2026) : `calculer_cashflow_et_rentabilite` ne
+    retranchait que le PREMIER emprunt trouvé sur ce bien (`.first()`) — un bien
+    financé par deux prêts (crédit principal + prêt travaux, cas réel) affichait un
+    cashflow/une rentabilité nette faux, incohérents avec le reste de l'application
+    (`patrimoine_service`/`detenteurs_service`, qui somment déjà tous les emprunts
+    rattachés à une même ligne pour le capital restant dû)."""
+    holding = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0)
+    client.put(f"/api/portfolio/holdings/{holding.id}/immobilier", json=_payload_immobilier())
+    for libelle, mensualite in (("Crédit immobilier", 800.0), ("Prêt travaux", 150.0)):
+        emprunt = client.post(
+            "/api/loans",
+            json=dict(
+                libelle=libelle,
+                capital_initial=200000.0,
+                taux_annuel_pct=3.5,
+                mensualite=mensualite,
+                date_debut="2020-01-01T00:00:00",
+                duree_mois=240,
+            ),
+        ).json()
+        client.patch(f"/api/loans/{emprunt['id']}", json={"holding_id": holding.id})
+
+    reponse = client.get(f"/api/portfolio/holdings/{holding.id}/detail")
+
+    immo = reponse.json()["immobilier"]
+    # Cashflow = 1000 - 100 - 200 - (800 + 150) = -250
+    assert immo["cashflow_mensuel"] == -250.0
+    assert immo["emprunt_mensualite"] == 950.0
+
+
 def test_sans_loyer_seul_prix_m2_est_calcule(client, db):
     """Surface renseignée mais pas de loyer : prix/m² a un sens (comparer des biens
     entre eux), cashflow/rentabilité n'en ont pas — `None` plutôt qu'une valeur

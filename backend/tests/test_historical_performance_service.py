@@ -28,7 +28,7 @@ from app.services.historical_performance_service import (
 )
 from app.services.portfolio_reconstruction import compute_positions, rebuild_holdings
 
-from .conftest import ID_UTILISATEUR_TEST, make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
 
 # ---------------------------------------------------------------------------
 # 4.6 — recherche dichotomique de _value_at
@@ -139,6 +139,25 @@ def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(
     resultat_chaud = compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
 
     assert resultat_chaud == resultat_froid
+
+
+def test_holding_price_history_volatilite_et_drawdown_verifies_a_la_main(db, monkeypatch):
+    """Verrouille la formule de volatilité annualisée (écart-type des rendements
+    hebdomadaires x racine(52), échantillon n-1) et de max drawdown sur une série
+    connue — recalculée indépendamment à la main : sur [100, 105, 110] (rendements
+    hebdomadaires +5,00 % puis +4,7619 %), volatilité = 1,21 % et, la série étant
+    strictement croissante, aucun drawdown (0,0 %). Aucun test existant n'asserte
+    la valeur numérique de ces deux champs avant celui-ci."""
+    h = Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
+    db.add(h)
+    db.commit()
+    monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
+
+    resultat = compute_holding_price_history(db, h.id, ID_UTILISATEUR_TEST)
+
+    assert resultat["volatilite_annualisee_pct"] == pytest.approx(1.21, abs=0.01)
+    assert resultat["max_drawdown_pct"] == 0.0
 
 
 def test_holding_price_history_crypto_utilise_coingecko_jamais_yahoo(db, monkeypatch):
@@ -351,6 +370,68 @@ def test_portfolio_history_invalide_apres_reconstruction_du_portefeuille(db, mon
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST)) is None
+
+
+# ---------------------------------------------------------------------------
+# Audit du 20/09/2026 — ligne financière saisie manuellement (aucune transaction
+# dans le grand livre, donc absente de `positions`) : jusqu'ici entièrement
+# invisible de cette courbe, y compris quand c'est la SEULE ligne du portefeuille
+# (courbe vide alors que le foyer a un patrimoine financier réel).
+# ---------------------------------------------------------------------------
+
+
+def test_ligne_financiere_manuelle_sans_grand_livre_apparait_dans_lhistorique(db):
+    """Aucune `Transaction` pour ce ticker : `positions` (dérivé du seul grand
+    livre) est vide, la courbe ne doit pourtant pas l'être — avant correctif,
+    `compute_portfolio_history` renvoyait `[]` dans ce cas précis."""
+    make_holding(
+        db,
+        ticker="MANUEL",
+        quantite=10.0,
+        prix_revient_moyen=100.0,
+        type_actif="STOCK",
+        date_acquisition=datetime(2024, 6, 1),
+    )
+
+    points = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
+
+    assert points  # ne doit plus jamais être vide dans ce cas
+    assert points[0]["date"] == "2024-06-01"
+    # Pas de cotation connue (aucun `MarketDataCache`) : valorisée à son coût, comme
+    # partout ailleurs dans l'application sans donnée de marché.
+    assert points[0]["valeur_portefeuille"] == 1000.0
+    assert points[0]["valeur_investie"] == 1000.0
+    assert points[-1]["valeur_portefeuille"] == 1000.0
+
+
+def test_ligne_manuelle_absente_avant_sa_date_dacquisition(db):
+    """La ligne manuelle ne doit apparaître dans la courbe qu'À PARTIR de sa date
+    d'acquisition — avant, elle n'existait simplement pas encore dans le foyer.
+    Une position du grand livre, plus ancienne, fixe le début réel de la grille."""
+    make_transaction(db, transaction_id="t1", symbol="LEDGER", shares=5.0, amount=-500.0, datetime_utc=datetime(2024, 1, 1))
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    make_holding(
+        db,
+        ticker="MANUEL",
+        quantite=10.0,
+        prix_revient_moyen=100.0,
+        type_actif="STOCK",
+        date_acquisition=datetime(2024, 6, 1),
+    )
+
+    points = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
+
+    premier_point = points[0]
+    assert premier_point["date"] == "2024-01-01"
+    # Seule LEDGER existe à cette date (valorisée à son coût, pas de cotation
+    # connue) — la ligne manuelle n'y contribue pas encore.
+    assert premier_point["valeur_portefeuille"] == 500.0
+    assert premier_point["valeur_investie"] == 500.0
+
+    point_apres_acquisition = next(p for p in points if p["date"] >= "2024-06-01")
+    # Les deux lignes désormais cumulées, sans double comptage.
+    assert point_apres_acquisition["valeur_portefeuille"] == 500.0 + 1000.0
+    assert point_apres_acquisition["valeur_investie"] == 500.0 + 1000.0
 
 
 # ---------------------------------------------------------------------------

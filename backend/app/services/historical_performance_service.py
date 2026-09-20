@@ -198,8 +198,34 @@ def _compute_portfolio_history(
     cles_filtres: set[tuple[str, int | None]] | None = None,
 ) -> list[dict]:
     starts = [state.shares_history[0][0] for state in positions.values() if state.shares_history]
+
+    # Lignes financières SANS aucune transaction dans le grand livre (STOCK/FUND/
+    # CRYPTO/BOND... saisies directement via l'écran Portefeuille, jamais importées
+    # — cf. `analysis_service.holdings_financiers`, qui les inclut) : absentes de
+    # `positions` (dérivé uniquement du grand livre), donc absentes de cette courbe
+    # jusqu'ici — y compris quand ce sont les SEULES lignes du portefeuille, auquel
+    # cas la courbe restait entièrement VIDE alors que le foyer a un patrimoine
+    # financier bien réel (bug trouvé en audit, 20/09/2026). Repli sur
+    # `date_acquisition`, seule date connue pour une ligne sans grand livre — même
+    # convention que `_rendement_pour_ligne`/`performance_service` (CAGR à un seul
+    # flux) pour ce même cas ; une ligne sans `date_acquisition` renseignée reste
+    # hors de cette courbe (aucune date à laquelle la faire apparaître), comme
+    # avant ce correctif.
+    holdings_manuels = [
+        h
+        for h in analysis_service.holdings_financiers(db, user_id)
+        if (h.ticker, h.compte_id) not in positions
+        and h.date_acquisition is not None
+        and (cles_filtres is None or (h.ticker, h.compte_id) in cles_filtres)
+    ]
+    starts.extend(h.date_acquisition for h in holdings_manuels)
+
     if not starts:
         return []
+
+    valeur_par_cle_manuelle = {
+        (v.holding.ticker, v.holding.compte_id): v.valeur for v in analysis_service.value_holdings(holdings_manuels)
+    }
 
     start = min(starts)
     now = datetime.now(UTC).replace(tzinfo=None)
@@ -266,6 +292,17 @@ def _compute_portfolio_history(
                 holding = holdings_par_cle.get((symbol, compte_id))
                 prix_at = holding.prix_revient_moyen if holding else 0.0
             valeur_portefeuille += shares_at * (prix_at or 0.0)
+
+        # Lignes manuelles (cf. ci-dessus) : aucun historique de cours daté n'existe
+        # pour elles, seule leur valeur ACTUELLE est connue — valeur plate depuis
+        # leur `date_acquisition` (avant, la ligne n'existait simplement pas encore),
+        # même approximation déjà acceptée par ce module pour un ticker sans série
+        # de cours résolvable (cf. commentaire `prix_revient_moyen` juste au-dessus).
+        for h in holdings_manuels:
+            if h.date_acquisition is not None and h.date_acquisition <= date:
+                valeur_portefeuille += valeur_par_cle_manuelle.get((h.ticker, h.compte_id), 0.0)
+                if h.prix_revient_moyen is not None:
+                    valeur_investie += h.prix_revient_moyen * h.quantite
 
         # Dernier point de la grille (toujours "aujourd'hui", cf. `_weekly_grid`) :
         # remplace le prix hebdomadaire — potentiellement vieux de quelques jours —

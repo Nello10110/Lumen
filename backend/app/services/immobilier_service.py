@@ -253,8 +253,14 @@ def calculer_cashflow_et_rentabilite(
     if detail.loyer_mensuel is None:
         return vide
 
-    emprunt = db.query(Loan).filter(Loan.holding_id == holding.id).first()
-    mensualite = emprunt.mensualite if emprunt is not None else 0.0
+    # Somme de TOUS les emprunts rattachés à ce bien, pas seulement le premier
+    # trouvé (bug trouvé en audit, 20/09/2026) : un bien financé par deux prêts
+    # (ex. crédit principal + prêt travaux) ne voyait retrancher que l'un des deux
+    # de son cashflow/sa rentabilité nette affichés sur cette fiche — incohérent
+    # avec `detenteurs_service.compute_parts`/`patrimoine_service._crd_par_ligne`,
+    # qui somment déjà explicitement tous les emprunts rattachés à une même ligne.
+    emprunts = db.query(Loan).filter(Loan.holding_id == holding.id).all()
+    mensualite = sum(e.mensualite for e in emprunts)
     charges = detail.charges_mensuelles or 0.0
     frais_mensuels = (detail.frais_annuels or 0.0) / 12
     cashflow_mensuel = detail.loyer_mensuel - charges - frais_mensuels - mensualite
@@ -272,6 +278,6 @@ def calculer_cashflow_et_rentabilite(
         "rentabilite_brute_pct": _arrondi(rentabilite_brute_pct),
         "rentabilite_nette_pct": _arrondi(rentabilite_nette_pct),
         "prix_m2": vide["prix_m2"],
-        "emprunt_mensualite": _arrondi(mensualite) if emprunt is not None else None,
+        "emprunt_mensualite": _arrondi(mensualite) if emprunts else None,
         "prix_acquisition_total": vide["prix_acquisition_total"],
     }

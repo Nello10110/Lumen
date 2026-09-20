@@ -158,6 +158,37 @@ def test_breakdown_lookthrough_eclate_un_etf_sur_sa_composition(db):
     assert totals == {"Europe": 600.0, "Amérique du Nord": 400.0}
 
 
+def test_holdings_in_category_eclate_un_etf_sur_sa_composition(db):
+    """`holdings_in_category` (détail au clic sur une part du camembert géo/secteur,
+    `GET /api/analysis/composition`) n'avait jusqu'à cet audit (20/09/2026) AUCUN
+    test, ni unitaire ni routeur, malgré son usage direct dans l'écran — même
+    scénario look-through que `breakdown_with_lookthrough` ci-dessus, sans sommer :
+    chaque ligne contributrice apparaît avec sa propre valeur look-through."""
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ETF1", quantite=1.0, prix_revient_moyen=1000.0))
+    db.add(MarketDataCache(ticker="ETF1", prix_actuel=1000.0, derniere_maj=datetime.now(timezone.utc)))
+    db.add(FundComposition(ticker="ETF1", type="geo", categorie="Europe", poids=0.6))
+    db.add(FundComposition(ticker="ETF1", type="geo", categorie="Amérique du Nord", poids=0.4))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="STOCK1", quantite=1.0, prix_revient_moyen=100.0))
+    db.add(MarketDataCache(ticker="STOCK1", prix_actuel=100.0, region="Europe", derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+
+    holdings = db.query(Holding).all()
+    valued = value_holdings(holdings)
+
+    lignes_europe = analysis_service.holdings_in_category(db, valued, "geo", "Europe")
+    # Triées par valeur décroissante : ETF1 (600, look-through) avant STOCK1 (100).
+    assert lignes_europe == [
+        {"id": holdings[0].id, "ticker": "ETF1", "nom": None, "valeur": 600.0},
+        {"id": holdings[1].id, "ticker": "STOCK1", "nom": None, "valeur": 100.0},
+    ]
+
+    lignes_amerique = analysis_service.holdings_in_category(db, valued, "geo", "Amérique du Nord")
+    assert lignes_amerique == [{"id": holdings[0].id, "ticker": "ETF1", "nom": None, "valeur": 400.0}]
+
+    # Catégorie sans aucune ligne contributrice : liste vide, pas d'exception.
+    assert analysis_service.holdings_in_category(db, valued, "geo", "Asie") == []
+
+
 def test_breakdown_lookthrough_sans_composition_reste_sur_sa_propre_categorie(db):
     db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="STOCK1", quantite=1.0, prix_revient_moyen=100.0))
     db.add(
