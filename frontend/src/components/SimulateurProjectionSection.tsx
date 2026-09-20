@@ -7,6 +7,7 @@ import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { ChartFrame } from './ChartFrame'
+import { IconSoleil } from './icons'
 import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 import { dateVersISO, formatEuro, formatPct } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel, type ResultatFire } from '../utils/interetsComposes'
@@ -780,23 +781,30 @@ export default function SimulateurProjectionSection() {
             nombre d'années — « 2048 » se situe dans une vie, « dans 22 ans » se
             compte. Les deux sont donnés, l'année en tête. Affiché seulement quand
             une dépense cible est renseignée : sans elle, il n'y a pas d'objectif,
-            donc pas de date à annoncer. */}
+            donc pas de date à annoncer.
+
+            Retour utilisateur du 20/09/2026 (« la taille et la forme du message ne
+            sont pas incroyables ») : encart dédié plutôt qu'un chiffre posé à plat
+            sur le fond de la carte — un rayon de soleil très doux (`.lumen-horizon-
+            fire`) et `IconSoleil` qui se lève à chaque nouvelle réponse (`key` sur
+            le nombre de mois, même mécanique de remontage que `PatrimoineNetCard`
+            pour rejouer l'animation CSS). C'est littéralement le jour où la lumière
+            est faite sur l'indépendance financière — le clin d'œil est volontaire. */}
         {fire && depenseCible && (
-          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <div className="lumen-horizon-fire relative mt-4 overflow-hidden rounded-panel border border-bordure px-5 py-5">
             <span className="text-[13px] font-medium text-ink3">Indépendance financière atteinte en</span>
             {fire.moisAvantIndependance === null ? (
-              <span className="text-[48px] font-semibold leading-none tracking-hero text-avertissement">
-                jamais d'ici 60 ans
-              </span>
+              <p className="mt-2 text-[40px] font-semibold leading-none tracking-hero text-avertissement">jamais d'ici 60 ans</p>
             ) : (
-              <>
-                <span className="text-[48px] font-semibold leading-none tracking-hero text-ink">
+              <div key={fire.moisAvantIndependance} className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <IconSoleil className="h-9 w-9 shrink-0 text-accent animate-lumen-lever-soleil" />
+                <span className="animate-lumen-allumage text-[48px] font-semibold leading-none tracking-hero text-ink">
                   {anneeCalendairePlusMois(fire.moisAvantIndependance)}
                 </span>
-                <span className="text-[22px] font-medium text-ink3">
-                  {fire.moisAvantIndependance === 0 ? '· déjà atteinte' : `· dans ${formatDureeFire(fire.moisAvantIndependance)}`}
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[13px] font-semibold text-accent">
+                  {fire.moisAvantIndependance === 0 ? 'déjà atteinte' : `dans ${formatDureeFire(fire.moisAvantIndependance)}`}
                 </span>
-              </>
+              </div>
             )}
           </div>
         )}

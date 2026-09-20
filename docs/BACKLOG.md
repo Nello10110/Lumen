@@ -4699,6 +4699,25 @@ avec un bouton « Utiliser comme dépense annuelle cible » — jamais automatiq
 autres suggestions préremplies de cette section (« Revenir au patrimoine net actuel »...) : un clic
 explicite, pas une valeur qui change sous les yeux de l'utilisateur.
 
+#### AY.3 — `mineur` · `S` · `traité` (20/09/2026) — Le chiffre héros FIRE devient un lever de soleil
+
+Retour utilisateur direct sur le chiffre héros du § AY.2 tout juste livré : « la taille et la forme du
+message ne sont pas incroyables [...] un petit truc un peu funny avec de l'animation, dans la veine de
+tout ce qu'on avait créé avec le style de l'application avec la lumière ». L'année d'indépendance
+financière n'était qu'un nombre posé à plat sur le fond de la carte, sans le moindre égard visuel —
+alors que c'est littéralement le jour où « la lumière » (Lumen) est faite sur l'indépendance de
+quelqu'un.
+
+Encart dédié plutôt qu'un chiffre nu : fond en rayon de soleil très doux (`.lumen-horizon-fire`, même
+famille que `.lumen-ambiance-hausse` du § AG.5 mais borné à cet encart plutôt qu'à toute la page),
+`IconSoleil` (déjà utilisé pour la bascule de thème) qui se lève depuis l'horizon en s'éclaircissant
+(nouvelle animation `lumen-lever-soleil`), et la durée reformulée en pastille plutôt qu'en texte accolé.
+Rejoué à chaque nouvelle réponse plutôt qu'une seule fois à l'ouverture de la page : `key={mois}` sur le
+conteneur force React à le remonter, même mécanique que le chiffre héros du patrimoine net
+(`PatrimoineNetCard.tsx`, § AH.3) pour relancer l'animation CSS. Jamais en boucle : un lever de soleil
+qui recommencerait sans fin perdrait tout son sens — même prudence que le retrait d'AD.2 (« ça rend pas
+bien »), qui avait appris à ne pas laisser un effet lumineux tourner en continu sur un état numérique.
+
 ---
 ## 3. Hors périmètre (assumé)
 
