@@ -5223,7 +5223,7 @@ valorisations manuelles saisies par l'utilisateur (§ BA.2). Spécifiées ci-des
 niveau de détail que § AZ : modèle de données exact, signatures, fichiers précis à toucher, tests
 attendus.
 
-#### BA.1 — `mineur` · `M` · `non traité` (proposé le 21/09/2026) — Bilan annuel généré automatiquement (PDF)
+#### BA.1 — `mineur` · `M` · `traité` (proposé le 21/09/2026, implémenté le 21/09/2026) — Bilan annuel généré automatiquement (PDF)
 
 **Constat.** Deux exports PDF existent déjà (`services/pdf_export_service.py`,
 `services/declaration_patrimoine_service.py`) mais tous les deux sont des PHOTOGRAPHIES au jour de
@@ -5498,7 +5498,7 @@ autres sections déjà extraites en composants) :
   PDF, nom de fichier daté ; `?annee=` dans le futur répond 400 ; `?annee=` omis utilise l'année en
   cours.
 
-#### BA.2 — `mineur` · `S` · `non traité` (proposé le 21/09/2026) — Alertes de fraîcheur des valorisations manuelles
+#### BA.2 — `mineur` · `S` · `traité` (proposé le 21/09/2026, implémenté le 21/09/2026) — Alertes de fraîcheur des valorisations manuelles
 
 **Constat.** Les lignes valorisées manuellement (`TYPES_ACTIF_PATRIMOINE_MANUEL` : immobilier, SCPI,
 assurance-vie, PER, épargne réglementée, compte courant, véhicule, autre) reposent sur

@@ -59,6 +59,7 @@ import type {
   PreferencesUpdateResponse,
   QuotiteEntree,
   ScorePatrimonial,
+  AlerteFraicheurItem,
   ComparaisonInsee,
   RecurrenceDetectee,
   RegleCategorisation,
@@ -503,6 +504,9 @@ export const api = {
   // Comparaison au patrimoine médian INSEE (backlog § AZ.2) — `null` tant que
   // l'année de naissance du foyer n'est pas renseignée (écran Réglages).
   getComparaisonInsee: () => request<ComparaisonInsee | null>('/patrimoine/comparaison-insee'),
+  // Alertes de fraîcheur des valorisations manuelles (backlog § BA.2) — foyer
+  // consolidé uniquement, jamais de variante par détenteur.
+  getAlertesFraicheur: () => request<AlerteFraicheurItem[]>('/patrimoine/alertes-fraicheur'),
   getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
   getExpositionConsolideeComposition: (dimension: 'geo' | 'classe', categorie: string, net: boolean) =>
     request<CategoryCompositionResponse>(

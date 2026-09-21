@@ -9,6 +9,7 @@ import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal
 import DetenteursCard from '../components/DetenteursCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
+import { Select } from '../components/Field'
 import FoyerCard from '../components/FoyerCard'
 import GestionFoyerCard from '../components/GestionFoyerCard'
 import { IconBadge, IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
@@ -38,6 +39,11 @@ const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconReglages }[] =
 ]
 
 const ONGLET_PAR_DEFAUT: OngletKey = 'general'
+
+// Bilan annuel (backlog § BA.1) : dix dernières années — largement suffisant,
+// une année sans aucune donnée produit simplement un PDF disant « Historique
+// non disponible sur cette période », jamais une erreur.
+const ANNEES_BILAN = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
 /** Barre d'onglets (retour utilisateur : la page à une seule colonne, avec une
  * dizaine de cartes empilées, était devenue difficile à parcourir). Sélection
@@ -71,6 +77,7 @@ export default function ReglagesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [declarationOuverte, setDeclarationOuverte] = useState(false)
+  const [anneeBilan, setAnneeBilan] = useState(() => new Date().getFullYear())
   const [assistantOuvert, setAssistantOuvert] = useState(false)
 
   function chargerJobs() {
@@ -195,6 +202,28 @@ export default function ReglagesPage() {
             <SecondaryButton onClick={() => setDeclarationOuverte(true)}>
               Déclaration de patrimoine (PDF)
             </SecondaryButton>
+
+            <p className="mb-2 mt-6 text-sm text-texte">
+              Bilan annuel : évolution du patrimoine net et jalons franchis sur une année, avec la situation
+              actuelle pour l'année en cours.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Select
+                value={anneeBilan}
+                onChange={(e) => setAnneeBilan(Number(e.target.value))}
+                aria-label="Année du bilan"
+                className="w-28"
+              >
+                {ANNEES_BILAN.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </Select>
+              <a href={`/api/export/bilan-annuel.pdf?annee=${anneeBilan}`} className={CLASSES_BOUTON_SECONDAIRE}>
+                Bilan annuel (PDF)
+              </a>
+            </div>
           </Card>
           {/* Sauvegarde complète (backlog Y.1) : carte distincte de « Exporter »
               ci-dessus — celle-ci ne produit pas un document à lire mais un

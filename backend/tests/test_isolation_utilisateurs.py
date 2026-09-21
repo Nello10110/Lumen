@@ -7,7 +7,7 @@ supprimer aucune donnée de A. C'est le verrou central de ce milestone : une
 requête oubliée y apparaîtrait comme un test qui échoue, pas comme une fuite
 découverte en production."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.models import ORIGINE_MANUEL, Holding, Loan
 from app.services import preferences_service
@@ -240,6 +240,24 @@ def test_comparaison_insee_ne_fuit_pas_lannee_de_naissance_dun_autre_utilisateur
     assert reponse.status_code == 200
     # Foyer B n'a jamais renseigné son année de naissance : jamais celle de A.
     assert reponse.json() is None
+
+
+def test_alertes_fraicheur_ne_fuient_pas_vers_un_autre_utilisateur(client, db):
+    make_holding(
+        db,
+        ticker="MAISON",
+        user_id=ID_UTILISATEUR_TEST,
+        type_actif="REAL_ESTATE",
+        quantite=1,
+        valeur_estimee=250000.0,
+        date_valeur_estimee=datetime.now() - timedelta(days=1000),
+    )
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    reponse = client.get("/api/patrimoine/alertes-fraicheur")
+
+    assert reponse.status_code == 200
+    assert reponse.json() == []
 
 
 def test_performance_dun_utilisateur_ignore_les_transactions_dun_autre(client, db):

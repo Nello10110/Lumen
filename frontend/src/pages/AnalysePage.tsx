@@ -17,6 +17,7 @@ import QualiteDonneesCard from '../components/QualiteDonneesCard'
 import RevenusSection from '../components/RevenusSection'
 import ScorePatrimonialCard from '../components/ScorePatrimonialCard'
 import ComparaisonInseeCard from '../components/ComparaisonInseeCard'
+import AlerteFraicheurCard from '../components/AlerteFraicheurCard'
 import SimulateurAchatLocationCard from '../components/SimulateurAchatLocationCard'
 import SimulateurProjectionSection from '../components/SimulateurProjectionSection'
 import { SkeletonTexte } from '../components/Skeleton'
@@ -275,6 +276,8 @@ export default function AnalysePage() {
           <ScorePatrimonialCard />
 
           <ComparaisonInseeCard />
+
+          <AlerteFraicheurCard />
 
           {chargementCoutGestion && <SkeletonTexte lignes={2} />}
           {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}

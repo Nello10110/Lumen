@@ -15,7 +15,14 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Detenteur, Holding, Transaction, User
 from ..schemas import DeclarationPatrimoineRequest
-from ..services import analysis_service, auth_service, declaration_patrimoine_service, pdf_export_service, performance_service
+from ..services import (
+    analysis_service,
+    auth_service,
+    bilan_annuel_service,
+    declaration_patrimoine_service,
+    pdf_export_service,
+    performance_service,
+)
 from ..services.csv_export import construire_csv, formater_horodatage, formater_nombre
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -216,3 +223,22 @@ def export_declaration_patrimoine_pdf(
     )
     nom_fichier = f"declaration-patrimoine-{date_.today().isoformat()}.pdf"
     return Response(content=contenu, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nom_fichier}"'})
+
+
+@router.get("/bilan-annuel.pdf")
+def export_bilan_annuel_pdf(
+    annee: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """Bilan annuel PDF (backlog § BA.1). `annee` optionnel (défaut : année en
+    cours). Même garde d'accès que les deux exports PDF ci-dessus
+    (`get_current_user`, pas `_pas_invite`) : ce routeur n'a jamais restreint ses
+    exports PDF aux invités (contrairement aux endpoints JSON `/api/patrimoine/*`),
+    cette route ne change pas cette politique existante."""
+    annee_cible = annee if annee is not None else date_.today().year
+    if annee_cible > date_.today().year:
+        raise HTTPException(status_code=400, detail="Année invalide : ne peut pas être dans le futur")
+    contenu = bilan_annuel_service.generer_pdf_bilan_annuel(db, auth_service.id_foyer(current_user), annee_cible)
+    nom_fichier = f"bilan-annuel-{annee_cible}.pdf"
+    return Response(
+        content=contenu, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nom_fichier}"'}
+    )

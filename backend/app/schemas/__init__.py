@@ -116,6 +116,7 @@ from .partage import (  # noqa: F401
     PartageRepartitionItem,
 )
 from .patrimoine import (  # noqa: F401
+    AlerteFraicheurItem,
     ComparaisonInseeResponse,
     ExpositionConsolidee,
     IndicateursSituation,

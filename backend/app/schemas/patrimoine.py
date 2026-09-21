@@ -159,6 +159,17 @@ class ComparaisonInseeResponse(BaseModel):
     source: str
 
 
+class AlerteFraicheurItem(BaseModel):
+    """Backlog § BA.2 — `services/fraicheur_donnees_service.compute_alertes_fraicheur`."""
+
+    holding_id: int
+    nom: str
+    type_actif_label: str
+    valeur_estimee: float
+    date_valeur_estimee: str
+    jours_depuis_maj: int
+
+
 class IndicateursSituation(BaseModel):
     matelas_securite_mois: float | None
     taux_endettement_pct: float | None

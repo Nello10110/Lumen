@@ -98,6 +98,18 @@ export interface ComparaisonInsee {
   source: string
 }
 
+// Alerte de fraîcheur d'une valorisation manuelle (backlog § BA.2) — une ligne
+// valorisée manuellement (immobilier, assurance-vie...) dont `date_valeur_estimee`
+// n'a pas bougé depuis plus d'un an.
+export interface AlerteFraicheurItem {
+  holding_id: number
+  nom: string
+  type_actif_label: string
+  valeur_estimee: number
+  date_valeur_estimee: string
+  jours_depuis_maj: number
+}
+
 // Historique combiné financier + immobilier/épargne − emprunts (feature Net/Brut/
 // Financier sur toute la page Synthèse) — distinct de `PortfolioHistoryPoint`
 // (financier seul). Cf. `services/patrimoine_history_service.py` pour les deux

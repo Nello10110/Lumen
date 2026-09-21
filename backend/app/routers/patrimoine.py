@@ -16,6 +16,7 @@ from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Detenteur, User
 from ..schemas import (
+    AlerteFraicheurItem,
     CategoryCompositionResponse,
     ComparaisonInseeResponse,
     ExpositionConsolidee,
@@ -24,7 +25,14 @@ from ..schemas import (
     PatrimoineNetResponse,
     ScorePatrimonialResponse,
 )
-from ..services import auth_service, detenteurs_service, patrimoine_history_service, patrimoine_service, score_patrimonial_service
+from ..services import (
+    auth_service,
+    detenteurs_service,
+    fraicheur_donnees_service,
+    patrimoine_history_service,
+    patrimoine_service,
+    score_patrimonial_service,
+)
 
 router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
 
@@ -125,6 +133,14 @@ def get_comparaison_insee(db: Session = Depends(get_db), current_user: User = De
     variante par détenteur)."""
     resultat = patrimoine_service.compute_comparaison_insee(db, auth_service.id_foyer(current_user))
     return ComparaisonInseeResponse(**resultat) if resultat is not None else None
+
+
+@router.get("/alertes-fraicheur", response_model=list[AlerteFraicheurItem])
+def get_alertes_fraicheur(db: Session = Depends(get_db), current_user: User = Depends(_pas_invite)):
+    """Backlog § BA.2 — foyer consolidé uniquement, même garde `_pas_invite` que
+    `/score`/`/comparaison-insee` ci-dessus : une valorisation manuelle n'a de
+    toute façon qu'une seule date de mise à jour, pas une par détenteur."""
+    return fraicheur_donnees_service.compute_alertes_fraicheur(db, auth_service.id_foyer(current_user))
 
 
 @router.get("/exposition-consolidee", response_model=ExpositionConsolidee)
