@@ -3,6 +3,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import { api } from '../api/client'
 import type { DividendeMois } from '../api/types'
 import Card from './Card'
+import { SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { GlassPanel } from './GlassPanel'
@@ -18,6 +19,11 @@ import {
   STYLE_INFOBULLE,
 } from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
+
+// Nombre de mois affichés par défaut dans « Détail des dividendes » (retour
+// utilisateur du 21/09/2026) — un historique de plusieurs années y affichait
+// autrement une longue colonne de cartes mensuelles à faire défiler.
+const NOMBRE_MOIS_VISIBLES_PAR_DEFAUT = 5
 
 function libelleMois(mois: string): string {
   const [annee, m] = mois.split('-')
@@ -84,6 +90,7 @@ export default function RevenusSection() {
   const { montantsMasques } = usePreferencesAffichage()
   const [calendrier, setCalendrier] = useState<DividendeMois[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [toutAffiche, setToutAffiche] = useState(false)
 
   function charger() {
     setError(null)
@@ -104,6 +111,10 @@ export default function RevenusSection() {
     moisCourt: libelleMoisCourt(m.mois),
     montant: m.montant_total,
   }))
+
+  const moisTriesDuPlusRecent = [...calendrier].reverse()
+  const moisMasques = moisTriesDuPlusRecent.length - NOMBRE_MOIS_VISIBLES_PAR_DEFAUT
+  const moisAffiches = toutAffiche ? moisTriesDuPlusRecent : moisTriesDuPlusRecent.slice(0, NOMBRE_MOIS_VISIBLES_PAR_DEFAUT)
 
   return (
     <div className="space-y-[14px]">
@@ -144,10 +155,17 @@ export default function RevenusSection() {
 
           <Card title="Détail des dividendes">
             <div className="space-y-2">
-              {[...calendrier].reverse().map((mois) => (
+              {moisAffiches.map((mois) => (
                 <MoisCard key={mois.mois} mois={mois} />
               ))}
             </div>
+            {moisMasques > 0 && (
+              <div className="mt-3 flex justify-center">
+                <SecondaryButton onClick={() => setToutAffiche((v) => !v)}>
+                  {toutAffiche ? 'Réduire' : `Afficher les ${moisMasques} mois précédents`}
+                </SecondaryButton>
+              </div>
+            )}
           </Card>
         </>
       )}
