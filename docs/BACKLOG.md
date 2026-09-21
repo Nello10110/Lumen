@@ -5197,6 +5197,439 @@ faudrait cliquer pour voir l'en-tête de colonne dans son tableau).
   `getByRole('columnheader', { name: 'Quotité' })` doivent continuer à matcher sans modification).
 
 ---
+
+### BA. Deux pistes issues d'une revue concurrentielle (fiscal.ai, 21/09/2026)
+
+Revue du site public de fiscal.ai (ex-FinChat.io, terminal de recherche actions adossé à S&P Global
+Market Intelligence — hors périmètre de Lumen : c'est un outil pour décider *dans quoi* investir,
+Lumen répond à *ce que vaut* le patrimoine déjà détenu). Ce qui y a été explicitement écarté, pour
+mémoire :
+
+- Le mode « Super Investors » (portefeuilles 13F de gérants suivis en direct) est un classement
+  entre investisseurs tiers — même famille que le « classement des investissements, percentile face
+  à la population française » déjà exclu (§ 3) : aucune base d'utilisateurs Lumen n'est en jeu ici,
+  mais l'esprit (comparer des portefeuilles entre personnes) est identique et reste hors sujet.
+- Le screener, les modèles DCF et la recherche fondamentale sur des sociétés tierces sont le cœur de
+  métier de fiscal.ai : en faire un sous-ensemble dégradé n'apporterait rien et éloignerait Lumen de
+  son objet (le patrimoine du foyer, pas la sélection de titres).
+- Le fil d'actualité/sentiment sur les titres détenus impliquerait un appel réseau externe régulier
+  vers un fournisseur de news — incompatible avec le principe fondateur (100 % local, aucun appel
+  réseau hors cours de bourse déjà en place pour le rafraîchissement de portefeuille).
+
+Deux pistes retenues, transposées à l'usage de Lumen (le propre patrimoine du foyer, jamais une
+société tierce) : leurs rapports générés automatiquement sur une entreprise, appliqués ici au bilan
+du foyer lui-même (§ BA.1) ; leurs badges de données vérifiées/fraîches, appliqués ici aux
+valorisations manuelles saisies par l'utilisateur (§ BA.2). Spécifiées ci-dessous avec le même
+niveau de détail que § AZ : modèle de données exact, signatures, fichiers précis à toucher, tests
+attendus.
+
+#### BA.1 — `mineur` · `M` · `non traité` (proposé le 21/09/2026) — Bilan annuel généré automatiquement (PDF)
+
+**Constat.** Deux exports PDF existent déjà (`services/pdf_export_service.py`,
+`services/declaration_patrimoine_service.py`) mais tous les deux sont des PHOTOGRAPHIES au jour de
+génération — aucun ne raconte une PÉRIODE (une année) : évolution du patrimoine net, jalons
+franchis. fiscal.ai génère des rapports automatiques sur une société tierce (résumé d'earnings,
+synthèse annuelle) ; l'idée transposée ici porte sur le foyer lui-même, jamais une société.
+
+**Point méthodologique à respecter à la lettre** (même rigueur que § AZ.2 sur brut/net) : deux
+indicateurs existants — `score_patrimonial_service.compute_score_patrimonial` et
+`patrimoine_service.compute_patrimoine_net` (répartition par classe) — ne sont JAMAIS historisés,
+ils recalculent systématiquement l'état COURANT de la base. Les inclure dans un bilan portant sur
+une année déjà close les ferait passer pour des faits de cette année-là, alors qu'ils décriraient en
+réalité le jour de génération du PDF. Ils n'apparaissent donc que dans un bilan de l'année EN COURS,
+jamais dans le bilan d'une année passée — voir la section « Situation actuelle » plus bas.
+
+**Nouveau fichier** `backend/app/services/bilan_annuel_service.py` — réutilise telles quelles les
+fonctions déjà exposées ailleurs (`patrimoine_history_service`, `patrimoine_service`,
+`score_patrimonial_service`, `jalons_service`), même discipline que les deux modules PDF existants :
+ce module ne calcule rien de nouveau, il sélectionne deux points d'une série déjà calculée et met en
+forme.
+
+```python
+from datetime import date
+from io import BytesIO
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from sqlalchemy.orm import Session
+
+from . import jalons_service, patrimoine_history_service, patrimoine_service, score_patrimonial_service
+from .csv_export import formater_nombre
+from .pdf_watermark import dessiner_filigrane
+
+_COULEUR_FILET = colors.HexColor("#e2e8f0")
+
+
+def _avec_separateurs_milliers(nombre: str) -> str:
+    signe, chiffres = ("-", nombre[1:]) if nombre.startswith("-") else ("", nombre)
+    groupes = []
+    while len(chiffres) > 3:
+        groupes.insert(0, chiffres[-3:])
+        chiffres = chiffres[:-3]
+    groupes.insert(0, chiffres)
+    return signe + " ".join(groupes)
+
+
+def _euros(valeur: float | None) -> str:
+    formate = formater_nombre(valeur, 0)
+    return f"{_avec_separateurs_milliers(formate)} €" if formate else "—"
+
+
+def _pourcentage_signe(valeur: float | None) -> str:
+    """Comme `_pourcentage` des deux autres modules PDF, mais avec un signe +
+    explicite — une variation annuelle se lit toujours comme une hausse ou une
+    baisse, jamais comme un pourcentage brut sans direction."""
+    if valeur is None:
+        return "—"
+    signe = "+" if valeur >= 0 else ""
+    return f"{signe}{formater_nombre(valeur, 1)} %"
+
+
+def _table_deux_colonnes(lignes: list[tuple[str, str]]) -> Table:
+    table = Table(lignes, colWidths=[10 * cm, 5 * cm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.5, _COULEUR_FILET),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ]
+        )
+    )
+    return table
+
+
+def _pied_de_page(canvas, doc) -> None:
+    dessiner_filigrane(canvas, doc)
+    canvas.saveState()
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#64748b"))
+    canvas.drawString(2 * cm, 1.3 * cm, f"Généré le {date.today().strftime('%d/%m/%Y')} par Lumen")
+    canvas.restoreState()
+
+
+def _point_a_ou_avant(points: list[dict], limite: date) -> dict | None:
+    """Dernier point de `points` (triés par date croissante — grille hebdomadaire de
+    `patrimoine_history_service.compute_patrimoine_history`) dont la date est
+    <= `limite` ; `None` si tous les points connus sont postérieurs à `limite`."""
+    candidat = None
+    for point in points:
+        if date.fromisoformat(point["date"]) <= limite:
+            candidat = point
+        else:
+            break
+    return candidat
+
+
+def generer_pdf_bilan_annuel(db: Session, user_id: int, annee: int) -> bytes:
+    """`annee` : précondition vérifiée par l'appelant (`routers/export.py`),
+    jamais dans le futur (`annee <= date.today().year`) — ce module ne revalide
+    pas, même répartition des responsabilités que `declaration_patrimoine_service`
+    vis-à-vis de `schemas.PreferencesUpdate` ailleurs dans le code."""
+    aujourdhui = date.today()
+    annee_en_cours = annee == aujourdhui.year
+    debut_periode = date(annee, 1, 1)
+    fin_periode = aujourdhui if annee_en_cours else date(annee, 12, 31)
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, user_id)
+    point_debut = _point_a_ou_avant(points, debut_periode)
+    if point_debut is None and points and date.fromisoformat(points[0]["date"]) <= fin_periode:
+        # Le suivi a commencé PENDANT la période demandée (pas avant) : le
+        # premier point connu, s'il tombe dans la période, sert de point de
+        # départ — jamais `None` dans ce cas précis, qui masquerait à tort une
+        # évolution réellement observable depuis le début du suivi.
+        point_debut = points[0]
+    point_fin = _point_a_ou_avant(points, fin_periode)
+
+    styles = getSampleStyleSheet()
+    tampon = BytesIO()
+    doc = SimpleDocTemplate(tampon, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
+    elements = []
+
+    titre = f"Bilan de l'année {annee}" + (" (en cours)" if annee_en_cours else "")
+    elements.append(Paragraph(titre, styles["Title"]))
+    sous_titre = f"Période du {debut_periode.strftime('%d/%m/%Y')} au {fin_periode.strftime('%d/%m/%Y')}"
+    elements.append(Paragraph(sous_titre, styles["Normal"]))
+    elements.append(Spacer(1, 0.6 * cm))
+
+    elements.append(Paragraph("Évolution du patrimoine net", styles["Heading2"]))
+    if point_debut is None or point_fin is None:
+        elements.append(Paragraph("Historique non disponible sur cette période.", styles["Normal"]))
+    else:
+        date_reelle_debut = date.fromisoformat(point_debut["date"])
+        if date_reelle_debut > debut_periode:
+            elements.append(
+                Paragraph(
+                    f"Historique disponible depuis le {date_reelle_debut.strftime('%d/%m/%Y')} seulement "
+                    "(début du suivi sur ce foyer).",
+                    styles["Normal"],
+                )
+            )
+            elements.append(Spacer(1, 0.2 * cm))
+        net_debut = point_debut["patrimoine_net"]
+        net_fin = point_fin["patrimoine_net"]
+        # `None` seulement si le patrimoine net de départ était nul ou négatif :
+        # un pourcentage de variation n'a alors pas de sens (dénominateur nul ou
+        # inversant le signe) — la variation en euros, elle, reste toujours
+        # affichée, quel que soit le signe de `net_debut`.
+        variation_pct = round((net_fin / net_debut - 1) * 100, 1) if net_debut > 0 else None
+        libelle_variation = "Variation" if variation_pct is None else f"Variation ({_pourcentage_signe(variation_pct)})"
+        elements.append(
+            _table_deux_colonnes(
+                [
+                    (f"Patrimoine net au {date_reelle_debut.strftime('%d/%m/%Y')}", _euros(net_debut)),
+                    (f"Patrimoine net au {date.fromisoformat(point_fin['date']).strftime('%d/%m/%Y')}", _euros(net_fin)),
+                    (libelle_variation, _euros(net_fin - net_debut)),
+                ]
+            )
+        )
+    elements.append(Spacer(1, 0.5 * cm))
+
+    elements.append(Paragraph("Jalons franchis sur la période", styles["Heading2"]))
+    jalons_periode = [
+        j
+        for j in jalons_service.evaluer_jalons(db, user_id)
+        if j.date_atteint is not None and debut_periode <= j.date_atteint <= fin_periode
+    ]
+    if jalons_periode:
+        elements.append(_table_deux_colonnes([(j.titre, j.date_atteint.strftime("%d/%m/%Y")) for j in jalons_periode]))
+    else:
+        elements.append(Paragraph("Aucun jalon franchi sur cette période.", styles["Normal"]))
+
+    if annee_en_cours:
+        elements.append(Spacer(1, 0.5 * cm))
+        elements.append(Paragraph("Situation actuelle", styles["Heading2"]))
+        elements.append(
+            Paragraph(
+                "Les indicateurs ci-dessous décrivent l'état du patrimoine AUJOURD'HUI, pas l'année écoulée : "
+                "ni le score patrimonial ni la répartition par classe d'actif ne sont historisés.",
+                styles["Normal"],
+            )
+        )
+        elements.append(Spacer(1, 0.2 * cm))
+        net = patrimoine_service.compute_patrimoine_net(db, user_id)
+        score = score_patrimonial_service.compute_score_patrimonial(db, user_id)
+        lignes_situation = [("Score patrimonial", f"{score['score_global']}/100")]
+        lignes_situation += [(item["categorie"], _euros(item["valeur"])) for item in net["repartition_par_classe"]]
+        elements.append(_table_deux_colonnes(lignes_situation))
+
+    doc.build(elements, onFirstPage=_pied_de_page, onLaterPages=_pied_de_page)
+    return tampon.getvalue()
+```
+
+**Backend — endpoint.** `backend/app/routers/export.py`, même patron que `/patrimoine.pdf`/
+`/declaration-patrimoine.pdf` juste au-dessus :
+
+```python
+@router.get("/bilan-annuel.pdf")
+def export_bilan_annuel_pdf(
+    annee: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """Bilan annuel PDF (backlog § BA.1). `annee` optionnel (défaut : année en
+    cours). Même garde d'accès que les deux exports PDF ci-dessus
+    (`get_current_user`, pas `_pas_invite`) : ce routeur n'a jamais restreint ses
+    exports PDF aux invités (contrairement aux endpoints JSON `/api/patrimoine/*`),
+    cette route ne change pas cette politique existante."""
+    annee_cible = annee if annee is not None else date_.today().year
+    if annee_cible > date_.today().year:
+        raise HTTPException(status_code=400, detail="Année invalide : ne peut pas être dans le futur")
+    contenu = bilan_annuel_service.generer_pdf_bilan_annuel(db, auth_service.id_foyer(current_user), annee_cible)
+    nom_fichier = f"bilan-annuel-{annee_cible}.pdf"
+    return Response(
+        content=contenu, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nom_fichier}"'}
+    )
+```
+
+Ajouter `bilan_annuel_service` à la ligne d'import des services en tête de `routers/export.py` (déjà
+`from ..services import analysis_service, auth_service, declaration_patrimoine_service, pdf_export_service, performance_service`).
+
+**Frontend.** `frontend/src/pages/ReglagesPage.tsx`, dans la `<Card title="Exporter">` existante
+(onglet Général), après le bouton « Déclaration de patrimoine (PDF) » — pas un nouveau composant
+séparé, cette carte reste pour l'instant assemblée directement dans la page (contrairement aux
+autres sections déjà extraites en composants) :
+
+- Nouvelle constante module-level (à côté de `ONGLETS`) :
+  `const ANNEES_BILAN = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)` (dix
+  dernières années — largement suffisant, une année sans aucune donnée produit simplement un PDF
+  disant « Historique non disponible sur cette période », jamais une erreur).
+- Nouvel état local : `const [anneeBilan, setAnneeBilan] = useState(() => new Date().getFullYear())`.
+- Import `{ Select }` depuis `../components/Field` (déjà utilisé ailleurs, ex.
+  `DeclarationPatrimoineModal.tsx`).
+- Bloc JSX (lien `<a>` simple, comme `/api/export/patrimoine.pdf` juste au-dessus dans la même
+  carte — requête `GET`, pas besoin du patron fetch+blob utilisé par la déclaration, qui est en
+  `POST`) :
+
+```tsx
+<p className="mb-2 mt-6 text-sm text-texte">
+  Bilan annuel : évolution du patrimoine net et jalons franchis sur une année, avec la situation
+  actuelle pour l'année en cours.
+</p>
+<div className="flex flex-wrap items-center gap-3">
+  <Select value={anneeBilan} onChange={(e) => setAnneeBilan(Number(e.target.value))} aria-label="Année du bilan" className="w-28">
+    {ANNEES_BILAN.map((a) => (
+      <option key={a} value={a}>
+        {a}
+      </option>
+    ))}
+  </Select>
+  <a href={`/api/export/bilan-annuel.pdf?annee=${anneeBilan}`} className={CLASSES_BOUTON_SECONDAIRE}>
+    Bilan annuel (PDF)
+  </a>
+</div>
+```
+
+**Tests.**
+- `backend/tests/test_bilan_annuel_service.py` (nouveau, même discipline que
+  `test_declaration_patrimoine_service.py` : extraction du texte réel du PDF via `pypdf`) :
+  PDF valide sans aucune donnée (« Historique non disponible sur cette période »,
+  « Aucun jalon franchi sur cette période ») ; évolution du patrimoine net correcte sur un scénario
+  chiffré (positions/emprunts connus à deux dates) ; note « Historique disponible depuis le ... »
+  affichée quand le suivi a commencé pendant la période demandée ; jalon apparaissant seulement s'il
+  est franchi DANS la période (un jalon franchi l'année précédente n'apparaît pas dans le bilan de
+  l'année suivante) ; section « Situation actuelle » présente pour l'année en cours, ABSENTE pour
+  une année passée.
+- `backend/tests/test_bilan_annuel_router.py` (nouveau, même discipline que
+  `test_declaration_patrimoine_router.py`) : `GET /api/export/bilan-annuel.pdf` répond 200 avec un
+  PDF, nom de fichier daté ; `?annee=` dans le futur répond 400 ; `?annee=` omis utilise l'année en
+  cours.
+
+#### BA.2 — `mineur` · `S` · `non traité` (proposé le 21/09/2026) — Alertes de fraîcheur des valorisations manuelles
+
+**Constat.** Les lignes valorisées manuellement (`TYPES_ACTIF_PATRIMOINE_MANUEL` : immobilier, SCPI,
+assurance-vie, PER, épargne réglementée, compte courant, véhicule, autre) reposent sur
+`Holding.valeur_estimee`/`date_valeur_estimee`, saisies par l'utilisateur — rien aujourd'hui
+n'attire l'attention sur une valeur non retouchée depuis longtemps. Le sous-score « qualité des
+données » existant (`analysis_service.compute_data_quality`, réutilisé par
+`score_patrimonial_service`) ne couvre QUE la catégorisation géographique du portefeuille FINANCIER
+— jamais la fraîcheur d'une valorisation manuelle, une notion différente. Inspiré des badges
+« donnée vérifiée/fraîche » de fiscal.ai, transposés ici à la propre saisie de l'utilisateur plutôt
+qu'à un flux de données tierces.
+
+**Choix de conception explicite : n'étend PAS `score_patrimonial_service`.** Le sous-score
+« qualité des données » (§ AZ.1) mesure une chose précise (catégorisation géo du portefeuille
+financier) avec une pondération déjà actée et testée ; y mélanger la fraîcheur des valorisations
+manuelles obligerait à revoir cette formule pour une notion différente. Cette piste reste une liste
+d'alertes autonome, jamais une modification du score existant.
+
+**Nouveau fichier** `backend/app/services/fraicheur_donnees_service.py` :
+
+```python
+"""Fraîcheur des valorisations manuelles (backlog § BA.2, revue concurrentielle
+fiscal.ai du 21/09/2026) : signale les lignes valorisées manuellement
+(`TYPES_ACTIF_PATRIMOINE_MANUEL`) dont `Holding.date_valeur_estimee` n'a pas
+bougé depuis longtemps — jamais une alerte sur une ligne sans AUCUNE valeur
+renseignée (`valeur_estimee is None`), un état différent (la ligne vaut alors
+0 €, déjà visible autrement) qui n'a rien à voir avec une valeur PÉRIMÉE.
+Purement dérivé, aucune nouvelle colonne : `date_valeur_estimee` est déjà mise
+à jour à chaque écriture de `valeur_estimee` (cf. `routers/portfolio.py`)."""
+
+from datetime import UTC, datetime
+
+from sqlalchemy.orm import Session
+
+from ..models import TYPES_ACTIF_PATRIMOINE_MANUEL, Holding
+from . import patrimoine_service
+
+# 365 jours (pas "12 mois", pour rester en jours comme `jalons_service` — évite
+# d'introduire une durée calendaire approximative en plus dans la base de code).
+SEUIL_JOURS_ALERTE_FRAICHEUR = 365
+
+
+def compute_alertes_fraicheur(db: Session, user_id: int) -> list[dict]:
+    maintenant = datetime.now(UTC).replace(tzinfo=None)
+    holdings = (
+        db.query(Holding)
+        .filter(
+            Holding.user_id == user_id,
+            Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL),
+            Holding.valeur_estimee.isnot(None),
+        )
+        .all()
+    )
+
+    alertes = []
+    for h in holdings:
+        jours = (maintenant - h.date_valeur_estimee).total_seconds() / 86400
+        if jours < SEUIL_JOURS_ALERTE_FRAICHEUR:
+            continue
+        alertes.append(
+            {
+                "holding_id": h.id,
+                "nom": h.nom or h.ticker,
+                "type_actif_label": patrimoine_service.LABEL_TYPE_ACTIF.get(h.type_actif, h.type_actif),
+                "valeur_estimee": h.valeur_estimee,
+                "date_valeur_estimee": h.date_valeur_estimee.date().isoformat(),
+                "jours_depuis_maj": round(jours),
+            }
+        )
+    # Le plus périmé en premier : la ligne la plus utile à corriger d'abord.
+    alertes.sort(key=lambda a: a["jours_depuis_maj"], reverse=True)
+    return alertes
+```
+
+**Backend — endpoint.** `GET /api/patrimoine/alertes-fraicheur` (`routers/patrimoine.py`), même
+garde que `/score`/`/comparaison-insee` (`Depends(_pas_invite)`) : foyer consolidé uniquement — une
+valorisation manuelle n'a de toute façon qu'une seule date de mise à jour, pas une par détenteur.
+
+```python
+@router.get("/alertes-fraicheur", response_model=list[AlerteFraicheurItem])
+def get_alertes_fraicheur(db: Session = Depends(get_db), current_user: User = Depends(_pas_invite)):
+    return fraicheur_donnees_service.compute_alertes_fraicheur(db, auth_service.id_foyer(current_user))
+```
+
+Ajouter `fraicheur_donnees_service` à la ligne d'import des services de `routers/patrimoine.py`, et
+`AlerteFraicheurItem` aux imports de schémas.
+
+Schéma (`backend/app/schemas/patrimoine.py`) :
+
+```python
+class AlerteFraicheurItem(BaseModel):
+    holding_id: int
+    nom: str
+    type_actif_label: str
+    valeur_estimee: float
+    date_valeur_estimee: str
+    jours_depuis_maj: int
+```
+
+Ajouter `AlerteFraicheurItem` au bloc d'import `patrimoine` de `backend/app/schemas/__init__.py`.
+
+**Frontend.**
+- `frontend/src/api/types/patrimoine.ts` : interface `AlerteFraicheurItem` (mêmes champs que le
+  schéma ci-dessus, `valeur_estimee: number`, `jours_depuis_maj: number`), réexportée par
+  `frontend/src/api/types.ts`.
+- `frontend/src/api/client.ts` : `getAlertesFraicheur: () => request<AlerteFraicheurItem[]>('/patrimoine/alertes-fraicheur')`.
+- Nouveau composant `frontend/src/components/AlerteFraicheurCard.tsx`, autonome (charge lui-même ses
+  données), monté sur `AnalysePage.tsx` onglet « Portefeuille », après `<ComparaisonInseeCard />`
+  (§ AZ.2) — pas `DashboardPage.tsx`, même raison que §§ AZ.1/AZ.2 (docstring de cet écran listant
+  ce qui n'a pas sa place sur le tableau de bord). **Ne s'affiche pas du tout** (retourne `null`,
+  pas un état vide) si la liste est vide — une liste vide est l'état SAIN et normal, jamais une
+  erreur à signaler poliment.
+- Contenu si la liste n'est pas vide : titre « Données à rafraîchir », puis une ligne par élément :
+  « {nom} ({type_actif_label}) — non mise à jour depuis le {date_valeur_estimee au format JJ/MM/AAAA}
+  ({jours_depuis_maj} jours) ». **Ton à respecter** (même principe que § AZ.2) : jamais de couleur
+  d'alerte rouge ni de vocabulaire anxiogène — un simple repère factuel, une puce neutre suffit.
+  Aucun lien vers la fiche de l'actif dans ce lot (simple signalement, pas une action guidée) — une
+  amélioration possible plus tard, hors de ce lot.
+
+**Tests.**
+- `backend/tests/test_fraicheur_donnees_service.py` (nouveau) : aucune alerte pour une ligne dont la
+  date est récente (< 365 jours) ; alerte déclenchée à partir du seuil (jours >= 365) ; aucune alerte
+  pour `valeur_estimee is None` ; aucune alerte pour un type non manuel (ex. `STOCK`) même avec une
+  date ancienne ; tri du plus périmé au moins périmé sur plusieurs lignes.
+- Cas à `test_isolation_utilisateurs.py` : les alertes d'un foyer ne fuient jamais vers un autre.
+- Cas à `test_roles.py` : un compte `invité` reçoit 403 sur `GET /api/patrimoine/alertes-fraicheur`.
+- `frontend/src/components/AlerteFraicheurCard.test.tsx` (nouveau) : ne rend rien si la liste est
+  vide ; affiche chaque ligne avec son nom, son libellé de type et son nombre de jours.
+- `AnalysePage.test.tsx` : ajouter `getAlertesFraicheur: vi.fn()` au mock et
+  `vi.mocked(api.getAlertesFraicheur).mockResolvedValue([])` dans `mockReponsesParDefaut()`.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
