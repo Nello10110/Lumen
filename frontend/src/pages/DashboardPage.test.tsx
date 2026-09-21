@@ -149,7 +149,12 @@ describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () =
   })
 
   function holdingAvecCotation(joursDepuisMaj: number) {
-    const maj = new Date(Date.now() - joursDepuisMaj * 24 * 60 * 60 * 1000).toISOString()
+    // Naïf, SANS "Z" — même format que l'API réelle (`datetime` naïf côté
+    // backend, cf. `parseDateApi`) : `.toISOString()` seul produirait un format
+    // avec "Z" qui aurait masqué le bug corrigé ici (le composant lisait ce
+    // format avec `new Date(d)` plutôt que `parseDateApi(d)`, faussant le calcul
+    // dans tout fuseau horaire différent d'UTC).
+    const maj = new Date(Date.now() - joursDepuisMaj * 24 * 60 * 60 * 1000).toISOString().replace('Z', '')
     return { id: 1, market_data: { ticker: 'AAA', derniere_maj: maj } } as never
   }
 

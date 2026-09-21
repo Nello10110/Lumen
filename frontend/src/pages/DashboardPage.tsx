@@ -8,6 +8,7 @@ import PatrimoineNetCard from '../components/PatrimoineNetCard'
 import PortfolioHistoryChart, { ControlesCourbe } from '../components/PortfolioHistoryChart'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
+import { parseDateApi } from '../utils/format'
 
 // Backlog § AF.4 (15/09/2026) — au-delà de ce nombre de jours sans qu'AUCUNE
 // position cotée n'ait été retouchée par un rafraîchissement (réussi ou en échec —
@@ -103,7 +104,13 @@ export default function DashboardPage() {
         const dernieresMaj = lignes
           .map((h) => h.market_data?.derniere_maj)
           .filter((d): d is string => d != null)
-          .map((d) => new Date(d).getTime())
+          // `parseDateApi`, jamais `new Date(d)` directement : l'API renvoie un
+          // horodatage UTC SANS indication de fuseau (ex. "2026-09-21T09:00:00"),
+          // que `new Date` lirait comme une heure LOCALE — décalant le calcul de
+          // l'heure du fuseau du navigateur et faussant le nombre de jours affiché
+          // (bug constaté : l'encart restait affiché même juste après un
+          // rafraîchissement réel).
+          .map((d) => parseDateApi(d).getTime())
         if (dernieresMaj.length === 0) {
           setJoursSansRafraichissement(null)
           return
