@@ -148,14 +148,15 @@ describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () =
     })
   })
 
-  function holdingAvecCotation(joursDepuisMaj: number) {
+  function holdingAvecCotation(joursDepuisMaj: number, overrides: { id?: number; ticker?: string; nom?: string | null } = {}) {
     // Naïf, SANS "Z" — même format que l'API réelle (`datetime` naïf côté
     // backend, cf. `parseDateApi`) : `.toISOString()` seul produirait un format
     // avec "Z" qui aurait masqué le bug corrigé ici (le composant lisait ce
     // format avec `new Date(d)` plutôt que `parseDateApi(d)`, faussant le calcul
     // dans tout fuseau horaire différent d'UTC).
     const maj = new Date(Date.now() - joursDepuisMaj * 24 * 60 * 60 * 1000).toISOString().replace('Z', '')
-    return { id: 1, market_data: { ticker: 'AAA', derniere_maj: maj } } as never
+    const { id = 1, ticker = 'AAA', nom = null } = overrides
+    return { id, nom, ticker, market_data: { ticker, derniere_maj: maj } } as never
   }
 
   it("n'affiche rien quand la position la plus ancienne a été rafraîchie il y a moins de 3 jours", async () => {
@@ -163,7 +164,7 @@ describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () =
     renderPage()
 
     await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
-    expect(screen.queryByText(/dorment/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/dort/)).not.toBeInTheDocument()
   })
 
   it("n'affiche rien pour des positions sans cotation (saisie manuelle)", async () => {
@@ -171,14 +172,31 @@ describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () =
     renderPage()
 
     await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
-    expect(screen.queryByText(/dorment/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/dort/)).not.toBeInTheDocument()
   })
 
   it('affiche le rappel avec le nombre de jours de la position la plus ancienne', async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holdingAvecCotation(1), holdingAvecCotation(5)])
     renderPage()
 
-    expect(await screen.findByText(/Vos cours dorment depuis 5 jours/)).toBeInTheDocument()
+    expect(await screen.findByText(/dort depuis 5 jours/)).toBeInTheDocument()
+  })
+
+  it('nomme la position responsable (pas seulement un total agrégé) — sujet du rapport utilisateur du 21/09/2026', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([
+      holdingAvecCotation(1, { id: 1, ticker: 'AAA', nom: null }),
+      holdingAvecCotation(5, { id: 2, ticker: 'BBB', nom: 'Berkshire Hathaway' }),
+    ])
+    renderPage()
+
+    expect(await screen.findByText(/Le cours de Berkshire Hathaway dort depuis 5 jours/)).toBeInTheDocument()
+  })
+
+  it("retombe sur le ticker quand la position endormie n'a pas de nom renseigné", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holdingAvecCotation(5, { ticker: 'AAA', nom: null })])
+    renderPage()
+
+    expect(await screen.findByText(/Le cours de AAA dort depuis 5 jours/)).toBeInTheDocument()
   })
 
   it('le bouton "Rallumer les cours" déclenche le rafraîchissement et fait disparaître le rappel', async () => {
@@ -186,12 +204,12 @@ describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () =
       .mockResolvedValueOnce([holdingAvecCotation(5)])
       .mockResolvedValueOnce([holdingAvecCotation(0)])
     renderPage()
-    await screen.findByText(/Vos cours dorment depuis 5 jours/)
+    await screen.findByText(/dort depuis 5 jours/)
 
     fireEvent.click(screen.getByRole('button', { name: 'Rallumer les cours' }))
 
     await waitFor(() => expect(api.refreshMarketData).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(screen.queryByText(/dorment/)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/dort/)).not.toBeInTheDocument())
   })
 
   it("ne s'affiche jamais en même temps que l'invitation à importer (portefeuille vide)", async () => {
@@ -199,6 +217,6 @@ describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () =
     renderPage()
 
     await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
-    expect(screen.queryByText(/dorment/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/dort/)).not.toBeInTheDocument()
   })
 })
