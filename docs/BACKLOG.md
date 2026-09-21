@@ -5645,6 +5645,60 @@ Ajouter `AlerteFraicheurItem` au bloc d'import `patrimoine` de `backend/app/sche
   `vi.mocked(api.getAlertesFraicheur).mockResolvedValue([])` dans `mockReponsesParDefaut()`.
 
 ---
+
+### BB. Éclatement de l'onglet Portefeuille d'Analyse (retour utilisateur, 21/09/2026)
+
+#### BB.1 — `mineur` · `S` · `traité` (21/09/2026) — Onglet Portefeuille scindé en trois
+
+**Constat.** « La page Portefeuille est très chargée » — onze blocs (`PerformanceCard`,
+`MetriquesAvanceesCard`, quatre pastilles, deux `AllocationChartCard`, `QualiteDonneesCard`,
+`ExpositionConsolideeCard`, `ScorePatrimonialCard`, `ComparaisonInseeCard`, `AlerteFraicheurCard`,
+`CoutGestionCard`, `IndicateursSituationCard`) empilés dans un seul onglet, ajoutés un par un entre
+le 24/08 et le 21/09/2026 sans jamais être redessinés ensemble. Audit préalable (aucun code touché) :
+aucun bug, aucune référence cassée, mais un chevauchement de lecture bien réel — « plus grosse
+ligne »/concentration géographique affichées deux fois (pastilles financier-seul § P.1 vs
+`ExpositionConsolideeCard` tout-patrimoine), diversification/qualité des données/endettement
+affichés en brut à trois endroits différents ET refondus dans le score consolidé (§ AZ.1, choix
+assumé de transparence, pas une erreur). Deux items reconnus comme mal placés : `CoutGestionCard`
+(financier seul, isolé au milieu de cartes tout-patrimoine, hérité d'une numérotation de roadmap
+antérieure) et `IndicateursSituationCard` (rescapée du suivi d'objectifs supprimé, § AJ — jamais
+pensée pour cet onglet à l'origine).
+
+**Choix retenu : scinder l'onglet, pas créer de nouvelles routes.** La barre latérale/inférieure est
+déjà pleine (4 entrées directes + "Plus") ; la page Analyse a déjà une logique d'onglets par question
+(Portefeuille/Évolution/Revenus/Achat vs location/Simulateur) — l'étendre à 7 onglets reste dans cet
+esprit, sans alourdir la navigation principale. Nouveau découpage par question plutôt que par ordre
+d'ajout historique :
+
+- **Portefeuille** (allégé) : `PerformanceCard`, `MetriquesAvanceesCard`, `CoutGestionCard`
+  (relocalisé ici — question du coût, pas de la répartition), et seulement 2 pastilles (« Valeur des
+  positions », « Score de diversification »).
+- **Répartition** (nouveau, icône `IconRepartition`) : les deux `AllocationChartCard` (géo/secteur,
+  financier), `QualiteDonneesCard`, `ExpositionConsolideeCard`. Les deux pastilles « Plus grosse
+  ligne »/« Concentration géographique » retirées de Portefeuille (doublon direct avec
+  `ExpositionConsolideeCard`, juste en-dessous ici, à l'échelle de tout le patrimoine — plus
+  pertinente que la version financier-seul qu'elles montraient).
+- **Diagnostic** (nouveau, icône `IconDiagnostic`) : `ScorePatrimonialCard`, `ComparaisonInseeCard`,
+  `AlerteFraicheurCard`, `IndicateursSituationCard` (reste réservée au propriétaire, même garde
+  qu'avant ce découpage).
+
+**Comportement réseau inchangé** : les trois onglets continuent de partager le même état de
+chargement (`analysis`/`performance`/`coutGestion`/`indicateurs`), chargé une seule fois au montage
+de la page comme avant — seul l'affichage est redistribué, aucune nouvelle latence introduite ni
+appel réseau économisé par cet éclatement (`ScorePatrimonialCard`/`ComparaisonInseeCard`/
+`AlerteFraicheurCard`/`ExpositionConsolideeCard` restent autonomes et ne se chargent que quand leur
+onglet est monté, comme c'était déjà le cas).
+
+Deux nouvelles icônes (`components/icons.tsx`) : `IconRepartition` (camembert) et `IconDiagnostic`
+(courbe de pouls/ECG), aucune réutilisée ailleurs dans la barre d'onglets pour rester distinguable.
+
+**Tests.** `AnalysePage.test.tsx` : les tests qui vérifiaient un contenu de l'ancien onglet
+Portefeuille unique basculent désormais explicitement vers l'onglet concerné avant d'asserter
+(`Répartition` pour l'exposition consolidée, `Diagnostic` pour le score/les indicateurs de
+situation) ; nouveaux tests vérifiant qu'un onglet n'affiche jamais le contenu d'un autre. Suite
+complète (820 tests frontend) + `tsc`/`oxlint` au vert.
+
+---
 ## 3. Hors périmètre (assumé)
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.

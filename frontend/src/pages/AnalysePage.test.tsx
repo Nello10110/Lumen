@@ -204,19 +204,23 @@ describe('AnalysePage — erreurs indépendantes de performance/coût de gestion
   })
 })
 
-describe('AnalysePage — indicateurs de situation (backlog 2.O.2, déplacés depuis Objectifs le 16/09/2026)', () => {
-  it('propriétaire : charge et affiche les indicateurs dans l’onglet Portefeuille', async () => {
+describe('AnalysePage — indicateurs de situation (backlog 2.O.2, déplacés depuis Objectifs le 16/09/2026, puis vers Diagnostic le 21/09/2026)', () => {
+  it('propriétaire : charge et affiche les indicateurs dans l’onglet Diagnostic', async () => {
     renderPage()
 
     await waitFor(() => expect(api.getIndicateursSituation).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('tab', { name: /Diagnostic/ }))
+
     expect(await screen.findByText('Indicateurs de situation')).toBeInTheDocument()
     expect(screen.getByText('6 mois')).toBeInTheDocument()
   })
 
   it("membre : n'interroge jamais l'endpoint réservé au propriétaire, et n'affiche pas la carte", async () => {
     renderPage('/analyse', authValue('membre'))
-
     await screen.findByText('Score de diversification')
+
+    fireEvent.click(screen.getByRole('tab', { name: /Diagnostic/ }))
+
     expect(api.getIndicateursSituation).not.toHaveBeenCalled()
     expect(screen.queryByText('Indicateurs de situation')).not.toBeInTheDocument()
   })
@@ -279,14 +283,39 @@ describe("AnalysePage — onglet Évolution (retour utilisateur du 13/09/2026, g
   })
 })
 
-describe('AnalysePage — les deux onglets (réorganisation du 07/09/2026)', () => {
-  it("ouvre l'onglet Portefeuille par défaut : risques, exposition, qualité des données", async () => {
+describe('AnalysePage — répartition entre onglets Portefeuille/Répartition/Diagnostic (éclatement du 21/09/2026)', () => {
+  it("ouvre l'onglet Portefeuille par défaut : les deux pastilles, pas l'exposition consolidée", async () => {
     renderPage()
 
     expect(await screen.findByText('Score de diversification')).toBeInTheDocument()
-    // Exposition consolidée (backlog 2.P.1), rapatriée du repli « Détail » du
-    // tableau de bord.
+    expect(screen.getByText('Valeur des positions')).toBeInTheDocument()
+    // Exposition consolidée (backlog 2.P.1) a rejoint l'onglet Répartition, pas
+    // affichée tant qu'on n'y a pas basculé.
+    expect(screen.queryByText('Exposition consolidée — tous actifs')).not.toBeInTheDocument()
+  })
+
+  it("bascule vers Répartition : exposition consolidée, qualité des données — plus les pastilles de Portefeuille", async () => {
+    renderPage()
+    await screen.findByText('Score de diversification')
+
+    fireEvent.click(screen.getByRole('tab', { name: /Répartition/ }))
+
+    // Exposition consolidée (backlog 2.P.1), rapatriée ici lors de l'éclatement
+    // de l'ancien onglet Portefeuille (21/09/2026).
     expect(await screen.findByText('Exposition consolidée — tous actifs')).toBeInTheDocument()
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+    expect(screen.queryByText('Valeur des positions')).not.toBeInTheDocument()
+  })
+
+  it('bascule vers Diagnostic : score patrimonial, pas les cartes de Portefeuille/Répartition', async () => {
+    renderPage()
+    await screen.findByText('Score de diversification')
+
+    fireEvent.click(screen.getByRole('tab', { name: /Diagnostic/ }))
+
+    await waitFor(() => expect(api.getScorePatrimonial).toHaveBeenCalled())
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+    expect(screen.queryByText('Exposition consolidée — tous actifs')).not.toBeInTheDocument()
   })
 
   it("bascule vers Revenus, qui porte les dividendes de l'ancien écran dédié", async () => {

@@ -52,6 +52,30 @@ export function IconComptes({ className }: IconProps) {
   )
 }
 
+// Camembert (revue du 21/09/2026, éclatement de l'onglet Portefeuille
+// d'Analyse en 3) — un cercle et une part détourée, jamais réutilisé ailleurs
+// dans la barre d'onglets (à distinguer d'`IconDividendes`, un simple anneau
+// de progression, et d'`IconObjectifs`, des cercles concentriques).
+export function IconRepartition({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="10" cy="10" r="6.5" />
+      <path d="M10 3.5 V10 L14.5 14.5" />
+    </svg>
+  )
+}
+
+// Courbe de pouls/ECG (revue du 21/09/2026, même éclatement) — bilan de santé
+// patrimoniale (score, comparaison, alertes, indicateurs de situation),
+// distincte d'`IconEvolution` (tendance simple, deux segments + cadre).
+export function IconDiagnostic({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3 10.5 H6.5 L8 7 L10.5 14 L12.5 8.5 L14 10.5 H17" />
+    </svg>
+  )
+}
+
 export function IconObjectifs({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

@@ -9,7 +9,7 @@ import CoutGestionCard from '../components/CoutGestionCard'
 import EtatErreur from '../components/EtatErreur'
 import EvolutionFinanciereCard from '../components/EvolutionFinanciereCard'
 import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
-import { IconDividendes, IconEvolution, IconMaison, IconObjectifs, IconPatrimoine } from '../components/icons'
+import { IconDiagnostic, IconDividendes, IconEvolution, IconMaison, IconObjectifs, IconPatrimoine, IconRepartition } from '../components/icons'
 import IndicateursSituationCard from '../components/IndicateursSituationCard'
 import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PerformanceCard from '../components/PerformanceCard'
@@ -26,10 +26,12 @@ import { useAuth } from '../hooks/useAuth'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
-type OngletKey = 'portefeuille' | 'evolution' | 'revenus' | 'simulateur' | 'projection'
+type OngletKey = 'portefeuille' | 'repartition' | 'diagnostic' | 'evolution' | 'revenus' | 'simulateur' | 'projection'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconPatrimoine }[] = [
   { key: 'portefeuille', label: 'Portefeuille', Icone: IconPatrimoine },
+  { key: 'repartition', label: 'Répartition', Icone: IconRepartition },
+  { key: 'diagnostic', label: 'Diagnostic', Icone: IconDiagnostic },
   { key: 'evolution', label: 'Évolution', Icone: IconEvolution },
   { key: 'revenus', label: 'Revenus', Icone: IconDividendes },
   { key: 'simulateur', label: 'Achat vs location', Icone: IconMaison },
@@ -46,32 +48,52 @@ const ONGLET_PAR_DEFAUT: OngletKey = 'portefeuille'
  * question qu'on se pose en ouvrant l'application — combien, et dans quel sens ça
  * va ; tout ce qui répond à « pourquoi » et « de quoi est-ce fait » vit ici.
  *
- * Plusieurs onglets, chacun une question distincte : **Portefeuille** (de quoi le
- * patrimoine est-il fait, comment se comporte-t-il, ce qu'il coûte — complété le
- * 16/09/2026 par les indicateurs de situation, cf. plus bas), **Évolution**
- * (retour utilisateur du 13/09/2026 — le graphique héros du tableau de bord, mais
- * filtrable par classe d'actif/établissement/compte et sur une fourchette de dates
- * précise, cf. `EvolutionFinanciereCard`), **Revenus** (ce qu'il rapporte sans qu'on
- * le vende), **Achat vs location** et **Simulateur** (projection de patrimoine et
- * indépendance financière, `SimulateurProjectionSection` — vivait jusqu'au
- * 16/09/2026 fusionné avec le suivi d'objectifs sur `/objectifs`, sans jamais en
- * partager la moindre donnée ; déplacé ici, à côté de son cousin « et si... » Achat
- * vs location. La clé d'onglet `simulateur` désigne toujours ce dernier —
- * antérieure à ce déplacement — pas le nouvel onglet Simulateur, dont la clé est
- * `projection`). Sélection portée par l'URL (`?onglet=…`, même patron que
+ * Plusieurs onglets, chacun une question distincte : **Portefeuille** (combien ça
+ * rapporte, combien ça coûte), **Répartition** (de quoi le patrimoine est-il fait,
+ * est-il diversifié), **Diagnostic** (la situation est-elle saine — score
+ * patrimonial, comparaison INSEE, alertes de fraîcheur, indicateurs de situation),
+ * **Évolution** (retour utilisateur du 13/09/2026 — le graphique héros du tableau de
+ * bord, mais filtrable par classe d'actif/établissement/compte et sur une fourchette
+ * de dates précise, cf. `EvolutionFinanciereCard`), **Revenus** (ce qu'il rapporte
+ * sans qu'on le vende), **Achat vs location** et **Simulateur** (projection de
+ * patrimoine et indépendance financière, `SimulateurProjectionSection` — vivait
+ * jusqu'au 16/09/2026 fusionné avec le suivi d'objectifs sur `/objectifs`, sans
+ * jamais en partager la moindre donnée ; déplacé ici, à côté de son cousin « et
+ * si... » Achat vs location. La clé d'onglet `simulateur` désigne toujours ce
+ * dernier — antérieure à ce déplacement — pas le nouvel onglet Simulateur, dont la
+ * clé est `projection`). Sélection portée par l'URL (`?onglet=…`, même patron que
  * `ReglagesPage`) : un lien direct vers un onglet précis reste possible et le retour
  * navigateur le restitue.
  *
- * `IndicateursSituationCard` (matelas de sécurité, taux d'endettement, part
- * immobilisée, backlog 2.O.2) rejoint l'onglet Portefeuille le 16/09/2026 : le
- * suivi d'objectifs qui l'hébergeait jusque-là (`/objectifs`) a été retiré (retour
- * utilisateur direct : « on pourrait tout supprimer » — la fonctionnalité avait
- * perdu son intérêt, cf. `docs/BACKLOG.md` § AJ), mais ces indicateurs de santé
- * financière restent pertinents indépendamment de tout objectif suivi. Réservés au
- * propriétaire côté backend (même restriction que les autres réglages financiers
- * sensibles) — `AnalysePage` n'interroge donc l'API que pour ce rôle et gate le
- * rendu de la carte, plutôt que de déplacer tout l'onglet derrière cette
- * restriction.
+ * **Éclatement du 21/09/2026 (retour utilisateur : « la page Portefeuille est très
+ * chargée »).** Onze blocs vivaient jusque-là empilés dans un seul onglet
+ * Portefeuille, ajoutés un par un au fil des lots (24/08 au 21/09/2026) sans jamais
+ * être redessinés ensemble — audit détaillé en amont, aucun bug trouvé, mais un
+ * vrai chevauchement de lecture : « plus grosse ligne »/concentration géographique
+ * apparaissaient à la fois en pastille (financier seul) et dans
+ * `ExpositionConsolideeCard` (tout le patrimoine), sans lien explicite entre les
+ * deux. Nouveau découpage par question plutôt que par ordre d'ajout :
+ * - **Portefeuille** : `PerformanceCard`, `MetriquesAvanceesCard`, `CoutGestionCard`
+ *   (relocalisé ici depuis l'ancien fourre-tout — question du coût, pas de la
+ *   répartition) et deux pastilles seulement (valeur totale, score de
+ *   diversification) — les deux pastilles de concentration retirées, doublon
+ *   avec `ExpositionConsolideeCard` juste en-dessous, à une échelle plus
+ *   pertinente (tout le patrimoine, pas le seul financier).
+ * - **Répartition** : les deux `AllocationChartCard` (géo/secteur, financier),
+ *   `QualiteDonneesCard` et `ExpositionConsolideeCard`.
+ * - **Diagnostic** : `ScorePatrimonialCard`, `ComparaisonInseeCard`,
+ *   `AlerteFraicheurCard` et `IndicateursSituationCard` (matelas de sécurité, taux
+ *   d'endettement, part immobilisée, backlog 2.O.2 — rescapée de l'ancien suivi
+ *   d'objectifs supprimé le 16/09/2026, § AJ, jamais pensée pour cet onglet à
+ *   l'origine ; réservée au propriétaire côté backend, comme avant ce découpage —
+ *   `AnalysePage` n'interroge donc l'API que pour ce rôle et gate le rendu de la
+ *   carte, plutôt que de déplacer tout l'onglet Diagnostic derrière cette
+ *   restriction).
+ *
+ * Les trois onglets partagent le même état de chargement (`analysis`/`performance`/
+ * `coutGestion`/`indicateurs`, un seul jeu d'appels réseau déclenché au montage de
+ * la page) — comportement réseau inchangé par cet éclatement, seul l'affichage est
+ * redistribué.
  *
  * L'ancienne URL `/dividendes` redirige ici (cf. `App.tsx`) — les marque-pages
  * survivent au renommage. Depuis le 16/09/2026, `/simulateur` y redirige aussi
@@ -223,29 +245,36 @@ export default function AnalysePage() {
               gère déjà elle-même l'historique insuffisant (`EtatVide`). */}
           {!chargementPerformance && !erreurPerformance && <MetriquesAvanceesCard />}
 
+          {/* Seulement les deux pastilles qui répondent à la question de CET onglet
+              (combien, à quel point c'est diversifié) — « Plus grosse ligne » et
+              « Concentration géographique » ont rejoint l'onglet Répartition
+              (éclatement du 21/09/2026) : `ExpositionConsolideeCard` y donne déjà
+              ces deux chiffres, à l'échelle de tout le patrimoine plutôt que du
+              seul financier, plus pertinente que ce que ces pastilles montraient. */}
+          {!loading && !error && analysis && (
+            <div className="grid grid-cols-2 gap-[14px]">
+              <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />
+              <StatTile
+                label="Score de diversification"
+                value={`${analysis.risques.score_diversification}/100`}
+                tone={analysis.risques.score_diversification < 50 ? 'warning' : 'good'}
+              />
+            </div>
+          )}
+
+          {chargementCoutGestion && <SkeletonTexte lignes={2} />}
+          {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}
+          {!chargementCoutGestion && !erreurCoutGestion && coutGestion && <CoutGestionCard cout={coutGestion} />}
+        </div>
+      )}
+
+      {onglet === 'repartition' && (
+        <div id="panneau-repartition" role="tabpanel" aria-labelledby="onglet-repartition" className="space-y-[14px]">
+          {loading && <SkeletonTexte lignes={4} />}
+          {error && <EtatErreur message={error} onReessayer={chargerDonnees} />}
+
           {!loading && !error && analysis && (
             <>
-              <div className="grid grid-cols-2 gap-[14px] md:grid-cols-4">
-                <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />
-                <StatTile
-                  label="Score de diversification"
-                  value={`${analysis.risques.score_diversification}/100`}
-                  tone={analysis.risques.score_diversification < 50 ? 'warning' : 'good'}
-                />
-                <StatTile
-                  label="Plus grosse ligne"
-                  value={`${analysis.risques.top_ligne_poids}%`}
-                  sub={analysis.risques.top_ligne_nom ?? undefined}
-                  tone={analysis.risques.top_ligne_poids > 20 ? 'warning' : 'neutral'}
-                />
-                <StatTile
-                  label="Concentration géographique"
-                  value={`${analysis.risques.top_pays_poids}%`}
-                  sub={analysis.risques.top_pays_nom ?? undefined}
-                  tone={analysis.risques.top_pays_poids > 60 ? 'warning' : 'neutral'}
-                />
-              </div>
-
               <div className="grid grid-cols-1 gap-[14px] lg:grid-cols-2">
                 <AllocationChartCard
                   title="Répartition géographique"
@@ -273,18 +302,6 @@ export default function AnalysePage() {
 
           <ExpositionConsolideeCard />
 
-          <ScorePatrimonialCard />
-
-          <ComparaisonInseeCard />
-
-          <AlerteFraicheurCard />
-
-          {chargementCoutGestion && <SkeletonTexte lignes={2} />}
-          {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}
-          {!chargementCoutGestion && !erreurCoutGestion && coutGestion && <CoutGestionCard cout={coutGestion} />}
-
-          {user?.role === 'proprietaire' && indicateurs && <IndicateursSituationCard indicateurs={indicateurs} />}
-
           {modal && (
             <CompositionModal
               categorie={modal.categorie}
@@ -293,6 +310,18 @@ export default function AnalysePage() {
               onClose={() => setModal(null)}
             />
           )}
+        </div>
+      )}
+
+      {onglet === 'diagnostic' && (
+        <div id="panneau-diagnostic" role="tabpanel" aria-labelledby="onglet-diagnostic" className="space-y-[14px]">
+          <ScorePatrimonialCard />
+
+          <ComparaisonInseeCard />
+
+          <AlerteFraicheurCard />
+
+          {user?.role === 'proprietaire' && indicateurs && <IndicateursSituationCard indicateurs={indicateurs} />}
         </div>
       )}
     </div>
