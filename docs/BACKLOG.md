@@ -5127,7 +5127,7 @@ class ComparaisonInseeResponse(BaseModel):
 
 ---
 
-#### AZ.3 — `mineur` · `S` · `non traité` (proposé le 20/09/2026) — Glossaire étendu (quotité, capital restant dû, rentabilité, XIRR, look-through)
+#### AZ.3 — `mineur` · `S` · `traité` (proposé le 20/09/2026, implémenté le 21/09/2026) — Glossaire étendu (quotité, capital restant dû, rentabilité, XIRR, look-through)
 
 **Constat précis.** § AG.9 (traité, 15/09/2026) a déjà posé le mécanisme et le ton (analogie
 d'abord, définition technique ensuite) sur `AidePage.tsx` — tableau `GLOSSAIRE` (ETF, ISIN, PEA/CTO,

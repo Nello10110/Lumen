@@ -10,6 +10,7 @@ import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
+import InfoBulle from './InfoBulle'
 import { LOAN_FORM_VIDE, type LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import Modale from './Modale'
@@ -163,7 +164,10 @@ function LoanCardMobile({
           {formatEuro(loan.mensualite, 0, montantsMasques)}
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Capital restant dû</span>
+          <span className="flex items-center gap-1 text-xs text-texte-attenue">
+            Capital restant dû
+            <InfoBulle texte="Ce qu'il reste à rembourser sur cet emprunt aujourd'hui — diminue à chaque mensualité, jusqu'à zéro en fin de prêt." />
+          </span>
           <span className="font-medium text-texte">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
         </div>
       </div>
@@ -515,7 +519,12 @@ export default function LoansCard({
                 <th className="py-2 pr-4">Capital initial</th>
                 <th className="py-2 pr-4">Taux</th>
                 <th className="py-2 pr-4">Mensualité</th>
-                <th className="py-2 pr-4">Capital restant dû</th>
+                <th className="py-2 pr-4">
+                  <span className="flex items-center gap-1">
+                    Capital restant dû
+                    <InfoBulle texte="Ce qu'il reste à rembourser sur cet emprunt aujourd'hui — diminue à chaque mensualité, jusqu'à zéro en fin de prêt." />
+                  </span>
+                </th>
                 <th className="py-2 pr-4">Actif rattaché</th>
                 <th className="py-2 pr-4">Établissement du crédit</th>
                 <th className="py-2 pr-4">

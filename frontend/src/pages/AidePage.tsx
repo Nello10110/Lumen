@@ -155,6 +155,11 @@ const GLOSSAIRE: GlossaireEntry[] = [
   { terme: 'Drawdown', definition: 'La pire chute que le portefeuille ait encaissée avant de remonter — comme le point le plus bas d’un grand huit avant qu’il ne reparte vers le haut. Techniquement : la perte maximale subie entre un plus haut et le creux qui a suivi, sur une période donnée.' },
   { terme: 'Volatilité', definition: 'À quel point le trajet est mouvementé, pas s’il est bon ou mauvais — un peu comme la différence entre une route de montagne et une autoroute qui mènent au même endroit. Techniquement : à quel point le prix d’un titre bouge dans le temps, à la hausse comme à la baisse.' },
   { terme: 'Plus-value latente / réalisée', definition: 'Latente : le gain "sur le papier" d’une position toujours détenue, qui peut encore monter ou redescendre. Réalisée : le gain devenu définitif au moment de la vente.' },
+  { terme: 'Quotité', definition: 'La part du gâteau qui revient à chaque personne du foyer sur un bien ou un emprunt — comme des parts dans une indivision. En pourcentage, la somme des quotités d\'une même ligne doit toujours faire 100 %.' },
+  { terme: 'Capital restant dû', definition: 'Ce qu\'il reste à rembourser sur un emprunt à un instant donné — comme le solde qui reste sur une carte de fidélité à points. Diminue à chaque mensualité payée, jusqu\'à atteindre zéro à la fin du prêt.' },
+  { terme: 'Rentabilité brute / nette', definition: 'Brute : le loyer annuel rapporté au prix d\'achat, sans rien retirer — comme un salaire "brut" avant charges. Nette : la même chose après avoir retiré charges, frais et taxes — l\'équivalent d\'un salaire "net".' },
+  { terme: 'XIRR (rendement annualisé)', definition: 'Comme un taux d\'intérêt qui tiendrait compte du moment exact où vous avez versé chaque euro, pas juste du début et de la fin. Voir la question détaillée ci-dessus pour l\'explication complète.' },
+  { terme: 'Look-through', definition: 'Regarder DANS un fonds pour savoir ce qu\'il contient vraiment (pays, secteurs), plutôt que de s\'arrêter à son nom. Voir la question détaillée ci-dessus pour l\'explication complète.' },
 ]
 
 function ZoneCard({ zone }: { zone: ZoneGeographiqueInfo }) {

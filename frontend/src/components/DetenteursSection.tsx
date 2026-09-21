@@ -5,6 +5,7 @@ import type { Compte, HoldingDetail } from '../api/types'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
+import InfoBulle from './InfoBulle'
 import { SkeletonTexte } from './Skeleton'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -71,7 +72,10 @@ export default function DetenteursSection({
         <thead>
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
             <th className="py-2 pr-4">Détenteur</th>
-            <th className="py-2 pr-4">Quotité</th>
+            <th className="py-2 pr-4">
+              Quotité{' '}
+              <InfoBulle texte="La part du gâteau qui revient à chaque personne sur ce bien ou cet emprunt. La somme des quotités d'une ligne fait toujours 100 %." />
+            </th>
             {/* « Part détenue » / « Part nette » : deux notions proches et
                 systématiquement confondues sans explication (recette du
                 02/09/2026) — elles ne diffèrent QUE si un emprunt est rattaché. */}

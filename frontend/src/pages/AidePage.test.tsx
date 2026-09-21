@@ -64,6 +64,17 @@ describe('AidePage', () => {
     expect(screen.getByText('Immobilier')).toBeInTheDocument()
   })
 
+  it('affiche les entrées glossaire ajoutées au backlog § AZ.3', async () => {
+    vi.mocked(api.getZonesGeographiques).mockResolvedValue(ZONES)
+    render(<AidePage />)
+
+    expect(screen.getByText('Quotité')).toBeInTheDocument()
+    expect(screen.getByText('Capital restant dû')).toBeInTheDocument()
+    expect(screen.getByText('Rentabilité brute / nette')).toBeInTheDocument()
+    expect(screen.getByText('XIRR (rendement annualisé)')).toBeInTheDocument()
+    expect(screen.getByText('Look-through')).toBeInTheDocument()
+  })
+
   it('le contenu des questions repliables n’apparaît qu’après un clic (accordéon natif)', async () => {
     vi.mocked(api.getZonesGeographiques).mockResolvedValue(ZONES)
     render(<AidePage />)

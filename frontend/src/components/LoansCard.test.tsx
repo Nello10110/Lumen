@@ -104,6 +104,32 @@ describe('LoansCard', () => {
     expect(screen.getAllByText('150 000 €').length).toBeGreaterThan(0)
   })
 
+  it("l'en-tête « Capital restant dû » porte une infobulle explicative (backlog § AZ.3, vue tableau)", async () => {
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    // `InfoBulle` reste `aria-hidden`, sans texte propre : le nom accessible de
+    // l'en-tête doit continuer à matcher exactement "Capital restant dû".
+    const entete = screen.getByRole('columnheader', { name: 'Capital restant dû' })
+    expect(entete.querySelector('[title]')).toHaveAttribute(
+      'title',
+      "Ce qu'il reste à rembourser sur cet emprunt aujourd'hui — diminue à chaque mensualité, jusqu'à zéro en fin de prêt.",
+    )
+  })
+
+  it("le libellé « Capital restant dû » porte une infobulle explicative (backlog § AZ.3, vue mobile)", async () => {
+    simulerLargeurEcran(true)
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    expect(screen.getByText('Capital restant dû').closest('span')?.querySelector('[title]')).toHaveAttribute(
+      'title',
+      "Ce qu'il reste à rembourser sur cet emprunt aujourd'hui — diminue à chaque mensualité, jusqu'à zéro en fin de prêt.",
+    )
+  })
+
   // L'ajout d'un emprunt vit désormais dans `AjoutHoldingForm` (mode « Un emprunt »,
   // 09/09/2026) — testé là-bas (`PortefeuillePage.test.tsx`). Cette carte n'a plus
   // qu'à savoir se recharger quand `reloadToken` change, sa seule interface avec ce
