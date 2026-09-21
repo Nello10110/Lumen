@@ -17,6 +17,7 @@ from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Detenteur, User
 from ..schemas import (
     CategoryCompositionResponse,
+    ComparaisonInseeResponse,
     ExpositionConsolidee,
     LignesPatrimoineFiltreesResponse,
     PatrimoineHistoryResponse,
@@ -113,6 +114,17 @@ def get_score_patrimonial(db: Session = Depends(get_db), current_user: User = De
     limité à un ou plusieurs détenteurs, n'a pas vocation à voir le score
     consolidé de tout le foyer)."""
     return ScorePatrimonialResponse(**score_patrimonial_service.compute_score_patrimonial(db, auth_service.id_foyer(current_user)))
+
+
+@router.get("/comparaison-insee", response_model=ComparaisonInseeResponse | None)
+def get_comparaison_insee(db: Session = Depends(get_db), current_user: User = Depends(_pas_invite)):
+    """Backlog § AZ.2 — `None` (sérialisé en corps `null`, code 200) tant que
+    l'année de naissance du foyer n'a pas été renseignée dans Réglages, jamais
+    un 404 : c'est un état normal avant configuration. Même garde `_pas_invite`
+    que `/score` juste au-dessus, pour la même raison (foyer consolidé, sans
+    variante par détenteur)."""
+    resultat = patrimoine_service.compute_comparaison_insee(db, auth_service.id_foyer(current_user))
+    return ComparaisonInseeResponse(**resultat) if resultat is not None else None
 
 
 @router.get("/exposition-consolidee", response_model=ExpositionConsolidee)

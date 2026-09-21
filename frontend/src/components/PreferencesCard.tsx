@@ -46,6 +46,7 @@ export default function PreferencesCard() {
       const resultat = await api.updatePreferences({
         methode_cout,
         taux_imposition_pct: prefs.taux_imposition_pct,
+        annee_naissance_foyer: prefs.annee_naissance_foyer,
       })
       setPrefs(resultat)
       if (resultat.positions_recalculees !== null) {
@@ -70,6 +71,25 @@ export default function PreferencesCard() {
       const resultat = await api.updatePreferences({
         methode_cout: prefs.methode_cout,
         taux_imposition_pct,
+        annee_naissance_foyer: prefs.annee_naissance_foyer,
+      })
+      setPrefs(resultat)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleAnneeNaissanceChange(annee_naissance_foyer: number | null) {
+    if (!prefs) return
+    setSaving(true)
+    setError(null)
+    try {
+      const resultat = await api.updatePreferences({
+        methode_cout: prefs.methode_cout,
+        taux_imposition_pct: prefs.taux_imposition_pct,
+        annee_naissance_foyer,
       })
       setPrefs(resultat)
     } catch (err) {
@@ -139,6 +159,33 @@ export default function PreferencesCard() {
             className="w-24 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
           %
+        </label>
+      </Card>
+
+      <Card title="Comparaison patrimoniale">
+        <p className="mb-4 text-sm text-texte">
+          Sert uniquement à choisir la bonne tranche d'âge de comparaison au patrimoine médian français (écran
+          Analyse) — jamais stockée ni utilisée ailleurs.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-texte">
+          Année de naissance
+          <input
+            type="number"
+            min={1900}
+            max={new Date().getFullYear() - 16}
+            step="1"
+            defaultValue={prefs.annee_naissance_foyer ?? ''}
+            disabled={saving}
+            placeholder="non renseignée"
+            onBlur={(e) => {
+              const brut = e.target.value.trim()
+              const valeur = brut === '' ? null : Number(brut)
+              if (valeur === null || !Number.isNaN(valeur)) {
+                if (valeur !== prefs.annee_naissance_foyer) handleAnneeNaissanceChange(valeur)
+              }
+            }}
+            className="w-24 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          />
         </label>
       </Card>
     </>

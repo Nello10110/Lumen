@@ -4940,7 +4940,7 @@ pas une régression introduite ici). Nouvelle méthode `api.getScorePatrimonial(
 
 ---
 
-#### AZ.2 — `mineur` · `M` · `non traité` (proposé le 20/09/2026) — Comparaison au patrimoine médian français (INSEE), par tranche d'âge
+#### AZ.2 — `mineur` · `M` · `traité` (proposé le 20/09/2026, implémenté le 21/09/2026) — Comparaison au patrimoine médian français (INSEE), par tranche d'âge
 
 **Ce que ce n'est PAS.** Le backlog exclut explicitement (§ 3) les « fonctionnalités
 communautaires (classement des investissements, percentile face à la population française,

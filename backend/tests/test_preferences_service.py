@@ -14,6 +14,7 @@ def test_lire_preferences_renvoie_les_defauts_sur_compte_neuf(db):
     assert prefs == {
         "methode_cout": preferences_service.METHODE_COUT_MOYEN_PONDERE,
         "taux_imposition_pct": None,
+        "annee_naissance_foyer": None,
     }
 
 
@@ -21,7 +22,7 @@ def test_enregistrer_puis_relire_les_preferences(db):
     preferences_service.enregistrer_preferences(db, ID_UTILISATEUR_TEST, preferences_service.METHODE_FIFO)
 
     prefs = preferences_service.lire_preferences(db, ID_UTILISATEUR_TEST)
-    assert prefs == {"methode_cout": "fifo", "taux_imposition_pct": None}
+    assert prefs == {"methode_cout": "fifo", "taux_imposition_pct": None, "annee_naissance_foyer": None}
 
     # Persisté en base sous forme d'une ligne clé/valeur, texte.
     lignes = {p.cle: p.valeur for p in db.query(UserParametre).filter(UserParametre.user_id == ID_UTILISATEUR_TEST).all()}
@@ -35,6 +36,7 @@ def test_enregistrer_ecrase_une_valeur_deja_presente(db):
     assert preferences_service.lire_preferences(db, ID_UTILISATEUR_TEST) == {
         "methode_cout": "cout_moyen_pondere",
         "taux_imposition_pct": None,
+        "annee_naissance_foyer": None,
     }
     # Une seule ligne par clé, pas un doublon à chaque écriture.
     assert db.query(UserParametre).filter(UserParametre.user_id == ID_UTILISATEUR_TEST).count() == 1
@@ -53,6 +55,27 @@ def test_enregistrer_taux_imposition_none_efface_la_valeur_existante(db):
     preferences_service.enregistrer_preferences(db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, None)
 
     assert preferences_service.lire_taux_imposition_pct(db, ID_UTILISATEUR_TEST) is None
+
+
+def test_enregistrer_annee_naissance_foyer_puis_la_relire(db):
+    preferences_service.enregistrer_preferences(
+        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=1985
+    )
+
+    assert preferences_service.lire_annee_naissance_foyer(db, ID_UTILISATEUR_TEST) == 1985
+    assert preferences_service.lire_preferences(db, ID_UTILISATEUR_TEST)["annee_naissance_foyer"] == 1985
+
+
+def test_enregistrer_annee_naissance_foyer_none_efface_la_valeur_existante(db):
+    preferences_service.enregistrer_preferences(
+        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=1985
+    )
+
+    preferences_service.enregistrer_preferences(
+        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=None
+    )
+
+    assert preferences_service.lire_annee_naissance_foyer(db, ID_UTILISATEUR_TEST) is None
 
 
 def test_lire_methode_cout_retombe_sur_le_defaut_si_valeur_invalide_en_base(db):
@@ -74,10 +97,12 @@ def test_les_preferences_de_deux_comptes_ne_se_melangent_pas(db):
     assert preferences_service.lire_preferences(db, ID_UTILISATEUR_TEST) == {
         "methode_cout": "fifo",
         "taux_imposition_pct": None,
+        "annee_naissance_foyer": None,
     }
     assert preferences_service.lire_preferences(db, ID_UTILISATEUR_B) == {
         "methode_cout": "cout_moyen_pondere",
         "taux_imposition_pct": None,
+        "annee_naissance_foyer": None,
     }
 
 

@@ -18,6 +18,10 @@ export interface Preferences {
   // Taux d'imposition SAISI par l'utilisateur (backlog 2.Q.2) : une donnée reprise
   // telle quelle dans la déclaration de patrimoine, jamais un calcul fiscal.
   taux_imposition_pct: number | null
+  // Année de naissance de la personne de référence du foyer (backlog § AZ.2) —
+  // sert uniquement à choisir la bonne tranche d'âge de comparaison au
+  // patrimoine médian INSEE, jamais un autre calcul.
+  annee_naissance_foyer: number | null
 }
 
 export interface PreferencesUpdateResponse extends Preferences {

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime  # noqa: F401
+from datetime import date, datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
@@ -37,11 +37,17 @@ class Preferences(BaseModel):
     # Taux d'imposition SAISI (backlog 2.Q.2) : une donnée reprise telle quelle dans
     # la déclaration de patrimoine, jamais un calcul fiscal — cf. `docs/BACKLOG.md` § 3.
     taux_imposition_pct: float | None = None
+    # Année de naissance de la personne de référence du foyer (backlog § AZ.2) —
+    # sert uniquement à choisir la bonne tranche d'âge de comparaison au
+    # patrimoine médian INSEE, jamais un autre calcul, jamais une donnée
+    # d'identité vérifiée.
+    annee_naissance_foyer: int | None = None
 
 
 class PreferencesUpdate(BaseModel):
     methode_cout: str
     taux_imposition_pct: float | None = None
+    annee_naissance_foyer: int | None = None
 
     @field_validator("methode_cout")
     @classmethod
@@ -55,6 +61,16 @@ class PreferencesUpdate(BaseModel):
     def _valider_taux_imposition(cls, v: float | None) -> float | None:
         if v is not None and not (0 <= v <= 100):
             raise ValueError("Le taux d'imposition doit être compris entre 0 et 100")
+        return v
+
+    @field_validator("annee_naissance_foyer")
+    @classmethod
+    def _valider_annee_naissance(cls, v: int | None) -> int | None:
+        # Borne basse arbitraire large, borne haute excluant les foyers
+        # manifestement mineurs — une valeur indicative pour choisir une tranche
+        # de comparaison, jamais une vérification d'identité.
+        if v is not None and not (1900 <= v <= date.today().year - 16):
+            raise ValueError("Année de naissance invalide")
         return v
 
 

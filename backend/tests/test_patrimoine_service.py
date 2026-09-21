@@ -2,10 +2,10 @@
 `services/patrimoine_service.compute_patrimoine_net` — actifs (portefeuille financier
 + immobilier/SCPI/assurance-vie/PER) moins passifs (emprunts)."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from app.models import Loan
-from app.services import detenteurs_service, patrimoine_service
+from app.services import detenteurs_service, patrimoine_service, preferences_service
 
 from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding
 
@@ -627,3 +627,40 @@ class TestLignesPatrimoineFiltrees:
         assert [l["ticker"] for l in lignes] == ["MAISON"]
         assert lignes[0]["valeur"] == 180000.0  # 60% de 300000
         assert lignes[0]["quotite_pct"] == 60.0
+
+
+# --- Comparaison au patrimoine médian INSEE (backlog § AZ.2) -----------------
+
+
+def test_comparaison_insee_none_sans_annee_de_naissance_renseignee(db):
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=1000.0)
+
+    assert patrimoine_service.compute_comparaison_insee(db, ID_UTILISATEUR_TEST) is None
+
+
+def test_comparaison_insee_ecart_positif(db):
+    annee_naissance = date.today().year - 41  # tranche 40-49 -> médiane 215 200 €
+    preferences_service.enregistrer_preferences(
+        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=annee_naissance
+    )
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=300000.0)
+
+    resultat = patrimoine_service.compute_comparaison_insee(db, ID_UTILISATEUR_TEST)
+
+    assert resultat["actifs_totaux_foyer"] == 300000.0
+    assert resultat["mediane_reference"] == 215200.0
+    assert resultat["age_utilise"] == 41
+    assert resultat["ecart_pct"] == 39.4  # (300000 / 215200 - 1) * 100, arrondi à 1 décimale
+    assert "INSEE" in resultat["source"]
+
+
+def test_comparaison_insee_ecart_negatif(db):
+    annee_naissance = date.today().year - 41
+    preferences_service.enregistrer_preferences(
+        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=annee_naissance
+    )
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=100000.0)
+
+    resultat = patrimoine_service.compute_comparaison_insee(db, ID_UTILISATEUR_TEST)
+
+    assert resultat["ecart_pct"] == -53.5  # (100000 / 215200 - 1) * 100, arrondi à 1 décimale

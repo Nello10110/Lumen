@@ -10,6 +10,7 @@ découverte en production."""
 from datetime import datetime
 
 from app.models import ORIGINE_MANUEL, Holding, Loan
+from app.services import preferences_service
 
 from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur, make_holding, make_transaction
 
@@ -228,6 +229,19 @@ def test_score_patrimonial_ne_compte_pas_les_actifs_dun_autre_utilisateur(client
     assert reponse.json()["score_global"] == 0
 
 
+def test_comparaison_insee_ne_fuit_pas_lannee_de_naissance_dun_autre_utilisateur(client, db):
+    preferences_service.enregistrer_preferences(
+        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=1985
+    )
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    reponse = client.get("/api/patrimoine/comparaison-insee")
+
+    assert reponse.status_code == 200
+    # Foyer B n'a jamais renseigné son année de naissance : jamais celle de A.
+    assert reponse.json() is None
+
+
 def test_performance_dun_utilisateur_ignore_les_transactions_dun_autre(client, db):
     make_transaction(db, symbol="AAA", user_id=ID_UTILISATEUR_TEST, shares=10.0, amount=-1000.0)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
@@ -250,7 +264,7 @@ def test_preferences_dun_utilisateur_invisibles_pour_un_autre(client, db):
     reponse = client.get("/api/settings/preferences")
 
     assert reponse.status_code == 200
-    assert reponse.json() == {"methode_cout": "cout_moyen_pondere", "taux_imposition_pct": None}
+    assert reponse.json() == {"methode_cout": "cout_moyen_pondere", "taux_imposition_pct": None, "annee_naissance_foyer": None}
 
 
 def test_changer_ses_preferences_ne_reconstruit_que_son_propre_portefeuille(client, db):

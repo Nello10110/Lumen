@@ -146,6 +146,19 @@ class ScorePatrimonialResponse(BaseModel):
     sous_scores: list[SousScorePatrimonial]
 
 
+class ComparaisonInseeResponse(BaseModel):
+    """Backlog § AZ.2 — `services/patrimoine_service.compute_comparaison_insee`.
+    Porte sur `actifs_totaux_foyer` (patrimoine BRUT), jamais le patrimoine net —
+    la table INSEE de référence est elle-même brute (cf. sa docstring dans
+    `reference_patrimoine_insee.py`)."""
+
+    actifs_totaux_foyer: float
+    mediane_reference: float
+    ecart_pct: float | None
+    age_utilise: int
+    source: str
+
+
 class IndicateursSituation(BaseModel):
     matelas_securite_mois: float | None
     taux_endettement_pct: float | None

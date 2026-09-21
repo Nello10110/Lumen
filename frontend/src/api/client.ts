@@ -59,6 +59,7 @@ import type {
   PreferencesUpdateResponse,
   QuotiteEntree,
   ScorePatrimonial,
+  ComparaisonInsee,
   RecurrenceDetectee,
   RegleCategorisation,
   RegleReapplicationResult,
@@ -499,6 +500,9 @@ export const api = {
   // variante par détenteur (même garde `_pas_invite` côté serveur que
   // `getExpositionConsolidee` juste en-dessous).
   getScorePatrimonial: () => request<ScorePatrimonial>('/patrimoine/score'),
+  // Comparaison au patrimoine médian INSEE (backlog § AZ.2) — `null` tant que
+  // l'année de naissance du foyer n'est pas renseignée (écran Réglages).
+  getComparaisonInsee: () => request<ComparaisonInsee | null>('/patrimoine/comparaison-insee'),
   getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
   getExpositionConsolideeComposition: (dimension: 'geo' | 'classe', categorie: string, net: boolean) =>
     request<CategoryCompositionResponse>(

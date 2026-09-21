@@ -34,7 +34,9 @@ def update_preferences(payload: PreferencesUpdate, db: Session = Depends(get_db)
     l'utilisateur qui l'a modifié, plus les autres comptes en boucle comme avant
     2b."""
     ancienne_methode = preferences_service.lire_methode_cout(db, auth_service.id_foyer(current_user))
-    preferences_service.enregistrer_preferences(db, auth_service.id_foyer(current_user), payload.methode_cout, payload.taux_imposition_pct)
+    preferences_service.enregistrer_preferences(
+        db, auth_service.id_foyer(current_user), payload.methode_cout, payload.taux_imposition_pct, payload.annee_naissance_foyer
+    )
 
     positions_recalculees = None
     if payload.methode_cout != ancienne_methode:
@@ -44,6 +46,7 @@ def update_preferences(payload: PreferencesUpdate, db: Session = Depends(get_db)
     return PreferencesUpdateResponse(
         methode_cout=payload.methode_cout,
         taux_imposition_pct=payload.taux_imposition_pct,
+        annee_naissance_foyer=payload.annee_naissance_foyer,
         positions_recalculees=positions_recalculees,
     )
 

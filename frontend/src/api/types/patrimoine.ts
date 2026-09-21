@@ -85,6 +85,19 @@ export interface ScorePatrimonial {
   sous_scores: SousScorePatrimonial[]
 }
 
+// Comparaison au patrimoine médian INSEE par tranche d'âge (backlog § AZ.2) —
+// données statiques publiées (Insee Focus n° 371), jamais un classement/
+// percentile face à d'autres utilisateurs de l'application (cf. backlog § 3).
+// `actifs_totaux_foyer` se compare à une médiane de patrimoine BRUT : jamais
+// `patrimoine_net` ici, sous peine de comparer deux notions différentes.
+export interface ComparaisonInsee {
+  actifs_totaux_foyer: number
+  mediane_reference: number
+  ecart_pct: number | null
+  age_utilise: number
+  source: string
+}
+
 // Historique combiné financier + immobilier/épargne − emprunts (feature Net/Brut/
 // Financier sur toute la page Synthèse) — distinct de `PortfolioHistoryPoint`
 // (financier seul). Cf. `services/patrimoine_history_service.py` pour les deux

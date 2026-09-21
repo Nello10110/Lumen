@@ -20,6 +20,7 @@ from ..models import UserParametre
 _CLE_METHODE_COUT = "methode_cout"
 _CLE_BUDGET_CATEGORIES_INITIALISEES = "budget_categories_initialisees"
 _CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
+_CLE_ANNEE_NAISSANCE_FOYER = "annee_naissance_foyer"
 _CLE_ONBOARDING_TERMINE = "onboarding_termine"
 _CLE_FOYER_NOM = "foyer_nom"
 
@@ -64,6 +65,22 @@ def lire_taux_imposition_pct(db: Session, user_id: int) -> float | None:
         return None
     try:
         return float(valeur)
+    except ValueError:
+        return None
+
+
+def lire_annee_naissance_foyer(db: Session, user_id: int) -> int | None:
+    """Année de naissance de la personne de référence du foyer, saisie par
+    l'utilisateur (backlog § AZ.2) — sert uniquement à choisir la bonne tranche
+    d'âge de comparaison au patrimoine médian INSEE
+    (`patrimoine_service.compute_comparaison_insee`), jamais un autre calcul.
+    `None` tant que jamais renseignée : la carte de comparaison reste alors
+    masquée côté frontend, jamais une tranche devinée par défaut."""
+    valeur = _lire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, user_id)
+    if valeur is None:
+        return None
+    try:
+        return int(valeur)
     except ValueError:
         return None
 
@@ -117,15 +134,23 @@ def lire_preferences(db: Session, user_id: int) -> dict:
     return {
         "methode_cout": lire_methode_cout(db, user_id),
         "taux_imposition_pct": lire_taux_imposition_pct(db, user_id),
+        "annee_naissance_foyer": lire_annee_naissance_foyer(db, user_id),
     }
 
 
-def enregistrer_preferences(db: Session, user_id: int, methode_cout: str, taux_imposition_pct: float | None = None) -> dict:
+def enregistrer_preferences(
+    db: Session,
+    user_id: int,
+    methode_cout: str,
+    taux_imposition_pct: float | None = None,
+    annee_naissance_foyer: int | None = None,
+) -> dict:
     """Écrit les réglages de ce compte et renvoie l'ensemble des préférences relu
     (même forme que `lire_preferences`). La validation des valeurs (méthode
-    autorisée, taux entre 0 et 100) est déjà faite en amont par
-    `schemas.PreferencesUpdate` : ce module ne fait ici que persister, pas que
-    revalider. `taux_imposition_pct=None` efface la valeur déjà enregistrée
+    autorisée, taux entre 0 et 100, année de naissance plausible) est déjà faite
+    en amont par `schemas.PreferencesUpdate` : ce module ne fait ici que
+    persister, pas que revalider. `taux_imposition_pct=None`/
+    `annee_naissance_foyer=None` effacent la valeur déjà enregistrée
     (contrairement à `methode_cout`, toujours requis) : un champ de saisie vidé
     côté client doit pouvoir revenir à "non renseigné"."""
     _ecrire_valeur_brute(db, _CLE_METHODE_COUT, user_id, methode_cout)
@@ -133,5 +158,9 @@ def enregistrer_preferences(db: Session, user_id: int, methode_cout: str, taux_i
         db.query(UserParametre).filter(UserParametre.cle == _CLE_TAUX_IMPOSITION_PCT, UserParametre.user_id == user_id).delete()
     else:
         _ecrire_valeur_brute(db, _CLE_TAUX_IMPOSITION_PCT, user_id, str(taux_imposition_pct))
+    if annee_naissance_foyer is None:
+        db.query(UserParametre).filter(UserParametre.cle == _CLE_ANNEE_NAISSANCE_FOYER, UserParametre.user_id == user_id).delete()
+    else:
+        _ecrire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, user_id, str(annee_naissance_foyer))
     db.commit()
     return lire_preferences(db, user_id)

@@ -19,7 +19,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from ..models import TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS, TYPES_ACTIF_PATRIMOINE_MANUEL, Compte, Holding, Loan
-from . import analysis_service, budget_service, detenteurs_service, loan_service
+from . import analysis_service, budget_service, detenteurs_service, loan_service, preferences_service, reference_patrimoine_insee
 from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
 
 # Types "liquides" au sens du matelas de sécurité (backlog 2.O.2) : disponibles
@@ -180,6 +180,34 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         # tels quels (jamais de fausse précision en les masquant) — la somme de ce champ
         # vaut toujours exactement `patrimoine_net` ci-dessus.
         "repartition_par_classe_nette": _repartition_triee(par_classe_nette, garder_negatifs=True),
+    }
+
+
+def compute_comparaison_insee(db: Session, user_id: int) -> dict | None:
+    """Compare `actifs_totaux` (patrimoine BRUT du foyer, jamais `patrimoine_net`
+    — cf. `reference_patrimoine_insee` pour la justification méthodologique) à
+    la médiane INSEE de sa tranche d'âge (backlog § AZ.2).
+
+    `None` tant que l'année de naissance du foyer n'a pas été renseignée
+    (`preferences_service.lire_annee_naissance_foyer`) : jamais une tranche
+    devinée par défaut — l'appelant (routeur) sérialise ce `None` en corps
+    `null`, code 200, un état normal avant configuration plutôt qu'une erreur."""
+    annee_naissance = preferences_service.lire_annee_naissance_foyer(db, user_id)
+    if annee_naissance is None:
+        return None
+    age = date.today().year - annee_naissance
+    mediane = reference_patrimoine_insee.mediane_pour_age(age)
+    if mediane is None:
+        return None
+    net = compute_patrimoine_net(db, user_id)
+    actifs_totaux = net["actifs_totaux"]
+    ecart_pct = round((actifs_totaux / mediane - 1) * 100, 1) if mediane > 0 else None
+    return {
+        "actifs_totaux_foyer": round(actifs_totaux, 2),
+        "mediane_reference": mediane,
+        "ecart_pct": ecart_pct,
+        "age_utilise": age,
+        "source": reference_patrimoine_insee.SOURCE_LIBELLE,
     }
 
 

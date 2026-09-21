@@ -16,6 +16,7 @@ def test_get_preferences_renvoie_les_defauts(client):
     assert reponse.json() == {
         "methode_cout": "cout_moyen_pondere",
         "taux_imposition_pct": None,
+        "annee_naissance_foyer": None,
     }
 
 
@@ -27,7 +28,7 @@ def test_put_preferences_enregistre_puis_relecture_coherente(client):
     assert corps["methode_cout"] == "fifo"
 
     relue = client.get("/api/settings/preferences").json()
-    assert relue == {"methode_cout": "fifo", "taux_imposition_pct": None}
+    assert relue == {"methode_cout": "fifo", "taux_imposition_pct": None, "annee_naissance_foyer": None}
 
 
 def test_put_preferences_avec_taux_imposition_puis_relecture(client):
@@ -40,6 +41,19 @@ def test_put_preferences_avec_taux_imposition_puis_relecture(client):
 
 def test_put_preferences_refuse_un_taux_imposition_hors_bornes(client):
     reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "taux_imposition_pct": 150.0})
+    assert reponse.status_code == 400
+
+
+def test_put_preferences_avec_annee_naissance_foyer_puis_relecture(client):
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "annee_naissance_foyer": 1985})
+
+    assert reponse.status_code == 200
+    assert reponse.json()["annee_naissance_foyer"] == 1985
+    assert client.get("/api/settings/preferences").json()["annee_naissance_foyer"] == 1985
+
+
+def test_put_preferences_refuse_une_annee_naissance_hors_bornes(client):
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "annee_naissance_foyer": 1800})
     assert reponse.status_code == 400
 
 
