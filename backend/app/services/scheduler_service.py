@@ -52,19 +52,19 @@ def _run_market_data_refresh() -> None:
         # tous les comptes — ce job doit couvrir les tickers de tout le monde.
         items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
         market_data_service.refresh_tickers(db, items)
-        _record_result(db, MARKET_DATA_REFRESH, "ok", f"{len(items)} position(s) rafraîchie(s)")
+        record_result(db, MARKET_DATA_REFRESH, "ok", f"{len(items)} position(s) rafraîchie(s)")
     except Exception as exc:
         db.rollback()
         logger.exception("échec du rafraîchissement planifié")
         # Session neuve et indépendante (LOT 3.8) : si l'exception venait de `db`
         # elle-même (connexion en mauvais état, transaction déjà invalidée...), un
-        # `_record_result(db, ...)` sur cette même session échouerait à son tour et
+        # `record_result(db, ...)` sur cette même session échouerait à son tour et
         # le statut d'échec ne serait jamais persisté — l'utilisateur ne verrait
         # jamais l'échec dans les Réglages. Une session fraîche isole complètement
         # l'écriture du statut de la cause de l'échec.
         db_statut = SessionLocal()
         try:
-            _record_result(db_statut, MARKET_DATA_REFRESH, "erreur", str(exc))
+            record_result(db_statut, MARKET_DATA_REFRESH, "erreur", str(exc))
         finally:
             db_statut.close()
     finally:
@@ -73,14 +73,14 @@ def _run_market_data_refresh() -> None:
 
 def _run_justetf_refresh() -> None:
     """Rafraîchit la composition pays/secteurs des ETF via justETF (2.4). Même
-    structure que `_run_market_data_refresh` (session dédiée pour `_record_result`
+    structure que `_run_market_data_refresh` (session dédiée pour `record_result`
     en cas d'échec — voir sa docstring pour le pourquoi) : ne laisse jamais une
     exception remonter, bien que `justetf_service.refresh_all` ne soit de toute
     façon pas censé en lever (chaque ISIN est traité défensivement)."""
     db = SessionLocal()
     try:
         resume = justetf_service.refresh_all(db)
-        _record_result(
+        record_result(
             db, JUSTETF_REFRESH, "ok", f"{resume['reussis']}/{resume['traites']} ETF mis à jour"
         )
     except Exception as exc:
@@ -88,7 +88,7 @@ def _run_justetf_refresh() -> None:
         logger.exception("échec du rafraîchissement justETF planifié")
         db_statut = SessionLocal()
         try:
-            _record_result(db_statut, JUSTETF_REFRESH, "erreur", str(exc))
+            record_result(db_statut, JUSTETF_REFRESH, "erreur", str(exc))
         finally:
             db_statut.close()
     finally:
@@ -121,13 +121,13 @@ def _run_sauvegarde_chiffree() -> None:
         message = chemin.name
         if supprimees:
             message += f" ({len(supprimees)} ancienne(s) supprimée(s))"
-        _record_result(db, BACKUP_ENCRYPTED, "ok", message)
+        record_result(db, BACKUP_ENCRYPTED, "ok", message)
     except Exception as exc:
         db.rollback()
         logger.exception("échec de la sauvegarde chiffrée planifiée")
         db_statut = SessionLocal()
         try:
-            _record_result(db_statut, BACKUP_ENCRYPTED, "erreur", str(exc))
+            record_result(db_statut, BACKUP_ENCRYPTED, "erreur", str(exc))
         finally:
             db_statut.close()
     finally:
@@ -149,7 +149,7 @@ def _run_logos_refresh() -> None:
     try:
         resume = logo_service.rafraichir_logos(db)
         logo_service.rafraichir_logos_catalogue(db, forcer=True)
-        _record_result(
+        record_result(
             db,
             LOGOS_REFRESH,
             "ok",
@@ -160,7 +160,7 @@ def _run_logos_refresh() -> None:
         logger.exception("échec du rafraîchissement des logos planifié")
         db_statut = SessionLocal()
         try:
-            _record_result(db_statut, LOGOS_REFRESH, "erreur", str(exc))
+            record_result(db_statut, LOGOS_REFRESH, "erreur", str(exc))
         finally:
             db_statut.close()
     finally:
@@ -206,7 +206,7 @@ def _run_cours_historiques() -> None:
             if index and coingecko_service.DELAI_ENTRE_APPELS_COINGECKO_SECONDES:
                 time.sleep(coingecko_service.DELAI_ENTRE_APPELS_COINGECKO_SECONDES)
             cours_service.rafraichir_crypto(db, ticker, forcer=True)
-        _record_result(
+        record_result(
             db, COURS_HISTORIQUES, "ok", f"{len(tickers) + len(tickers_crypto)} série(s) de cours à jour"
         )
     except Exception as exc:
@@ -214,7 +214,7 @@ def _run_cours_historiques() -> None:
         logger.exception("échec du remplissage planifié des séries de cours")
         db_statut = SessionLocal()
         try:
-            _record_result(db_statut, COURS_HISTORIQUES, "erreur", str(exc))
+            record_result(db_statut, COURS_HISTORIQUES, "erreur", str(exc))
         finally:
             db_statut.close()
     finally:
@@ -232,7 +232,7 @@ JOBS: dict[str, Callable[[], None]] = {
 _scheduler: BackgroundScheduler | None = None
 
 
-def _get_or_create_config(db: Session, job_key: str) -> ScheduledJobConfig:
+def get_or_create_config(db: Session, job_key: str) -> ScheduledJobConfig:
     config = db.get(ScheduledJobConfig, job_key)
     if config is None:
         if job_key in DEFAULTS:
@@ -245,8 +245,8 @@ def _get_or_create_config(db: Session, job_key: str) -> ScheduledJobConfig:
     return config
 
 
-def _record_result(db: Session, job_key: str, statut: str, message: str) -> None:
-    config = _get_or_create_config(db, job_key)
+def record_result(db: Session, job_key: str, statut: str, message: str) -> None:
+    config = get_or_create_config(db, job_key)
     config.derniere_execution = datetime.now(UTC)
     config.dernier_statut = statut
     config.dernier_message = message
@@ -261,7 +261,7 @@ def init_scheduler() -> None:
     db = SessionLocal()
     try:
         for job_key, func in JOBS.items():
-            config = _get_or_create_config(db, job_key)
+            config = get_or_create_config(db, job_key)
             if config.enabled:
                 _scheduler.add_job(func, "interval", hours=config.intervalle_heures, id=job_key)
     finally:
@@ -277,14 +277,14 @@ def shutdown_scheduler() -> None:
 
 def list_jobs(db: Session) -> list[ScheduledJobConfig]:
     for job_key in JOBS:
-        _get_or_create_config(db, job_key)
+        get_or_create_config(db, job_key)
     return db.query(ScheduledJobConfig).order_by(ScheduledJobConfig.job_key).all()
 
 
 def update_job_config(db: Session, job_key: str, enabled: bool, intervalle_heures: float) -> ScheduledJobConfig:
     """Met à jour la config en base et reprogramme le job vivant (retire puis
     rajoute le trigger APScheduler avec le nouvel intervalle)."""
-    config = _get_or_create_config(db, job_key)
+    config = get_or_create_config(db, job_key)
     config.enabled = enabled
     config.intervalle_heures = intervalle_heures
     db.commit()
@@ -357,7 +357,7 @@ def run_job_now(db: Session, job_key: str, forcer_non_cotables: bool = False) ->
             # fonction) a été refermée par `get_db`.
             db_statut = SessionLocal()
             try:
-                _record_result(db_statut, MARKET_DATA_REFRESH, etat.statut or "erreur", etat.message or "")
+                record_result(db_statut, MARKET_DATA_REFRESH, etat.statut or "erreur", etat.message or "")
             finally:
                 db_statut.close()
 
@@ -367,4 +367,4 @@ def run_job_now(db: Session, job_key: str, forcer_non_cotables: bool = False) ->
     else:  # branche générique (ex. JUSTETF_REFRESH), cf. docstring ci-dessus
         JOBS[job_key]()
 
-    return _get_or_create_config(db, job_key)
+    return get_or_create_config(db, job_key)

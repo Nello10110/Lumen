@@ -1,5 +1,5 @@
 """Verrouille l'enregistrement du statut d'un rafraîchissement planifié en échec
-(LOT 3.8) : avant ce lot, `_record_result` était appelé après `db.rollback()` sur
+(LOT 3.8) : avant ce lot, `record_result` était appelé après `db.rollback()` sur
 la même session que celle qui avait servi au rafraîchissement — si l'erreur
 provenait de la session elle-même, l'enregistrement du statut échouait à son tour
 et l'utilisateur ne voyait jamais l'échec dans les Réglages. La correction utilise
@@ -248,14 +248,14 @@ def test_justetf_refresh_present_dans_jobs():
 def test_justetf_refresh_config_par_defaut_hebdomadaire(db):
     """`DEFAULTS` doit s'appliquer à la création de la config, à la place du
     `24.0` du modèle (correct pour MARKET_DATA_REFRESH, pas pour justETF)."""
-    config = scheduler_service._get_or_create_config(db, scheduler_service.JUSTETF_REFRESH)
+    config = scheduler_service.get_or_create_config(db, scheduler_service.JUSTETF_REFRESH)
     assert config.intervalle_heures == 168.0
 
 
 def test_market_data_refresh_config_par_defaut_reste_24h(db):
     """Non-régression : l'ajout de `DEFAULTS` ne doit pas changer le comportement
     existant pour le job déjà en place."""
-    config = scheduler_service._get_or_create_config(db, scheduler_service.MARKET_DATA_REFRESH)
+    config = scheduler_service.get_or_create_config(db, scheduler_service.MARKET_DATA_REFRESH)
     assert config.intervalle_heures == 24.0
 
 
@@ -332,7 +332,7 @@ def test_sauvegarde_chiffree_presente_dans_jobs():
 
 
 def test_sauvegarde_chiffree_config_par_defaut_quotidienne(db):
-    config = scheduler_service._get_or_create_config(db, scheduler_service.BACKUP_ENCRYPTED)
+    config = scheduler_service.get_or_create_config(db, scheduler_service.BACKUP_ENCRYPTED)
     assert config.intervalle_heures == 24.0
 
 

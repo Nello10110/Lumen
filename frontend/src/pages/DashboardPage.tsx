@@ -10,13 +10,22 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { parseDateApi } from '../utils/format'
 
-// Backlog § AF.4 (15/09/2026) — au-delà de ce nombre de jours sans qu'AUCUNE
-// position cotée n'ait été retouchée par un rafraîchissement (réussi ou en échec —
-// `MarketDataCache.derniere_maj` avance dans les deux cas, ce qui reste le bon
-// signal ici : « a-t-on RETENTÉ récemment », pas « a-t-on réussi »), l'encart
-// apparaît. 3 jours : assez pour ne jamais s'afficher à qui rafraîchit ne
-// serait-ce qu'occasionnellement, assez tôt pour ne pas laisser les cours dormir
-// des semaines sans un rappel.
+// Backlog § AF.4 (15/09/2026, révisé le 21/09/2026 suite à un rapport
+// utilisateur) — au-delà de ce nombre de jours sans qu'un rafraîchissement des
+// cours ait été TENTÉ (réussi ou en échec, tous déclencheurs confondus :
+// planifié, "Lancer maintenant" de Réglages, "Actualiser"/"Rallumer les cours"
+// d'ici ou de Portefeuille), l'encart apparaît. 3 jours : assez pour ne jamais
+// s'afficher à qui rafraîchit ne serait-ce qu'occasionnellement, assez tôt pour
+// ne pas laisser les cours dormir des semaines sans un rappel.
+//
+// Version précédente (jusqu'au 21/09/2026) : calculé depuis la position cotée
+// (`Holding.market_data.derniere_maj`) la plus ancienne. Défaut relevé par un
+// utilisateur : une position STRUCTURELLEMENT jamais rafraîchie (Bricks.co,
+// jamais interrogée par construction — cf. `market_data_service.
+// PREFIXES_SYMBOLES_INTERNES`) restait figée pour toujours, faisant croire à un
+// portefeuille jamais actualisé alors que les vraies positions cotées
+// l'étaient. Remplacé par `GET /api/market-data/derniere-actualisation`, qui ne
+// porte que sur QUAND le job a tourné, jamais sur l'état d'une ligne précise.
 const SEUIL_JOURS_SANS_RAFRAICHISSEMENT = 3
 
 /** Écran d'accueil — délibérément court (demande directe de l'utilisateur du
@@ -63,17 +72,19 @@ export default function DashboardPage() {
   // n'a plus de raison d'être appelé depuis cet écran.
   const [portefeuilleVide, setPortefeuilleVide] = useState(false)
 
-  // Backlog § AF.4 : la position cotée (`market_data` non nul — un bien immobilier
-  // ou un livret saisis à la main n'ont simplement rien à rafraîchir) dont le
-  // rafraîchissement est le plus ANCIEN, et son nombre de jours — la ligne la plus
-  // endormie fixe le message, pas une moyenne qui masquerait une position vraiment
-  // oubliée derrière des positions à jour. Nommer la ligne (pas seulement un
-  // nombre agrégé) a été ajouté après un rapport utilisateur où l'encart restait
-  // affiché malgré un rafraîchissement récent : sans nom, impossible de savoir
-  // QUELLE position bloquait le compteur. `null` = rien à signaler (aucune
-  // position cotée, ou toutes rafraîchies récemment).
-  const [positionEndormie, setPositionEndormie] = useState<{ nom: string; jours: number } | null>(null)
-  const { enCours: rafraichissementEnCours, declencher: declencherRafraichissement } = useRafraichissementCours(chargerPortefeuilleVide)
+  // Backlog § AF.4 : nombre de jours depuis le dernier rafraîchissement des cours
+  // RÉELLEMENT tenté (`GET /market-data/derniere-actualisation`, tous
+  // déclencheurs confondus) — `null` tant qu'aucun rafraîchissement n'a jamais
+  // été tenté sur cette installation.
+  const [joursSansRafraichissement, setJoursSansRafraichissement] = useState<number | null>(null)
+  // `true` dès qu'au moins une ligne porte une cotation (`market_data` non nul)
+  // — sert uniquement à ne jamais afficher le rappel à un foyer sans aucune
+  // position cotée (100 % immobilier/épargne/Bricks.co), qui n'a simplement
+  // rien à rafraîchir : `joursSansRafraichissement` seul ne le dit pas, une
+  // installation neuve où le job a déjà tourné une fois aurait sinon un nombre
+  // de jours parfaitement valide mais dénué de sens pour ce foyer.
+  const [auMoinsUnePositionCotee, setAuMoinsUnePositionCotee] = useState(false)
+  const { enCours: rafraichissementEnCours, declencher: declencherRafraichissement } = useRafraichissementCours(chargerDerniereActualisation)
 
   function chargerHistorique() {
     setChargementHistorique(true)
@@ -104,35 +115,42 @@ export default function DashboardPage() {
       .listHoldings()
       .then((lignes) => {
         setPortefeuilleVide(lignes.length === 0)
+        setAuMoinsUnePositionCotee(lignes.some((h) => h.market_data?.derniere_maj != null))
+      })
+      .catch(() => {
+        setPortefeuilleVide(false)
+        setAuMoinsUnePositionCotee(false)
+      })
+  }
+
+  function chargerDerniereActualisation() {
+    api
+      .getDerniereActualisationMarketData()
+      .then(({ derniere_actualisation }) => {
+        if (derniere_actualisation == null) {
+          setJoursSansRafraichissement(null)
+          return
+        }
         // `parseDateApi`, jamais `new Date(d)` directement : l'API renvoie un
         // horodatage UTC SANS indication de fuseau (ex. "2026-09-21T09:00:00"),
         // que `new Date` lirait comme une heure LOCALE — décalant le calcul de
         // l'heure du fuseau du navigateur et faussant le nombre de jours affiché.
-        const positionsCotees = lignes
-          .filter((h) => h.market_data?.derniere_maj != null)
-          .map((h) => ({ nom: h.nom || h.ticker, epoch: parseDateApi(h.market_data!.derniere_maj).getTime() }))
-        if (positionsCotees.length === 0) {
-          setPositionEndormie(null)
-          return
-        }
-        const plusAncienne = positionsCotees.reduce((a, b) => (a.epoch <= b.epoch ? a : b))
-        const jours = Math.floor((Date.now() - plusAncienne.epoch) / (1000 * 60 * 60 * 24))
-        setPositionEndormie(jours >= SEUIL_JOURS_SANS_RAFRAICHISSEMENT ? { nom: plusAncienne.nom, jours } : null)
+        const jours = Math.floor((Date.now() - parseDateApi(derniere_actualisation).getTime()) / (1000 * 60 * 60 * 24))
+        setJoursSansRafraichissement(jours >= SEUIL_JOURS_SANS_RAFRAICHISSEMENT ? jours : null)
       })
-      .catch(() => {
-        setPortefeuilleVide(false)
-        setPositionEndormie(null)
-      })
+      .catch(() => setJoursSansRafraichissement(null))
   }
 
   function chargerDonnees() {
     chargerHistorique()
     chargerPatrimoineHistorique()
     chargerPortefeuilleVide()
+    chargerDerniereActualisation()
   }
 
   useEffect(chargerHistorique, [])
   useEffect(chargerPortefeuilleVide, [])
+  useEffect(chargerDerniereActualisation, [])
   useEffect(chargerPatrimoineHistorique, [detenteurId])
 
   const chargement = chargementHistorique || chargementPatrimoineHistorique
@@ -185,18 +203,18 @@ export default function DashboardPage() {
           problème à résoudre. Le bouton déclenche le MÊME rafraîchissement que
           celui de Portefeuille (`useRafraichissementCours`, § AH.2) — la ligne se
           rallume aussi ici pendant l'attente puisque c'est le même hook. */}
-      {positionEndormie !== null && !portefeuilleVide && (
+      {joursSansRafraichissement !== null && auMoinsUnePositionCotee && !portefeuilleVide && (
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-texte-attenue">
-              Le cours de {positionEndormie.nom} dort depuis {positionEndormie.jours} jour
-              {positionEndormie.jours > 1 ? 's' : ''} — le rallumer&nbsp;?
+              Vos cours n'ont pas été actualisés depuis {joursSansRafraichissement} jour
+              {joursSansRafraichissement > 1 ? 's' : ''} — les actualiser&nbsp;?
             </p>
             <SecondaryButton
               onClick={() => declencherRafraichissement(() => api.refreshMarketData())}
               disabled={rafraichissementEnCours}
             >
-              {rafraichissementEnCours ? 'Rallumage...' : 'Rallumer les cours'}
+              {rafraichissementEnCours ? 'Actualisation...' : 'Actualiser les cours'}
             </SecondaryButton>
           </div>
         </Card>

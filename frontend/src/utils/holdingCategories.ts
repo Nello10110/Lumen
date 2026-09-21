@@ -1,5 +1,4 @@
 import type { Compte, Holding } from '../api/types'
-import { parseDateApi } from './format'
 
 export type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'BOND' | 'PRIVATE_FUND' | 'CRYPTO' | 'PATRIMOINE' | 'AUTRES'
 
@@ -203,15 +202,9 @@ export function correspondAuFiltreCompte(h: Holding, filtreCompte: string): bool
   return h.compte !== null && String(h.compte.id) === filtreCompte
 }
 
-// Cours (`market_data.derniere_maj`) le plus ancien parmi les positions cotées
-// (LOT 5.11) : reflète la fraîcheur globale de l'affichage, indépendamment du
-// filtre de catégorie actif.
-export function coursLePlusAncien(holdings: Holding[]): string | null {
-  const dates = holdings.map((h) => h.market_data?.derniere_maj).filter((d): d is string => Boolean(d))
-  if (dates.length === 0) return null
-  return dates.reduce((plusAncienne, courante) =>
-    parseDateApi(courante).getTime() < parseDateApi(plusAncienne).getTime() ? courante : plusAncienne,
-  )
-}
-
+// Seuil d'affichage en orange de « cours à jour au ... » (`PortefeuillePage.tsx`)
+// — la date elle-même vient désormais de `GET /market-data/derniere-actualisation`
+// (backlog § AF.4, révision du 21/09/2026), plus d'un calcul position par
+// position (`Holding.market_data.derniere_maj`), qui restait figé pour toute
+// ligne structurellement jamais rafraîchie (ex. Bricks.co).
 export const SEUIL_PEREMPTION_HEURES = 48

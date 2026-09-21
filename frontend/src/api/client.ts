@@ -24,6 +24,7 @@ import type {
   MetriquesAvancees,
   PortfolioHistoryResponse,
   RevenusPassifsProjetes,
+  DerniereActualisationMarketData,
   EtatRafraichissement,
   Holding,
   HoldingDetail,
@@ -277,6 +278,13 @@ export const api = {
   // `getRefreshStatus` pendant que `en_cours` vaut `true`.
   refreshMarketData: () => request<EtatRafraichissement>('/market-data/refresh', { method: 'POST' }),
   getRefreshStatus: () => request<EtatRafraichissement>('/market-data/refresh/status'),
+  // Backlog § AF.4 (révision du 21/09/2026) : date du dernier rafraîchissement
+  // RÉELLEMENT tenté, tous déclencheurs confondus — remplace un calcul
+  // précédent basé sur `Holding.market_data.derniere_maj` position par
+  // position, resté figé pour toute ligne structurellement jamais rafraîchie
+  // (ex. Bricks.co).
+  getDerniereActualisationMarketData: () =>
+    request<DerniereActualisationMarketData>('/market-data/derniere-actualisation'),
 
   // Analysis
   getAnalysis: () => request<AnalysisResponse>('/analysis'),

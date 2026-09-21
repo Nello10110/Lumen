@@ -34,3 +34,20 @@ class EtatRafraichissement(BaseModel):
     termine_le: datetime | None = None
     statut: str | None = None  # "ok" | "erreur" | None (jamais terminé, ou en cours)
     message: str | None = None
+
+
+class DerniereActualisationResponse(BaseModel):
+    """Backlog § AF.4 (révision du 21/09/2026, rapport utilisateur) : date du
+    dernier rafraîchissement des cours RÉELLEMENT TENTÉ, tous déclencheurs
+    confondus (planifié, "Lancer maintenant" de Réglages, "Actualiser"/"Rallumer
+    les cours" de Portefeuille/Dashboard) — lue depuis `ScheduledJobConfig`
+    (`services/scheduler_service.get_or_create_config`), jamais recalculée depuis
+    `Holding.market_data.derniere_maj` position par position : cette dernière
+    approche restait figée pour toute ligne STRUCTURELLEMENT jamais rafraîchie
+    (ex. Bricks.co, jamais interrogée par construction, cf.
+    `market_data_service.PREFIXES_SYMBOLES_INTERNES`), donnant à tort
+    l'impression d'un portefeuille jamais actualisé alors que les vraies
+    positions cotées l'étaient. `None` tant qu'aucun rafraîchissement n'a jamais
+    été tenté sur cette installation."""
+
+    derniere_actualisation: datetime | None

@@ -14,6 +14,10 @@ vi.mock('../api/client', () => ({
     deleteHolding: vi.fn(),
     refreshMarketData: vi.fn(),
     getRefreshStatus: vi.fn(),
+    // Backlog § AF.4 (révision du 21/09/2026) : date du dernier rafraîchissement
+    // réellement tenté — stub neutre par défaut (`beforeEach`), surchargé par les
+    // tests qui en ont besoin.
+    getDerniereActualisationMarketData: vi.fn(),
     // `LoansCard` (roadmap Phase 1) est rendue par cette page mais n'est pas l'objet
     // de ce fichier — mise de côté (cf. le mock ci-dessous), donc jamais appelée en
     // pratique ; gardée ici uniquement pour que le typage de `api` reste cohérent.
@@ -147,6 +151,7 @@ describe('PortefeuillePage', () => {
       statut: null,
       message: null,
     })
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: null })
   })
 
   describe('Ajouter une ligne manuellement — taux annuel (backlog 2.M.1)', () => {
@@ -1039,6 +1044,51 @@ describe('PortefeuillePage', () => {
       // `LoansCard` est mocké dans ce fichier (voir en tête) : son propre appel à
       // `listHoldings` est couvert par `LoansCard.test.tsx`, pas ici.
       expect(vi.mocked(api.listComptes)).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('« cours à jour au ... » (backlog § AF.4, révision du 21/09/2026)', () => {
+    it("n'affiche rien tant qu'aucun rafraîchissement n'a jamais été tenté", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, market_data: marketData() })])
+      vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: null })
+
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      await waitFor(() => expect(api.getDerniereActualisationMarketData).toHaveBeenCalled())
+      expect(screen.queryByText(/cours à jour au/)).not.toBeInTheDocument()
+    })
+
+    it('affiche la date sans couleur d\'alerte quand le dernier rafraîchissement est récent', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, market_data: marketData() })])
+      vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({
+        derniere_actualisation: new Date().toISOString().replace('Z', ''),
+      })
+
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      const texte = await screen.findByText(/cours à jour au/)
+      expect(texte.closest('span')?.className ?? '').not.toContain('text-avertissement')
+    })
+
+    it("reste correct même avec une ligne Bricks.co structurellement jamais rafraîchie — rapport utilisateur du 21/09/2026", async () => {
+      // La ligne Bricks.co (`market_data: null`, jamais interrogée par
+      // construction) coexiste avec une vraie position cotée : l'ancien calcul
+      // (`coursLePlusAncien`, position par position) restait figé sur cette
+      // ligne pour toujours et affichait « cours à jour au ... » en orange même
+      // juste après un vrai rafraîchissement ; la nouvelle source
+      // (`derniere-actualisation`) ne porte que sur QUAND le job a tourné.
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'BRICKS-DEADBEEF12', nom: 'Bien Bricks', market_data: null }),
+        holding({ id: 2, ticker: 'AAA', market_data: marketData({ ticker: 'AAA' }) }),
+      ])
+      vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({
+        derniere_actualisation: new Date().toISOString().replace('Z', ''),
+      })
+
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      const texte = await screen.findByText(/cours à jour au/)
+      expect(texte.closest('span')?.className ?? '').not.toContain('text-avertissement')
     })
   })
 

@@ -23,7 +23,6 @@ import {
   categorieDe,
   comptesDisponibles,
   correspondAuFiltreCompte,
-  coursLePlusAncien,
 } from '../utils/holdingCategories'
 import { formatDateHeure, parseDateApi } from '../utils/format'
 
@@ -186,6 +185,26 @@ export default function PortefeuillePage() {
 
   useEffect(load, [])
 
+  // Backlog § AF.4 (révision du 21/09/2026, rapport utilisateur) : date du
+  // dernier rafraîchissement des cours RÉELLEMENT tenté, tous déclencheurs
+  // confondus — remplace un calcul précédent basé sur la position cotée la plus
+  // ancienne (`coursLePlusAncien`), qui restait figé pour toute ligne
+  // structurellement jamais rafraîchie (ex. Bricks.co, jamais interrogée par
+  // construction), donnant à tort l'impression que les cours n'étaient plus à
+  // jour alors que les vraies positions cotées l'étaient. Silencieux en cas
+  // d'échec : cet indicateur est secondaire, une erreur réseau ne doit pas
+  // faire disparaître le reste de l'écran.
+  const [derniereActualisation, setDerniereActualisation] = useState<string | null>(null)
+
+  function chargerDerniereActualisation() {
+    api
+      .getDerniereActualisationMarketData()
+      .then(({ derniere_actualisation }) => setDerniereActualisation(derniere_actualisation))
+      .catch(() => setDerniereActualisation(null))
+  }
+
+  useEffect(chargerDerniereActualisation, [])
+
   // Comptes chargés UNE fois pour toute la page, puis passés au formulaire d'ajout
   // et au tableau (backlog Z.1) : montés côte à côte, ils demandaient chacun leur
   // propre `GET /comptes`. Même raison pour les positions passées à `LoansCard`,
@@ -213,7 +232,10 @@ export default function PortefeuillePage() {
   // une fois le rafraîchissement terminé (succès ou échec), pour afficher les
   // cours à jour sans attendre une action supplémentaire de l'utilisateur.
   const { etat: etatRafraichissement, enCours: refreshing, erreur: erreurRafraichissement, declencher } =
-    useRafraichissementCours(() => load())
+    useRafraichissementCours(() => {
+      load()
+      chargerDerniereActualisation()
+    })
 
   // Balayage lumineux (backlog § AH.2, 15/09/2026 ; lissé le 16/09/2026, §AT.x) :
   // suit la progression RÉELLE du rafraîchissement (`positions_traitees`, sondé
@@ -327,9 +349,8 @@ export default function PortefeuillePage() {
       ? ''
       : ` · ${filtreCompte === FILTRE_SANS_COMPTE ? 'Sans compte' : filtreCompte}`)
 
-  const dateCoursLePlusAncien = coursLePlusAncien(holdings)
-  const coursPerimes = dateCoursLePlusAncien
-    ? Date.now() - parseDateApi(dateCoursLePlusAncien).getTime() > SEUIL_PEREMPTION_HEURES * 60 * 60 * 1000
+  const coursPerimes = derniereActualisation
+    ? Date.now() - parseDateApi(derniereActualisation).getTime() > SEUIL_PEREMPTION_HEURES * 60 * 60 * 1000
     : false
 
   return (
@@ -345,9 +366,9 @@ export default function PortefeuillePage() {
               filtre n'en affiche que 2. */}
           <p className="mt-0.5 text-[13px] text-ink3">
             {sousTitre}
-            {dateCoursLePlusAncien && (
+            {derniereActualisation && (
               <span className={coursPerimes ? 'text-avertissement' : undefined}>
-                {' · '}cours à jour au {formatDateHeure(dateCoursLePlusAncien)}
+                {' · '}cours à jour au {formatDateHeure(derniereActualisation)}
               </span>
             )}
           </p>

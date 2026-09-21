@@ -14,9 +14,14 @@ vi.mock('../api/client', () => ({
     // Synthèse) : même philosophie que ci-dessus.
     getPatrimoineHistory: vi.fn().mockResolvedValue({ points: [] }),
     listHoldings: vi.fn().mockResolvedValue([]),
-    // Backlog § AF.4 : le bouton "Rallumer les cours" de l'encart passe par le même
-    // hook que celui de Portefeuille (`useRafraichissementCours`) — non testé en
-    // détail ici (déjà couvert par `PortefeuillePage.test.tsx`), résolutions neutres.
+    // Backlog § AF.4 (révision du 21/09/2026) : date du dernier rafraîchissement
+    // réellement tenté, plus interrogée position par position — `null` par
+    // défaut (jamais rafraîchi), écrasé dans le describe dédié ci-dessous.
+    getDerniereActualisationMarketData: vi.fn().mockResolvedValue({ derniere_actualisation: null }),
+    // Backlog § AF.4 : le bouton "Actualiser les cours" de l'encart passe par le
+    // même hook que celui de Portefeuille (`useRafraichissementCours`) — non
+    // testé en détail ici (déjà couvert par `PortefeuillePage.test.tsx`),
+    // résolutions neutres.
     refreshMarketData: vi.fn().mockResolvedValue({ en_cours: false }),
     getRefreshStatus: vi.fn().mockResolvedValue({
       en_cours: false,
@@ -131,11 +136,14 @@ describe('DashboardPage — invitation à importer (portefeuille vide)', () => {
   })
 })
 
-describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () => {
+describe('DashboardPage — rappel si les cours ne sont plus actualisés (backlog § AF.4)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.getPortfolioHistory).mockResolvedValue({ points: [] })
     vi.mocked(api.getPatrimoineHistory).mockResolvedValue({ points: [] })
+    // Une seule ligne cotée par défaut : sans elle, le rappel resterait masqué
+    // (`auMoinsUnePositionCotee`) quel que soit `derniere_actualisation`.
+    vi.mocked(api.listHoldings).mockResolvedValue([{ id: 1, market_data: { ticker: 'AAA', derniere_maj: '2026-01-01T00:00:00' } } as never])
     vi.mocked(api.refreshMarketData).mockResolvedValue({ en_cours: false } as never)
     vi.mocked(api.getRefreshStatus).mockResolvedValue({
       en_cours: false,
@@ -148,75 +156,84 @@ describe('DashboardPage — rappel si les cours dorment (backlog § AF.4)', () =
     })
   })
 
-  function holdingAvecCotation(joursDepuisMaj: number, overrides: { id?: number; ticker?: string; nom?: string | null } = {}) {
+  function actualisationDepuis(jours: number) {
     // Naïf, SANS "Z" — même format que l'API réelle (`datetime` naïf côté
     // backend, cf. `parseDateApi`) : `.toISOString()` seul produirait un format
     // avec "Z" qui aurait masqué le bug corrigé ici (le composant lisait ce
     // format avec `new Date(d)` plutôt que `parseDateApi(d)`, faussant le calcul
     // dans tout fuseau horaire différent d'UTC).
-    const maj = new Date(Date.now() - joursDepuisMaj * 24 * 60 * 60 * 1000).toISOString().replace('Z', '')
-    const { id = 1, ticker = 'AAA', nom = null } = overrides
-    return { id, nom, ticker, market_data: { ticker, derniere_maj: maj } } as never
+    return new Date(Date.now() - jours * 24 * 60 * 60 * 1000).toISOString().replace('Z', '')
   }
 
-  it("n'affiche rien quand la position la plus ancienne a été rafraîchie il y a moins de 3 jours", async () => {
-    vi.mocked(api.listHoldings).mockResolvedValue([holdingAvecCotation(1)])
+  it("n'affiche rien quand le dernier rafraîchissement date de moins de 3 jours", async () => {
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: actualisationDepuis(1) })
     renderPage()
 
-    await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
-    expect(screen.queryByText(/dort/)).not.toBeInTheDocument()
+    await waitFor(() => expect(api.getDerniereActualisationMarketData).toHaveBeenCalled())
+    expect(screen.queryByText(/actualisés/)).not.toBeInTheDocument()
   })
 
-  it("n'affiche rien pour des positions sans cotation (saisie manuelle)", async () => {
+  it("n'affiche rien tant qu'aucun rafraîchissement n'a jamais été tenté (derniere_actualisation nulle)", async () => {
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: null })
+    renderPage()
+
+    await waitFor(() => expect(api.getDerniereActualisationMarketData).toHaveBeenCalled())
+    expect(screen.queryByText(/actualisés/)).not.toBeInTheDocument()
+  })
+
+  it("n'affiche rien pour un foyer sans aucune position cotée, même si le job n'a jamais tourné", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([{ id: 1, market_data: null } as never])
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: actualisationDepuis(30) })
     renderPage()
 
     await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
-    expect(screen.queryByText(/dort/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/actualisés/)).not.toBeInTheDocument()
   })
 
-  it('affiche le rappel avec le nombre de jours de la position la plus ancienne', async () => {
-    vi.mocked(api.listHoldings).mockResolvedValue([holdingAvecCotation(1), holdingAvecCotation(5)])
+  it('affiche le rappel avec le nombre de jours depuis le dernier rafraîchissement tenté', async () => {
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: actualisationDepuis(5) })
     renderPage()
 
-    expect(await screen.findByText(/dort depuis 5 jours/)).toBeInTheDocument()
+    expect(await screen.findByText(/n'ont pas été actualisés depuis 5 jours/)).toBeInTheDocument()
   })
 
-  it('nomme la position responsable (pas seulement un total agrégé) — sujet du rapport utilisateur du 21/09/2026', async () => {
+  it("reste correct même avec une ligne Bricks.co structurellement jamais rafraîchie — rapport utilisateur du 21/09/2026", async () => {
+    // La ligne Bricks.co (`market_data: null`, jamais interrogée par
+    // construction) coexiste avec une vraie position cotée récemment
+    // rafraîchie : l'ancien calcul (position par position) restait figé sur la
+    // ligne Bricks.co pour toujours ; le nouveau, basé sur
+    // `derniere_actualisation` (quand le JOB a tourné, pas une ligne précise),
+    // reflète correctement un rafraîchissement récent.
     vi.mocked(api.listHoldings).mockResolvedValue([
-      holdingAvecCotation(1, { id: 1, ticker: 'AAA', nom: null }),
-      holdingAvecCotation(5, { id: 2, ticker: 'BBB', nom: 'Berkshire Hathaway' }),
+      { id: 1, ticker: 'BRICKS-DEADBEEF12', nom: 'Bien Bricks', market_data: null } as never,
+      { id: 2, ticker: 'AAA', market_data: { ticker: 'AAA', derniere_maj: actualisationDepuis(0) } } as never,
     ])
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: actualisationDepuis(0) })
     renderPage()
 
-    expect(await screen.findByText(/Le cours de Berkshire Hathaway dort depuis 5 jours/)).toBeInTheDocument()
+    await waitFor(() => expect(api.getDerniereActualisationMarketData).toHaveBeenCalled())
+    expect(screen.queryByText(/actualisés/)).not.toBeInTheDocument()
   })
 
-  it("retombe sur le ticker quand la position endormie n'a pas de nom renseigné", async () => {
-    vi.mocked(api.listHoldings).mockResolvedValue([holdingAvecCotation(5, { ticker: 'AAA', nom: null })])
+  it('le bouton "Actualiser les cours" déclenche le rafraîchissement et fait disparaître le rappel', async () => {
+    vi.mocked(api.getDerniereActualisationMarketData)
+      .mockResolvedValueOnce({ derniere_actualisation: actualisationDepuis(5) })
+      .mockResolvedValueOnce({ derniere_actualisation: actualisationDepuis(0) })
     renderPage()
+    await screen.findByText(/n'ont pas été actualisés depuis 5 jours/)
 
-    expect(await screen.findByText(/Le cours de AAA dort depuis 5 jours/)).toBeInTheDocument()
-  })
-
-  it('le bouton "Rallumer les cours" déclenche le rafraîchissement et fait disparaître le rappel', async () => {
-    vi.mocked(api.listHoldings)
-      .mockResolvedValueOnce([holdingAvecCotation(5)])
-      .mockResolvedValueOnce([holdingAvecCotation(0)])
-    renderPage()
-    await screen.findByText(/dort depuis 5 jours/)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Rallumer les cours' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Actualiser les cours' }))
 
     await waitFor(() => expect(api.refreshMarketData).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(screen.queryByText(/dort/)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/actualisés/)).not.toBeInTheDocument())
   })
 
   it("ne s'affiche jamais en même temps que l'invitation à importer (portefeuille vide)", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([])
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: actualisationDepuis(30) })
     renderPage()
 
     await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
-    expect(screen.queryByText(/dort/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/actualisés/)).not.toBeInTheDocument()
   })
 })

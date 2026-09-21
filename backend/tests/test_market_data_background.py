@@ -20,8 +20,8 @@ import threading
 import pytest
 
 from app.database import SessionLocal
-from app.models import FundComposition, HistoriqueCache, MarketDataCache, TickerResolution
-from app.services import historique_cache, market_data_refresh, market_data_service
+from app.models import FundComposition, HistoriqueCache, MarketDataCache, ScheduledJobConfig, TickerResolution
+from app.services import historique_cache, market_data_refresh, market_data_service, scheduler_service
 
 from .conftest import attendre_fin_rafraichissement_arriere_plan
 
@@ -33,6 +33,7 @@ def _nettoyer_base_partagee():
         db.query(TickerResolution).delete()
         db.query(FundComposition).delete()
         db.query(HistoriqueCache).delete()
+        db.query(ScheduledJobConfig).delete()
         db.commit()
     finally:
         db.close()
@@ -285,3 +286,100 @@ def test_une_resolution_reussie_recente_nest_pas_rejouee(monkeypatch):
         db.query(TickerResolution).delete()
         db.commit()
         db.close()
+
+
+# --- date de dernière actualisation, tous déclencheurs confondus (§ AF.4, révision
+# du 21/09/2026, rapport utilisateur) -----------------------------------------------
+
+
+def test_derniere_actualisation_null_avant_tout_rafraichissement(client):
+    reponse = client.get("/api/market-data/derniere-actualisation")
+
+    assert reponse.status_code == 200
+    assert reponse.json()["derniere_actualisation"] is None
+
+
+def test_route_derniere_actualisation_reflete_une_config_deja_en_base(client, db):
+    """Vérifie la lecture de la route elle-même, indépendamment du fil de fond
+    (dont l'écriture passe par `SessionLocal`, une base distincte de celle,
+    jetable, que ce test utilise via les fixtures `client`/`db` — cf. la
+    docstring de ce module)."""
+    from datetime import UTC, datetime
+
+    from app.models import ScheduledJobConfig as ScheduledJobConfigLocal
+
+    horodatage = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
+    db.add(ScheduledJobConfigLocal(job_key=scheduler_service.MARKET_DATA_REFRESH, derniere_execution=horodatage))
+    db.commit()
+
+    reponse = client.get("/api/market-data/derniere-actualisation")
+
+    assert reponse.status_code == 200
+    assert reponse.json()["derniere_actualisation"] == horodatage.isoformat()
+
+
+def test_route_refresh_manuel_alimente_desormais_la_derniere_actualisation(client, monkeypatch):
+    """Avant ce correctif, seuls le job planifié et « Lancer maintenant » de
+    Réglages (`scheduler_service.run_job_now`) alimentaient `ScheduledJobConfig` —
+    ce bouton (`POST /api/market-data/refresh`, Portefeuille/Dashboard) n'y
+    apparaissait jamais, laissant `derniere-actualisation` figée malgré un
+    rafraîchissement manuel réel. Vérifié via `SessionLocal` (la base RÉELLE que le
+    fil de fond écrit, cf. docstring de ce module), pas via `client`/`db`
+    (isolées, invisibles au fil de fond)."""
+    monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None, forcer_non_cotables=False: [])
+
+    reponse = client.post("/api/market-data/refresh")
+    assert reponse.status_code == 202
+    attendre_fin_rafraichissement_arriere_plan()
+
+    db_directe = SessionLocal()
+    try:
+        config = scheduler_service.get_or_create_config(db_directe, scheduler_service.MARKET_DATA_REFRESH)
+        assert config.derniere_execution is not None
+        assert config.dernier_statut == "ok"
+    finally:
+        db_directe.close()
+
+
+def _on_termine_enregistrer_resultat(etat) -> None:
+    """Reproduit `routers.market_data._enregistrer_resultat` sans dépendre du
+    routeur (le test ci-dessous appelle `demarrer_rafraichissement` directement,
+    pas la route HTTP) — même persistance dans `ScheduledJobConfig` via une
+    session dédiée."""
+    db_statut = SessionLocal()
+    try:
+        scheduler_service.record_result(
+            db_statut, scheduler_service.MARKET_DATA_REFRESH, etat.statut or "erreur", etat.message or ""
+        )
+    finally:
+        db_statut.close()
+
+
+def test_derniere_actualisation_ignore_les_positions_structurellement_non_cotables(monkeypatch):
+    """Reproduit le rapport utilisateur du 21/09/2026 : un foyer dont la position la
+    plus ancienne est une ligne Bricks.co (jamais interrogée par construction, cf.
+    `market_data_service.PREFIXES_SYMBOLES_INTERNES`) voyait l'ancien indicateur
+    (basé sur `Holding.market_data.derniere_maj`) rester figé pour toujours, même
+    juste après un rafraîchissement réel des vraies positions cotées. La nouvelle
+    source (`ScheduledJobConfig`) ignore cette notion par construction : elle ne
+    porte que sur QUAND le job a tourné, jamais sur l'état d'une ligne en
+    particulier — ce test le prouve en déclenchant le VRAI `demarrer_rafraichissement`
+    (pas seulement la route HTTP) avec un mélange Bricks.co + position réelle."""
+    monkeypatch.setattr(
+        market_data_service,
+        "refresh_tickers",
+        lambda db, items, on_progression=None, forcer_non_cotables=False: [],
+    )
+
+    market_data_refresh.demarrer_rafraichissement(
+        [("BRICKS-DEADBEEF12", "STOCK"), ("AAA", "STOCK")], on_termine=_on_termine_enregistrer_resultat
+    )
+    attendre_fin_rafraichissement_arriere_plan()
+
+    db_directe = SessionLocal()
+    try:
+        config = scheduler_service.get_or_create_config(db_directe, scheduler_service.MARKET_DATA_REFRESH)
+        assert config.derniere_execution is not None
+        assert config.dernier_statut == "ok"
+    finally:
+        db_directe.close()

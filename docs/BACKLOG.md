@@ -3831,14 +3831,29 @@ l'animation (icône remplacée instantanément).
 *« Bienvenue — faisons la lumière sur tes finances, ensemble. »*, jamais répétée sur les étapes
 suivantes.
 
-#### AF.4 — `traité` (16/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
+#### AF.4 — `traité` (16/09/2026, révisé le 21/09/2026) — Rappel discret si les cours n'ont pas été rafraîchis depuis longtemps
 
-Encart sur le tableau de bord dès que la position cotée la plus ancienne n'a pas été retouchée par un
-rafraîchissement (réussi ou en échec) depuis 3 jours. Basé sur `MarketDataCache.derniere_maj` (via
-`Holding.market_data`), **pas** `ScheduledJobConfig.derniere_execution` comme envisagé initialement :
-ce dernier ne reflète que les rafraîchissements planifiés, jamais les manuels (bouton « Rafraîchir »
-de Portefeuille) — l'aurait rendu faussement alarmant pour qui rafraîchit seulement à la main. Bouton
-« Rallumer les cours » branché sur le même hook que Portefeuille (`useRafraichissementCours`, § AH.2).
+Encart sur le tableau de bord dès qu'un rafraîchissement des cours n'a pas été TENTÉ (réussi ou en
+échec) depuis 3 jours, tous déclencheurs confondus (planifié, « Lancer maintenant » de Réglages,
+« Actualiser »/« Rallumer les cours » de Portefeuille/Dashboard). Bouton branché sur le même hook que
+Portefeuille (`useRafraichissementCours`, § AH.2).
+
+**Révision du 21/09/2026 (rapport utilisateur) — changement de source.** Version d'origine (jusqu'au
+21/09/2026) : basée sur `MarketDataCache.derniere_maj` (via `Holding.market_data`), en prenant la
+position cotée la plus ANCIENNE — **pas** `ScheduledJobConfig.derniere_execution` comme envisagé
+initialement, ce dernier ne reflétant à l'époque que les rafraîchissements planifiés, jamais les
+manuels. Défaut découvert en usage réel : une position STRUCTURELLEMENT jamais rafraîchie (ex. une
+ligne Bricks.co — crowdfunding immobilier, jamais interrogée par construction, cf.
+`market_data_service.PREFIXES_SYMBOLES_INTERNES`) restait figée pour toujours, faisant croire à un
+portefeuille jamais actualisé alors que les vraies positions cotées l'étaient — l'encart s'affichait
+« tout le temps », y compris juste après un rafraîchissement réel. Corrigé en réglant le problème
+identifié à l'origine plutôt qu'en contournant le symptôme : `POST /api/market-data/refresh` (le
+bouton manuel de Portefeuille/Dashboard) alimente désormais lui aussi `ScheduledJobConfig` pour
+`market_data_refresh` (comme le fait déjà « Lancer maintenant » de Réglages via
+`scheduler_service.run_job_now`), et un nouvel endpoint `GET /api/market-data/derniere-actualisation`
+expose cette date unifiée — l'encart (et l'indicateur « cours à jour au ... » de Portefeuille, même
+défaut, même correctif) la lit désormais à la place du calcul position par position, qui a été retiré
+(`coursLePlusAncien` supprimé de `utils/holdingCategories.ts`).
 
 #### AF.5 — `traité` (15/09/2026) — Renommer « Sombre » en « Éclipse » dans le sélecteur de thème
 

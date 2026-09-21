@@ -89,6 +89,7 @@ from .donnees import (  # noqa: F401
     EffacerFoyerRequest,
 )
 from .donnees_marche import (  # noqa: F401
+    DerniereActualisationResponse,
     EtatRafraichissement,
     MarketDataOut,
 )

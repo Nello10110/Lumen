@@ -4,12 +4,31 @@ LOT 4B) et lecture du cache."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..database import SessionLocal, get_db
 from ..models import Holding, MarketDataCache
-from ..schemas import EtatRafraichissement, MarketDataOut
-from ..services import market_data_refresh
+from ..schemas import DerniereActualisationResponse, EtatRafraichissement, MarketDataOut
+from ..services import market_data_refresh, scheduler_service
 
 router = APIRouter(prefix="/api/market-data", tags=["market-data"])
+
+
+def _enregistrer_resultat(etat) -> None:
+    """`on_termine` de `demarrer_rafraichissement` ci-dessous — même patron que
+    `scheduler_service.run_job_now` pour `MARKET_DATA_REFRESH` (§ AF.4, révision du
+    21/09/2026) : persiste le résultat dans `ScheduledJobConfig` pour QUE CE
+    DÉCLENCHEMENT MANUEL COMPTE LUI AUSSI dans « quand les cours ont-ils été
+    actualisés pour la dernière fois » (`GET /derniere-actualisation` ci-dessous) —
+    jusqu'ici seuls le job planifié et « Lancer maintenant » de Réglages
+    l'alimentaient, ce bouton-ci restait invisible de cette date. Session dédiée :
+    ce callback s'exécute dans le fil de fond, bien après que la session de la
+    requête HTTP qui a déclenché ce rafraîchissement a été refermée."""
+    db_statut = SessionLocal()
+    try:
+        scheduler_service.record_result(
+            db_statut, scheduler_service.MARKET_DATA_REFRESH, etat.statut or "erreur", etat.message or ""
+        )
+    finally:
+        db_statut.close()
 
 
 @router.post("/refresh", response_model=EtatRafraichissement, status_code=202)
@@ -40,7 +59,7 @@ def refresh(db: Session = Depends(get_db)):
     # déclenché.
     items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
     try:
-        return market_data_refresh.demarrer_rafraichissement(items)
+        return market_data_refresh.demarrer_rafraichissement(items, on_termine=_enregistrer_resultat)
     except market_data_refresh.RafraichissementDejaEnCoursError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -48,6 +67,14 @@ def refresh(db: Session = Depends(get_db)):
 @router.get("/refresh/status", response_model=EtatRafraichissement)
 def refresh_status():
     return market_data_refresh.etat_rafraichissement()
+
+
+@router.get("/derniere-actualisation", response_model=DerniereActualisationResponse)
+def derniere_actualisation(db: Session = Depends(get_db)):
+    """Backlog § AF.4 (révision du 21/09/2026) — voir la docstring de
+    `DerniereActualisationResponse` pour le contexte complet."""
+    config = scheduler_service.get_or_create_config(db, scheduler_service.MARKET_DATA_REFRESH)
+    return DerniereActualisationResponse(derniere_actualisation=config.derniere_execution)
 
 
 @router.get("", response_model=list[MarketDataOut])

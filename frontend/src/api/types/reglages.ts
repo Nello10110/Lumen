@@ -12,6 +12,14 @@ export interface EtatRafraichissement {
   message: string | null
 }
 
+// Date du dernier rafraîchissement des cours RÉELLEMENT tenté, tous déclencheurs
+// confondus (planifié, "Lancer maintenant" de Réglages, "Actualiser"/"Rallumer les
+// cours" de Portefeuille/Dashboard) — backlog § AF.4, révision du 21/09/2026.
+// `null` tant qu'aucun rafraîchissement n'a jamais été tenté sur cette installation.
+export interface DerniereActualisationMarketData {
+  derniere_actualisation: string | null
+}
+
 // Réglages applicatifs persistants (LOT 5B).
 export interface Preferences {
   methode_cout: 'cout_moyen_pondere' | 'fifo'

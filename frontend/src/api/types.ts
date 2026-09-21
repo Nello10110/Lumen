@@ -12,5 +12,5 @@ export type { AllocationBreakdownItem, Compte, CompteAvecSolde, Etablissement, H
 export type { DeclarationPatrimoineInput, LienPartage, LienPartageInput, PartageBudget, PartageExposition, PartageMeta, PartagePatrimoineNet, PartagePayload, PartagePerformance, PartageRepartitionItem } from './types/partage'
 export type { AlerteFraicheurItem, ComparaisonInsee, ExpositionConsolidee, FundTopHoldingItem, HoldingDetail, HoldingImmobilier, HoldingImmobilierInput, IndicateursSituation, LignePatrimoineFiltree, LignesPatrimoineFiltreesResponse, Loan, LoanInput, LoanUpdateInput, PatrimoineHistoryPoint, PatrimoineHistoryResponse, PatrimoineNet, ScorePatrimonial, SousScorePatrimonial } from './types/patrimoine'
 export type { MouvementRapport, RapportEpargnePeriode, RapportPeriode, RepartitionEpargneLigne } from './types/rapport'
-export type { EtatRafraichissement, Jalon, Preferences, PreferencesUpdateResponse, ScheduledJob, ZoneGeographiqueInfo } from './types/reglages'
+export type { DerniereActualisationMarketData, EtatRafraichissement, Jalon, Preferences, PreferencesUpdateResponse, ScheduledJob, ZoneGeographiqueInfo } from './types/reglages'
 export type { InvestissementCompte, SalaireDonnees, SalaireIn, SalaireResume, SyntheseAnnee } from './types/salaire'
