@@ -27,12 +27,17 @@ export function IconSynthese({ className }: IconProps) {
   )
 }
 
+// Mallette (revue du 21/09/2026, retour utilisateur : identique à `IconComptes`
+// — deux rectangles à bandeau, indiscernables l'un de l'autre dans la
+// navigation) — « Actifs » couvre bien plus qu'un compte (immobilier, SCPI,
+// crypto...), une mallette de portefeuille s'en distingue nettement, poignée
+// comprise, du simple rectangle à puce de `IconComptes`.
 export function IconPatrimoine({ className }: IconProps) {
   return (
     <svg {...base} className={className}>
-      <rect x="3" y="5.5" width="14" height="10" rx="1.6" />
-      <path d="M3 8.5 H17" />
-      <path d="M13 12 H14.4" />
+      <path d="M7.5 6 V4.8 A1.4 1.4 0 0 1 8.9 3.4 H11.1 A1.4 1.4 0 0 1 12.5 4.8 V6" />
+      <rect x="3" y="6" width="14" height="10.5" rx="1.6" />
+      <path d="M3 10.8 H17" />
     </svg>
   )
 }
