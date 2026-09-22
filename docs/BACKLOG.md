@@ -6062,3 +6062,23 @@ est devenu `Nello10110/lumen`. Sans conséquence technique — GitHub redirige l
 `git fetch` sur l'ancien remote passe toujours), et les images GHCR portaient déjà `lumen-*`, donc la
 CI n'a rien vu. La seule mention du slug dans les docs (README du handoff de design) a été mise à
 jour ; un clone existant continue de fonctionner mais gagne à faire `git remote set-url`.
+
+#### BB.2 — `majeur` · `XS` · `traité` (22/09/2026) — CI rouge depuis l'éclatement : la spec E2E n'avait pas suivi
+
+**Constat.** La CI échouait sur `main` depuis le 21/09/2026, sur un seul test parmi 81 :
+`analyse.spec.ts › onglet Portefeuille : répartitions géographique et sectorielle`. Découvert en
+préparant le badge de build du README — personne ne l'avait vu autrement.
+
+**Cause : ma propre régression, à l'éclatement BB.1.** Les deux `AllocationChartCard` ont migré de
+l'onglet Portefeuille vers le nouvel onglet Répartition. J'ai mis à jour `AnalysePage.test.tsx`
+(vitest) et cru la couverture complète — mais la spec Playwright, qui ouvre `/analyse` et cherche ces
+cartes dans l'onglet par défaut, n'a jamais été relue. Les 820 tests vitest passaient, la suite
+backend aussi : rien en local ne signalait quoi que ce soit, puisque **la suite E2E ne tourne pas
+dans la boucle de développement habituelle** (elle exige un navigateur et un backend dédiés).
+
+**Leçon, plus utile que le correctif d'une ligne.** Déplacer un composant d'un onglet à l'autre est
+un changement de NAVIGATION, pas de rendu : les tests unitaires montent le composant et ne peuvent
+donc rien dire de l'endroit où l'utilisateur le trouve. Tout déplacement entre onglets ou entre
+écrans doit désormais déclencher un `grep` du nom des cartes concernées dans `frontend/e2e/` avant
+d'être considéré comme fini. Le test corrigé clique l'onglet Répartition et a été renommé en
+conséquence ; suite E2E complète rejouée en local, 81/81 au vert.

@@ -7,9 +7,12 @@ import { cardByTitle } from './helpers'
  * Revenus). Ce fichier remplace `dividendes.spec.ts` et la partie « répartitions »
  * de `dashboard.spec.ts`. */
 test.describe('Analyse', () => {
-  test('onglet Portefeuille : répartitions géographique et sectorielle du portefeuille financier', async ({ page }) => {
+  test('onglet Répartition : répartitions géographique et sectorielle du portefeuille financier', async ({ page }) => {
     await page.goto('/analyse')
     await expect(page.getByRole('heading', { name: 'Analyse', level: 1 })).toBeVisible()
+    // Onglet dédié depuis l'éclatement du 21/09/2026 (backlog § BB.1) : ces deux
+    // cartes vivaient jusque-là dans l'onglet Portefeuille, devenu trop chargé.
+    await page.getByRole('tab', { name: /Répartition/ }).click()
 
     const carteGeo = cardByTitle(page, 'Répartition géographique')
     const carteSecteur = cardByTitle(page, 'Répartition sectorielle')
