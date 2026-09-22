@@ -170,8 +170,8 @@ def compute_parts_bulk(
     trois requêtes fixes, au lieu de trois à quatre par ligne.
 
     Mesuré avant correctif sur une base réelle (revue du 03/09/2026) :
-    `compute_patrimoine_net(detenteur_id=...)` déclenchait **207 requêtes SQL pour
-    51 lignes** — chaque ligne relisait ses quotités, ses emprunts, et les quotités
+    `compute_patrimoine_net(detenteur_id=...)` déclenchait **une poignée de requêtes
+    SQL par ligne de patrimoine** — chaque ligne relisait ses quotités, ses emprunts, et les quotités
     de chacun de ses emprunts. Le coût croît avec le patrimoine, précisément quand
     l'écran devient intéressant.
 

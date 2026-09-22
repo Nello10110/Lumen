@@ -179,7 +179,7 @@ propres.
 mais découvert au premier redémarrage du backend après ces changements) : `app/database.py` choisit
 la base SQLite à utiliser (`patrimoine.db` vs l'ancien nom `portfolio.db`) par simple test
 d'existence de fichier — un `patrimoine.db` vide (schéma créé sans donnée, apparu on ne sait
-comment plus tôt dans la session) suffisait à masquer silencieusement les 49 positions/4 059
+comment plus tôt dans la session) suffisait à masquer silencieusement les positions et
 transactions réelles de `portfolio.db`. Corrigé pour comparer le CONTENU des deux fichiers, pas
 seulement leur présence (`_base_semble_vide`, cf. `docs/MANUEL_EXPLOITATION.md` § 4) ; verrouillé
 par deux nouveaux tests. Aucune perte de données réelle (la vraie base n'a jamais été modifiée).
@@ -502,7 +502,7 @@ seul écran), `App.tsx` gate tout le contenu tant que non connecté. 22 nouveaux
 existante quelconque exige désormais un jeton) + 4 nouveaux tests frontend, **les ~400 tests
 existants n'ont nécessité AUCUNE modification** grâce à un `dependency_overrides[get_current_user]`
 posé dans la fixture `client` de `conftest.py`. Vérifié en conditions réelles : compte créé depuis
-l'écran de connexion, patrimoine net réel et les 49 positions réelles toujours visibles
+l'écran de connexion, patrimoine net réel et l'ensemble des positions réelles toujours visibles
 une fois connecté (aucune perte de données), déconnexion → jeton effacé → tout appel API renvoie 401
 → reconnexion fonctionnelle.
 
@@ -550,7 +550,7 @@ clé globale constante — le premier utilisateur à calculer son historique de 
 donnée servie à tous les autres pendant 24h ; devenue `cle_historique_portefeuille(user_id)`).
 
 Migration de contenu (`database.migrate_isolation_utilisateur`, appelée une fois au démarrage) :
-rattache toutes les lignes existantes (49 positions, 4059 transactions, 17 objectifs) au compte
+rattache toutes les lignes existantes (positions, transactions, objectifs) au compte
 `demo`, sur décision explicite de l'utilisateur le temps qu'un compte personnel soit créé. Incident
 rencontré pendant le déploiement sur la vraie base : la fonction plantait
 (`sqlite3.OperationalError: index ix_allocation_targets_annee already exists`) car sa détection
@@ -563,12 +563,12 @@ nouvelle (sinon l'ancienne contrainte, plus restrictive, restait active en silen
 `test_migrations.py::test_migrate_isolation_utilisateur_autorise_deux_utilisateurs_sur_le_meme_objectif`,
 qui échouait avant ce second correctif). `ALTER TABLE ... RENAME` ne renommant pas les index SQLite
 existants, la fonction supprime aussi explicitement les index nommés de l'ancienne table avant de
-recréer la nouvelle, pour éviter une collision de nom. Les 17 lignes d'objectifs, momentanément
+recréer la nouvelle, pour éviter une collision de nom. Les lignes d'objectifs, momentanément
 bloquées dans une table intermédiaire suite au premier plantage, ont été récupérées manuellement sans
 perte après correction. 442 tests backend au vert (dont 15 nouveaux dans
 `test_isolation_utilisateurs.py`, un par endpoint scopé : liste/détail/update/delete croisés entre
-deux comptes). Vérifié en conditions réelles : compte `demo` toujours au complet (49 positions, 4059
-transactions, 17 objectifs) après migration ; un second compte de test créé de zéro démarre avec un
+deux comptes). Vérifié en conditions réelles : compte `demo` toujours au complet (positions, transactions et
+objectifs intacts) après migration ; un second compte de test créé de zéro démarre avec un
 portefeuille strictement vide ; une position créée sur ce second compte n'apparaît jamais côté `demo`
 et réciproquement.
 
@@ -647,7 +647,7 @@ suppression, ouverture de la fiche détail).
 
 **Vérifié** : `tsc -b --noEmit` et `oxlint` propres, suite frontend complète au vert (140/140,
 dont les 13 tests de `PortefeuillePage.test.tsx` inchangés), `vite build` propre, et contrôle visuel
-dans le navigateur sur le vrai portefeuille (49 positions) : filtre par catégorie (le total affiché
+dans le navigateur sur le vrai portefeuille : filtre par catégorie (le total affiché
 suit bien le filtre), tri par colonne (Valeur ↑), édition en ligne (Modifier/Annuler) et modale de
 suppression (ouverte puis annulée) tous fonctionnels sans régression.
 
@@ -687,8 +687,8 @@ précise, jamais pour une installation neuve qui part directement d'un schéma d
 index manquants créés, les colonnes concernées passées `NOT NULL` avec une vraie contrainte `FOREIGN
 KEY`, et la contrainte d'unicité de `fund_top_holdings` (posée après coup via `CREATE UNIQUE INDEX`,
 même mécanisme qui avait piégé `allocation_targets`) normalisée en contrainte de table. Vérifié
-avant/après sur une copie de sauvegarde : `alembic check` ne détecte plus aucun écart, 49
-positions/4059 transactions/17 objectifs/4 préférences toujours tous là. Sauvegarde prise
+avant/après sur une copie de sauvegarde : `alembic check` ne détecte plus aucun écart, positions,
+transactions, objectifs et préférences toujours tous là. Sauvegarde prise
 (`scripts/sauvegarde.py`) avant d'appliquer sur la vraie base ; 435 tests backend au vert (16 tests
 des anciennes fonctions retirés avec elles, 3 nouveaux verrouillant Alembic).
 
@@ -765,7 +765,7 @@ pondéré et en FIFO ; `test_historical_performance_service.py` : la réconcilia
 de tenir avec une position fermée sans vente). 442 tests backend au vert.
 
 **Vérifié en conditions réelles** sur la vraie base (`portfolio.db`, sauvegarde prise avant
-intervention) : `POST /api/transactions/reconstruct` (49 positions recalculées, 0 anomalie) puis cache
+intervention) : `POST /api/transactions/reconstruct` (toutes les positions recalculées, 0 anomalie) puis cache
 d'historique invalidé. `gain_perte_total` change de valeur — et coïncide désormais à l'euro près
 avec le dernier point du graphique (`valeur_portefeuille + valeur_realisee_cumulee -
 valeur_investie`), sans aucun changement supplémentaire nécessaire côté
@@ -2760,7 +2760,7 @@ Comptes :
   état vide, tableau, masquage, tri), `comptes.spec.ts` (2 locators E2E resserrés sur le rôle `button`
   de la ligne cliquable, le nom du compte apparaissant désormais aussi dans le graphique/tableau).
   Suite complète au vert (567 frontend), vérifié en conditions réelles sur la vraie base de
-  l'utilisateur (51 positions).
+  l'utilisateur.
 
 **Complété le 05/09/2026** (demande directe de l'utilisateur : revoir toute la partie import, en
 anticipation de l'ajout d'autres banques que Trade Republic — établissements pré-connus avec logo,
@@ -3105,7 +3105,7 @@ absent alors que `portfolio.db` (nom d'avant le renommage du projet) contient de
 l'application ouvre ce dernier — règle née d'un incident réel du 19/08/2026. `scripts/sauvegarde.py`,
 lui, codait `backend/patrimoine.db` **en dur**. Les deux divergeaient donc sur toute installation où le
 repli s'applique, ce qui était précisément le cas de l'installation de l'utilisateur : l'application
-travaillait sur `portfolio.db` (3,3 Mo, 51 positions) pendant que la sauvegarde ciblait un
+travaillait sur `portfolio.db` (la vraie base) pendant que la sauvegarde ciblait un
 `patrimoine.db` de 0 octet.
 
 **Effet.** Le contrôle d'intégrité rejetait à chaque exécution une base sans table `holdings` — donc
@@ -3183,8 +3183,7 @@ optimisation », avec une base « optimisée pour avoir le moins possible de cha
 plus maintenable possible », l'anticipation des problèmes de sécurité et la validation
 des documentations. Plan en cinq phases validé avant démarrage.
 
-**Méthode.** Sauvegarde vérifiée de la base réelle avant toute chose (51 positions,
-4 059 transactions), puis cinq audits en lecture seule — trois délégués à des agents,
+**Méthode.** Sauvegarde vérifiée de la base réelle avant toute chose, puis cinq audits en lecture seule — trois délégués à des agents,
 la sécurité et la base de données traitées en propre. **Chaque constat d'agent
 revérifié à la main avant d'être retenu** : le premier balayage IDOR remontait un cas
 suspect (`portfolio.py:321`) qui s'est avéré être un faux positif, la garde étant
@@ -3212,7 +3211,7 @@ gras à retirer, et le critère appliqué mécaniquement aurait dégradé l'appl
 | Vague | Contenu | Gain mesuré |
 |---|---|---|
 | Base de données | Index composite, expiration du cache tickers, 12 références pendantes réparées, validation des énumérations à l'import | 0,491 → 0,009 ms, index couvrant |
-| Backend | N+1 du patrimoine par détenteur, doublon de ticker, atomicité des quotités, 3 constantes mortes | **207 → 8 requêtes SQL** pour 51 lignes |
+| Backend | N+1 du patrimoine par détenteur, doublon de ticker, atomicité des quotités, 3 constantes mortes | **un N+1 ramené à 8 requêtes SQL**, quel que soit le nombre de lignes |
 | Frontend | Accessibilité clavier, erreurs annoncées, formatteurs mis en cache, 3 éditeurs de quotités factorisés, `catch` silencieux, cibles budget | ~2 000 constructions d'`Intl` par rendu supprimées |
 | Découpages | `schemas.py` (1 876 l. → 17 modules), `types.ts` (1 085 l. → 12 modules) | 0 changement de comportement |
 
@@ -3479,22 +3478,22 @@ question était la bonne : il y a bien un problème de **modèle de données**, 
 
 #### AB.0 — Mesure préalable : où part réellement le temps
 
-Instrumentation de `_compute_portfolio_history` sur une **copie** de la base réelle (4 059
-transactions, 51 positions, 3,3 Mo), en séparant réseau et calcul local :
+Instrumentation de `_compute_portfolio_history` sur une **copie** de la base réelle, en séparant
+réseau et calcul local :
 
 | Étape | Temps |
 |---|---|
-| Rejeu du grand livre (4 059 transactions, SQLite) | **0,09 s** |
-| Calcul local de l'historique (146 points hebdomadaires × 55 positions) | **0,4 s** — 2 % |
+| Rejeu de l'intégralité du grand livre (SQLite) | **0,09 s** |
+| Calcul local de l'historique (points hebdomadaires × positions) | **0,4 s** — 2 % |
 | **Réseau yfinance** | **22,9 s** — **98 %** |
-| → `.info`, appelé une fois par titre **uniquement pour lire sa devise de cotation** | **18,0 s** (48 appels) |
-| → `.history()`, les cours eux-mêmes | 3,9 s (56 appels) |
-| → `Search()`, résolution de tickers | 1,0 s (5 appels) |
+| → `.info`, appelé une fois par titre **uniquement pour lire sa devise de cotation** | **18,0 s** |
+| → `.history()`, les cours eux-mêmes | 3,9 s |
+| → `Search()`, résolution de tickers | 1,0 s |
 | Lecture à chaud (cache d'agrégat) | 1 ms |
 
 **Conclusion sur la base de données.** SQLite exécute sa part en 0,09 s sur l'intégralité du grand
 livre. Les index nécessaires sont déjà posés (chaque clé étrangère a le sien, plus le composite
-`ix_transactions_user_id_date`). Une base de 3,3 Mo et 4 059 lignes n'est pas un problème de moteur :
+`ix_transactions_user_id_date`). Une base de quelques mégaoctets n'est pas un problème de moteur :
 c'est un volume que SQLite traite en mémoire. Migrer vers PostgreSQL, DuckDB ou une base
 time-series n'améliorerait, au mieux, que les 2 % de calcul local — au prix d'un service
 supplémentaire à exploiter, sauvegarder et mettre à jour dans un homelab mono-foyer, alors que la
@@ -3573,7 +3572,7 @@ sa propre table aurait dupliqué le mécanisme de remplissage incrémental pour 
 L'import Bricks.co crée des symboles synthétiques (`BRICKS-<md5>`), l'immobilier et les actifs
 manuels en créent d'autres (`MAISON_TEST`, `APPARTEMENT`). Aucun ne correspondra jamais à un titre
 coté — mais `DUREE_CACHE_ECHEC_JOURS = 1` fait réessayer chaque échec de résolution tous les jours.
-Sur le foyer réel (≈ 145 positions Bricks.co), c'est ≈ 145 recherches Yahoo par jour dont l'issue est
+Sur le foyer réel, c'est autant de recherches Yahoo par jour que de lignes Bricks.co, dont l'issue est
 connue par construction. Il faut distinguer l'échec **conjoncturel** (Yahoo indisponible : réessayer)
 de l'échec **structurel** (ce symbole n'est pas un titre coté : ne jamais réessayer).
 
@@ -4253,8 +4252,8 @@ simplement la paire du grand livre rejoué — ni gain, ni perte, ni changement 
 strictement correct pour ce non-événement économique. Un `FREE_RECEIPT` isolé (ex. les petits gains
 crypto hebdomadaires observés dans le même export, toujours positifs seuls) reste traité comme un vrai
 don de titres à coût nul, comportement inchangé. Vérifié sur l'export réel fourni : import isolé,
-recalcul de la position concernée exactement égal à une resommation manuelle des 145 lignes `BUY` de
-l'ISIN — plus aucune ligne à rendement aberrant (> 300 %) sur les 49 positions reconstruites, et
+recalcul de la position concernée exactement égal à une resommation manuelle de toutes ses lignes
+`BUY` — plus aucune ligne à rendement aberrant (> 300 %) sur les positions reconstruites, et
 total du compte-titres sensiblement resserré (le résidu restant tient à
 l'absence de rafraîchissement de cours en environnement de test isolé, pas à la reconstruction elle-même).
 
@@ -4532,7 +4531,7 @@ repartir de zéro.
 Deuxième point du même retour : « quand on rafraîchit les cours, il cherche tous les bricks.co. On
 pourrait pas faire en sorte que les cotations indisponibles ne soient plus recherchées sauf si on
 force le truc avec un bouton spécifique genre dans réglage ? ». `market_data_service.refresh_tickers`
-sautait déjà les classes d'actif à saisie manuelle (immobilier/SCPI/...), mais pas les ~145 lignes
+sautait déjà les classes d'actif à saisie manuelle (immobilier/SCPI/...), mais pas les lignes
 synthétiques `BRICKS-*` (classées `BOND` pour préserver leur XIRR, cf. § AO.2) : chacune traversait
 quand même la temporisation réseau (`DELAI_ENTRE_APPELS_SECONDES`, ≈0,25s) avant d'échouer sur un
 `resolve_ticker` déjà mis en cache en échec structurel permanent (`echec_structurel`,
@@ -6249,9 +6248,11 @@ trois mois de relevés bancaires réels.
 VALEUR disparaît — « vérifié en conditions réelles, recoupé à la main, écart < 1 centime » documente
 exactement aussi bien qu'avec le chiffre, sans rien publier. Aucune entrée n'a été supprimée.
 
-**Conservé délibérément** : les volumétries (49 positions, 4 059 transactions, 26 ETF). Elles ne
-disent rien du patrimoine, et elles portent seules la crédibilité des mesures de performance — les
-retirer viderait de sa substance toute la documentation d'optimisation.
+**Volumétries retirées elles aussi** (décision de l'utilisateur, second passage) : nombre de
+positions, de transactions, d'ETF, d'objectifs, taille de la base. Elles ne disent rien des montants
+mais dessinent le profil du foyer, et une mesure de performance se documente très bien sans :
+« 0,09 s pour rejouer l'intégralité du grand livre » porte exactement le même argument que le
+même chiffre assorti d'un décompte de lignes.
 
 #### BG.2 — `mineur` · `M` · `traité` (22/09/2026) — Anonymisation des références concurrentes
 

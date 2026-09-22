@@ -9,7 +9,7 @@ position, et la comparaison à un indice.
 Un calcul à froid de l'historique du portefeuille prenait 23,4 s, dont :
   • 22,9 s de réseau yfinance (98 %),
   •  0,4 s de calcul local (2 %),
-  •  0,09 s pour rejouer les 4 059 transactions du grand livre (SQLite).
+  •  0,09 s pour rejouer l'intégralité du grand livre de transactions (SQLite).
 Et dans ces 22,9 s, 18,0 s partaient dans `Ticker.info` — l'appel le plus lourd de
 la librairie — appelé une fois par titre uniquement pour lire sa DEVISE de cotation,
 une chaîne de trois lettres qui ne change jamais.

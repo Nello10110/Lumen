@@ -521,7 +521,7 @@ def refresh_tickers(
 
     `forcer_non_cotables` (retour utilisateur du 16/09/2026, §AT.x) : par défaut,
     un symbole fabriqué par l'application (`PREFIXES_SYMBOLES_INTERNES`, ex. les
-    ~145 lignes synthétiques `BRICKS-*`) est sauté sans même être compté dans la
+    lignes synthétiques `BRICKS-*`) est sauté sans même être compté dans la
     temporisation réseau — ces symboles ne correspondront JAMAIS à un titre coté,
     inutile de gaspiller `DELAI_ENTRE_APPELS_SECONDES` dessus à chaque
     rafraîchissement. `True` réintègre ces lignes dans le passage habituel

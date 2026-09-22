@@ -8,7 +8,7 @@ rédigée en cours de route : **le chantier est terminé, les six lots sont livr
 ## 1. Ce qui a été fait
 
 Audit complet (backend, frontend, documentation), avec vérification systématique des hypothèses
-sur la base réelle — 4 059 transactions, 49 positions. 55 points relevés, priorisés en 6 lots dans
+sur la base réelle complète. 55 points relevés, priorisés en 6 lots dans
 `docs/BACKLOG.md`, exécutés dans l'ordre : **52 traités, 3 hors périmètre assumés.**
 
 | Lot | Contenu |

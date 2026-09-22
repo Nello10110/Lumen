@@ -24,7 +24,8 @@ def upgrade() -> None:
     Les rapports, la performance mensuelle et les revenus passifs filtrent tous sur
     `user_id` + une plage de `date`. L'index sur le seul `user_id` obligeait SQLite
     à parcourir toutes les transactions du foyer : mesuré sur une base réelle,
-    4 059 lignes parcourues pour 97 utiles (0,491 ms). Avec cet index, la requête
+    plusieurs milliers de lignes parcourues pour quelques dizaines d'utiles
+    (0,491 ms). Avec cet index, la requête
     devient couverte — 0,009 ms, la table n'est plus touchée.
 
     Création seule, aucune donnée déplacée : réversible sans risque."""

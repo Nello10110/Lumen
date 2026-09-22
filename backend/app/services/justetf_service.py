@@ -59,7 +59,7 @@ _URL_FICHE_ETF_EN = "https://www.justetf.com/en/etf-profile.html?isin={isin}"
 # traduits, contrairement aux libellés pays/secteurs (ex. "India" -> "Inde", "Finance"
 # -> "Finance" mais "Non-Energy Materials" -> "Matériaux non énergétiques"). Le
 # géo/secteur zone-mappé continue donc de venir de la page anglaise ci-dessus, dont la
-# taxonomie (`JUSTETF_SECTOR_LABELS`, `region_for_country`) a été auditée sur les 26 ETF
+# taxonomie (`JUSTETF_SECTOR_LABELS`, `region_for_country`) a été auditée sur les ETF
 # réels du portefeuille (Increment 9) — un changement de langue y casserait sans bruit
 # la reconnaissance de la ligne résiduelle "Other" et des libellés de secteur.
 _URL_FICHE_ETF_FR = "https://www.justetf.com/fr/etf-profile.html?isin={isin}"

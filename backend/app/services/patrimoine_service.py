@@ -139,8 +139,8 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         par_classe = {}
         par_classe_nette = {}
         # Toutes les parts en 3 requêtes plutôt que 3 à 4 par ligne : cet appel
-        # déclenchait 207 requêtes SQL pour 51 lignes avant correctif (revue du
-        # 03/09/2026). Les deux boucles ci-dessous partagent le même résultat.
+        # déclenchait un N+1 proportionnel au nombre de lignes avant correctif
+        # (revue du 03/09/2026). Les deux boucles ci-dessous partagent le même résultat.
         parts_par_holding = detenteurs_service.compute_parts_bulk(db, [(v.holding, v.valeur) for v in valued])
         for v in valued:
             part = parts_par_holding.get(v.holding.id, {}).get(detenteur_id)

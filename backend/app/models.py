@@ -590,8 +590,9 @@ class Transaction(Base):
     # Index composite (revue du 03/09/2026) : les rapports, la performance mensuelle
     # et les revenus passifs filtrent tous sur `user_id` + une plage de `date`.
     # L'index sur le seul `user_id` obligeait à parcourir toutes les transactions du
-    # foyer pour n'en garder qu'une poignée — mesuré sur une base réelle : 4 059
-    # lignes parcourues pour 97 utiles, 0,491 ms -> 0,009 ms une fois l'index posé
+    # foyer pour n'en garder qu'une poignée — mesuré sur une base réelle :
+    # plusieurs milliers de lignes parcourues pour quelques dizaines d'utiles,
+    # 0,491 ms -> 0,009 ms une fois l'index posé
     # (il devient couvrant, SQLite ne touche plus la table).
     __table_args__ = (
         UniqueConstraint("transaction_id", "user_id", name="uq_transaction_user_transaction_id"),

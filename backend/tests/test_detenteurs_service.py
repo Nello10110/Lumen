@@ -240,7 +240,7 @@ def test_compute_parts_bulk_donne_exactement_le_meme_resultat_que_ligne_a_ligne(
 
 def test_compute_parts_bulk_ne_fait_pas_de_requete_par_ligne(db):
     """Le point de la manœuvre : un nombre de requêtes constant. Mesuré avant
-    correctif sur base réelle : 207 requêtes pour 51 lignes."""
+    correctif sur base réelle : un N+1 proportionnel au nombre de lignes."""
     from sqlalchemy import event
 
     d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Compteur Alice")

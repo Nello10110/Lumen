@@ -214,7 +214,7 @@ def test_fetch_composition_renvoie_la_description_meme_sans_holdings(monkeypatch
 def test_fetch_composition_description_et_top_holdings_viennent_de_la_page_francaise(monkeypatch):
     """2.5/2.6 (retour utilisateur du 19/08/2026 : description en anglais au lieu du
     français vu sur justETF, top 10 absent) : la géo/secteur continue de venir de la
-    page anglaise (taxonomie déjà auditée sur les 26 ETF réels, Increment 9), mais la
+    page anglaise (taxonomie déjà auditée sur les ETF réels, Increment 9), mais la
     description et le top 10 viennent d'une requête séparée sur la page française."""
     appels = []
 
@@ -296,7 +296,7 @@ def test_fetch_page_html_statut_non_200_renvoie_none(monkeypatch):
 
 
 def test_justetf_sector_labels_couvre_la_seconde_variante_de_taxonomie():
-    """Audit sur les 26 ETF réels du portefeuille (Increment 9) : ces 4 libellés,
+    """Audit sur les ETF réels du portefeuille (Increment 9) : ces 4 libellés,
     absents de la table initiale (construite sur un seul fonds de reconnaissance),
     faisaient basculer jusqu'à ~56% d'un fonds dans SECTEUR_AUTRES à tort (ex. les
     3 déclinaisons MSCI India)."""

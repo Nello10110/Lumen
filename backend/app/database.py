@@ -73,7 +73,7 @@ def _chemin_base_par_defaut() -> Path:
     (schéma créé sans donnée — par un redémarrage accidentel, un outil tiers, ou
     n'importe quelle raison créant le fichier sans y écrire de portefeuille) suffit
     à faire échouer un simple test d'existence, masquant silencieusement les
-    49 positions/4059 transactions bien réelles de `historique` au redémarrage
+    positions et transactions bien réelles de `historique` au redémarrage
     suivant. Si `nouveau` contient déjà de vraies données, il reste prioritaire —
     ce repli ne s'applique qu'à un `patrimoine.db` réellement vide.
     """
