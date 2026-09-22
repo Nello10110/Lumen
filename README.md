@@ -155,6 +155,10 @@ recherche globale, mode « langage simple », rafraîchissement des cours planif
 Les images sont construites par la CI à chaque livraison et publiées publiquement : rien à compiler,
 aucun compte à créer.
 
+Deux fichiers suffisent, et rien n'empêche de les lire avant de les télécharger :
+[`compose.yaml`](compose.yaml) décrit les deux services, [`.env.exemple`](.env.exemple) liste ce qui
+est à renseigner — une seule variable — et ce qui est facultatif.
+
 ```bash
 # 1. Récupérer le compose et le gabarit de configuration
 curl -O https://raw.githubusercontent.com/Nello10110/lumen/main/compose.yaml
