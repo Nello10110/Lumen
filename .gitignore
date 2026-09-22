@@ -25,9 +25,9 @@ frontend/captures/
 frontend/playwright-report/
 frontend/blob-report/
 
-# Secrets d'exploitation (cles de chiffrement des sauvegardes et du SSO). Les
-# compose-*.yaml les lisent depuis un .env voisin plutot que de les porter en dur :
-# ces fichiers-la sont versionnes, un secret colle dedans partirait sur le depot
+# Secrets d'exploitation (cles de chiffrement des sauvegardes et du SSO). Le
+# compose.yaml les lit depuis un .env voisin plutot que de les porter en dur :
+# ce fichier-la est versionne, un secret colle dedans partirait sur le depot
 # distant au commit suivant (constate le 03/09/2026).
 .env
 .env.*

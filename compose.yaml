@@ -1,0 +1,60 @@
+# Lumen — déploiement Docker. Les images sont publiques et déjà construites par la
+# CI : rien à compiler, aucun compte, aucun `docker login`.
+#
+#   cp .env.exemple .env    # puis y poser PATRIMOINE_BACKUP_KEY
+#   docker compose up -d    # interface sur http://localhost:8080
+#
+# Mise à jour : docker compose pull && docker compose up -d
+#
+# Toute la configuration vit dans le `.env` voisin, JAMAIS ici : ce fichier est
+# versionné, un secret collé dedans partirait sur le dépôt au commit suivant.
+# Mode d'emploi complet : docs/MANUEL_EXPLOITATION.md § 13.
+
+services:
+  backend:
+    image: ghcr.io/nello10110/lumen-backend:${LUMEN_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      PATRIMOINE_DB: /app/data/patrimoine.db
+
+      # OBLIGATOIRE — chiffre les sauvegardes ; la perdre les rend irrécupérables.
+      PATRIMOINE_BACKUP_KEY: ${PATRIMOINE_BACKUP_KEY:?à définir dans .env — voir .env.exemple}
+
+      # Facultatif — cours des cryptomonnaies. Absente : les lignes CRYPTO affichent
+      # « Cotation indisponible », rien d'autre n'est affecté.
+      PATRIMOINE_COINGECKO_API_KEY: ${PATRIMOINE_COINGECKO_API_KEY:-}
+
+      # Facultatif — connexion SSO/OIDC. À "false", le bouton n'apparaît pas.
+      PATRIMOINE_OIDC_ENABLED: ${PATRIMOINE_OIDC_ENABLED:-false}
+      PATRIMOINE_OIDC_ISSUER: ${PATRIMOINE_OIDC_ISSUER:-}
+      PATRIMOINE_OIDC_CLIENT_ID: ${PATRIMOINE_OIDC_CLIENT_ID:-}
+      PATRIMOINE_OIDC_CLIENT_SECRET: ${PATRIMOINE_OIDC_CLIENT_SECRET:-}
+      PATRIMOINE_OIDC_REDIRECT_URI: ${PATRIMOINE_OIDC_REDIRECT_URI:-}
+      PATRIMOINE_OIDC_FRONTEND_URL: ${PATRIMOINE_OIDC_FRONTEND_URL:-}
+      PATRIMOINE_OIDC_DISPLAY_NAME: ${PATRIMOINE_OIDC_DISPLAY_NAME:-}
+      PATRIMOINE_OIDC_CLAIM_USERNAME: ${PATRIMOINE_OIDC_CLAIM_USERNAME:-}
+      PATRIMOINE_OIDC_CLAIM_EMAIL: ${PATRIMOINE_OIDC_CLAIM_EMAIL:-}
+      PATRIMOINE_OIDC_CLAIM_NOM: ${PATRIMOINE_OIDC_CLAIM_NOM:-}
+    volumes:
+      # Deux volumes distincts : les sauvegardes sont déposées à la racine du code
+      # backend, jamais à côté de la base (cf. manuel § 13).
+      - patrimoine_data:/app/data
+      - patrimoine_sauvegardes:/app/sauvegardes
+    ports:
+      # Facultatif : l'interface joint le backend par le réseau Docker, pas par ce
+      # port. Il ne sert qu'à interroger l'API directement (http://localhost:8000/docs).
+      - "${LUMEN_BIND:-127.0.0.1}:8000:8000"
+
+  frontend:
+    image: ghcr.io/nello10110/lumen-frontend:${LUMEN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # 127.0.0.1 : joignable depuis cette machine seule. LUMEN_BIND=0.0.0.0 dans
+      # le .env l'ouvre au réseau local.
+      - "${LUMEN_BIND:-127.0.0.1}:8080:80"
+
+volumes:
+  patrimoine_data:
+  patrimoine_sauvegardes:

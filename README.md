@@ -157,7 +157,7 @@ aucun compte à créer.
 
 ```bash
 # 1. Récupérer le compose et le gabarit de configuration
-curl -O https://raw.githubusercontent.com/Nello10110/lumen/main/compose-homelab.yaml
+curl -O https://raw.githubusercontent.com/Nello10110/lumen/main/compose.yaml
 curl -o .env https://raw.githubusercontent.com/Nello10110/lumen/main/.env.exemple
 
 # 2. Générer la clé qui chiffrera les sauvegardes, et la poser dans .env
@@ -165,7 +165,7 @@ openssl rand -base64 48
 #    -> coller la valeur derrière PATRIMOINE_BACKUP_KEY= dans .env
 
 # 3. Démarrer
-docker compose -f compose-homelab.yaml up -d
+docker compose up -d
 ```
 
 L'application est sur **http://localhost:8080**. Le premier compte créé devient propriétaire du
@@ -174,14 +174,22 @@ foyer ; l'inscription se referme ensuite d'elle-même.
 > **Conservez `PATRIMOINE_BACKUP_KEY`** aussi précieusement que vos données : la changer rend
 > illisibles toutes les sauvegardes chiffrées déjà produites.
 
-> Ce compose publie les ports sur `0.0.0.0` — l'application est donc joignable depuis tout votre
-> réseau local, ce qui est généralement l'intention. Elle reste injoignable depuis internet tant que
-> votre box ne redirige pas ces ports. Pour un accès strictement local à la machine, utilisez
-> [`compose-exemple.yaml`](compose-exemple.yaml), qui lie les ports à `127.0.0.1` et construit les
-> images depuis les sources.
+C'est la seule variable à renseigner. Tout le reste du `.env` est facultatif et signalé comme tel —
+notamment `LUMEN_BIND`, qui commande qui peut joindre l'application :
 
-Les deux variables facultatives (connexion SSO/OIDC, clé CoinGecko pour les cours crypto) sont
-documentées dans [`.env.exemple`](.env.exemple) et au [manuel d'exploitation](docs/MANUEL_EXPLOITATION.md).
+| `LUMEN_BIND` | Portée |
+| --- | --- |
+| *(non renseignée)* | `127.0.0.1` — la machine qui héberge, et elle seule |
+| `0.0.0.0` | tout votre réseau local, par ex. `http://192.168.1.20:8080` |
+
+Dans les deux cas l'application reste injoignable depuis internet tant que votre box ne redirige pas
+ces ports — cette décision n'appartient qu'à vous.
+
+Pour mettre à jour : `docker compose pull && docker compose up -d`.
+
+Les autres options — connexion SSO/OIDC, clé CoinGecko pour les cours crypto, version d'image à
+figer — sont décrites dans [`.env.exemple`](.env.exemple) et au
+[manuel d'exploitation](docs/MANUEL_EXPLOITATION.md).
 
 ### Depuis les sources — pour développer
 

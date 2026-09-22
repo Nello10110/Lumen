@@ -2,8 +2,9 @@ name: Docker publish
 
 # Construit et publie les deux images (backend, frontend) sur GitHub Container
 # Registry a chaque push sur main -- "deja build" pour le deploiement homelab
-# (compose-homelab.yaml les tire au lieu de les construire, cf.
-# docs/MANUEL_EXPLOITATION.md). Depot prive -> images privees par defaut.
+# (compose.yaml les tire au lieu de les construire, cf.
+# docs/MANUEL_EXPLOITATION.md). Les deux packages sont publics depuis l'ouverture
+# du depot : aucun docker login n'est necessaire pour les tirer.
 
 on:
   push:

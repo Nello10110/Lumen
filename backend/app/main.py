@@ -2,7 +2,7 @@
 Application multi-utilisateur depuis le Milestone 1 (cf. `docs/BACKLOG.md` § 2.I.1) :
 toutes les routes hormis `/api/auth/{register,login}` et `/api/health` exigent d'être
 connecté — CORS restreint à une liste d'origines explicite (dev local par défaut,
-`PATRIMOINE_CORS_ORIGINS` pour un déploiement Docker, cf. `compose-exemple.yaml`)."""
+`PATRIMOINE_CORS_ORIGINS` pour un déploiement Docker, cf. `compose.yaml`)."""
 
 import logging
 import os
@@ -109,7 +109,7 @@ app = FastAPI(title="Lumen API", lifespan=lifespan)
 # (liste séparée par des virgules) pour un déploiement Docker où le frontend n'est pas
 # servi sur ces ports. Reste volontairement une liste explicite plutôt que `"*"`
 # (LOT 7.3) — piloter la liste ne change pas la philosophie, juste son emplacement.
-# Note : avec le déploiement Docker de référence (`compose-exemple.yaml`), nginx sert
+# Note : avec le déploiement Docker de référence (`compose.yaml`), nginx sert
 # le frontend ET reverse-proxy `/api/` vers le backend sous la MÊME origine navigateur
 # — aucune requête cross-origin réelle dans ce cas, cette liste ne sert alors qu'en
 # repli pour un accès direct au backend.

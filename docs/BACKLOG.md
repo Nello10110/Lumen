@@ -6240,15 +6240,45 @@ est livré : le design vit dans le code, les décisions dans ce backlog. Les `.d
 surcroît un runtime de maquettage tiers (`support.js`) pour s'afficher, et les `CLAUDE.md` qu'ils
 contenaient étaient des consignes d'agent pour une tâche achevée.
 
-#### BF.7 — `mineur` · `S` · `non traité` · `P3` — Un `compose.yaml` canonique pour les nouveaux venus
+#### BF.7 — `mineur` · `S` · `traité` (22/09/2026) — Un `compose.yaml` unique
 
-Les deux composes existants servent chacun un cas : `compose-exemple.yaml` construit depuis les
-sources et lie les ports à `127.0.0.1` (le plus sûr) ; `compose-homelab.yaml` tire les images
-pré-construites et lie à `0.0.0.0` (le plus pratique). Aucun ne combine « images pré-construites »
-ET « liaison locale seule », qui serait le défaut le plus prudent pour quelqu'un qui découvre le
-projet. Le `README.md` contourne en documentant `compose-homelab.yaml` assorti d'un avertissement
-sur la liaison réseau. Ajouter un troisième fichier n'est à faire que si ce compromis se révèle
-gênant à l'usage : trois composes à maintenir pour une différence de deux lignes se défend mal.
+**Constat.** Deux composes coexistaient, chacun servant un cas : `compose-exemple.yaml` construisait
+depuis les sources et liait les ports à `127.0.0.1` (le plus sûr) ; `compose-homelab.yaml` tirait les
+images pré-construites et liait à `0.0.0.0` (le plus pratique). Aucun ne couvrait « images
+pré-construites ET liaison locale seule », qui est pourtant le défaut le plus prudent pour quelqu'un
+qui découvre le projet. Le `README.md` contournait en poussant `compose-homelab.yaml` assorti d'un
+avertissement sur la liaison réseau.
+
+**Arbitrage.** L'entrée recommandait initialement de ne rien faire, au motif que trois fichiers à
+maintenir pour deux lignes d'écart se défendaient mal. Décision de l'utilisateur : passer à **un
+seul** fichier — ce qui répond à l'objection par l'autre bout, puisque l'écart de deux lignes devient
+deux variables plutôt qu'un fichier de plus.
+
+**Ce qui a été fait.** `compose.yaml` à la racine (nom natif de Compose : plus de `-f` nulle part),
+qui tire les images publiques. Les deux différences entre les anciens fichiers deviennent des
+variables facultatives du `.env` :
+
+| Variable | Défaut | Remplace |
+| --- | --- | --- |
+| `LUMEN_BIND` | `127.0.0.1` | le choix `127.0.0.1` / `0.0.0.0` entre les deux composes |
+| `LUMEN_VERSION` | `latest` | le sha de commit qu'il fallait éditer à la main pour revenir en arrière |
+
+Le défaut retenu est le prudent : une installation neuve n'est joignable que depuis sa machine, et
+l'ouverture au LAN devient un geste explicite. **Conséquence à connaître pour toute installation
+existante qui tournait sur `compose-homelab.yaml` : sans `LUMEN_BIND=0.0.0.0` dans son `.env`, elle
+cesse d'être joignable depuis le reste du réseau.**
+
+**Pas de directive `build:`.** Le README fait télécharger le seul `compose.yaml` par `curl`, sans le
+dépôt autour : un `build: ./backend` y échouerait faute de contexte, et Compose construit plutôt
+qu'il ne tire dès que la directive est présente. Faire tourner ses propres images passe donc par un
+`docker build -t …:dev` suivi de `LUMEN_VERSION=dev` (manuel § 13.2).
+
+**Lisibilité.** Demande explicite de l'utilisateur, et vraie motivation derrière la fusion : les deux
+anciens fichiers portaient une vingtaine de lignes d'en-tête et un paragraphe de commentaire par
+variable. Le nouveau garde les avertissements qui comptent (la clé de sauvegarde, le fait que le
+fichier est versionné) et renvoie le reste à `.env.exemple`, réorganisé en sections `OBLIGATOIRE` /
+`FACULTATIF`. Une seule variable est à renseigner pour démarrer ; Compose refuse de partir sans elle
+en la nommant, plutôt que de lancer une application à moitié configurée.
 
 #### BF.8 — `mineur` · `XS` · `traité` (22/09/2026) — Repointer les clones locaux après le renommage
 

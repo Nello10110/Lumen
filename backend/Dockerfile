@@ -1,5 +1,5 @@
-# Image de référence pour un déploiement homelab (cf. compose-exemple.yaml à la
-# racine du dépôt) — même version de Python que l'environnement de développement.
+# Image publiée par la CI et tirée par le `compose.yaml` à la racine du dépôt —
+# même version de Python que l'environnement de développement.
 FROM python:3.14-slim
 
 WORKDIR /app
