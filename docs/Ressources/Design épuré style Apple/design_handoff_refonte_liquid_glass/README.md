@@ -3,7 +3,7 @@
 ## Vue d'ensemble
 
 Refonte visuelle et hiérarchique complète de l'application (React + TypeScript + Tailwind + Vite,
-dépôt `Nello10110/application-patrimoine`, branche `main`). Le design existant a été jugé
+dépôt `Nello10110/lumen`, branche `main`). Le design existant a été jugé
 « utilisable mais template de base, sans âme », avec des incohérences dans les graphiques,
 la hiérarchie des menus et les données affichées.
 

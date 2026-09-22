@@ -6057,7 +6057,8 @@ catégories, aucune à toucher :
    c'est la vraie livraison de ce point : non pas un renommage, mais deux garde-fous là où le
    prochain balayage de marque ferait des dégâts.
 
-**Reste à la main de l'utilisateur** : le dépôt GitHub s'appelle toujours `Nello10110/application-patrimoine`
-(seul son propriétaire peut le renommer ; GitHub redirige l'ancienne URL, et les images GHCR portent
-déjà `lumen-*`, donc rien ne casserait côté CI). La seule mention de ce slug dans les docs est
-factuellement juste tant que le dépôt n'est pas renommé.
+**Dépôt renommé dans la foulée** (22/09/2026, par l'utilisateur) : `Nello10110/application-patrimoine`
+est devenu `Nello10110/lumen`. Sans conséquence technique — GitHub redirige l'ancienne URL (vérifié :
+`git fetch` sur l'ancien remote passe toujours), et les images GHCR portaient déjà `lumen-*`, donc la
+CI n'a rien vu. La seule mention du slug dans les docs (README du handoff de design) a été mise à
+jour ; un clone existant continue de fonctionner mais gagne à faire `git remote set-url`.
