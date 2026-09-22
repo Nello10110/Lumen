@@ -6134,3 +6134,95 @@ l'accord de son auteur — risque d'autant plus concret que le README refondu in
 contribuer. `CONTRIBUTING.md` pose donc une cession des droits patrimoniaux à la proposition d'une
 PR, avec garantie d'originalité et d'absence de code copyleft, et oriente vers les issues ceux que
 cette cession rebute. Même mécanisme que tout projet à modèle commercial.
+
+---
+
+### BF. Reste à faire à l'ouverture publique du dépôt (22/09/2026)
+
+Inventaire de ce qui est resté ouvert à la fin de la session du 22/09/2026, consigné ici parce que
+l'utilisateur n'avait pas le temps de le traiter sur le moment. Trois natures distinctes : des
+actions qui n'appartiennent qu'à lui (hors code), des dettes techniques découvertes en chemin, et
+des décisions qu'il faut trancher avant de coder quoi que ce soit.
+
+#### BF.1 — `majeur` · `XS` · `non traité` · `P0` — Titulaire des droits dans `LICENSE`, et relecture juridique
+
+`LICENSE` porte `Copyright 2026 Paul C.`, repris du champ auteur de
+`docs/EXPRESSION_DE_BESOIN.md` faute de mieux. Sur une licence, le titulaire doit être identifié
+sans ambiguïté : **nom légal complet**, ou raison sociale si une société est créée pour exploiter la
+version hébergée. À corriger avant toute diffusion du dépôt.
+
+Second point, distinct : la FSL a été retenue parce qu'elle correspond au besoin exprimé, et son
+texte est repris mot pour mot du gabarit officiel — mais le projet vise une monétisation. **Une
+relecture par un avocat** vaut son coût, en particulier sur l'articulation entre la cession de
+droits de `CONTRIBUTING.md` et le droit français (le droit moral y est inaliénable, contrairement
+aux droits patrimoniaux effectivement cédés).
+
+#### BF.2 — `mineur` · `XS` · `non traité` · `P1` — Encart « About » du dépôt GitHub vide
+
+Le dépôt n'a ni description ni topics : l'encart de droite de la page d'accueil est vide, et le
+projet est introuvable par la recherche GitHub. Réglages du dépôt, deux minutes. Texte proposé :
+
+> Suivi de patrimoine complet et auto-hébergé : portefeuille boursier reconstruit depuis vos exports
+> courtier, immobilier, épargne, dettes, budget. Vos données restent chez vous.
+
+Topics : `personal-finance` `wealth-management` `self-hosted` `portfolio-tracker` `net-worth`
+`investment-tracking` `budget` `dividends` `etf` `privacy` `homelab` `pwa` `fastapi` `react`
+`typescript` `python` `sqlite` `docker` `french`. Cocher aussi **Releases** et **Packages** dans le
+même encart, pour que les images GHCR soient visibles au premier coup d'œil.
+
+#### BF.3 — `majeur` · `S` · `non traité` · `P1` — La suite E2E ne démarre pas hors Windows
+
+`frontend/e2e/global-setup.ts` retombe sur `backend/venv/Scripts/python.exe` quand
+`PATRIMOINE_E2E_PYTHON` est absente — un chemin de venv **Windows**. Sur Linux ou macOS, `npm run
+test:e2e` échoue sur un `ENOENT` brut qui ne dit rien de la cause (rencontré en produisant les
+captures du README : le message ne mentionne ni venv, ni variable d'environnement, ni Windows).
+
+Sans conséquence tant que le dépôt était privé et mono-machine. Mais `README.md` et
+`CONTRIBUTING.md` demandent désormais explicitement à tout contributeur de lancer cette suite avant
+une pull request : le premier qui essaiera depuis autre chose qu'un poste Windows sera bloqué par un
+message incompréhensible. Correctif : détecter la plateforme (`venv/bin/python` sur POSIX,
+`venv/Scripts/python.exe` sur Windows), et lever une erreur explicite nommant
+`PATRIMOINE_E2E_PYTHON` si aucun binaire n'est trouvé.
+
+#### BF.4 — `mineur` · `XS` · `non traité` · `P2` — `compose-homelab.yaml` décrit un registre privé qui ne l'est plus
+
+L'en-tête du fichier parle de « connexion au registre privé » et donne une commande
+`docker login ghcr.io -u <utilisateur> -p <jeton read:packages>`. Or les images `lumen-backend` et
+`lumen-frontend` sont **publiques** (vérifié : manifeste servi contre un jeton anonyme). Un nouvel
+arrivant croit donc devoir créer un jeton d'accès personnel pour une commande qui marche sans rien.
+Le `README.md` refondu documente déjà la voie sans authentification — c'est le commentaire du
+compose qui est resté en arrière.
+
+#### BF.5 — `mineur` · `S` · `non traité` · `P2` — Libellés des guides d'export à confirmer
+
+`frontend/src/utils/guidesExport.ts` décrit, pour chaque source, le chemin à suivre **dans l'outil
+d'origine**. La partie « colonnes attendues » est tirée des parseurs, donc vérifiable et stable. Les
+étapes, elles, sont un premier jet rédigé sans accès aux interfaces réelles de Ledger Live,
+Bricks.co et Trade Republic (cf. § BC.1, où ce point était déjà signalé comme laissé à
+l'utilisateur). À relire et corriger par quelqu'un qui fait ces exports en vrai — les données sont
+en clair dans le fichier, aucune modification de composant n'est nécessaire.
+
+#### BF.6 — `mineur` · `XS` · `non traité` · `P3` — Maquette de handoff portant encore l'ancien nom
+
+`docs/Ressources/Design épuré style Apple/design_handoff_refonte_liquid_glass/État actuel.dc.html`
+affiche `<h1>Application Patrimoine</h1>`. Laissé tel quel au balayage du 22/09 (§ AD.6) : c'est la
+maquette livrée par le designer, représentant l'interface **d'avant** la refonte — la réécrire
+falsifierait un artefact daté. Décision à trancher : conserver comme archive, ou retirer du dépôt si
+elle n'a plus d'usage.
+
+#### BF.7 — `mineur` · `S` · `non traité` · `P3` — Un `compose.yaml` canonique pour les nouveaux venus
+
+Les deux composes existants servent chacun un cas : `compose-exemple.yaml` construit depuis les
+sources et lie les ports à `127.0.0.1` (le plus sûr) ; `compose-homelab.yaml` tire les images
+pré-construites et lie à `0.0.0.0` (le plus pratique). Aucun ne combine « images pré-construites »
+ET « liaison locale seule », qui serait le défaut le plus prudent pour quelqu'un qui découvre le
+projet. Le `README.md` contourne en documentant `compose-homelab.yaml` assorti d'un avertissement
+sur la liaison réseau. Ajouter un troisième fichier n'est à faire que si ce compromis se révèle
+gênant à l'usage : trois composes à maintenir pour une différence de deux lignes se défend mal.
+
+#### BF.8 — `mineur` · `XS` · `non traité` · `P3` — Repointer les clones locaux après le renommage
+
+Le dépôt est passé de `Nello10110/application-patrimoine` à `Nello10110/lumen` le 22/09/2026. Les
+clones existants (poste de développement, homelab) continuent de fonctionner par la redirection
+GitHub, mais gagnent un `git remote set-url origin https://github.com/Nello10110/lumen` : cette
+redirection cesse si un dépôt reprend un jour l'ancien nom.
