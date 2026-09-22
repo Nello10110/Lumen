@@ -6215,13 +6215,30 @@ Bricks.co et Trade Republic (cf. § BC.1, où ce point était déjà signalé co
 l'utilisateur). À relire et corriger par quelqu'un qui fait ces exports en vrai — les données sont
 en clair dans le fichier, aucune modification de composant n'est nécessaire.
 
-#### BF.6 — `mineur` · `XS` · `non traité` · `P3` — Maquette de handoff portant encore l'ancien nom
+#### BF.6 — `mineur` · `S` · `traité` (22/09/2026) — Retrait des deux paquets de handoff de design
 
-`docs/Ressources/Design épuré style Apple/design_handoff_refonte_liquid_glass/État actuel.dc.html`
-affiche `<h1>Application Patrimoine</h1>`. Laissé tel quel au balayage du 22/09 (§ AD.6) : c'est la
-maquette livrée par le designer, représentant l'interface **d'avant** la refonte — la réécrire
-falsifierait un artefact daté. Décision à trancher : conserver comme archive, ou retirer du dépôt si
-elle n'a plus d'usage.
+**Point de départ** : une maquette (`État actuel.dc.html`) affichait encore « Application
+Patrimoine », laissée telle quelle au balayage du 22/09 (§ AD.6) parce qu'elle représente
+l'interface d'AVANT la refonte — la réécrire aurait falsifié un artefact daté.
+
+**L'inspection a révélé deux problèmes bien plus sérieux que ce nom périmé**, et c'est eux qui ont
+emporté la décision :
+
+1. **`A-FAIRE.md` se lit comme du travail en attente.** Un plan en cinq gestes, **35 cases à
+   cocher, aucune cochée** — alors que le travail est fait. Vérifié un par un : les jetons du
+   Geste 1 (`--field`, `--field-hover`, `--surface-opaque`, `--warn`) sont dans
+   `frontend/src/styles/tokens-glass.css`, les alias hérités sont repointés dans `index.css`, et
+   les livrables des gestes suivants (`Field.tsx`, `ChartFrame.tsx`, `utils/chartTheme`) existent.
+   Le plan a été exécuté, la checklist jamais mise à jour. Sur un dépôt public, elle annonçait 35
+   chantiers ouverts inexistants.
+2. **Les composants dupliqués avaient divergé du code réel** : `GlassPanel.tsx` (75 lignes
+   d'écart), `Controls.tsx` (185), `ChartFrame.tsx` (26), `Field.tsx` (11). Ce sont des
+   instantanés de départ, mais rien ne le disait — un lecteur les prend pour le code du projet.
+
+**Retirés du dépôt** (28 fichiers, 680 Ko), archive remise à l'utilisateur hors Git. Leur travail
+est livré : le design vit dans le code, les décisions dans ce backlog. Les `.dc.html` exigeaient de
+surcroît un runtime de maquettage tiers (`support.js`) pour s'afficher, et les `CLAUDE.md` qu'ils
+contenaient étaient des consignes d'agent pour une tâche achevée.
 
 #### BF.7 — `mineur` · `S` · `non traité` · `P3` — Un `compose.yaml` canonique pour les nouveaux venus
 
@@ -6233,12 +6250,12 @@ projet. Le `README.md` contourne en documentant `compose-homelab.yaml` assorti d
 sur la liaison réseau. Ajouter un troisième fichier n'est à faire que si ce compromis se révèle
 gênant à l'usage : trois composes à maintenir pour une différence de deux lignes se défend mal.
 
-#### BF.8 — `mineur` · `XS` · `non traité` · `P3` — Repointer les clones locaux après le renommage
+#### BF.8 — `mineur` · `XS` · `traité` (22/09/2026) — Repointer les clones locaux après le renommage
 
 Le dépôt est passé de `Nello10110/application-patrimoine` à `Nello10110/lumen` le 22/09/2026. Les
-clones existants (poste de développement, homelab) continuent de fonctionner par la redirection
-GitHub, mais gagnent un `git remote set-url origin https://github.com/Nello10110/lumen` : cette
-redirection cesse si un dépôt reprend un jour l'ancien nom.
+clones existants continuaient de fonctionner par la redirection GitHub, mais celle-ci cesse si un
+dépôt reprend un jour l'ancien nom. **`git remote set-url` effectué par l'utilisateur sur ses clones
+locaux le 22/09/2026.**
 
 ### BG. Revue d'ouverture publique : données personnelles et références concurrentes (22/09/2026)
 
