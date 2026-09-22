@@ -17,12 +17,12 @@ Une clé présente côté frontend mais absente ici ne casse rien : elle n'a
 simplement pas de récupération automatique, et garde son badge généré.
 """
 
-# Domaines vérifiés un par un en conditions réelles le 05/09/2026 : 11 des 12
-# rendent bien une icône exploitable. Seul BNP Paribas répond 403 à tout (protection
-# anti-robot, y compris sur `/favicon.ico`) — sans conséquence, il garde simplement
-# son badge généré tant que l'utilisateur ne lui fournit pas une image lui-même.
-# `societe_generale` pointe vers le sous-domaine particuliers : le domaine racine ne
-# répond pas, et `www.` non plus.
+# Domaines vérifiés un par un en conditions réelles le 05/09/2026 (puis les deux
+# derniers le 22/09/2026) : 13 des 14 rendent une icône exploitable. Seul BNP Paribas
+# répond 403 à tout (protection anti-robot, y compris sur `/favicon.ico`) — sans
+# conséquence, il garde simplement son badge généré tant que l'utilisateur ne lui
+# fournit pas une image lui-même. `societe_generale` pointe vers le sous-domaine
+# particuliers : le domaine racine ne répond pas, et `www.` non plus.
 DOMAINES: dict[str, str] = {
     "trade_republic": "traderepublic.com",
     "boursorama": "boursobank.com",
@@ -36,6 +36,17 @@ DOMAINES: dict[str, str] = {
     "societe_generale": "particuliers.societegenerale.fr",
     "bnp_paribas": "mabanque.bnpparibas",
     "caisse_epargne": "caisse-epargne.fr",
+    # Ajoutés le 22/09/2026 (retour utilisateur : « les logos de Ledger et Bricks.co
+    # ne sont pas trouvés »). Les deux clés existaient côté frontend depuis les 11 et
+    # 13/09/2026, mais personne ne les avait reportées ici : elles n'avaient donc
+    # aucune récupération automatique et restaient sur leur badge d'initiales, là où
+    # Trade Republic affichait son vrai logo — exactement le cas de figure annoncé
+    # par la docstring ci-dessus, passé inaperçu deux fois de suite.
+    "ledger": "ledger.com",
+    # Ne sert qu'une icône SVG (aucun raster nulle part, y compris sur `app.` et
+    # `www.`) — d'où le support du SVG dans le cache de catalogue, cf.
+    # `logo_service.recuperer_pour_domaine`.
+    "bricks_co": "bricks.co",
 }
 
 

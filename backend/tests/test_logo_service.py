@@ -6,13 +6,16 @@ hebdomadaire.
 Aucun test ne touche le réseau : `_telecharger` est systématiquement remplacé.
 """
 
+import re
 import socket
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 from PIL import Image
 
-from app.services import comptes_service, logo_service
+from app.models import LogoCatalogue
+from app.services import comptes_service, etablissements_connus, logo_service
 
 from .conftest import ID_UTILISATEUR_TEST
 
@@ -21,6 +24,20 @@ def png_factice(taille: tuple[int, int] = (32, 32), couleur: str = "red") -> byt
     tampon = BytesIO()
     Image.new("RGBA", taille, couleur).save(tampon, format="PNG")
     return tampon.getvalue()
+
+
+SVG_FACTICE = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16"/></svg>'
+
+
+def _logo_factice(couleur: str = "red"):
+    """Remplace `recuperer_pour_domaine` dans les tests — même SIGNATURE que la vraie
+    (`accepter_svg` compris) : un faux qui n'accepterait pas ce paramètre masquerait
+    un appelant qui le passe."""
+
+    def _recuperer(domaine: str, accepter_svg: bool = False) -> logo_service.LogoRecupere:
+        return logo_service.LogoRecupere(png_factice(couleur=couleur), logo_service.FORMAT_PNG)
+
+    return _recuperer
 
 
 def _resoudre_vers(monkeypatch, ip: str) -> None:
@@ -104,7 +121,13 @@ def test_normaliser_convertit_un_jpeg_en_png():
 
 def test_normaliser_refuse_un_svg():
     """Décision de conception : tout est matriciel. Un SVG peut embarquer du script,
-    et servi depuis notre propre origine il deviendrait un vecteur XSS."""
+    et servi depuis notre propre origine il deviendrait un vecteur XSS.
+
+    Inchangé par l'ajout du SVG au CACHE DE CATALOGUE le 22/09/2026 : celui-ci ne
+    passe justement pas par cette fonction, ne concerne que les domaines de notre
+    propre liste (jamais une URL saisie), et ressort en `data:` URI dans une balise
+    `<img>` — où aucun navigateur n'exécute de script ni ne charge de référence
+    externe. Les deux décisions coexistent sans se contredire."""
     svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
 
     with pytest.raises(logo_service.ImageInvalideError):
@@ -165,7 +188,7 @@ def test_rafraichir_ne_touche_jamais_un_logo_televerse(db, monkeypatch):
     logo_service.appliquer_logo(db, televerse, png_factice(couleur="red"), logo_service.SOURCE_UPLOAD)
     empreinte_avant = televerse.logo_empreinte
 
-    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", lambda domaine: png_factice(couleur="blue"))
+    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _logo_factice(couleur="blue"))
     resume = logo_service.rafraichir_logos(db)
 
     assert resume.traites == 0
@@ -176,7 +199,7 @@ def test_rafraichir_met_a_jour_un_logo_de_catalogue(db, monkeypatch):
     etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "boursorama")
     logo_service.appliquer_logo(db, etablissement, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
 
-    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", lambda domaine: png_factice(couleur="blue"))
+    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _logo_factice(couleur="blue"))
     resume = logo_service.rafraichir_logos(db)
 
     assert resume.mis_a_jour == 1
@@ -208,10 +231,10 @@ def test_rafraichir_un_echec_nempeche_pas_les_suivants(db, monkeypatch):
     ok = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Site qui répond", "fortuneo")
     logo_service.appliquer_logo(db, ok, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
 
-    def _recuperer(domaine: str) -> bytes:
+    def _recuperer(domaine: str, accepter_svg: bool = False) -> logo_service.LogoRecupere:
         if domaine == "boursobank.com":
             raise logo_service.TelechargementError("site injoignable")
-        return png_factice(couleur="blue")
+        return logo_service.LogoRecupere(png_factice(couleur="blue"), logo_service.FORMAT_PNG)
 
     monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _recuperer)
     resume = logo_service.rafraichir_logos(db)
@@ -227,8 +250,102 @@ def test_rafraichir_ignore_un_etablissement_sans_logo(db, monkeypatch):
     """Poser un logo est une action volontaire : ce job entretient l'existant, il ne
     démarche pas les établissements qui n'en ont jamais eu."""
     comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Sans logo", "boursorama")
-    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", lambda domaine: png_factice())
+    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _logo_factice())
 
     resume = logo_service.rafraichir_logos(db)
 
     assert resume.traites == 0
+
+
+# ---------------------------------------------------------------------------
+# Catalogue : SVG accepté, et cohérence des deux catalogues (22/09/2026)
+# ---------------------------------------------------------------------------
+
+
+def test_le_catalogue_backend_couvre_toutes_les_cles_du_catalogue_frontend():
+    """LA régression que ce lot corrige : `ledger` et `bricks_co` vivaient dans le
+    catalogue frontend depuis les 11 et 13/09/2026 sans domaine côté backend — donc
+    aucune récupération de logo, et un badge d'initiales là où Trade Republic
+    affichait son vrai logo. Rien ne signalait la désynchronisation : c'est ce test
+    qui échouera la prochaine fois qu'une clé sera ajoutée d'un seul côté."""
+    catalogue_frontend = (
+        Path(__file__).resolve().parents[2] / "frontend" / "src" / "utils" / "etablissementsConnus.ts"
+    ).read_text(encoding="utf-8")
+    cles_frontend = set(re.findall(r"\{\s*cle:\s*'([^']+)'", catalogue_frontend))
+
+    assert cles_frontend, "catalogue frontend illisible — le format du fichier a changé"
+    assert cles_frontend == set(etablissements_connus.DOMAINES), (
+        "les deux catalogues ont divergé : une clé sans domaine n'a aucune récupération "
+        "automatique de logo, une clé sans entrée frontend n'a ni nom ni badge de repli"
+    )
+
+
+def test_un_site_sans_raster_fournit_son_svg_au_catalogue(monkeypatch):
+    """Cas réel de Bricks.co : ni `/apple-touch-icon.png`, ni `/favicon.ico`, un seul
+    `icon.svg` déclaré dans le `<head>`. Sans acceptation du SVG, cette clé reste
+    définitivement sur son badge d'initiales."""
+    monkeypatch.setattr(logo_service, "_icones_declarees_dans_la_page", lambda domaine: ["https://exemple.fr/icon.svg"])
+
+    def _telecharger(url: str) -> bytes:
+        if url.endswith("icon.svg"):
+            return SVG_FACTICE
+        raise logo_service.TelechargementError("Le serveur a répondu 404.")
+
+    monkeypatch.setattr(logo_service, "_telecharger", _telecharger)
+
+    logo = logo_service.recuperer_pour_domaine("exemple.fr", accepter_svg=True)
+
+    assert logo.format == logo_service.FORMAT_SVG
+    assert logo.contenu == SVG_FACTICE
+
+
+def test_une_url_saisie_par_l_utilisateur_refuse_toujours_le_svg(monkeypatch):
+    """L'acceptation du SVG est réservée aux domaines de NOTRE catalogue : l'élargir
+    à une saisie libre serait une décision de sécurité à part entière."""
+    monkeypatch.setattr(logo_service, "_telecharger", lambda url: SVG_FACTICE)
+
+    with pytest.raises(logo_service.ImageInvalideError):
+        logo_service.recuperer_depuis_url("https://exemple.fr/logo.svg")
+
+
+def test_sans_acceptation_du_svg_un_site_sans_raster_echoue(monkeypatch):
+    """Pendant du test ci-dessus côté job des établissements (`rafraichir_logos`),
+    qui garde `accepter_svg=False` : `Etablissement.logo_png` reste strictement PNG."""
+    monkeypatch.setattr(logo_service, "_icones_declarees_dans_la_page", lambda domaine: ["https://exemple.fr/icon.svg"])
+    monkeypatch.setattr(logo_service, "_telecharger", lambda url: SVG_FACTICE)
+
+    with pytest.raises(logo_service.TelechargementError):
+        logo_service.recuperer_pour_domaine("exemple.fr")
+
+
+def test_le_raster_reste_prioritaire_sur_le_svg(monkeypatch):
+    """Quand un site propose les deux, le PNG déjà normalisé reste le chemin le plus
+    court — l'acceptation du SVG est un repli, pas un nouveau défaut."""
+    monkeypatch.setattr(logo_service, "_icones_declarees_dans_la_page", lambda domaine: [])
+    monkeypatch.setattr(logo_service, "_telecharger", lambda url: png_factice())
+
+    logo = logo_service.recuperer_pour_domaine("exemple.fr", accepter_svg=True)
+
+    assert logo.format == logo_service.FORMAT_PNG
+
+
+def test_une_page_html_servie_a_la_place_d_une_icone_n_est_pas_prise_pour_un_svg(monkeypatch):
+    """Cas courant : une page d'erreur renvoyée en 200 à la place de l'icône. Elle ne
+    doit pas franchir le contrôle de format juste parce qu'elle commence par un
+    chevron."""
+    monkeypatch.setattr(logo_service, "_icones_declarees_dans_la_page", lambda domaine: [])
+    monkeypatch.setattr(logo_service, "_telecharger", lambda url: b"<!DOCTYPE html><html><body>404</body></html>")
+
+    with pytest.raises(logo_service.TelechargementError):
+        logo_service.recuperer_pour_domaine("exemple.fr", accepter_svg=True)
+
+
+def test_le_data_uri_annonce_le_bon_type_mime():
+    svg = LogoCatalogue(logo_key="bricks_co", logo_png="UEhOUw==", logo_format=logo_service.FORMAT_SVG)
+    png = LogoCatalogue(logo_key="ledger", logo_png="UEhOUw==", logo_format=logo_service.FORMAT_PNG)
+    # Ligne écrite avant l'ajout de `logo_format` : le cache était PNG seul.
+    ancienne = LogoCatalogue(logo_key="fortuneo", logo_png="UEhOUw==", logo_format=None)
+
+    assert logo_service.data_uri_catalogue(svg).startswith("data:image/svg+xml;base64,")
+    assert logo_service.data_uri_catalogue(png).startswith("data:image/png;base64,")
+    assert logo_service.data_uri_catalogue(ancienne).startswith("data:image/png;base64,")

@@ -171,6 +171,30 @@ def recuperer_depuis_url(url: str) -> bytes:
     return normaliser_en_png(_telecharger(url))
 
 
+FORMAT_PNG = "png"
+FORMAT_SVG = "svg"
+
+# En-têtes admis pour reconnaître un SVG : l'élément racine, éventuellement précédé
+# d'une déclaration XML ou d'une DOCTYPE. Volontairement strict — on ne veut pas
+# qu'un fichier HTML servi par erreur à la place d'une icône (cas courant : page
+# d'erreur renvoyée en 200) passe pour un logo.
+_DEBUTS_SVG = (b"<svg", b"<?xml", b"<!doctype svg")
+
+
+def _est_svg(contenu: bytes) -> bool:
+    debut = contenu.lstrip()[:512].lower()
+    return debut.startswith(_DEBUTS_SVG) and b"<svg" in debut
+
+
+@dataclass
+class LogoRecupere:
+    """Un logo et son format réel. Le format voyage avec le contenu jusqu'au data URI
+    servi au navigateur : un SVG étiqueté `image/png` ne s'affiche pas."""
+
+    contenu: bytes
+    format: str
+
+
 def _candidats_conventionnels(domaine: str) -> list[str]:
     """`apple-touch-icon` d'abord : c'est l'icône haute résolution (180 px) quand
     elle existe. `favicon.ico` n'est PAS ici — il est essayé en dernier recours
@@ -218,7 +242,7 @@ def _icones_declarees_dans_la_page(domaine: str) -> list[str]:
     return [url for _, url in sorted(urls, key=lambda couple: couple[0])]
 
 
-def _essayer_domaine(domaine: str, erreurs: list[str]) -> bytes | None:
+def _essayer_domaine(domaine: str, erreurs: list[str], accepter_svg: bool) -> LogoRecupere | None:
     candidats = (
         _candidats_conventionnels(domaine)
         + _icones_declarees_dans_la_page(domaine)
@@ -226,25 +250,48 @@ def _essayer_domaine(domaine: str, erreurs: list[str]) -> bytes | None:
     )
     for url in candidats:
         try:
-            return recuperer_depuis_url(url)
+            contenu = _telecharger(url)
         except LogoError as exc:
+            erreurs.append(f"{url} : {exc}")
+            continue
+        # Le raster d'abord : quand un site propose les deux, un PNG déjà
+        # redimensionné reste le chemin le plus court et le plus prévisible.
+        try:
+            return LogoRecupere(normaliser_en_png(contenu), FORMAT_PNG)
+        except LogoError as exc:
+            if accepter_svg and _est_svg(contenu):
+                return LogoRecupere(contenu, FORMAT_SVG)
             erreurs.append(f"{url} : {exc}")
     return None
 
 
-def recuperer_pour_domaine(domaine: str) -> bytes:
+def recuperer_pour_domaine(domaine: str, accepter_svg: bool = False) -> LogoRecupere:
     """Logo officiel d'un établissement du catalogue : emplacements conventionnels,
     puis icônes déclarées dans la page d'accueil, puis `favicon.ico` en dernier
     recours. Réessaie avec le préfixe `www.` — plusieurs banques ne répondent que
     là — avant d'abandonner. Lève `TelechargementError` si aucune piste n'aboutit
     (cas réel de certains sites protégés contre les robots : l'appelant retombe
-    alors sur le badge généré, ou l'utilisateur fournit lui-même une image)."""
+    alors sur le badge généré, ou l'utilisateur fournit lui-même une image).
+
+    `accepter_svg` (22/09/2026) : certains sites ne servent AUCUN raster, nulle part
+    (Bricks.co — ni `/apple-touch-icon.png`, ni `/favicon.ico`, ni sur `www.`/`app.`,
+    seulement un `icon.svg` déclaré dans le `<head>`). Le SVG est alors stocké tel
+    quel, sans rastérisation : la seule voie pure-Python (`svglib` + `renderPM`)
+    réclame `rlPyCairo`, donc `libcairo` au niveau système — une dépendance native
+    pour une décoration, alors que le navigateur sait parfaitement afficher un SVG.
+
+    Réservé aux domaines de NOTRE catalogue (`etablissements_connus.DOMAINES`),
+    jamais à une URL saisie par l'utilisateur (`recuperer_depuis_url`, resté PNG
+    seul) : un SVG est du XML, et même s'il est rendu dans une balise `<img>` — où
+    aucun navigateur n'exécute son éventuel `<script>` ni ne charge ses références
+    externes — élargir ça à une saisie libre serait une décision de sécurité à part
+    entière, sans rapport avec le problème résolu ici."""
     erreurs: list[str] = []
     domaines = [domaine] if domaine.startswith("www.") else [domaine, f"www.{domaine}"]
     for candidat in domaines:
-        png = _essayer_domaine(candidat, erreurs)
-        if png is not None:
-            return png
+        logo = _essayer_domaine(candidat, erreurs, accepter_svg)
+        if logo is not None:
+            return logo
     logger.info("aucun logo récupérable pour %s (%s)", domaine, " | ".join(erreurs[:3]))
     raise TelechargementError(f"Aucun logo récupérable sur {domaine}.")
 
@@ -322,7 +369,13 @@ def rafraichir_logos(db: Session) -> ResumeRafraichissement:
                 if not domaine:
                     resume.echecs += 1
                     continue
-                png = recuperer_pour_domaine(domaine)
+                # `accepter_svg` laissé à `False` : un logo POSÉ sur un établissement
+                # est stocké en PNG (`Etablissement.logo_png`), format que tout le
+                # reste de la chaîne suppose — export de données, aperçu, data URI.
+                # Un établissement dont le site n'a que du SVG garde donc son badge,
+                # et retombe de toute façon sur le logo du catalogue à l'affichage
+                # (cf. `EtablissementLogo`, qui essaie les deux).
+                png = recuperer_pour_domaine(domaine).contenu
                 source_url = None
             if appliquer_logo(db, etablissement, png, etablissement.logo_source, source_url):
                 resume.mis_a_jour += 1
@@ -349,9 +402,9 @@ def rafraichir_logos(db: Session) -> ResumeRafraichissement:
 DELAI_NOUVELLE_TENTATIVE_CATALOGUE = timedelta(hours=24)
 
 
-def _recuperer_png_catalogue(cle: str) -> bytes | None:
+def _recuperer_logo_catalogue(cle: str) -> LogoRecupere | None:
     """RÉSEAU SEUL, aucun accès DB — pensé pour tourner dans un thread parmi
-    d'autres (cf. `rafraichir_logos_catalogue` ci-dessous, qui paralléllise les ~12
+    d'autres (cf. `rafraichir_logos_catalogue` ci-dessous, qui paralléllise les ~14
     domaines plutôt que de les essayer un par un : en série, la première ouverture
     du sélecteur après un redémarrage attendrait la somme de tous les délais
     d'expiration au lieu du plus lent d'entre eux)."""
@@ -359,7 +412,7 @@ def _recuperer_png_catalogue(cle: str) -> bytes | None:
     if not domaine:
         return None
     try:
-        return recuperer_pour_domaine(domaine)
+        return recuperer_pour_domaine(domaine, accepter_svg=True)
     except LogoError as exc:
         logger.info("logo de catalogue non récupérable pour « %s » : %s", cle, exc)
         return None
@@ -386,26 +439,34 @@ def rafraichir_logos_catalogue(db: Session, forcer: bool = False) -> None:
         return
 
     with ThreadPoolExecutor(max_workers=min(8, len(a_tenter))) as executeur:
-        resultats = dict(zip(a_tenter, executeur.map(_recuperer_png_catalogue, a_tenter), strict=True))
+        resultats = dict(zip(a_tenter, executeur.map(_recuperer_logo_catalogue, a_tenter), strict=True))
 
-    for cle, png in resultats.items():
+    for cle, logo in resultats.items():
         cache = existants.get(cle)
         if cache is None:
             cache = LogoCatalogue(logo_key=cle)
             db.add(cache)
             existants[cle] = cache
         cache.derniere_tentative_le = maintenant
-        if png is not None:
-            cache.logo_png = base64.b64encode(png).decode("ascii")
+        if logo is not None:
+            cache.logo_png = base64.b64encode(logo.contenu).decode("ascii")
+            cache.logo_format = logo.format
     db.commit()
     logger.info(
         "cache de logos du catalogue : %d clé(s) tentée(s), %d réussie(s)",
         len(a_tenter),
-        sum(1 for png in resultats.values() if png is not None),
+        sum(1 for logo in resultats.values() if logo is not None),
     )
+
+
+# Type MIME du data URI servi au navigateur. `logo_format` est `None` pour toute
+# ligne écrite avant le 22/09/2026 (le cache était PNG seul) : le défaut PNG rend
+# donc ces lignes-là exactement comme avant, sans reprise de données.
+_MIME_PAR_FORMAT = {FORMAT_PNG: "image/png", FORMAT_SVG: "image/svg+xml"}
 
 
 def data_uri_catalogue(cache: LogoCatalogue) -> str | None:
     if not cache.logo_png:
         return None
-    return f"data:image/png;base64,{cache.logo_png}"
+    mime = _MIME_PAR_FORMAT.get(cache.logo_format or FORMAT_PNG, "image/png")
+    return f"data:{mime};base64,{cache.logo_png}"

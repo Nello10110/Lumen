@@ -408,7 +408,7 @@ class Etablissement(Base):
 
 
 class LogoCatalogue(Base):
-    """Cache PARTAGÉ (pas par foyer) des logos réels des ~12 établissements du
+    """Cache PARTAGÉ (pas par foyer) des logos réels des ~14 établissements du
     catalogue (retour utilisateur du 09/09/2026 : « avoir déjà les images des
     établissements affichées » dans le sélecteur, avant même la création d'un
     `Etablissement`). Une seule ligne par clé de catalogue, alimentée par
@@ -427,6 +427,14 @@ class LogoCatalogue(Base):
 
     logo_key: Mapped[str] = mapped_column(String, primary_key=True)
     logo_png: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Format réel du contenu base64 de `logo_png` : "png" ou "svg" (22/09/2026).
+    # Le nom de la colonne précède ce lot et n'a pas été renommé — Bricks.co ne sert
+    # AUCUN raster, seulement un SVG, et rastériser côté serveur réclamerait une
+    # dépendance native (cf. `logo_service.recuperer_pour_domaine`). `None` sur les
+    # lignes antérieures, lues comme du PNG : c'est ce qu'elles sont, aucune reprise
+    # de données nécessaire. Contrairement à `Etablissement.logo_png`, qui reste
+    # strictement PNG.
+    logo_format: Mapped[str | None] = mapped_column(String, nullable=True)
     derniere_tentative_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 

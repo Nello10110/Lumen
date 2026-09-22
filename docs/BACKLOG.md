@@ -5928,3 +5928,55 @@ source ouverte à la fois, bascule entre sources) dont les 11 tests d'import pr�
 tels quels au sélecteur près — c'est eux qui prouvent que la refonte n'a touché qu'à la présentation
 — et 6 tests sur `TuileSourceImport` (remontée du fichier, vidage de l'`<input>`, non-propagation du
 clic d'aide vers le sélecteur de fichier). Suite complète au vert : 1381 backend, 834 frontend.
+
+#### BC.2 — `mineur` · `S` · `traité` (22/09/2026) — Logos Ledger et Bricks.co absents du catalogue backend
+
+**Constat.** « Les logos de Ledger et Bricks.co ne sont pas trouvés, il me met une affiche neutre. »
+Les tuiles de la refonte BC.1 affichaient le vrai logo de Trade Republic mais un simple badge
+d'initiales pour Ledger et Bricks.co.
+
+**Cause.** Deux catalogues distincts doivent rester alignés : `frontend/src/utils/etablissementsConnus.ts`
+(nom, couleur, initiales du badge de repli) et `backend/app/services/etablissements_connus.py::DOMAINES`
+(domaine officiel d'où `logo_service` va chercher le logo réel). `ledger` et `bricks_co` ont été
+ajoutés au premier les 11 et 13/09/2026, jamais au second. Ces clés n'avaient donc aucune
+récupération automatique et restaient définitivement sur leur badge généré. La docstring de
+`etablissements_connus.py` décrivait exactement ce cas (« une clé présente côté frontend mais absente
+ici [...] garde son badge généré ») — mais une docstring ne rattrape personne : rien ne signalait la
+divergence, et elle est passée inaperçue deux fois de suite. D'où
+`test_le_catalogue_backend_couvre_toutes_les_cles_du_catalogue_frontend`, qui lit le fichier TypeScript
+et compare les deux jeux de clés : c'est lui qui échouera au prochain ajout unilatéral.
+
+**Ledger** est réglé par l'ajout du domaine (`ledger.com` sert un `apple-touch-icon.png`, vérifié en
+conditions réelles).
+
+**Bricks.co a demandé le support du SVG.** Leur site ne sert AUCUN raster : ni
+`/apple-touch-icon.png`, ni `/favicon.ico`, ni sur `www.` ni sur `app.` — uniquement un `icon.svg`
+déclaré dans le `<head>` (vérifié un par un). La rastérisation côté serveur a été essayée puis
+écartée : la seule voie pure-Python (`svglib` + `reportlab.renderPM`, or reportlab est déjà une
+dépendance) réclame `rlPyCairo`, donc `libcairo` au niveau système — une dépendance native, dans
+l'image Docker, pour une décoration. Le SVG est donc stocké tel quel et servi en
+`data:image/svg+xml;base64` : le navigateur sait l'afficher, et mieux qu'un raster (net à toute
+taille).
+
+**Périmètre volontairement étroit du SVG.** `recuperer_pour_domaine(..., accepter_svg=True)` n'est
+appelé que pour le CACHE DE CATALOGUE, alimenté depuis notre propre liste de domaines. Restent
+strictement PNG : `recuperer_depuis_url` (URL saisie par l'utilisateur) et `Etablissement.logo_png`
+(job hebdomadaire) — accepter du XML arbitraire issu d'une saisie libre serait une décision de
+sécurité à part entière, sans rapport avec le problème résolu ici. Le raster garde la priorité quand
+un site propose les deux : le SVG est un repli, pas un nouveau défaut. Et la reconnaissance du format
+est volontairement stricte (élément racine `<svg>`, éventuellement précédé d'une déclaration XML) —
+une page d'erreur HTML renvoyée en 200 à la place d'une icône, cas courant, ne doit pas passer pour
+un logo au seul motif qu'elle commence par un chevron.
+
+Nouvelle colonne `LogoCatalogue.logo_format` (migration `d8b1c05e4a72`), nullable sans reprise de
+données : les lignes déjà en cache sont toutes du PNG, et `data_uri_catalogue` lit `None` comme du
+PNG. Le nom `logo_png` n'a pas été renommé (colonne antérieure, contenu désormais PNG **ou** SVG) —
+documenté sur le modèle. Les deux clés n'ayant aucune ligne en cache, elles seront récupérées au
+prochain démarrage sans avoir à forcer le job (`rafraichir_logos_catalogue` retente d'office les clés
+jamais tentées).
+
+**Tests.** 8 nouveaux dans `test_logo_service.py` : cohérence des deux catalogues, SVG accepté pour un
+site sans raster, SVG refusé sur une URL saisie, SVG refusé pour un `Etablissement`, priorité du
+raster, page HTML non prise pour un SVG, type MIME du data URI dans les trois cas (SVG, PNG, ligne
+antérieure à `logo_format`). Les faux de `recuperer_pour_domaine` portent désormais la signature
+exacte de la vraie fonction, `accepter_svg` compris.

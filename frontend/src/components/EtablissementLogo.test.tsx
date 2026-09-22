@@ -50,6 +50,19 @@ describe('EtablissementLogo', () => {
     expect(screen.queryByText('TR')).not.toBeInTheDocument()
   })
 
+  // 22/09/2026 : le cache de catalogue peut servir du SVG (Bricks.co ne publie aucun
+  // raster, cf. backlog § BC.2). Ce composant doit rester agnostique du format — il
+  // transmet le data URI tel quel, c'est le backend qui en porte le type MIME.
+  it("affiche un logo de catalogue au format SVG aussi bien qu'un PNG", async () => {
+    vi.mocked(api.getLogosCatalogue).mockResolvedValue({ bricks_co: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' })
+    render(<EtablissementLogo logoKey="bricks_co" nom="Bricks.co" />)
+
+    await waitFor(() =>
+      expect(document.querySelector('img')).toHaveAttribute('src', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='),
+    )
+    expect(screen.queryByText('BC')).not.toBeInTheDocument()
+  })
+
   it("le logo réel POSÉ sur l'établissement prime sur celui du catalogue", async () => {
     vi.mocked(api.getLogosEtablissements).mockResolvedValue({ '3': 'data:image/png;base64,PROPRE' })
     vi.mocked(api.getLogosCatalogue).mockResolvedValue({ trade_republic: 'data:image/png;base64,CATALOGUE' })
