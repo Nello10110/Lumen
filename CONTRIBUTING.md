@@ -9,7 +9,7 @@ Lumen est distribué sous [licence FSL-1.1-ALv2](LICENSE) et son auteur se rése
 proposer un jour une version hébergée commerciale. Cela n'est possible que s'il reste **seul
 titulaire des droits sur l'intégralité du code**.
 
-En conséquence, **en proposant une pull request, vous cédez à Paul C. l'ensemble des droits
+En conséquence, **en proposant une pull request, vous cédez à Paul CARTIERI l'ensemble des droits
 patrimoniaux sur votre contribution**, dans le monde entier et pour la durée légale de protection,
 y compris le droit de la distribuer sous une autre licence — libre ou commerciale. Vous conservez
 le droit d'utiliser votre propre contribution comme bon vous semble par ailleurs.

@@ -6142,18 +6142,26 @@ l'utilisateur n'avait pas le temps de le traiter sur le moment. Trois natures di
 actions qui n'appartiennent qu'à lui (hors code), des dettes techniques découvertes en chemin, et
 des décisions qu'il faut trancher avant de coder quoi que ce soit.
 
-#### BF.1 — `majeur` · `XS` · `non traité` · `P0` — Titulaire des droits dans `LICENSE`, et relecture juridique
+#### BF.1 — `majeur` · `XS` · `traité` (22/09/2026) — Titulaire des droits dans `LICENSE`
 
-`LICENSE` porte `Copyright 2026 Paul C.`, repris du champ auteur de
-`docs/EXPRESSION_DE_BESOIN.md` faute de mieux. Sur une licence, le titulaire doit être identifié
-sans ambiguïté : **nom légal complet**, ou raison sociale si une société est créée pour exploiter la
-version hébergée. À corriger avant toute diffusion du dépôt.
+`LICENSE` portait `Copyright 2026 Paul C.`, repris du champ auteur de
+`docs/EXPRESSION_DE_BESOIN.md` faute de mieux : sur une licence, le titulaire doit être identifié
+sans ambiguïté. **Corrigé en `Paul CARTIERI`** (nom communiqué par l'intéressé), aux trois endroits
+où il figure — `LICENSE`, la clause de cession de `CONTRIBUTING.md`, et le champ auteur de
+l'expression de besoin.
 
-Second point, distinct : la FSL a été retenue parce qu'elle correspond au besoin exprimé, et son
-texte est repris mot pour mot du gabarit officiel — mais le projet vise une monétisation. **Une
-relecture par un avocat** vaut son coût, en particulier sur l'articulation entre la cession de
-droits de `CONTRIBUTING.md` et le droit français (le droit moral y est inaliénable, contrairement
-aux droits patrimoniaux effectivement cédés).
+Conséquence assumée : ce nom est désormais public, à rebours du balayage de données personnelles
+du même jour (§ BG). C'est inhérent à l'exercice — une licence sans titulaire identifiable ne
+protège rien. Si le projet est un jour exploité par une société, c'est sa raison sociale qui
+prendra la place.
+
+#### BF.1b — `majeur` · `XS` · `non traité` · `P1` — Relecture juridique avant monétisation
+
+La FSL a été retenue parce qu'elle correspond au besoin exprimé, et son texte est repris mot pour
+mot du gabarit officiel — mais le projet vise une monétisation. **Une relecture par un avocat** vaut
+son coût, en particulier sur l'articulation entre la cession de droits de `CONTRIBUTING.md` et le
+droit français : le droit moral y est inaliénable, contrairement aux droits patrimoniaux
+effectivement cédés. Point volontairement séparé de BF.1, qui est clos.
 
 #### BF.2 — `mineur` · `XS` · `non traité` · `P1` — Encart « About » du dépôt GitHub vide
 

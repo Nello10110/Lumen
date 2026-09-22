@@ -1,6 +1,6 @@
 # Expression de besoin — Lumen
 
-**Version** 1.0 · **Date** 21/08/2026 · **Auteur** Paul C. · **Statut** validée, prête pour lancement des développements
+**Version** 1.0 · **Date** 21/08/2026 · **Auteur** Paul CARTIERI · **Statut** validée, prête pour lancement des développements
 
 **Mise à jour du 31/08/2026 — statut de livraison.** Les cinq lots décrits au § 5 (EF-1 à EF-26) sont
 **tous livrés** : Lots 4 à 7 intégralement, Lot 8 pour sa partie développable (EF-23/EF-24) — seuls
