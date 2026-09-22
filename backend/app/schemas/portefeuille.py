@@ -314,6 +314,18 @@ class ImportResult(BaseModel):
     errors: list[str]
 
 
+class DernierImportOut(BaseModel):
+    """Trace du dernier import abouti pour UNE source (refonte de l'écran Import,
+    22/09/2026, cf. `models.JournalImport`). Les sources jamais importées sont
+    absentes de la réponse plutôt que renvoyées à date nulle."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    source: str
+    importe_le: datetime
+    nb_lignes: int | None = None
+
+
 class TransactionImportResult(BaseModel):
     lignes_lues: int
     importees: int

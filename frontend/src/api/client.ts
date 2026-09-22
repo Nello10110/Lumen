@@ -35,6 +35,7 @@ import type {
   HoldingUpdateInput,
   HouseholdMember,
   HouseholdMemberInput,
+  DernierImport,
   ImportPreview,
   IndicateursSituation,
   InvestissementMensuelMoyen,
@@ -272,6 +273,12 @@ export const api = {
   },
   importConfirm: (mapping: ColumnMapping) =>
     request<ImportResult>('/portfolio/import/confirm', { method: 'POST', body: JSON.stringify(mapping) }),
+
+  // Refonte de l'écran Import (22/09/2026) : date du dernier import abouti par
+  // source, toutes sources confondues en UN appel — les cinq routes d'import qui
+  // l'alimentent vivent dans trois routeurs différents, mais l'écran les affiche
+  // côte à côte.
+  getDerniersImports: () => request<DernierImport[]>('/imports/derniers'),
 
   // Market data — rafraîchissement en tâche de fond (LOT 4B) : `refreshMarketData`
   // ne renvoie plus le cache complet mais l'état de démarrage (202), à sonder via

@@ -45,6 +45,16 @@ export interface ImportResult {
   errors: string[]
 }
 
+/** Dernier import abouti pour une source (refonte de l'écran Import, 22/09/2026) —
+ * `source` est l'une des clés de `SOURCES_IMPORT` (`utils/guidesExport.ts`). Les
+ * sources jamais importées sont ABSENTES de la réponse, jamais renvoyées à date
+ * nulle : c'est leur absence qui fait afficher « jamais importé ». */
+export interface DernierImport {
+  source: string
+  importe_le: string
+  nb_lignes: number | null
+}
+
 export interface TransactionImportResult {
   lignes_lues: number
   importees: number

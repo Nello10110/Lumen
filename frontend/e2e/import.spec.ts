@@ -5,23 +5,30 @@ import { cardByTitle, positionsTable } from './helpers'
 
 const DIRNAME = path.dirname(fileURLToPath(import.meta.url))
 
-test('Import : les zones de dépôt affichent un repère visuel explicite (refonte import, 05/09/2026)', async ({ page }) => {
+test("Import : la grille présente les cinq sources et leur guide d'export (refonte du 22/09/2026)", async ({ page }) => {
   await page.goto('/import')
-  await expect(page.getByRole('heading', { name: 'Importer le portefeuille' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Importer' })).toBeVisible()
 
-  // Retour utilisateur : « pas assez d'information, on a l'impression que ça ne
-  // marche pas » — chaque zone d'upload affiche désormais un texte explicite au
-  // repos (`Dropzone.tsx`), plus plusieurs zones sur cette seule page.
-  await expect(page.getByText(/Glissez un fichier ici ou cliquez pour parcourir/).first()).toBeVisible()
+  // Retour utilisateur : « un truc un peu plus léger avec le logo de l'entreprise,
+  // des cases plus petites » — chaque source est une tuile qui EST sa zone de dépôt
+  // (`TuileSourceImport.tsx`), et porte la date de son dernier import.
+  for (const nom of ['Trade Republic', 'Ledger', 'Bricks.co', 'Relevé de positions', 'Mouvements bancaires']) {
+    await expect(page.getByTestId(`dropzone-input-Importer depuis ${nom}`)).toBeAttached()
+  }
+
+  await page.getByRole('button', { name: 'Comment exporter depuis Ledger ?' }).click()
+  await expect(page.getByRole('dialog').getByText('Exporter depuis Ledger')).toBeVisible()
 })
 
 test('Import : relevé de positions (CSV, mapping des colonnes)', async ({ page }) => {
   await page.goto('/import')
-  await expect(page.getByRole('heading', { name: 'Importer le portefeuille' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Importer' })).toBeVisible()
 
-  // 4 champs fichier sur cette page (transactions, OFX/QIF, CSV budget, relevé de
-  // positions, dans cet ordre) — celui du relevé de positions est le dernier.
-  await page.locator('input[type="file"]').last().setInputFiles(path.join(DIRNAME, 'fixtures', 'positions.csv'))
+  // Ciblage par la tuile de la source plutôt que par la position du champ dans la
+  // page (refonte du 22/09/2026) : ajouter une source ne décale plus ce test.
+  await page
+    .getByTestId('dropzone-input-Importer depuis Relevé de positions')
+    .setInputFiles(path.join(DIRNAME, 'fixtures', 'positions.csv'))
 
   await expect(page.getByRole('heading', { name: /Aperçu/ })).toBeVisible()
   await page.getByLabel('Colonne Ticker *').selectOption('Symbole')
@@ -64,10 +71,11 @@ test('Import : grand livre multi-comptes (PEA/Compte-titres/Cryptomonnaie/Obliga
   // obligation » — vérifie le flux en deux temps (aperçu puis confirmation) et les
   // 4 comptes créés sous l'établissement choisi.
   await page.goto('/import')
-  await expect(page.getByRole('heading', { name: 'Importer le portefeuille' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Importer' })).toBeVisible()
 
-  // Champ fichier du grand livre : le premier des 4 champs de cette page.
-  await page.locator('input[type="file"]').first().setInputFiles(path.join(DIRNAME, 'fixtures', 'transactions.csv'))
+  await page
+    .getByTestId('dropzone-input-Importer depuis Trade Republic')
+    .setInputFiles(path.join(DIRNAME, 'fixtures', 'transactions.csv'))
 
   await expect(page.getByText('4 ligne(s) lue(s)')).toBeVisible()
   // Un champ de nom pré-rempli par bucket effectivement présent dans le fichier

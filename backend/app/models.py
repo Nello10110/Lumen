@@ -620,6 +620,40 @@ class Transaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+# Sources de fichier de l'écran Import (refonte du 22/09/2026), clés de
+# `JournalImport.source`. Valeurs figées : elles voyagent jusqu'au frontend, qui les
+# associe à un logo et à un guide d'export (`utils/guidesExport.ts`).
+SOURCE_IMPORT_TRADE_REPUBLIC = "trade_republic"
+SOURCE_IMPORT_LEDGER = "ledger"
+SOURCE_IMPORT_BRICKS = "bricks"
+SOURCE_IMPORT_RELEVE = "releve"
+SOURCE_IMPORT_BANCAIRE = "bancaire"
+
+
+class JournalImport(Base):
+    """Dernier import ABOUTI par source de fichier (refonte de l'écran Import,
+    22/09/2026) — une ligne par (foyer, source), mise à jour en place.
+
+    Upsert plutôt qu'un historique : la seule question posée à l'écran est « à quand
+    remonte mon dernier import Ledger ? ». Conserver toutes les lignes ferait croître
+    la table à chaque import sans que rien ne les relise jamais.
+
+    Écrit APRÈS le commit de l'import lui-même, jamais avant : une date affichée ici
+    signifie qu'un import a réellement abouti, pas qu'il a été tenté puis annulé."""
+
+    __tablename__ = "journal_import"
+    __table_args__ = (UniqueConstraint("user_id", "source", name="uq_journal_import_user_source"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    source: Mapped[str] = mapped_column(String)
+    importe_le: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Lignes retenues par le dernier import, pour la pastille « 14/09 · 312 lignes ».
+    # `None` quand la source ne sait pas produire un décompte qui ait du sens —
+    # jamais 0 par défaut, qui se lirait « import vide » à l'écran.
+    nb_lignes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
 class TickerResolution(Base):
     __tablename__ = "ticker_resolution"
 

@@ -19,7 +19,7 @@ import { seedData } from './seed-data'
 /** `titre` = celui déclaré dans `layout/routes.ts` (source unique de vérité, qui
  * pilote `document.title` et le fil d'Ariane) — volontairement PAS le `<h2>` de la
  * page : certains écrans ont un titre de contenu différent de leur libellé de
- * navigation (« Import » affiche « Importer le portefeuille »), ce qui est un
+ * navigation (« Import » affiche « Importer »), ce qui est un
  * choix d'affichage, pas une anomalie. */
 const ROUTES_A_BALAYER: { chemin: string; titre: string }[] = [
   { chemin: '/', titre: 'Synthèse' },

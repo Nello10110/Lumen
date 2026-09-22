@@ -16,7 +16,15 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Compte, Etablissement, Transaction, User
+from ..models import (
+    SOURCE_IMPORT_BRICKS,
+    SOURCE_IMPORT_LEDGER,
+    SOURCE_IMPORT_TRADE_REPUBLIC,
+    Compte,
+    Etablissement,
+    Transaction,
+    User,
+)
 from ..schemas import (
     BricksApercu,
     BricksImportConfirm,
@@ -32,6 +40,7 @@ from ..services import (
     auth_service,
     bricks_import,
     comptes_service,
+    journal_import_service,
     ledger_import,
     portfolio_reconstruction,
     transaction_import,
@@ -199,6 +208,7 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     transaction_import.clear_pending_transactions(payload.file_token)
 
     resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
+    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_TRADE_REPUBLIC, parsed.lignes_lues)
 
     return TransactionImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -286,6 +296,7 @@ def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), c
     resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
 
     lignes_ignorees = parsed.lignes_ignorees_statut + sum(parsed.lignes_ignorees_type_operation.values())
+    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_LEDGER, parsed.lignes_lues)
 
     return LedgerImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -369,6 +380,7 @@ def import_bricks(payload: BricksImportConfirm, db: Session = Depends(get_db), c
         + sum(parsed.lignes_ignorees_type_operation.values())
         + parsed.lignes_ignorees_remboursement_sans_achat
     )
+    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_BRICKS, parsed.lignes_lues)
 
     return BricksImportResult(
         lignes_lues=parsed.lignes_lues,

@@ -1,15 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { BudgetImportResult, Etablissement, ImportPreview } from '../api/types'
+import type { BudgetImportResult, DernierImport, Etablissement, ImportPreview } from '../api/types'
 import ImportPage from './ImportPage'
 
-// Ce fichier verrouille la section "Mouvements bancaires (budget)" (backlog
-// 2.N.1) et, depuis la refonte import du 05/09/2026, l'obligation d'établissement
-// sur le relevé de positions dès qu'une colonne Compte est mappée — l'import de
-// transactions (`ImportTransactionsSection`), déjà couvert ailleurs, reste hors
-// de son objet.
+// Refonte de l'écran Import du 22/09/2026 : la page n'est plus une pile de cartes
+// mais une grille de tuiles, et chaque tuile EST la zone de dépôt de sa source. Ce
+// fichier verrouille donc trois choses — la grille elle-même (les cinq sources, leur
+// pastille de dernier import), le fait qu'une seule source s'ouvre à la fois, et les
+// comportements d'import déjà couverts avant la refonte (mouvements bancaires,
+// backlog 2.N.1 ; établissement obligatoire sur le relevé de positions dès qu'une
+// colonne Compte est mappée, refonte import du 05/09/2026), pour prouver que la
+// refonte n'a touché qu'à la présentation.
 vi.mock('../api/client', () => ({
   api: {
     importTransactions: vi.fn(),
@@ -19,21 +22,36 @@ vi.mock('../api/client', () => ({
     importBudgetQif: vi.fn(),
     importBudgetCsvPreview: vi.fn(),
     importBudgetCsvConfirm: vi.fn(),
-    // Établissement des comptes créés à la volée (refonte import, 05/09/2026) —
-    // chargé une fois au montage, y compris quand ce fichier n'exerce que la
-    // section budget ci-dessous.
     listEtablissements: vi.fn().mockResolvedValue([]),
     getLogosEtablissements: vi.fn().mockResolvedValue({}),
-    // `ImportLedgerSection` (retour utilisateur du 11/09/2026), rendue pour de
-    // vrai sur cette page comme `ImportTransactionsSection` — présentes pour le
-    // typage de `api`, aucun test ci-dessous n'interagit avec l'upload.
+    getLogosCatalogue: vi.fn().mockResolvedValue({}),
     importLedgerApercu: vi.fn(),
     importLedgerConfirm: vi.fn(),
-    // `ImportBricksSection` (retour utilisateur du 13/09/2026), même raison.
     importBricksApercu: vi.fn(),
     importBricksConfirm: vi.fn(),
+    getDerniersImports: vi.fn(),
   },
 }))
+
+beforeEach(() => {
+  // Historique d'appels remis à zéro entre chaque test : plusieurs assertions
+  // ci-dessous vérifient qu'une route n'a PAS été appelée (« un .qif ne doit pas
+  // partir vers l'import OFX »), ce qu'un appel resté d'un test précédent
+  // invaliderait silencieusement.
+  vi.clearAllMocks()
+  vi.mocked(api.getDerniersImports).mockResolvedValue([])
+  vi.mocked(api.listEtablissements).mockResolvedValue([])
+})
+
+/** Zone de dépôt d'une tuile — `Dropzone` nomme son input d'après son `ariaLabel`,
+ * que `TuileSourceImport` construit à partir du nom de la source. */
+function tuile(nomSource: string): HTMLElement {
+  return screen.getByTestId(`dropzone-input-Importer depuis ${nomSource}`)
+}
+
+function deposer(nomSource: string, f: File) {
+  fireEvent.change(tuile(nomSource), { target: { files: [f] } })
+}
 
 function etablissement(overrides: Partial<Etablissement> = {}): Etablissement {
   return { id: 1, nom: 'Boursorama', logo_key: null, a_un_logo: false, logo_source: null, logo_maj_le: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
@@ -67,6 +85,10 @@ function resultat(overrides: Partial<BudgetImportResult> = {}): BudgetImportResu
   return { lignes_lues: 1, importees: 1, doublons_ignores: 0, lignes_ignorees: 0, categorisees_automatiquement: 0, ...overrides }
 }
 
+function trace(overrides: Partial<DernierImport> = {}): DernierImport {
+  return { source: 'ledger', importe_le: '2026-09-14T08:30:00', nb_lignes: 312, ...overrides }
+}
+
 function renderImportPage() {
   return render(
     <MemoryRouter>
@@ -75,15 +97,72 @@ function renderImportPage() {
   )
 }
 
-describe("ImportPage — cartes d'import Ledger et Bricks.co séparées de Trade Republic (retours utilisateur des 11 et 13/09/2026)", () => {
-  it('affiche les trois cartes, chacune distincte', () => {
+describe('ImportPage — grille des sources (refonte du 22/09/2026)', () => {
+  it('propose les cinq sources en tuiles, chacune avec sa propre zone de dépôt', () => {
     renderImportPage()
 
-    expect(screen.getByText('Historique de transactions (format détecté automatiquement)')).toBeInTheDocument()
-    expect(screen.getByText('Wallet crypto (export Ledger)')).toBeInTheDocument()
-    expect(screen.getByTestId('dropzone-input-Wallet crypto Ledger')).toBeInTheDocument()
-    expect(screen.getByText('Crowdfunding immobilier (export Bricks.co)')).toBeInTheDocument()
-    expect(screen.getByTestId('dropzone-input-Crowdfunding immobilier Bricks.co')).toBeInTheDocument()
+    for (const nom of ['Trade Republic', 'Ledger', 'Bricks.co', 'Relevé de positions', 'Mouvements bancaires']) {
+      expect(tuile(nom)).toBeInTheDocument()
+    }
+  })
+
+  it('une source jamais importée le dit, au lieu de laisser la pastille vide', async () => {
+    renderImportPage()
+
+    await waitFor(() => expect(screen.getAllByText('Jamais importé')).toHaveLength(5))
+  })
+
+  it('affiche la date et le nombre de lignes du dernier import de chaque source', async () => {
+    vi.mocked(api.getDerniersImports).mockResolvedValue([trace({ source: 'ledger', nb_lignes: 312 })])
+    renderImportPage()
+
+    await screen.findByText(/14\/09\/2026 · 312 lignes/)
+    // Les quatre autres restent explicitement vierges.
+    expect(screen.getAllByText('Jamais importé')).toHaveLength(4)
+  })
+
+  it("une trace sans décompte n'affiche que la date, jamais « 0 ligne »", async () => {
+    vi.mocked(api.getDerniersImports).mockResolvedValue([trace({ nb_lignes: null })])
+    renderImportPage()
+
+    const pastille = await screen.findByText(/14\/09\/2026/)
+    expect(pastille.textContent).not.toMatch(/ligne/)
+  })
+
+  it("le bouton d'aide d'une tuile ouvre le guide d'export de CETTE source", async () => {
+    renderImportPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Comment exporter depuis Ledger ?' }))
+
+    await screen.findByText('Exporter depuis Ledger')
+    expect(screen.getByText(/Ouvre Ledger Live sur ton ordinateur\./)).toBeInTheDocument()
+    expect(screen.queryByText('Exporter depuis Bricks.co')).not.toBeInTheDocument()
+  })
+
+  it("n'ouvre le panneau d'import que de la source sur laquelle le fichier est déposé", async () => {
+    vi.mocked(api.importPreview).mockResolvedValue(previewPositions())
+    renderImportPage()
+
+    deposer('Relevé de positions', fichier('releve.csv'))
+
+    await screen.findByLabelText('Colonne Ticker *')
+    // Le panneau bancaire, lui, n'est pas monté : ses champs n'existent pas.
+    expect(screen.queryByLabelText('Colonne Date *')).not.toBeInTheDocument()
+    expect(api.importBudgetCsvPreview).not.toHaveBeenCalled()
+  })
+
+  it('déposer un fichier sur une autre tuile remplace le panneau ouvert', async () => {
+    vi.mocked(api.importPreview).mockResolvedValue(previewPositions())
+    vi.mocked(api.importBudgetCsvPreview).mockResolvedValue(preview())
+    renderImportPage()
+
+    deposer('Relevé de positions', fichier('releve.csv'))
+    await screen.findByLabelText('Colonne Ticker *')
+
+    deposer('Mouvements bancaires', fichier('banque.csv'))
+
+    await screen.findByLabelText('Colonne Date *')
+    expect(screen.queryByLabelText('Colonne Ticker *')).not.toBeInTheDocument()
   })
 })
 
@@ -92,8 +171,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     vi.mocked(api.importBudgetOfx).mockResolvedValue(resultat({ importees: 3 }))
     renderImportPage()
 
-    const input = screen.getByTestId('dropzone-input-Mouvements bancaires (OFX ou QIF)')
-    fireEvent.change(input, { target: { files: [fichier('releve.ofx')] } })
+    deposer('Mouvements bancaires', fichier('releve.ofx'))
 
     await screen.findByText(/3 mouvement\(s\) importé\(s\)/)
     expect(api.importBudgetOfx).toHaveBeenCalledTimes(1)
@@ -104,27 +182,38 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     vi.mocked(api.importBudgetQif).mockResolvedValue(resultat({ importees: 2 }))
     renderImportPage()
 
-    const input = screen.getByTestId('dropzone-input-Mouvements bancaires (OFX ou QIF)')
-    fireEvent.change(input, { target: { files: [fichier('releve.qif')] } })
+    deposer('Mouvements bancaires', fichier('releve.qif'))
 
     await screen.findByText(/2 mouvement\(s\) importé\(s\)/)
     expect(api.importBudgetQif).toHaveBeenCalledTimes(1)
+    expect(api.importBudgetOfx).not.toHaveBeenCalled()
+  })
+
+  it('un fichier .csv passe par le mapping de colonnes, pas par un import direct', async () => {
+    vi.mocked(api.importBudgetCsvPreview).mockResolvedValue(preview())
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.csv'))
+
+    await screen.findByLabelText('Colonne Date *')
+    expect(api.importBudgetOfx).not.toHaveBeenCalled()
+    expect(api.importBudgetQif).not.toHaveBeenCalled()
   })
 
   it('affiche les doublons et lignes ignorées quand présents', async () => {
     vi.mocked(api.importBudgetOfx).mockResolvedValue(resultat({ importees: 1, doublons_ignores: 2, lignes_ignorees: 1 }))
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Mouvements bancaires (OFX ou QIF)'), { target: { files: [fichier('r.ofx')] } })
+    deposer('Mouvements bancaires', fichier('r.ofx'))
 
     await screen.findByText(/1 mouvement\(s\) importé\(s\), 2 déjà présent\(s\), 1 ligne\(s\) illisible\(s\) ignorée\(s\)\./)
   })
 
-  it('affiche une erreur si l\'import échoue', async () => {
+  it("affiche une erreur si l'import échoue", async () => {
     vi.mocked(api.importBudgetOfx).mockRejectedValue(new Error('format invalide'))
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Mouvements bancaires (OFX ou QIF)'), { target: { files: [fichier('r.ofx')] } })
+    deposer('Mouvements bancaires', fichier('r.ofx'))
 
     await screen.findByText('format invalide')
   })
@@ -134,7 +223,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     vi.mocked(api.importBudgetCsvConfirm).mockResolvedValue(resultat({ importees: 5 }))
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Mouvements bancaires (CSV)'), { target: { files: [fichier('releve.csv')] } })
+    deposer('Mouvements bancaires', fichier('releve.csv'))
     await screen.findByRole('columnheader', { name: 'Date' })
 
     fireEvent.change(screen.getByLabelText('Colonne Date *'), { target: { value: 'Date' } })
@@ -159,7 +248,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     vi.mocked(api.importBudgetCsvConfirm).mockResolvedValue(resultat())
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Mouvements bancaires (CSV)'), { target: { files: [fichier('releve.csv')] } })
+    deposer('Mouvements bancaires', fichier('releve.csv'))
     await screen.findByRole('columnheader', { name: 'Date' })
 
     fireEvent.change(screen.getByLabelText('Colonne Date *'), { target: { value: 'Date' } })
@@ -179,7 +268,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     vi.mocked(api.importBudgetCsvPreview).mockResolvedValue(preview())
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Mouvements bancaires (CSV)'), { target: { files: [fichier('releve.csv')] } })
+    deposer('Mouvements bancaires', fichier('releve.csv'))
     await screen.findByRole('columnheader', { name: 'Date' })
 
     expect(screen.getByRole('button', { name: "Confirmer l'import" })).toBeDisabled()
@@ -192,7 +281,7 @@ describe('ImportPage — relevé de positions, établissement des comptes créé
     vi.mocked(api.importConfirm).mockResolvedValue({ imported: 1, skipped: 0, errors: [] })
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Relevé de positions'), { target: { files: [fichier('releve.csv')] } })
+    deposer('Relevé de positions', fichier('releve.csv'))
     await screen.findByRole('columnheader', { name: 'Ticker' })
 
     expect(screen.queryByText('Établissement des comptes créés *')).not.toBeInTheDocument()
@@ -206,11 +295,11 @@ describe('ImportPage — relevé de positions, établissement des comptes créé
   })
 
   it('colonne Compte mappée sans établissement choisi : la confirmation reste désactivée', async () => {
-    vi.mocked(api.listEtablissements).mockResolvedValueOnce([etablissement()])
+    vi.mocked(api.listEtablissements).mockResolvedValue([etablissement()])
     vi.mocked(api.importPreview).mockResolvedValue(previewPositions())
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Relevé de positions'), { target: { files: [fichier('releve.csv')] } })
+    deposer('Relevé de positions', fichier('releve.csv'))
     await screen.findByRole('columnheader', { name: 'Ticker' })
     fireEvent.change(screen.getByLabelText('Colonne Ticker *'), { target: { value: 'Ticker' } })
     fireEvent.change(screen.getByLabelText('Colonne Quantité *'), { target: { value: 'Quantité' } })
@@ -221,12 +310,12 @@ describe('ImportPage — relevé de positions, établissement des comptes créé
   })
 
   it('colonne Compte mappée avec un établissement existant choisi : la confirmation le transmet', async () => {
-    vi.mocked(api.listEtablissements).mockResolvedValueOnce([etablissement({ id: 7, nom: 'Boursorama' })])
+    vi.mocked(api.listEtablissements).mockResolvedValue([etablissement({ id: 7, nom: 'Boursorama' })])
     vi.mocked(api.importPreview).mockResolvedValue(previewPositions())
     vi.mocked(api.importConfirm).mockResolvedValue({ imported: 1, skipped: 0, errors: [] })
     renderImportPage()
 
-    fireEvent.change(screen.getByTestId('dropzone-input-Relevé de positions'), { target: { files: [fichier('releve.csv')] } })
+    deposer('Relevé de positions', fichier('releve.csv'))
     await screen.findByRole('columnheader', { name: 'Ticker' })
     fireEvent.change(screen.getByLabelText('Colonne Ticker *'), { target: { value: 'Ticker' } })
     fireEvent.change(screen.getByLabelText('Colonne Quantité *'), { target: { value: 'Quantité' } })
@@ -240,5 +329,20 @@ describe('ImportPage — relevé de positions, établissement des comptes créé
     expect(api.importConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ compte_col: 'Compte', etablissement_id: 7, etablissement_nom: null }),
     )
+  })
+})
+
+describe('ImportPage — rafraîchissement des pastilles après un import', () => {
+  it('un import abouti recharge les dates, pour que la tuile ne reste pas sur « jamais importé »', async () => {
+    vi.mocked(api.getDerniersImports).mockResolvedValueOnce([])
+    vi.mocked(api.importBudgetOfx).mockResolvedValue(resultat({ importees: 3 }))
+    vi.mocked(api.getDerniersImports).mockResolvedValue([
+      trace({ source: 'bancaire', importe_le: '2026-09-22T10:00:00', nb_lignes: 3 }),
+    ])
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.ofx'))
+
+    await screen.findByText(/22\/09\/2026 · 3 lignes/)
   })
 })

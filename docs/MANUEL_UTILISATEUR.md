@@ -21,24 +21,38 @@ Un bouton en haut à droite de chaque écran bascule l'apparence entre thème cl
 
 ## Écran Import
 
-### Historique de transactions
+L'écran s'ouvre sur une **grille de tuiles**, une par source de données. Chaque tuile porte le logo de la source, la **date de son dernier import** (et le nombre de lignes lues) et un bouton **« ? »** qui déplie le chemin exact à suivre dans l'outil d'origine pour en sortir l'export.
 
-Section du haut. Accepte un export CSV au format reconnu automatiquement (format Trade Republic et compatibles). Aucun mapping à faire.
+**La tuile est elle-même la zone de dépôt** : glisser le fichier dessus (ou cliquer pour parcourir) ouvre, juste en dessous de la grille, le panneau d'aperçu et de confirmation de cette source. Une seule source à la fois — déposer un fichier sur une autre tuile remplace le panneau ouvert.
+
+### Trade Republic — historique de transactions
+
+Accepte un export CSV au format reconnu automatiquement (format Trade Republic et compatibles). Aucun mapping à faire. Le portefeuille réel est entièrement **recalculé** à partir de cet historique : l'export doit donc couvrir toute la période depuis l'ouverture du compte. Chaque ligne est rattachée au compte adapté (PEA, Compte-titres, Cryptomonnaie, Obligations) sous l'établissement choisi à l'étape de confirmation.
 
 Le résumé affiché après import indique : nombre de transactions importées, doublons déjà présents ignorés (ré-import sans risque), mouvements hors suivi boursier exclus (carte bancaire, virements bancaires), et positions recalculées. Si le grand livre contient des ventes sans achat correspondant, une anomalie est signalée ici (la position concernée n'apparaît alors pas dans le portefeuille). Si une ligne saisie manuellement portait le même identifiant qu'une position reconstruite par cet import, c'est aussi indiqué : le grand livre fait foi, la ligne manuelle a été remplacée.
 
-### Mouvements bancaires (budget)
+### Ledger — wallet crypto
 
-Section indépendante du portefeuille boursier ci-dessus — alimente l'écran **Budget**. Deux façons d'importer :
+Pour un export d'opérations d'un wallet matériel (Bitcoin, Ethereum, Solana...). Chaque réception est traitée comme un achat au prix du jour de réception — à ajuster manuellement si les cryptos avaient été achetées ailleurs puis transférées. Les frais réseau ne sont pas comptés (pas de contrepartie en euros fiable dans le fichier).
 
-- **OFX ou QIF** : un seul fichier à choisir, aucun mapping à faire (les deux formats ont une structure fixe).
-- **CSV** : comme pour le relevé de positions, un aperçu s'affiche après upload pour associer les colonnes du fichier (Date et Libellé obligatoires) — au choix une seule colonne Montant signée (+/-), ou deux colonnes Débit/Crédit séparées selon ce que la banque exporte. Un champ « Compte » optionnel annote toutes les lignes importées (utile si plusieurs comptes sont importés séparément, pour les filtrer ensuite dans Budget).
+Particularité : un wallet accumule souvent des jetons spam ou de poussière reçus sans action de votre part. L'aperçu propose donc **une case à cocher par devise détectée**, pour les exclure avant import.
+
+### Bricks.co — crowdfunding immobilier
+
+Pour un export de transactions Bricks.co (achats de briques, remboursements, revenus perçus). Chaque remboursement reprend le prix de la brique du dernier achat connu pour le même bien. Les revenus perçus sont importés en montant brut (hors prélèvement à la source) et apparaissent dans le calendrier de dividendes.
+
+### Relevé de positions — tout autre courtier
+
+Pour un simple export de positions (pas un historique de mouvements), depuis un courtier dont le format n'est pas reconnu automatiquement. Après dépôt, un aperçu du fichier s'affiche : associer les colonnes du fichier aux champs attendus (Ticker et Quantité obligatoires ; Nom, Prix de revient, Compte, Devise optionnels), puis confirmer. La case « Remplacer les lignes déjà saisies ou importées manuellement » permet de repartir de zéro sur ces lignes-là uniquement ; les positions issues d'un historique de transactions ne sont jamais touchées par cette case.
+
+### Mouvements bancaires — écran Budget
+
+Source indépendante du portefeuille boursier — alimente l'écran **Budget**. Une seule tuile accepte les trois formats, et le traitement bifurque selon l'extension du fichier déposé :
+
+- **OFX ou QIF** : importés directement, aucun mapping à faire (structure fixe).
+- **CSV** : un aperçu s'affiche pour associer les colonnes du fichier (Date et Libellé obligatoires) — au choix une seule colonne Montant signée (+/-), ou deux colonnes Débit/Crédit séparées selon ce que la banque exporte. Un champ « Compte » optionnel annote toutes les lignes importées (utile si plusieurs comptes sont importés séparément, pour les filtrer ensuite dans Budget).
 
 Le résumé affiché après import indique : mouvements importés, doublons déjà présents ignorés (ré-import sans risque), lignes illisibles ignorées (date ou montant non reconnu — jamais fondues silencieusement dans le total), et combien ont été catégorisés automatiquement par les règles déjà déclarées.
-
-### Relevé de positions
-
-Section du bas. Pour un simple export de positions (pas un historique de mouvements). Après upload, un aperçu du fichier s'affiche : associer les colonnes du fichier aux champs attendus (Ticker et Quantité obligatoires ; Nom, Prix de revient, Compte, Devise optionnels), puis confirmer. La case « Remplacer les lignes déjà saisies ou importées manuellement » permet de repartir de zéro sur ces lignes-là uniquement ; les positions issues d'un historique de transactions ne sont jamais touchées par cette case.
 
 ## Écran Portefeuille
 

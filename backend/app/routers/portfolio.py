@@ -13,6 +13,7 @@ from ..models import (
     ROLE_INVITE,
     ROLE_MEMBRE,
     ROLE_PROPRIETAIRE,
+    SOURCE_IMPORT_RELEVE,
     TYPES_ACTIF_SANS_ETABLISSEMENT,
     Compte,
     Etablissement,
@@ -48,6 +49,7 @@ from ..services import (
     historique_cache,
     holding_detail_service,
     immobilier_service,
+    journal_import_service,
     performance_service,
     upload_limits,
 )
@@ -204,6 +206,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
         ) from exc
 
     csv_import.clear_pending(mapping.file_token)
+    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_RELEVE, imported)
 
     return ImportResult(imported=imported, skipped=skipped, errors=errors)
 

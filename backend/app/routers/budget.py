@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import User
+from ..models import SOURCE_IMPORT_BANCAIRE, User
 from ..schemas import (
     BudgetCibleOut,
     BudgetCibleUpdate,
@@ -34,6 +34,7 @@ from ..services import (
     budget_recurrences_service,
     budget_service,
     csv_import,
+    journal_import_service,
     upload_limits,
 )
 
@@ -142,13 +143,29 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
     if colonnes_absentes:
         raise HTTPException(status_code=400, detail=f"Colonne(s) introuvable(s) dans le fichier : {', '.join(colonnes_absentes)}")
 
+    user_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = budget_import_service.mouvements_depuis_dataframe(
         df, mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col
     )
     resultat = budget_import_service.importer_mouvements(
-        db, auth_service.id_foyer(current_user), mouvements, lignes_ignorees=ignorees, compte=mapping.compte
+        db, user_id, mouvements, lignes_ignorees=ignorees, compte=mapping.compte
     )
     csv_import.clear_pending(mapping.file_token)
+    return _resultat_et_trace(db, user_id, resultat)
+
+
+def _resultat_et_trace(db: Session, user_id: int, resultat) -> BudgetImportResult:
+    """Réponse d'import bancaire, en laissant au passage la trace « dernière source
+    bancaire importée » qu'affiche l'écran Import (refonte du 22/09/2026). Le
+    décompte retenu est le nombre de lignes LUES dans le fichier, pas les seules
+    retenues : un ré-import du même relevé n'importe rien de neuf mais reste un
+    import abouti, et afficher « 0 ligne » s'y lirait comme un échec."""
+    journal_import_service.enregistrer(
+        db,
+        user_id,
+        SOURCE_IMPORT_BANCAIRE,
+        resultat.importees + resultat.doublons_ignores + resultat.lignes_ignorees,
+    )
     return BudgetImportResult(**resultat.__dict__)
 
 
@@ -164,16 +181,18 @@ async def _import_fichier_structure(file: UploadFile, parseur) -> tuple[list, in
 
 @router.post("/import/ofx", response_model=BudgetImportResult)
 async def import_ofx(file: UploadFile, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = await _import_fichier_structure(file, budget_import_service.parse_ofx)
-    resultat = budget_import_service.importer_mouvements(db, auth_service.id_foyer(current_user), mouvements, lignes_ignorees=ignorees)
-    return BudgetImportResult(**resultat.__dict__)
+    resultat = budget_import_service.importer_mouvements(db, user_id, mouvements, lignes_ignorees=ignorees)
+    return _resultat_et_trace(db, user_id, resultat)
 
 
 @router.post("/import/qif", response_model=BudgetImportResult)
 async def import_qif(file: UploadFile, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = await _import_fichier_structure(file, budget_import_service.parse_qif)
-    resultat = budget_import_service.importer_mouvements(db, auth_service.id_foyer(current_user), mouvements, lignes_ignorees=ignorees)
-    return BudgetImportResult(**resultat.__dict__)
+    resultat = budget_import_service.importer_mouvements(db, user_id, mouvements, lignes_ignorees=ignorees)
+    return _resultat_et_trace(db, user_id, resultat)
 
 
 # ---------------------------------------------------------------------------

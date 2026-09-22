@@ -8,6 +8,7 @@ import Dropzone from './Dropzone'
 import { Field, Input } from './Field'
 import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
+import { useFichierPilote } from '../hooks/useFichierPilote'
 
 // Ordre d'affichage des clés de compte à l'écran d'aperçu — même ordre que
 // `transaction_import.CLES_COMPTE` côté backend.
@@ -30,8 +31,20 @@ const ORDRE_CLES: CleCompte[] = ['pea', 'compte_titres', 'crypto', 'obligations'
  * `onImported` (optionnel) : callback après import réussi, EN PLUS du bandeau de
  * résultat affiché ici — l'appelant décide s'il a besoin de réagir (ex. recharger un
  * compteur de positions affiché ailleurs). Absent sur `ImportPage.tsx`, qui n'en a pas
- * besoin (le bandeau de résultat lui suffit). */
-export default function ImportTransactionsSection({ onImported }: { onImported?: (resultat: TransactionImportResult) => void }) {
+ * besoin (le bandeau de résultat lui suffit).
+ *
+ * `pilotage` : cf. `ImportLedgerSection` — sur l'écran Import (refonte du
+ * 22/09/2026), le fichier vient de la tuile Trade Republic et la section n'affiche
+ * que l'aperçu et la confirmation. Absent dans l'assistant de bienvenue
+ * (`onboarding/EtapeDemarragePortefeuille.tsx`), qui garde la carte complète avec
+ * son en-tête et sa zone de dépôt. */
+export default function ImportTransactionsSection({
+  onImported,
+  pilotage,
+}: {
+  onImported?: (resultat: TransactionImportResult) => void
+  pilotage?: { fichier: File | null }
+}) {
   const navigate = useNavigate()
   const txInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -91,32 +104,39 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
     }
   }
 
+  useFichierPilote(pilotage?.fichier ?? null, handleFileChange)
+
   const clesPresentes = apercu ? ORDRE_CLES.filter((cle) => (apercu.comptages[cle] ?? 0) > 0) : []
 
   return (
     <Card>
-      <h3 className="mb-1 text-sm font-semibold text-texte">
-        Historique de transactions (format détecté automatiquement)
-      </h3>
-      <p className="mb-3 text-sm text-texte">
-        Pour un export complet de type Trade Republic (achats, ventes, dividendes...). Le portefeuille réel est entièrement
-        recalculé à partir de cet historique (coût de revient inclus). Seule l'activité boursière est conservée : les
-        mouvements de carte bancaire et les virements avec la banque (dépôts/retraits) sont automatiquement exclus.
-        Chaque ligne est rattachée au compte adapté (PEA, Compte-titres, Cryptomonnaie, Obligations) sous
-        l'établissement que vous choisissez à l'étape suivante.
-      </p>
-      <Dropzone
-        ref={txInputRef}
-        accept=".csv"
-        hint="Fichier CSV, format Trade Republic"
-        uploading={uploading}
-        onFileSelected={handleFileChange}
-        ariaLabel="Historique de transactions"
-      />
+      {!pilotage && (
+        <>
+          <h3 className="mb-1 text-sm font-semibold text-texte">
+            Historique de transactions (format détecté automatiquement)
+          </h3>
+          <p className="mb-3 text-sm text-texte">
+            Pour un export complet de type Trade Republic (achats, ventes, dividendes...). Le portefeuille réel est entièrement
+            recalculé à partir de cet historique (coût de revient inclus). Seule l'activité boursière est conservée : les
+            mouvements de carte bancaire et les virements avec la banque (dépôts/retraits) sont automatiquement exclus.
+            Chaque ligne est rattachée au compte adapté (PEA, Compte-titres, Cryptomonnaie, Obligations) sous
+            l'établissement que vous choisissez à l'étape suivante.
+          </p>
+          <Dropzone
+            ref={txInputRef}
+            accept=".csv"
+            hint="Fichier CSV, format Trade Republic"
+            uploading={uploading}
+            onFileSelected={handleFileChange}
+            ariaLabel="Historique de transactions"
+          />
+        </>
+      )}
+      {pilotage && uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {apercu && (
-        <div className="mt-4 space-y-4 border-t border-bordure pt-4">
+        <div className={`space-y-4 ${pilotage ? '' : 'mt-4 border-t border-bordure pt-4'}`}>
           <p className="text-sm text-texte">
             {apercu.lignes_lues} ligne(s) lue(s), {apercu.mouvements_hors_bourse_exclus} mouvement(s) hors suivi boursier
             exclu(s).

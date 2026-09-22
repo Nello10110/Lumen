@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react'
+import { forwardRef, useState, type ReactNode } from 'react'
 import { IconImport } from './icons'
 
 /** Zone de dépôt de fichier réutilisable (refonte import, 05/09/2026, retour
@@ -16,7 +16,17 @@ import { IconImport } from './icons'
  *
  * `ref` (transmise via `forwardRef`) référence directement l'`<input>` caché — même
  * usage qu'avant (`inputRef.current.value = ''` après un import réussi, pour
- * pouvoir réimporter le même fichier)." */
+ * pouvoir réimporter le même fichier)."
+ *
+ * `children` (refonte de l'écran Import, 22/09/2026) : remplace le contenu par
+ * défaut (icône + libellé + indice) sans rien changer à la mécanique de dépôt, pour
+ * que les tuiles de source (`TuileSourceImport`) soient ELLES-MÊMES la zone de
+ * dépôt — une seule implémentation du glisser-déposer et de l'`<input>` caché pour
+ * toute l'application, plutôt qu'un second composant à garder synchronisé. La
+ * bordure passe alors de pleine à tiretée uniquement pendant le glissement : cinq
+ * cadres tiretés permanents côte à côte alourdiraient la grille. L'épaisseur, elle,
+ * ne bouge jamais (`border-2` dans les deux états) — sans quoi la tuile sauterait
+ * d'un pixel au survol d'un fichier. */
 const Dropzone = forwardRef<
   HTMLInputElement,
   {
@@ -26,8 +36,15 @@ const Dropzone = forwardRef<
     uploading?: boolean
     onFileSelected: (file: File) => void
     ariaLabel?: string
+    children?: ReactNode
+    /** Classes ajoutées au conteneur, pour un état « source active » posé par
+     * l'appelant (cf. `TuileSourceImport`). */
+    className?: string
   }
->(function Dropzone({ accept, hint, label = 'Glissez un fichier ici ou cliquez pour parcourir', uploading = false, onFileSelected, ariaLabel }, ref) {
+>(function Dropzone(
+  { accept, hint, label = 'Glissez un fichier ici ou cliquez pour parcourir', uploading = false, onFileSelected, ariaLabel, children, className },
+  ref,
+) {
   const [dragActive, setDragActive] = useState(false)
 
   function ouvrirSelecteur() {
@@ -61,19 +78,25 @@ const Dropzone = forwardRef<
       }}
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
-      className={`flex flex-col items-center gap-1.5 rounded-card border-2 border-dashed px-4 py-6 text-center transition-colors ${
+      className={`flex flex-col items-center gap-1.5 rounded-card border-2 text-center transition-colors ${
+        children ? 'h-full px-3 py-4' : 'border-dashed px-4 py-6'
+      } ${
         uploading
           ? 'cursor-not-allowed border-bordure opacity-60'
           : dragActive
-            ? 'cursor-pointer border-accent bg-accent/10'
-            : 'cursor-pointer border-bordure hover:border-accent/50 hover:bg-surface-elevee'
+            ? 'cursor-pointer border-dashed border-accent bg-accent/10'
+            : `cursor-pointer border-bordure hover:border-accent/50 hover:bg-surface-elevee ${className ?? ''}`
       }`}
     >
-      <IconImport className={`h-6 w-6 ${dragActive ? 'text-accent' : 'text-texte-attenue'}`} />
-      <p className="text-sm font-medium text-texte">
-        {uploading ? 'Lecture du fichier...' : dragActive ? 'Déposez le fichier ici' : label}
-      </p>
-      {hint && !uploading && <p className="text-xs text-texte-attenue">{hint}</p>}
+      {children ?? (
+        <>
+          <IconImport className={`h-6 w-6 ${dragActive ? 'text-accent' : 'text-texte-attenue'}`} />
+          <p className="text-sm font-medium text-texte">
+            {uploading ? 'Lecture du fichier...' : dragActive ? 'Déposez le fichier ici' : label}
+          </p>
+          {hint && !uploading && <p className="text-xs text-texte-attenue">{hint}</p>}
+        </>
+      )}
       <input
         ref={ref}
         type="file"

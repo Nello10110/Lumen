@@ -5846,3 +5846,85 @@ archivé), script `backend/scripts/sauvegarde.py` toujours présent (§ 7.6 arch
 historique de commits (§ 7.2 archivé). Suite de tests complète relancée et vérifiée au vert (333
 backend, 84 frontend) juste avant cette réécriture — le filet de test posé par l'ancien § 7.1 est
 lui-même la meilleure garantie que les 53 points ne se sont pas silencieusement rouverts.
+
+### BC. Refonte de l'écran Import en grille de sources (retour utilisateur, 22/09/2026)
+
+#### BC.1 — `mineur` · `M` · `traité` (22/09/2026) — Cartes empilées remplacées par des tuiles de source
+
+**Constat.** « La page d'import ne me satisfait pas au niveau des imports Trade Republic, Ledger et
+bricks.co. Finalement on ne veut que l'export de chacun de ces fichiers dans ces champs. J'aimerais
+un truc un peu plus léger avec le logo de l'entreprise, des cases plus petites (2 à 3 en horizontal),
+après le comportement me plaît bien. Et peut-être un bouton pour décrire le chemin à faire sur
+l'outil dédié (Ledger...) pour sortir l'export. + la date de dernier import par type. »
+
+L'écran empilait cinq cartes pleine largeur (Trade Republic, Ledger, Bricks.co, mouvements
+bancaires, relevé de positions), chacune avec un paragraphe de présentation de 3 à 4 lignes et une
+grande zone de dépôt, séparées par des filets « ou wallet crypto (Ledger) ». Soit ≈ cinq écrans de
+défilement pour un choix qui est instantané dans la tête de l'utilisateur (« j'ai un export
+Ledger »). Les cartes avaient été ajoutées une par une entre le 01/09 et le 13/09/2026, chacune
+calquée sur la précédente, sans que l'écran ne soit jamais redessiné dans son ensemble.
+
+**Ce qui a changé.** Une grille de tuiles compactes (2 colonnes en mobile, 3 au-delà), une par
+source. Chaque tuile porte le logo réel de la marque (`EtablissementLogo` + catalogue existant, clés
+`trade_republic`/`ledger`/`bricks_co` — aucun nouveau mécanisme de logo), le nom, une ligne de
+sous-titre, la date du dernier import de cette source, et un bouton « ? » ouvrant le guide d'export
+pas-à-pas dans une `Modale`. **La tuile EST la zone de dépôt** : `Dropzone` accepte désormais des
+`children` qui remplacent son contenu par défaut, sans rien changer à la mécanique de
+glisser-déposer ni à l'`<input>` caché (une seule implémentation pour toute l'application, et les
+sélecteurs Playwright continuent de fonctionner). Le panneau aperçu → mapping → confirmation s'ouvre
+sous la grille, **inchangé** : c'est le comportement que l'utilisateur voulait garder.
+
+Les cinq sources sont traitées uniformément — les deux génériques (relevé de positions, mouvements
+bancaires) deviennent des tuiles au même titre que les trois marques, avec une icône neutre à la
+place du logo. Ce qui supprime au passage tous les filets « ou ... ». Les deux zones de dépôt
+distinctes de l'import bancaire (« OFX ou QIF » et « CSV ») fusionnent en une seule qui accepte les
+trois extensions et bifurque sur l'extension du fichier : le choix du format n'a jamais été une
+décision de l'utilisateur, son fichier EST déjà dans un format.
+
+**Découpage du code.** `ImportPage.tsx` passait de 508 lignes avec deux composants déclarés en
+ligne à 80 lignes de pure composition. Les deux composants en ligne rejoignent
+`components/` (`ImportBancaireSection`, `ImportRelevePositionsSection`), où vivaient déjà les trois
+autres. Les trois sections existantes prennent un prop `pilotage` optionnel : présent, le fichier
+vient de la tuile et la carte n'affiche plus ni en-tête ni zone de dépôt ; absent, elles gardent
+exactement leur comportement autonome — c'est ce qui laisse `ImportTransactionsSection` intacte dans
+l'assistant de bienvenue (`onboarding/EtapeDemarragePortefeuille.tsx`) sans aucune modification.
+Le catalogue des sources et les guides d'export vivent dans `utils/guidesExport.ts` (données pures,
+éditables sans toucher à un composant).
+
+**Date du dernier import : nouvelle table.** Cette donnée n'existait nulle part. Aucune déduction
+fiable n'était possible depuis l'existant : `transaction_id` porte bien un préfixe pour Ledger
+(`ledger:`) et Bricks.co (`bricks:`), mais pas pour Trade Republic, et ni le relevé de positions ni
+l'import bancaire n'auraient été couverts — sans compter qu'un ré-import qui ne change rien
+(doublons ignorés) n'aurait pas rafraîchi la date. D'où `models.JournalImport` (migration
+`c7d4e91f6a38`), une ligne par (foyer, source) **mise à jour en place** : la seule question posée à
+l'écran est « à quand remonte mon dernier import Ledger ? », garder tout l'historique ferait croître
+la table sans que rien ne le relise. Table dédiée plutôt qu'une clé de `UserParametre` : ce n'est pas
+un réglage choisi par l'utilisateur mais la trace d'un événement, et elle porte un décompte de lignes
+en plus de la date.
+
+Écriture par chaque route de confirmation, **après** son `db.commit()` — une date affichée atteste
+d'un import réellement abouti, jamais d'une tentative annulée (l'import de relevé est transactionnel
+et peut se solder par un rollback complet : c'est le cas que verrouille
+`test_import_annule_par_un_rollback_ne_laisse_aucune_trace`). Lecture par
+`GET /api/imports/derniers`, dans un routeur transverse minuscule (`routers/imports.py`) : les cinq
+sources sont réparties sur trois routeurs, mais l'écran les affiche côte à côte et a besoin de leurs
+dates en un seul appel. Le décompte mémorisé est le nombre de lignes **lues** dans le fichier, pas
+les seules retenues — un ré-import du même export n'importe rien de neuf mais reste un import
+abouti, et « 0 ligne » s'y lirait comme un échec. Les sources jamais importées sont absentes de la
+réponse plutôt que renvoyées à date nulle : c'est leur absence qui fait afficher « Jamais importé ».
+
+**Guides d'export.** Rédigés en deux parties assumées : la section « colonnes » décrit le fichier
+réellement attendu par les parseurs (lue dans `transaction_import.py`, `ledger_import.py`,
+`bricks_import.py` — vérifiable, stable), les étapes décrivent le chemin dans l'outil tiers (repère
+à corriger quand un menu change de nom, les applications concernées réorganisant régulièrement leurs
+interfaces). Le libellé exact des menus reste à confirmer par l'utilisateur, seul à faire ces exports
+en vrai.
+
+**Tests.** Backend : 7 tests (`test_journal_import.py`) — absence de trace avant tout import, trace
+datée et comptée, mise à jour en place sans empilement, aucune trace après un rollback, deux sources
+coexistantes, isolation multi-foyer. Frontend : 19 tests sur `ImportPage` (grille des cinq sources,
+pastilles « jamais importé »/date+lignes, singulier de « ligne », guide de la bonne source, une seule
+source ouverte à la fois, bascule entre sources) dont les 11 tests d'import préexistants conservés
+tels quels au sélecteur près — c'est eux qui prouvent que la refonte n'a touché qu'à la présentation
+— et 6 tests sur `TuileSourceImport` (remontée du fichier, vidage de l'`<input>`, non-propagation du
+clic d'aide vers le sélecteur de fichier). Suite complète au vert : 1381 backend, 834 frontend.

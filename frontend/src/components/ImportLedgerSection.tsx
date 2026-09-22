@@ -8,6 +8,7 @@ import Dropzone from './Dropzone'
 import { Field, Input } from './Field'
 import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
+import { useFichierPilote } from '../hooks/useFichierPilote'
 import { formatEuro } from '../utils/format'
 
 /** Import d'un export de wallet matériel Ledger (retour utilisateur du 11/09/2026),
@@ -19,8 +20,19 @@ import { formatEuro } from '../utils/format'
  * ligne par opération, sur n'importe quelle devise), et un wallet matériel
  * accumule souvent des jetons spam/poussière reçus sans action de l'utilisateur —
  * l'aperçu propose donc une case à cocher par devise détectée plutôt qu'un unique
- * bouton de confirmation, pour les exclure avant import. */
-export default function ImportLedgerSection() {
+ * bouton de confirmation, pour les exclure avant import.
+ *
+ * `pilotage` (refonte de l'écran Import, 22/09/2026) : le fichier vient de la tuile
+ * de la source, et cette carte n'affiche plus ni en-tête ni zone de dépôt — juste
+ * l'aperçu et la confirmation. Absent, la section garde son comportement autonome
+ * d'origine (en-tête + zone de dépôt), toujours utilisé hors de l'écran Import. */
+export default function ImportLedgerSection({
+  pilotage,
+  onImported,
+}: {
+  pilotage?: { fichier: File | null }
+  onImported?: () => void
+} = {}) {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -62,6 +74,8 @@ export default function ImportLedgerSection() {
     }
   }
 
+  useFichierPilote(pilotage?.fichier ?? null, handleFileChange)
+
   function toggleDevise(ticker: string) {
     setDevisesDecochees((precedent) => {
       const suivant = new Set(precedent)
@@ -91,6 +105,7 @@ export default function ImportLedgerSection() {
       })
       setResult(res)
       setApercu(null)
+      onImported?.()
       if (inputRef.current) inputRef.current.value = ''
     } catch (err) {
       setError((err as Error).message)
@@ -101,25 +116,30 @@ export default function ImportLedgerSection() {
 
   return (
     <Card>
-      <h3 className="mb-1 text-sm font-semibold text-texte">Wallet crypto (export Ledger)</h3>
-      <p className="mb-3 text-sm text-texte">
-        Pour un export d'opérations Ledger (Bitcoin, Ethereum, Solana...). Chaque réception est traitée comme un achat au
-        prix du jour de réception — utile si vous achetez directement sur le wallet, à ajuster manuellement si vous avez
-        transféré des cryptos déjà achetées ailleurs. Les frais réseau ne sont pas comptés (pas de contrepartie en euros
-        fiable dans le fichier).
-      </p>
-      <Dropzone
-        ref={inputRef}
-        accept=".csv"
-        hint="Fichier CSV, export Ledger Live"
-        uploading={uploading}
-        onFileSelected={handleFileChange}
-        ariaLabel="Wallet crypto Ledger"
-      />
+      {!pilotage && (
+        <>
+          <h3 className="mb-1 text-sm font-semibold text-texte">Wallet crypto (export Ledger)</h3>
+          <p className="mb-3 text-sm text-texte">
+            Pour un export d'opérations Ledger (Bitcoin, Ethereum, Solana...). Chaque réception est traitée comme un achat au
+            prix du jour de réception — utile si vous achetez directement sur le wallet, à ajuster manuellement si vous avez
+            transféré des cryptos déjà achetées ailleurs. Les frais réseau ne sont pas comptés (pas de contrepartie en euros
+            fiable dans le fichier).
+          </p>
+          <Dropzone
+            ref={inputRef}
+            accept=".csv"
+            hint="Fichier CSV, export Ledger Live"
+            uploading={uploading}
+            onFileSelected={handleFileChange}
+            ariaLabel="Wallet crypto Ledger"
+          />
+        </>
+      )}
+      {pilotage && uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {apercu && (
-        <div className="mt-4 space-y-4 border-t border-bordure pt-4">
+        <div className={`space-y-4 ${pilotage ? '' : 'mt-4 border-t border-bordure pt-4'}`}>
           <p className="text-sm text-texte">
             {apercu.lignes_lues} ligne(s) lue(s)
             {apercu.lignes_ignorees_statut > 0 && `, ${apercu.lignes_ignorees_statut} non confirmée(s) ignorée(s)`}

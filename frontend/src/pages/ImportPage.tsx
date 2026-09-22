@@ -1,508 +1,82 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { BudgetImportResult, Etablissement, ImportPreview, ImportResult } from '../api/types'
+import type { DernierImport } from '../api/types'
 import Card from '../components/Card'
-import CsvPreviewTable from '../components/CsvPreviewTable'
-import Dropzone from '../components/Dropzone'
-import { IconFlecheDroite } from '../components/icons'
+import ImportBancaireSection from '../components/ImportBancaireSection'
 import ImportBricksSection from '../components/ImportBricksSection'
 import ImportLedgerSection from '../components/ImportLedgerSection'
+import ImportRelevePositionsSection from '../components/ImportRelevePositionsSection'
 import ImportTransactionsSection from '../components/ImportTransactionsSection'
-import { PrimaryButton } from '../components/Controls'
-import { Field, Input, Select } from '../components/Field'
-import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from '../components/SelecteurEtablissement'
+import TuileSourceImport from '../components/TuileSourceImport'
+import { SOURCES_IMPORT, type CleSourceImport } from '../utils/guidesExport'
 
-/** Import de mouvements bancaires (backlog 2.N.1) : OFX/QIF n'ont pas besoin de
- * mapping (structure fixe, cf. `budget_import_service.py`) — upload direct. Un CSV
- * de banque varie d'un établissement à l'autre, donc mapping manuel comme pour le
- * relevé de positions ci-dessous, avec une bascule montant signé / débit+crédit
- * séparés (les deux formats existent selon les banques). */
-function BankImportSection() {
-  const navigate = useNavigate()
-  const structFileInputRef = useRef<HTMLInputElement>(null)
-  const csvFileInputRef = useRef<HTMLInputElement>(null)
-
-  const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<BudgetImportResult | null>(null)
-
-  const [preview, setPreview] = useState<ImportPreview | null>(null)
-  const [dateCol, setDateCol] = useState('')
-  const [libelleCol, setLibelleCol] = useState('')
-  const [modeMontant, setModeMontant] = useState<'signe' | 'debit_credit'>('signe')
-  const [montantCol, setMontantCol] = useState('')
-  const [debitCol, setDebitCol] = useState('')
-  const [creditCol, setCreditCol] = useState('')
-  const [compte, setCompte] = useState('')
-  const [confirming, setConfirming] = useState(false)
-
-  function afficherResultat(res: BudgetImportResult) {
-    setResult(res)
-    setError(null)
-  }
-
-  async function handleFichierStructure(file: File) {
-    setError(null)
-    setResult(null)
-    setUploading(true)
-    try {
-      const estQif = file.name.toLowerCase().endsWith('.qif')
-      const res = estQif ? await api.importBudgetQif(file) : await api.importBudgetOfx(file)
-      afficherResultat(res)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setUploading(false)
-      if (structFileInputRef.current) structFileInputRef.current.value = ''
-    }
-  }
-
-  async function handleCsvChange(file: File) {
-    setError(null)
-    setResult(null)
-    setUploading(true)
-    try {
-      const p = await api.importBudgetCsvPreview(file)
-      setPreview(p)
-      setDateCol('')
-      setLibelleCol('')
-      setMontantCol('')
-      setDebitCol('')
-      setCreditCol('')
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  async function handleCsvConfirm() {
-    if (!preview || !dateCol || !libelleCol) return
-    setConfirming(true)
-    setError(null)
-    try {
-      const res = await api.importBudgetCsvConfirm({
-        file_token: preview.file_token,
-        date_col: dateCol,
-        libelle_col: libelleCol,
-        montant_col: modeMontant === 'signe' ? montantCol || null : null,
-        debit_col: modeMontant === 'debit_credit' ? debitCol || null : null,
-        credit_col: modeMontant === 'debit_credit' ? creditCol || null : null,
-        compte: compte || null,
-      })
-      afficherResultat(res)
-      setPreview(null)
-      if (csvFileInputRef.current) csvFileInputRef.current.value = ''
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setConfirming(false)
-    }
-  }
-
-  const csvPret = Boolean(
-    preview && dateCol && libelleCol && (modeMontant === 'signe' ? montantCol : debitCol || creditCol),
-  )
-
-  return (
-    <Card>
-      <h3 className="mb-1 text-sm font-semibold text-texte">Mouvements bancaires (budget)</h3>
-      <p className="mb-3 text-sm text-texte">
-        Relevé de ton compte courant, pour l'écran Budget — indépendant du portefeuille boursier ci-dessus.
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Dropzone
-          ref={structFileInputRef}
-          accept=".ofx,.qif"
-          label="OFX ou QIF"
-          hint="Aucun mapping nécessaire"
-          uploading={uploading}
-          onFileSelected={handleFichierStructure}
-          ariaLabel="Mouvements bancaires (OFX ou QIF)"
-        />
-        <Dropzone
-          ref={csvFileInputRef}
-          accept=".csv"
-          label="CSV"
-          hint="Mapping des colonnes à l'étape suivante"
-          uploading={uploading}
-          onFileSelected={handleCsvChange}
-          ariaLabel="Mouvements bancaires (CSV)"
-        />
-      </div>
-
-      {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
-
-      {preview && (
-        <div className="mt-4 space-y-4 border-t border-bordure pt-4">
-          <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Colonne Date *">
-              <Select value={dateCol} onChange={(e) => setDateCol(e.target.value)}>
-                <option value="">— Choisir —</option>
-                {preview.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Colonne Libellé *">
-              <Select value={libelleCol} onChange={(e) => setLibelleCol(e.target.value)}>
-                <option value="">— Choisir —</option>
-                {preview.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Compte (optionnel, annotation libre)">
-              <Input value={compte} onChange={(e) => setCompte(e.target.value)} placeholder="Compte courant" />
-            </Field>
-          </div>
-
-          <fieldset className="space-y-2">
-            <legend className="text-xs font-medium text-texte-attenue">Le fichier exprime les montants comme :</legend>
-            <div className="flex flex-wrap gap-4 text-sm text-texte">
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  checked={modeMontant === 'signe'}
-                  onChange={() => setModeMontant('signe')}
-                />
-                Une seule colonne signée (+/-)
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  checked={modeMontant === 'debit_credit'}
-                  onChange={() => setModeMontant('debit_credit')}
-                />
-                Deux colonnes débit/crédit séparées
-              </label>
-            </div>
-          </fieldset>
-
-          {modeMontant === 'signe' ? (
-            <Field label="Colonne Montant *" className="sm:w-1/2">
-              <Select value={montantCol} onChange={(e) => setMontantCol(e.target.value)}>
-                <option value="">— Choisir —</option>
-                {preview.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Colonne Débit">
-                <Select value={debitCol} onChange={(e) => setDebitCol(e.target.value)}>
-                  <option value="">— Aucune —</option>
-                  {preview.columns.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Colonne Crédit">
-                <Select value={creditCol} onChange={(e) => setCreditCol(e.target.value)}>
-                  <option value="">— Aucune —</option>
-                  {preview.columns.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
-          )}
-
-          <PrimaryButton onClick={handleCsvConfirm} disabled={!csvPret || confirming}>
-            {confirming ? 'Import en cours...' : "Confirmer l'import"}
-          </PrimaryButton>
-        </div>
-      )}
-
-      {result && (
-        <div className="mt-3 rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
-          <p>
-            {result.importees} mouvement(s) importé(s){result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présent(s)`}
-            {result.lignes_ignorees > 0 && `, ${result.lignes_ignorees} ligne(s) illisible(s) ignorée(s)`}.
-          </p>
-          {result.categorisees_automatiquement > 0 && (
-            <p className="mt-1">{result.categorisees_automatiquement} catégorisé(s) automatiquement par tes règles.</p>
-          )}
-          <button onClick={() => navigate('/budget')} className="mt-2 inline-flex items-center gap-1 font-medium underline">
-            Voir le budget <IconFlecheDroite className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-    </Card>
-  )
-}
-
-const OPTIONAL_FIELDS: { key: 'nom_col' | 'compte_col' | 'devise_col'; label: string }[] = [
-  { key: 'nom_col', label: 'Nom (optionnel)' },
-  { key: 'compte_col', label: 'Compte (optionnel)' },
-  { key: 'devise_col', label: 'Devise (optionnel)' },
-]
-
+/** Écran Import, refondu le 22/09/2026 (retour utilisateur : « je trouve ça très
+ * chargé [...] un truc un peu plus léger avec le logo de l'entreprise, des cases
+ * plus petites (2 à 3 en horizontal) ; après le comportement me plaît bien »).
+ *
+ * Avant : cinq cartes pleine largeur empilées, chacune avec un paragraphe de
+ * présentation et une grande zone de dépôt, séparées par des filets « ou ... » —
+ * cinq écrans de défilement pour un choix qui est immédiat dans la tête de
+ * l'utilisateur (« j'ai un export Ledger »).
+ *
+ * Après : une grille de tuiles compactes, chacune portant le logo de la marque, la
+ * date du dernier import de cette source et un guide d'export dépliable. La tuile
+ * EST la zone de dépôt ; le panneau d'aperçu/mapping/confirmation s'ouvre en dessous
+ * de la grille, inchangé — c'est le comportement que l'utilisateur voulait garder.
+ *
+ * Une seule source à la fois : choisir un autre fichier remplace le panneau ouvert.
+ * Les sections sont montées CONDITIONNELLEMENT, donc démonter l'ancienne jette son
+ * aperçu en cours — c'est voulu, deux mappings à moitié remplis simultanément
+ * n'auraient aucun sens et le token de fichier côté serveur expire de lui-même. */
 export default function ImportPage() {
-  const navigate = useNavigate()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [sourceActive, setSourceActive] = useState<CleSourceImport | null>(null)
+  const [fichier, setFichier] = useState<File | null>(null)
+  const [derniersImports, setDerniersImports] = useState<DernierImport[]>([])
 
-  const [preview, setPreview] = useState<ImportPreview | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  const [result, setResult] = useState<ImportResult | null>(null)
-
-  const [tickerCol, setTickerCol] = useState('')
-  const [quantiteCol, setQuantiteCol] = useState('')
-  const [prixRevientCol, setPrixRevientCol] = useState('')
-  const [optionalCols, setOptionalCols] = useState<Record<string, string>>({})
-  const [replaceExisting, setReplaceExisting] = useState(false)
-
-  // Établissement des comptes créés à la volée depuis la colonne Compte (refonte
-  // import, 05/09/2026, alignement sur l'import du grand livre de transactions
-  // ci-dessus) — chargé une fois, indépendamment de l'aperçu (contrairement à
-  // `ImportTransactionsSection`, dont l'aperçu embarque déjà la liste).
-  const [etablissements, setEtablissements] = useState<Etablissement[]>([])
-  const [etablissementId, setEtablissementId] = useState('')
-  const [etablissementNom, setEtablissementNom] = useState('')
-  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>(null)
-
-  useEffect(() => {
-    api.listEtablissements().then(setEtablissements).catch(() => setEtablissements([]))
+  const chargerDerniersImports = useCallback(() => {
+    api
+      .getDerniersImports()
+      .then(setDerniersImports)
+      // Un échec ici ne doit rien casser : la date du dernier import est une
+      // information de confort, l'import lui-même reste parfaitement utilisable sans.
+      .catch(() => setDerniersImports([]))
   }, [])
 
-  async function handleFileChange(file: File) {
-    setError(null)
-    setResult(null)
-    setUploading(true)
-    try {
-      const preview = await api.importPreview(file)
-      setPreview(preview)
-      setTickerCol('')
-      setQuantiteCol('')
-      setPrixRevientCol('')
-      setOptionalCols({})
-      setEtablissementId('')
-      setEtablissementNom('')
-      setEtablissementLogoKey(null)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setUploading(false)
-    }
+  useEffect(chargerDerniersImports, [chargerDerniersImports])
+
+  function choisirFichier(cle: CleSourceImport, choisi: File) {
+    setSourceActive(cle)
+    setFichier(choisi)
   }
 
-  // Établissement affiché/obligatoire dès qu'une colonne Compte est mappée — sans
-  // objet sinon, aucun compte ne sera créé par cet import (cf. `routers/portfolio.py::
-  // import_confirm`, qui n'exige un établissement QUE pour un compte réellement créé).
-  const compteMappe = Boolean(optionalCols.compte_col)
-  const nouvelEtablissementPositions = etablissementId === NOUVEAU_ETABLISSEMENT
-  const etablissementValidePositions = !compteMappe || (nouvelEtablissementPositions ? etablissementNom.trim() !== '' : etablissementId !== '')
-
-  async function handleConfirm() {
-    if (!preview || !tickerCol || !quantiteCol || !etablissementValidePositions) return
-    setConfirming(true)
-    setError(null)
-    try {
-      const res = await api.importConfirm({
-        file_token: preview.file_token,
-        ticker_col: tickerCol,
-        quantite_col: quantiteCol,
-        prix_revient_col: prixRevientCol || null,
-        nom_col: optionalCols.nom_col || null,
-        compte_col: optionalCols.compte_col || null,
-        devise_col: optionalCols.devise_col || null,
-        replace_existing: replaceExisting,
-        etablissement_id: compteMappe && !nouvelEtablissementPositions && etablissementId ? Number(etablissementId) : null,
-        etablissement_nom: compteMappe && nouvelEtablissementPositions ? etablissementNom.trim() || null : null,
-        etablissement_logo_key: compteMappe && nouvelEtablissementPositions ? etablissementLogoKey : null,
-      })
-      setResult(res)
-      setPreview(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setConfirming(false)
-    }
-  }
-
-  const canConfirm = Boolean(preview && tickerCol && quantiteCol && etablissementValidePositions)
+  const pilotage = { fichier }
 
   return (
     <div className="space-y-[14px]">
-      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Importer le portefeuille</h1>
-
-      <ImportTransactionsSection />
-
-      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
-        <div className="h-px flex-1 bg-bordure" />
-        ou wallet crypto (Ledger)
-        <div className="h-px flex-1 bg-bordure" />
-      </div>
-
-      <ImportLedgerSection />
-
-      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
-        <div className="h-px flex-1 bg-bordure" />
-        ou crowdfunding immobilier (Bricks.co)
-        <div className="h-px flex-1 bg-bordure" />
-      </div>
-
-      <ImportBricksSection />
-
-      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
-        <div className="h-px flex-1 bg-bordure" />
-        ou mouvements bancaires (écran Budget)
-        <div className="h-px flex-1 bg-bordure" />
-      </div>
-
-      <BankImportSection />
-
-      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
-        <div className="h-px flex-1 bg-bordure" />
-        ou relevé de positions
-        <div className="h-px flex-1 bg-bordure" />
-      </div>
+      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Importer</h1>
 
       <Card>
-        <p className="mb-3 text-sm text-texte">
-          Exporte ton portefeuille depuis ton courtier au format CSV ou Excel, puis importe-le ici. Tu associeras ensuite les
-          colonnes du fichier aux champs attendus.
+        <p className="mb-3 text-sm text-texte-attenue">
+          Choisis la source de tes données, puis dépose son fichier d'export sur la tuile correspondante.
         </p>
-        <Dropzone
-          ref={fileInputRef}
-          accept=".csv,.xlsx,.xls"
-          hint="CSV ou Excel"
-          uploading={uploading}
-          onFileSelected={handleFileChange}
-          ariaLabel="Relevé de positions"
-        />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {SOURCES_IMPORT.map((source) => (
+            <TuileSourceImport
+              key={source.cle}
+              source={source}
+              dernierImport={derniersImports.find((d) => d.source === source.cle) ?? null}
+              active={sourceActive === source.cle}
+              onFichier={(choisi) => choisirFichier(source.cle, choisi)}
+            />
+          ))}
+        </div>
       </Card>
 
-      {error && <p className="text-sm text-negatif">{error}</p>}
-
-      {result && (
-        <Card
-          className={
-            result.errors.length > 0
-              ? 'border-avertissement/25 bg-avertissement/10'
-              : 'border-transparent bg-pos-bg'
-          }
-        >
-          <p className="text-sm font-medium text-texte">
-            {result.imported} ligne(s) importée(s), {result.skipped} ignorée(s).
-          </p>
-          {result.errors.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 text-xs text-avertissement">
-              {result.errors.slice(0, 10).map((e, i) => (
-                <li key={i}>{e}</li>
-              ))}
-            </ul>
-          )}
-          <button
-            onClick={() => navigate('/patrimoine')}
-            className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
-          >
-            Voir le patrimoine <IconFlecheDroite className="h-3.5 w-3.5" />
-          </button>
-        </Card>
-      )}
-
-      {preview && (
-        <Card title={`Aperçu (${preview.total_rows} lignes au total)`}>
-          <div className="mb-4">
-            <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Colonne Ticker *">
-              <Select value={tickerCol} onChange={(e) => setTickerCol(e.target.value)}>
-                <option value="">— Choisir —</option>
-                {preview.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field label="Colonne Quantité *">
-              <Select value={quantiteCol} onChange={(e) => setQuantiteCol(e.target.value)}>
-                <option value="">— Choisir —</option>
-                {preview.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field label="Colonne Prix de revient (optionnel)">
-              <Select value={prixRevientCol} onChange={(e) => setPrixRevientCol(e.target.value)}>
-                <option value="">— Aucune —</option>
-                {preview.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            {OPTIONAL_FIELDS.map((field) => (
-              <Field key={field.key} label={field.label}>
-                <Select
-                  value={optionalCols[field.key] ?? ''}
-                  onChange={(e) => setOptionalCols({ ...optionalCols, [field.key]: e.target.value })}
-                >
-                  <option value="">— Aucune —</option>
-                  {preview.columns.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            ))}
-          </div>
-
-          {compteMappe && (
-            <Field label="Établissement des comptes créés *" className="mt-4 sm:max-w-[280px]">
-              <SelecteurEtablissement
-                etablissements={etablissements}
-                value={etablissementId}
-                nomNouveau={etablissementNom}
-                onValueChange={setEtablissementId}
-                onNomNouveauChange={setEtablissementNom}
-                logoKeyNouveau={etablissementLogoKey}
-                onLogoKeyNouveauChange={setEtablissementLogoKey}
-                required
-                ariaLabel="Établissement des comptes créés"
-              />
-            </Field>
-          )}
-
-          <label className="mt-4 flex items-center gap-2 text-sm text-texte">
-            <input type="checkbox" checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} />
-            Remplacer les lignes déjà saisies ou importées manuellement (les positions issues du grand livre de transactions ne sont pas touchées)
-          </label>
-
-          <PrimaryButton onClick={handleConfirm} disabled={!canConfirm || confirming} className="mt-4">
-            {confirming ? 'Import en cours...' : "Confirmer l'import"}
-          </PrimaryButton>
-        </Card>
-      )}
+      {sourceActive === 'trade_republic' && <ImportTransactionsSection pilotage={pilotage} onImported={chargerDerniersImports} />}
+      {sourceActive === 'ledger' && <ImportLedgerSection pilotage={pilotage} onImported={chargerDerniersImports} />}
+      {sourceActive === 'bricks' && <ImportBricksSection pilotage={pilotage} onImported={chargerDerniersImports} />}
+      {sourceActive === 'releve' && <ImportRelevePositionsSection fichier={fichier} onImported={chargerDerniersImports} />}
+      {sourceActive === 'bancaire' && <ImportBancaireSection fichier={fichier} onImported={chargerDerniersImports} />}
     </div>
   )
 }

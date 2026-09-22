@@ -8,6 +8,7 @@ import Dropzone from './Dropzone'
 import { Field, Input } from './Field'
 import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
+import { useFichierPilote } from '../hooks/useFichierPilote'
 import { formatEuro } from '../utils/format'
 
 /** Import d'un export Bricks.co (crowdfunding/crowdlending immobilier, retour
@@ -17,8 +18,17 @@ import { formatEuro } from '../utils/format'
  *
  * Contrairement à Ledger, pas de liste à cocher : chaque opération Bricks.co est
  * un investissement immobilier délibéré (pas un jeton reçu passivement), l'aperçu
- * se limite à un résumé (biens détectés, montant investi) avant confirmation. */
-export default function ImportBricksSection() {
+ * se limite à un résumé (biens détectés, montant investi) avant confirmation.
+ *
+ * `pilotage` : cf. `ImportLedgerSection` — le fichier vient de la tuile de la source
+ * sur l'écran Import, la section n'affiche alors que l'aperçu et la confirmation. */
+export default function ImportBricksSection({
+  pilotage,
+  onImported,
+}: {
+  pilotage?: { fichier: File | null }
+  onImported?: () => void
+} = {}) {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -56,6 +66,8 @@ export default function ImportBricksSection() {
     }
   }
 
+  useFichierPilote(pilotage?.fichier ?? null, handleFileChange)
+
   const etablissementValide = etablissementId === NOUVEAU_ETABLISSEMENT ? etablissementNom.trim() !== '' : etablissementId !== ''
   const confirmationValide = etablissementValide && nomCompte.trim() !== ''
 
@@ -74,6 +86,7 @@ export default function ImportBricksSection() {
       })
       setResult(res)
       setApercu(null)
+      onImported?.()
       if (inputRef.current) inputRef.current.value = ''
     } catch (err) {
       setError((err as Error).message)
@@ -89,24 +102,29 @@ export default function ImportBricksSection() {
 
   return (
     <Card>
-      <h3 className="mb-1 text-sm font-semibold text-texte">Crowdfunding immobilier (export Bricks.co)</h3>
-      <p className="mb-3 text-sm text-texte">
-        Pour un export de transactions Bricks.co (achats de briques, remboursements, revenus perçus). Chaque remboursement
-        reprend le prix de la brique du dernier achat connu pour le même bien. Les revenus perçus sont importés en montant
-        brut (hors prélèvement à la source, non repris ligne à ligne) et apparaissent dans le calendrier de dividendes.
-      </p>
-      <Dropzone
-        ref={inputRef}
-        accept=".csv,.xlsx,.xls"
-        hint="Fichier CSV ou Excel, export Bricks.co"
-        uploading={uploading}
-        onFileSelected={handleFileChange}
-        ariaLabel="Crowdfunding immobilier Bricks.co"
-      />
+      {!pilotage && (
+        <>
+          <h3 className="mb-1 text-sm font-semibold text-texte">Crowdfunding immobilier (export Bricks.co)</h3>
+          <p className="mb-3 text-sm text-texte">
+            Pour un export de transactions Bricks.co (achats de briques, remboursements, revenus perçus). Chaque remboursement
+            reprend le prix de la brique du dernier achat connu pour le même bien. Les revenus perçus sont importés en montant
+            brut (hors prélèvement à la source, non repris ligne à ligne) et apparaissent dans le calendrier de dividendes.
+          </p>
+          <Dropzone
+            ref={inputRef}
+            accept=".csv,.xlsx,.xls"
+            hint="Fichier CSV ou Excel, export Bricks.co"
+            uploading={uploading}
+            onFileSelected={handleFileChange}
+            ariaLabel="Crowdfunding immobilier Bricks.co"
+          />
+        </>
+      )}
+      {pilotage && uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {apercu && (
-        <div className="mt-4 space-y-4 border-t border-bordure pt-4">
+        <div className={`space-y-4 ${pilotage ? '' : 'mt-4 border-t border-bordure pt-4'}`}>
           <p className="text-sm text-texte">
             {apercu.nb_biens} bien(s) détecté(s), {formatEuro(apercu.montant_total_investi, 2, false)} investi(s) au total
             {lignesHorsInvestissement > 0 &&

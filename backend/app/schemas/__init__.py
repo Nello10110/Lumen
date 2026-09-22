@@ -156,6 +156,7 @@ from .portefeuille import (  # noqa: F401
     BricksImportConfirm,
     BricksImportResult,
     ColumnMapping,
+    DernierImportOut,
     FundTopHoldingItem,
     HoldingBase,
     HoldingCreate,
