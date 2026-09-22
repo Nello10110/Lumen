@@ -1,4 +1,4 @@
-"""Bilan annuel PDF (backlog § BA.1, revue concurrentielle fiscal.ai du
+"""Bilan annuel PDF (backlog § BA.1, veille concurrentielle du
 21/09/2026 — inspiré de leurs rapports générés automatiquement sur une société
 tierce, appliqué ici au patrimoine du foyer lui-même) : une synthèse narrative
 d'une année, générée à la demande. Réutilise telles quelles les fonctions de

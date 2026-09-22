@@ -33,14 +33,10 @@ Chaque lot est un commit isolé : `git revert <sha>` annule un lot sans toucher 
 
 ### Les chiffres affichés ont changé — et c'est voulu
 
-Mesuré sur ta base réelle :
+Mesuré sur la base réelle de l'utilisateur : le gain / perte total et le rendement simple
+remontent tous les deux, d'environ un point de rendement.
 
-| | Avant | Après |
-|---|---:|---:|
-| Gain / perte total | 1 525,78 € | **1 627,94 €** |
-| Rendement simple | 15,21 % | **16,22 %** |
-
-L'écart de +102 € vient de quatre corrections :
+L'écart vient de quatre corrections :
 
 - les frais étaient comptés **deux fois** — déjà intégrés au coût de revient et aux produits de
   cession, puis resoustraits une seconde fois du résultat ;
@@ -48,8 +44,8 @@ L'écart de +102 € vient de quatre corrections :
   n'étaient comptabilisés **nulle part** ;
 - les dividendes et intérêts sont désormais **nets** d'impôt — `amount` est un montant brut dans
   l'export du courtier, la taxe est une ligne séparée (vérifié : exactement 30 % de prélèvement
-  forfaitaire sur tes intérêts) ;
-- les frais d'entrée de tes deux fonds non cotés entrent enfin au coût de revient (2 €).
+  forfaitaire sur les intérêts) ;
+- les frais d'entrée des fonds non cotés entrent enfin au coût de revient.
 
 Trois indicateurs apparaissent sur la carte Rentabilité : **Autres revenus**, **Impôts prélevés**,
 et les libellés « Dividendes perçus (net) » / « Intérêts perçus (net) ».
@@ -62,7 +58,7 @@ portefeuille est **reconstruit automatiquement une fois** puisque les règles de
 `remise à niveau: portefeuille reconstruit (49 position(s))`.
 
 Une seule action utile de ta part : **cliquer sur « Rafraîchir les cours »** dans Portefeuille.
-C'est ce qui déclenche le repli géographique par indice — sur tes 26 ETF, la couverture passe de
+C'est ce qui déclenche le repli géographique par indice — sur les ETF de la base, la couverture passe de
 **11 à 24**. Les deux restants sont un ETF thématique « Global Luxury » (aucune zone déductible de
 son nom) et une ligne dont le fournisseur ne renvoie plus le libellé. Le rafraîchissement tourne
 désormais en tâche de fond avec une progression, au lieu de figer la page une minute.
@@ -110,9 +106,10 @@ Toutes sont commentées dans le code et détaillées dans `docs/SPECIFICATIONS_F
   compte : seule la répartition de la **valeur actuelle** par compte est calculable, jamais une
   rentabilité par compte. C'est dit dans l'interface.
 - **Coût moyen pondéré reste la méthode par défaut**, FIFO est une option qui déclenche un recalcul
-  complet. Sur ta base : gains réalisés 38,35 € en coût moyen contre 65,40 € en FIFO.
+  complet. Sur la base réelle, l'écart entre les deux méthodes va du simple au double sur les
+  gains réalisés.
 - **Une vente sans achat correspondant** n'est signalée qu'en fin de traitement, jamais bornée en
-  cours de route — ce qui préserve un cas réel de ton historique : un titre offert vendu à 16h12
+  cours de route — ce qui préserve un cas réel de l'historique : un titre offert vendu à 16h12
   dont la ligne d'achat n'est horodatée qu'à 16h20 le même jour.
 
 ---

@@ -51,9 +51,9 @@ Deux constats de l'utilisateur, formulés le 21/08/2026 :
    24 classes responsives sur 8 481 lignes, aucun système de couleurs, aucun squelette de
    chargement, une navigation horizontale à neuf entrées de même rang qui ne tient pas sous
    1 000 px, une largeur de contenu plafonnée à 1 152 px sur des écrans de 1 920.
-2. **Il manque des fonctions que Finary a.** Une observation directe de Finary connecté
-   (`app.finary.com/v2`, 21/08/2026, compte réel) a permis de relever précisément lesquelles — et,
-   aussi utile, lesquelles ne valent pas la peine d'être copiées.
+2. **Il manque des fonctions présentes chez les outils établis du marché.** Une étude
+   d'opportunité menée le 21/08/2026 sur une solution commerciale de référence a permis de relever
+   précisément lesquelles — et, aussi utile, lesquelles ne valent pas la peine d'être copiées.
 
 ### 1.3 Trois décisions de cadrage prises le 21/08/2026
 
@@ -78,15 +78,16 @@ Sept principes tranchent les arbitrages qui se présenteront en cours de dévelo
 doute, c'est à eux qu'il faut revenir.
 
 1. **Le patrimoine net d'abord.** Le chiffre mis en avant est ce qui reste une fois les dettes
-   déduites. Finary affiche par défaut le patrimoine **brut** : sur le compte observé, 251 552 €
-   affichés pour 208 328 € de passifs, soit un patrimoine réel six fois plus faible. Un indicateur
-   principal qui flatte de 500 % est un défaut de conception, pas un réglage.
+   déduites. L'outil observé affiche par défaut le patrimoine **brut**, passifs non déduits : sur
+   un patrimoine fortement financé par l'emprunt, l'indicateur principal peut ainsi dépasser de
+   plusieurs centaines de pourcents ce que l'utilisateur détient réellement. Un chiffre-clé qui
+   flatte à ce point est un défaut de conception, pas un réglage.
 2. **Dire ce qu'on ne sait pas.** Une valeur estimée est signalée comme telle et **datée**. Une
    exposition déduite d'un indice n'est pas présentée comme une composition réelle. C'est déjà notre
    pratique ; elle devient une règle non négociable.
 3. **Tout est gratuit et tout est visible.** Aucune fonctionnalité masquée, aucun score affiché sans
-   son explication. La moitié floutée de l'écran d'analyse de Finary — « diversification
-   insuffisante, 1/10 », explication payante — est le contre-modèle exact.
+   son explication. Un écran d'analyse à moitié flouté — « diversification insuffisante, 1/10 »,
+   explication réservée aux abonnés — est le contre-modèle exact.
 4. **Suivi, jamais exécution.** Aucun ordre, aucun virement, aucune action sur un compte externe.
    L'application observe et calcule.
 5. **Règles explicites plutôt que modèles opaques.** La catégorisation des dépenses se fait par
@@ -95,7 +96,7 @@ doute, c'est à eux qu'il faut revenir.
 6. **Local par défaut.** Aucune donnée patrimoniale ne quitte le serveur. Seules sortent les
    requêtes de cotation strictement nécessaires.
 7. **Un mot par chose.** Un écran a un nom, et c'est le même dans le menu, dans le titre et dans
-   l'URL. Finary appelle le même écran « Patrimoine », « Portefeuille » et `/portfolio` ; on ne
+   l'URL. L'outil observé appelle le même écran « Patrimoine », « Portefeuille » et `/portfolio` ; on ne
    reproduit pas ça.
 
 ---
@@ -138,10 +139,10 @@ multi-utilisateur sécurisé depuis l'extérieur ; usage mobile.
 | Exclusion | Motif |
 |---|---|
 | Simulation fiscale (PEA, plus-values, IFI, revenus fonciers) | L'outil suit la performance et le patrimoine. Seule exception : un taux d'imposition **saisi** par l'utilisateur, repris tel quel dans la déclaration de patrimoine |
-| Agrégation bancaire automatique commerciale (Powens, Plaid) | Contrats B2B facturés par compte connecté, incompatibles avec « gratuit ». C'est aussi la première cause de panne chez Finary |
+| Agrégation bancaire automatique commerciale | Contrats B2B facturés par compte connecté, incompatibles avec « gratuit ». C'est aussi la première cause de panne des agrégateurs du marché |
 | Achat/vente, produits de rendement intégrés | Hors philosophie : suivi, jamais exécution |
 | Fonctionnalités communautaires, classement entre utilisateurs | Sans base d'utilisateurs, un percentile n'est pas calculable. L'équivalent honnête est la comparaison à un indice de référence |
-| Valorisation immobilière automatique | Finary s'appuie sur PriceHubble (payant). Aucune source gratuite fiable par bien. Réponse retenue : valeur saisie et **datée** |
+| Valorisation immobilière automatique | Les solutions du marché s'appuient sur des services d'estimation payants. Aucune source gratuite fiable par bien. Réponse retenue : valeur saisie et **datée** |
 | Catégorisation des dépenses par IA | Non corrigeable, non explicable. Remplacée par des règles explicites |
 
 Une piste reste ouverte mais **non engagée** : l'agrégation bancaire via Enable Banking, qui exige
@@ -438,7 +439,7 @@ Ces exigences s'appliquent transversalement et conditionnent la recette de **cha
 | UX-9 | Aucune modale bloquante pour une tâche de saisie longue : une page ou une feuille latérale | Revue |
 | UX-10 | Le masquage des montants est complet — infobulles et axes de graphiques compris | Test dédié |
 
-**Anti-modèles explicitement proscrits**, tous relevés chez Finary le 21/08/2026 : chiffre-clé brut
+**Anti-modèles explicitement proscrits**, tous relevés à l'étude d'opportunité du 21/08/2026 : chiffre-clé brut
 par défaut ; score affiché sans son explication ; carte vide sans message ; libellé de menu tronqué ;
 trois noms pour un même écran ; plus-value présentée comme un fait alors qu'elle vient d'une
 estimation.
@@ -489,7 +490,7 @@ et les quotités de détention comme le rattachement des emprunts sont des chang
 données** — moins coûteux avant les écrans qui s'appuieront dessus qu'après. Les lots 5 et 6 ne
 partagent aucun écran et peuvent avancer côte à côte. Le lot 7 consolide ce que les précédents ont
 produit : sans quotités, pas de déclaration par détenteur ; sans actifs complets, pas d'objectifs
-crédibles ; sans authentification, pas de partage. Le lot 8 est la supériorité technique sur Finary
+crédibles ; sans authentification, pas de partage. Le lot 8 est la supériorité technique sur les offres du marché
 — rien ne le bloque, rien ne le rend urgent avant que le reste soit utilisable.
 
 ---
@@ -536,7 +537,6 @@ Un lot est livré quand **tous** les points suivants sont vrais :
 - [`docs/ETAT_DU_CHANTIER.md`](ETAT_DU_CHANTIER.md) — bilan du chantier d'audit d'août 2026
 - [`docs/archives/AUDIT_2026-08-18.md`](archives/AUDIT_2026-08-18.md) — audit archivé, 55 points
 
-**Sources externes** : observation directe de `app.finary.com/v2` le 21/08/2026 ·
-[Avis Finary — outilsinvestisseur.fr](https://outilsinvestisseur.fr/finary-avis/) ·
-[Retour d'expérience 2 ans — dealfluence.fr](https://www.dealfluence.fr/tech/finary) ·
-[Analyse 2026 — epargnoo.com](https://epargnoo.com/epargnews/articles/avis-finary)
+**Sources externes** : étude d'opportunité du 21/08/2026 — observation directe d'une solution
+commerciale de référence, complétée par plusieurs analyses et retours d'expérience publiés en ligne.
+Les références détaillées sont conservées hors dépôt.

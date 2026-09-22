@@ -41,7 +41,7 @@ ORIGINE_MANUEL = "manuel"
 ORIGINE_RECONSTRUIT = "reconstruit"
 
 # Types d'actifs valorisés manuellement (Phase 1 de `docs/ROADMAP.md`, patrimoine net
-# façon Finary) : aucune tentative de cotation automatique n'a de sens pour eux — un
+# complet) : aucune tentative de cotation automatique n'a de sens pour eux — un
 # bien immobilier ou un contrat d'assurance-vie n'a pas de ticker coté sur un marché.
 # Leur valeur vient de `Holding.valeur_estimee`, saisie et mise à jour manuellement par
 # l'utilisateur, jamais de `MarketDataCache`. En conséquence, ils sont exclus :
@@ -233,7 +233,7 @@ class Holding(Base):
 
 
 class Loan(Base):
-    """Emprunt (Phase 1 de `docs/ROADMAP.md`, patrimoine net façon Finary) — premier
+    """Emprunt (Phase 1 de `docs/ROADMAP.md`, patrimoine net complet) — premier
     vrai PASSIF de l'application, jusqu'ici entièrement composée d'actifs. Le capital
     restant dû (`services/loan_service.compute_capital_restant_du`) est calculé par
     amortissement standard à taux fixe à partir de `capital_initial`/`taux_annuel_pct`/
@@ -335,7 +335,7 @@ class HoldingValuationHistory(Base):
     """Historique des valorisations manuelles (backlog § 2.M.3) : chaque changement de
     `Holding.valeur_estimee` ajoute une ligne ICI plutôt que d'écraser la précédente
     — alimente une courbe de valorisation dans le temps au lieu de présenter une
-    estimation comme un fait figé (défaut relevé chez Finary, cf. backlog § 1.2).
+    estimation comme un fait figé (défaut relevé à l'étude d'opportunité, § 1.2).
     `Holding.valeur_estimee`/`date_valeur_estimee` restent la valeur COURANTE (accès
     rapide, comportement inchangé, cf. `routers/portfolio.py`) ; cette table est
     l'historique complet, jamais purgée. S'applique à tout type valorisé

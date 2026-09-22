@@ -6,14 +6,14 @@ import EtatErreur from './EtatErreur'
 import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
 
-/** Score patrimonial consolidé (backlog § AZ.1, revue concurrentielle Baggr.fr
+/** Score patrimonial consolidé (backlog § AZ.1, veille concurrentielle
  * du 20/09/2026) : un chiffre 0-100, moyenne pondérée de sous-scores dérivés de
  * données déjà calculées ailleurs (diversification, qualité des données,
  * endettement) — `GET /api/patrimoine/score`, foyer consolidé uniquement.
  *
- * Différence volontaire avec Finary (§ 1.2 du backlog : « le diagnostic
- * anxiogène est offert, le remède est vendu ») : la méthode de calcul reste
- * TOUJOURS visible via le détail dépliable ci-dessous, jamais une boîte noire —
+ * Principe fondateur (§ 1.2 du backlog) : un score sans sa méthode n'a aucune
+ * valeur. La méthode de calcul reste donc TOUJOURS visible via le détail
+ * dépliable ci-dessous, jamais une boîte noire —
  * chaque ligne affiche le texte `explication` reçu de l'API tel quel, jamais
  * reformulé côté client. */
 function tonalite(score: number): 'good' | 'neutral' | 'warning' {

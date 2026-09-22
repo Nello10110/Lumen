@@ -1,26 +1,26 @@
-# Roadmap — vers une alternative libre et gratuite à Finary
+# Roadmap — vers un suivi patrimonial complet, libre et gratuit
 
 Ce document détaille comment enchaîner les points du backlog priorisé (`docs/BACKLOG.md` § 2) pour
-tendre vers la cible fixée le 19/08/2026 : une application de suivi patrimonial complet, dans
-l'esprit de Finary, mais **locale, gratuite et à code ouvert** (licence FSL-1.1-ALv2, cf. `LICENSE`). Il complète le backlog (qui liste et
-arbitre *quoi* faire) en répondant à *dans quel ordre* et *pourquoi*.
+tendre vers la cible fixée le 19/08/2026 : une application de suivi patrimonial complet,
+**locale, gratuite et à code ouvert** (licence FSL-1.1-ALv2, cf. `LICENSE`). Il complète le backlog
+(qui liste et arbitre *quoi* faire) en répondant à *dans quel ordre* et *pourquoi*.
 
 ## Vision
 
 Aujourd'hui, l'application est un **excellent tracker boursier** : reconstruction fidèle du
 portefeuille depuis le grand livre de transactions, rentabilité XIRR correcte, look-through
-géo/sectoriel des ETF audité ligne à ligne contre justETF, données 100 % locales. Ce qui manque pour
-se rapprocher de Finary n'est pas la qualité du calcul (déjà solide, déjà testée) mais la
-**largeur** : Finary montre *tout* le patrimoine d'un ménage (immobilier, épargne réglementée,
+géo/sectoriel des ETF audité ligne à ligne contre justETF, données 100 % locales. Ce qui manque
+n'est pas la qualité du calcul (déjà solide, déjà testée) mais la **largeur** : un suivi patrimonial
+digne de ce nom montre *tout* ce que possède un ménage (immobilier, épargne réglementée,
 assurance-vie, dettes), pas seulement le compte-titres. La roadmap suit cette logique : élargir
 d'abord ce qui est *possédé et dû*, puis ce que ça *permet de projeter*, puis le confort d'usage
 quotidien.
 
 **Ce qui est déjà acquis et qu'il ne faut pas perdre en route** : la transparence sur la qualité des
-données (composition réelle vs estimée vs inconnue, affichée explicitement — Finary ne le fait pas),
-le 100 % local (aucune donnée envoyée à un tiers hors requêtes de cotation strictement nécessaires),
-et un score de diversification déjà gratuit alors qu'il est payant chez Finary. Ce sont des atouts
-de positionnement, pas seulement des cases à cocher.
+données (composition réelle vs estimée vs inconnue, affichée explicitement), le 100 % local (aucune
+donnée envoyée à un tiers hors requêtes de cotation strictement nécessaires), et un diagnostic
+patrimonial dont la méthode est publiée plutôt que vendue. Ce sont des atouts de positionnement,
+pas seulement des cases à cocher.
 
 ## Vue d'ensemble des phases
 
@@ -55,14 +55,14 @@ un modèle déjà rodé (`PRIVATE_FUND` existe déjà et suit exactement ce patr
    d'actifs.
 2. **Patrimoine net** : le Tableau de bord distingue désormais Actifs / Passifs / **Net** (Actifs −
    Passifs), au lieu de la seule « Valeur des positions » actuelle. C'est le changement le plus
-   visible de la phase, et celui qui rapproche le plus visuellement l'app de Finary.
+   visible de la phase, et celui qui change le plus l'allure de l'application.
 3. **Écrans** : formulaire de saisie/édition étendu (déjà en place pour l'ajout manuel, à
    généraliser), nouvel onglet Portefeuille pour Immobilier/Épargne/Dettes (les onglets existants —
    Actions/ETF/Crypto/Obligations/Private Equity — suivent déjà ce patron, cf. LOT récent).
 4. **Objectifs et répartition** : décider si ces nouveaux actifs entrent dans la répartition
    géo/sectorielle (probablement non — un bien immobilier ou une assurance-vie multi-supports n'a
    pas de géographie unique évidente) ou dans une nouvelle dimension de répartition (« par classe
-   d'actif » : Actions / Immobilier / Épargne / Liquidités — c'est ainsi que Finary structure sa vue
+   d'actif » : Actions / Immobilier / Épargne / Liquidités — c'est la structure attendue d'une vue
    principale). Recommandation : ajouter cette répartition par classe d'actif plutôt que de forcer
    ces nouveaux actifs dans le look-through géo/sectoriel existant, qui n'a pas de sens pour eux.
 
@@ -96,7 +96,7 @@ près (actifs − passifs), non-régression confirmée sur `/api/analysis/{annee
 **Effort total** : `M`. **Pourquoi ensuite** : ces fonctionnalités n'ont de sens qu'une fois le
 patrimoine net réellement complet (Phase 1) — projeter un patrimoine qui ne compte pas l'immobilier
 ni les dettes donnerait une trajectoire fausse. C'est en revanche la phase à plus fort effet
-d'engagement : c'est la fonctionnalité phare payante de Finary (« Predict »), reproductible ici en
+d'engagement : c'est une fonctionnalité typiquement vendue en supplément ailleurs, reproductible ici en
 calcul pur, sans aucune dépendance externe ni coût.
 
 Étapes concrètes :
@@ -118,7 +118,7 @@ calcul pur, sans aucune dépendance externe ni coût.
 son résultat à une formule fermée indépendante (capitalisation composée, valeur future d'une suite
 de versements — mêmes mathématiques que l'amortissement d'emprunt de la Phase 1, appliquées en sens
 inverse), pas seulement par une relecture du code. Testé en direct dans le navigateur sur le
-patrimoine net réel de l'utilisateur (10 998,93 €) : projection et FIRE réactifs aux changements
+patrimoine net réel de l'utilisateur : projection et FIRE réactifs aux changements
 d'hypothèses (le patrimoine nécessaire augmente avec un taux de retrait plus prudent, le délai
 diminue avec plus d'épargne mensuelle — invariants de sens vérifiés, pas seulement de valeur). 395
 tests backend (+17) + 101 tests frontend (+8). Détail complet dans [`docs/BACKLOG.md`](BACKLOG.md)
@@ -137,7 +137,7 @@ net réel. Voir le détail dans [`docs/BACKLOG.md`](BACKLOG.md) § 2.B.1. Le bac
 **Backlog** : C.1 (calendrier dividendes), D.1 (relevé PDF), E.1 (formats de courtier), E.3 (coût
 consolidé), H.1 (PWA). **Effort total** : `M`. **Pourquoi ici** : ce sont des améliorations
 d'usage quotidien plutôt que des fondations — elles rendent l'application plus agréable à ouvrir
-souvent (l'habitude d'usage est justement ce qui fait la valeur perçue d'un Finary), mais aucune
+souvent (l'habitude d'usage est justement ce qui fait la valeur perçue d'un tel outil), mais aucune
 n'est bloquante pour une autre. Regroupées ensemble parce qu'elles sont indépendantes les unes des
 autres et peuvent être livrées dans n'importe quel ordre interne selon l'envie du moment.
 
@@ -204,7 +204,7 @@ foyer/détenteurs, profondeur du modèle d'actifs, budget, objectifs, analyses a
 sections **K à Q** de `docs/BACKLOG.md`) a été planifiée et exécutée directement en **Lots 4 à 8**
 dans `docs/BACKLOG.md` § 4, sans être réécrite ici en `Phase 5/6/...` : le changement de nomenclature
 (« Lot » plutôt que « Phase ») date du 21/08/2026, quand le cadrage a basculé du seul suivi boursier
-vers Finary comme référence explicite (§ 1 du backlog). Une fois ces lots livrés et l'usage réel
+vers une étude d'opportunité menée sur les outils du marché (§ 1 du backlog). Une fois ces lots livrés et l'usage réel
 commencé, une quinzaine de retours directs de l'utilisateur (sections **R à W**) ont été regroupés a
 posteriori en **Lot 9 « Retours terrain »** — voir `docs/BACKLOG.md` § 4 pour l'état actuel complet
 (neuf lots clos, trois points isolés hors lot dont E.2 ci-dessus) et l'artefact « Roadmap Patrimoine »
@@ -213,7 +213,7 @@ publié pour une vue visuelle à jour.
 ## Ce qui reste hors périmètre quoi qu'il arrive
 
 Voir `docs/BACKLOG.md` § 3 pour le détail et la justification : fiscalité PEA, agrégation bancaire
-commerciale type Powens/Plaid, trading/rendement crypto intégré, fonctionnalités communautaires.
+commerciale via un prestataire régulé, trading/rendement crypto intégré, fonctionnalités communautaires.
 L'authentification, elle, est **sortie** de cette liste le 21/08/2026 (cible d'usage devenue le
 foyer, exposition depuis le serveur personnel) — voir `docs/BACKLOG.md` § 3. Aucun des points
 restants n'est reconsidéré par cette roadmap — les y renvoyer explicitement évite qu'ils ne

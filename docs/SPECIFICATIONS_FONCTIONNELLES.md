@@ -304,7 +304,7 @@ saisi).
 l'immobilier, même mécanisme que `valeur_estimee` elle-même) : chaque changement RÉEL de
 `Holding.valeur_estimee` (création, ou modification qui la change effectivement — jamais un
 effacement à `None`, ni une modification d'un autre champ seul) ajoute une ligne datée, sans jamais
-écraser la précédente — corrige le défaut relevé chez Finary (§ 1.2) qui présente une plus-value
+écraser la précédente — corrige le défaut relevé à l'étude d'opportunité (§ 1.2), qui présente une plus-value
 immobilière comme un fait alors qu'elle vient d'un algorithme non maîtrisé.
 `Holding.valeur_estimee`/`date_valeur_estimee` restent la valeur COURANTE (accès rapide, comportement
 inchangé partout ailleurs dans l'application) ; `GET /holdings/{ticker}/immobilier-history` expose

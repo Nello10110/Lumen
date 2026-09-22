@@ -1,6 +1,6 @@
 """Rapport récapitulatif sur une période arbitraire (roadmap Phase 4, § D.2 —
-étendu depuis à l'annuel et à une période personnalisée) — équivalent du « rapport
-mensuel » de Finary, mais sans envoi : l'application n'a pas de serveur mail, le
+étendu depuis à l'annuel et à une période personnalisée) — un « rapport
+périodique », mais sans envoi : l'application n'a pas de serveur mail, le
 rapport est généré à la demande plutôt que poussé automatiquement. Éléments pour la
 période demandée : évolution de la valeur du portefeuille (et sa décomposition
 investi/généré, cf. ci-dessous), plus gros mouvements (en valeur absolue) et

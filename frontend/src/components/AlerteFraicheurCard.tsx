@@ -4,8 +4,8 @@ import type { AlerteFraicheurItem } from '../api/types'
 import Card from './Card'
 import { formatDate } from '../utils/format'
 
-/** Alertes de fraîcheur des valorisations manuelles (backlog § BA.2, revue
- * concurrentielle fiscal.ai du 21/09/2026) : signale les lignes valorisées
+/** Alertes de fraîcheur des valorisations manuelles (backlog § BA.2, veille
+ * concurrentielle du 21/09/2026) : signale les lignes valorisées
  * manuellement (immobilier, assurance-vie...) dont la valeur n'a pas été
  * retouchée depuis plus d'un an — `GET /api/patrimoine/alertes-fraicheur`.
  *

@@ -15,15 +15,14 @@ présent, rafraîchissement toujours asynchrone en 202) — voir le détail de l
 document (§ 5).
 
 Ce document est désormais **tourné vers la suite**. Contexte du changement de cap (échange du
-19/08/2026) : l'utilisateur souhaite faire évoluer l'application vers quelque chose qui se
-rapproche de **Finary** (agrégateur patrimonial français, cf. § 1) — en restant **gratuit et open
-source**, contrairement à Finary qui est un produit commercial. Le § 1 pose la comparaison
-factuelle, le § 2 en tire un backlog priorisé, le § 3 fixe ce qui reste explicitement hors
+19/08/2026) : l'utilisateur souhaite faire évoluer l'application vers un **suivi patrimonial
+complet**, au niveau de ce que proposent les agrégateurs commerciaux du marché (cf. § 1) — mais
+gratuit et à code ouvert. Le § 1 pose la comparaison factuelle, le § 2 en tire un backlog priorisé, le § 3 fixe ce qui reste explicitement hors
 périmètre et pourquoi. Le plan d'exécution détaillé et l'ordre des lots proposé sont dans
 [`docs/ROADMAP.md`](ROADMAP.md).
 
-**Mise à jour du 21/08/2026.** Nouvelle campagne d'observation, cette fois **sur Finary connecté**
-(compte réel de l'utilisateur, `app.finary.com/v2`), écran par écran, doublée d'un **audit UX/UI du
+**Mise à jour du 21/08/2026.** Nouvelle campagne d'observation, cette fois sur une **solution
+commerciale de référence en usage réel**, écran par écran, doublée d'un **audit UX/UI du
 frontend actuel** et de trois décisions de cadrage prises le même jour :
 
 1. la cible d'usage devient le **foyer, avec exposition depuis le serveur personnel** — ce qui fait
@@ -50,17 +49,17 @@ d'une vue façon Actual Budget), ouvre un chantier autonome — section **X** du
 
 ---
 
-## 1. Comparaison avec Finary
+## 1. Étude d'opportunité — comparaison avec l'offre du marché
 
-Deux campagnes d'observation. La première (19/08/2026) était **documentaire** : site officiel
-`finary.com` et avis indépendants. La seconde (**21/08/2026**) est une **observation directe du
-produit connecté**, sur le compte réel de l'utilisateur (`app.finary.com/v2`, formule gratuite,
-patrimoine renseigné : 2 biens immobiliers, 2 contrats d'assurance-vie, 3 emprunts) — écran par
-écran, y compris les fiches de détail, les réglages et les modales de partage. Cette seconde
+Deux campagnes d'observation portant sur une **solution commerciale de référence** du suivi
+patrimonial, volontairement non nommée ici. La première (19/08/2026) était **documentaire** : site
+officiel et avis indépendants. La seconde (**21/08/2026**) est une **observation directe du produit
+en usage réel**, formule gratuite — écran par écran, y compris les fiches de détail, les réglages
+et les modales de partage. Cette seconde
 campagne a fait apparaître des fonctionnalités que la documentation commerciale ne montre pas, et
 c'est elle qui alimente les nouveaux lots K à Q du § 2.
 
-### 1.1 Ce que Finary expose réellement (relevé du 21/08/2026)
+### 1.1 Ce que l'outil observé expose réellement (relevé du 21/08/2026)
 
 **Navigation** : `Synthèse` · `Patrimoine` · `Objectifs` (badge « NOUVEAU ») · `Analyse` · `Budget` ·
 `Investir` · `Outils` · `Communauté` · `Premium offert`, dans une **barre latérale verticale
@@ -68,32 +67,32 @@ repliable**. L'en-tête porte cinq actions transverses : *Partager mon patrimoin
 patrimoine*, *Cacher les montants*, *Notifications*, *Action requise*, plus un bouton d'appel à
 l'action *Compléter mon patrimoine*.
 
-| Bloc observé | Ce que Finary fait | Ce que nous faisons aujourd'hui |
+| Bloc observé | Ce que fait l'outil observé | Ce que nous faisons aujourd'hui |
 |---|---|---|
 | **Trois lentilles de patrimoine** | Sélecteur global : *Patrimoine brut* (actifs hors passifs), *Patrimoine net* (actifs − passifs), *Patrimoine financier* (actifs liquides hors comptes bancaires). S'applique au chiffre-clé, au graphique et aux répartitions | Patrimoine net seul, calculé mais non commutable |
 | **Période globale** | `1J 7J 1M 3M 6M YTD 1A TOUT`, persistante d'un écran à l'autre | Sélecteur d'année par écran, non transverse |
 | **Détenteurs (quotités)** | Chaque actif **et chaque passif** porte des détenteurs avec un pourcentage. Réglages → *Famille et entreprises* gère les personnes **et les sociétés** (SCI, holding). Filtre et regroupement par détenteur dans les tableaux | Absent. Le champ « compte » est une simple annotation |
-| **Part détenue / part nette** | Sur un bien : *Part détenue* 50 % → 102 200 €, *Part nette* 16 % → 14 461 €, après déduction de l'emprunt rattaché | Absent. Actifs et passifs sont additionnés globalement, jamais rapprochés |
+| **Part détenue / part nette** | Sur un bien : une *part détenue* en pourcentage donne une valeur, dont est déduit l'emprunt rattaché pour obtenir la *part nette* — nettement plus faible | Absent. Actifs et passifs sont additionnés globalement, jamais rapprochés |
 | **Emprunt rattaché à un actif** | Un passif se lie à un bien (`Emprunts liés`), ce qui rend la part nette calculable | Les emprunts existent mais flottent, sans rattachement |
-| **Immobilier** | Valorisation automatique **PriceHubble** : valeur estimée, prix/m², *niveau de confiance*, positionnement sur une échelle de marché (« au-dessus du marché »). Fiche structurée en 8 sections : Description, Caractéristiques, Location, Détails, Pièces, Emprunts liés, Détention, Supprimer. Le bloc *Location* porte type (Pinel, …), périodicité, loyer mensuel, charges mensuelles, frais annuels → **cashflow** et **rentabilité** calculés | Valeur estimée saisie à la main, sans loyer, sans charges, sans cashflow ni rentabilité |
+| **Immobilier** | Valorisation automatique via un **service d'estimation tiers payant** : valeur estimée, prix/m², *niveau de confiance*, positionnement sur une échelle de marché (« au-dessus du marché »). Fiche structurée en 8 sections : Description, Caractéristiques, Location, Détails, Pièces, Emprunts liés, Détention, Supprimer. Le bloc *Location* porte type (Pinel, …), périodicité, loyer mensuel, charges mensuelles, frais annuels → **cashflow** et **rentabilité** calculés | Valeur estimée saisie à la main, sans loyer, sans charges, sans cashflow ni rentabilité |
 | **Fiche d'actif** | Trois onglets systématiques : *Aperçu* (valeur, courbe, indicateurs), *Analyse* (marché, détention), *Paramètres* (formulaire sectionné avec sommaire latéral) | Fiche détaillée pour les seules positions boursières, sans onglets ni édition structurée |
 | **Objectifs** | Frise 2026 → 2076. Objectifs typés (*Indépendance financière*, *Épargne de précaution*) avec valeur cible, trajectoire projetée en deux courbes (valeur cible / valeur des versements), **statut en langage naturel** (« En bonne voie — votre objectif progresse comme prévu »), rendement requis, contribution cible €/mois, taux de progression, contributeurs, et **actifs liés** | Le simulateur calcule une projection et un FIRE, mais rien n'est *persisté* comme objectif suivi dans le temps |
-| **Analyse** | Sept modules : *Scanner de frais* (€/an), *Revenus passifs* (rendement % + projeté 12 mois), *Scanner de diversification sectorielle* (note /10), *Scanner de diversification géographique* (note /10), *Scanner d'abonnements*, *Simulateur de patrimoine*, *Investissements populaires*, plus *Classement* (percentile vs utilisateurs Finary et population française) et *Profil de l'investisseur* (profil de risque, matelas de sécurité, ratio d'endettement) | Coût de gestion consolidé et qualité des données présents ; scores de diversification, revenus passifs projetés, profil de risque et ratios absents |
+| **Analyse** | Sept modules : *Scanner de frais* (€/an), *Revenus passifs* (rendement % + projeté 12 mois), *Scanner de diversification sectorielle* (note /10), *Scanner de diversification géographique* (note /10), *Scanner d'abonnements*, *Simulateur de patrimoine*, *Investissements populaires*, plus *Classement* (percentile vs autres utilisateurs et population française) et *Profil de l'investisseur* (profil de risque, matelas de sécurité, ratio d'endettement) | Coût de gestion consolidé et qualité des données présents ; scores de diversification, revenus passifs projetés, profil de risque et ratios absents |
 | **Budget** | Période (1M/3M/1A/personnalisé), *Entrées / Sorties / Disponible / Dépenses récurrentes*, filtres par catégorie et par compte, distribution des sorties, création de catégories et de règles | Hors périmètre à ce jour (§ 2.N rouvre la décision) |
 | **Partage** | Lien **anonyme, révocable**, par profil, avec sélection des catégories partagées et quatre interrupteurs : partager le budget, partager les objectifs, *masquer les valeurs et les quantités*, *exiger un code de sécurité* | Absent |
 | **Déclaration de patrimoine** | PDF par profil, avec **sélection fine des actifs** à inclure (« Immobilier 2/2 », « Emprunts 3/3 »), alimentée par le *Profil investisseur* (salaire net, dépenses mensuelles, taux d'imposition) | Relevé PDF existant, mais monolithique : ni sélection, ni profil, ni détenteur |
 | **Taxonomie d'ajout** | 18 catégories : Immobilier, Actions & Fonds, PEA, Assurance Vie, Exchange Crypto, Crypto, Wallets Crypto, SCPI, Comptes courants, Comptes titres, Épargne salariale, Comptes d'épargne, Emprunts, Startups & PME, Crowdlending, Montres, Métaux précieux, Autres actifs | 9 environ, dont une catégorie « autre actif » fourre-tout |
 | **Réglages** | Mon compte (langue, **devise**, thème), Sécurité, Profil investisseur, Famille et entreprises, Comptes synchronisés, *Nettoyer graphique* (correction des accidents de série historique) | Préférences de calcul, seuil d'alerte, rafraîchissement, exports. Ni devise, ni profil, ni outil de correction d'historique |
 
-### 1.2 Ce que Finary fait mal — et qui devient notre terrain
+### 1.2 Ce que l'outil observé fait mal — et qui devient notre terrain
 
 L'observation directe est plus instructive que les avis en ligne. Six défauts sont **structurels**,
 pas conjoncturels, et chacun est une occasion :
 
-1. **Le chiffre-clé par défaut est le patrimoine *brut*.** L'écran d'accueil annonce
-   **251 552 €** ; les passifs totalisent **208 328 €**. Le patrimoine réellement détenu est de
-   l'ordre de **43 000 €**, soit six fois moins. Il faut ouvrir un menu déroulant discret pour le
-   voir. Un outil de suivi patrimonial dont l'indicateur principal flatte de 500 % est un problème
+1. **Le chiffre-clé par défaut est le patrimoine *brut*.** L'écran d'accueil annonce le total des
+   actifs sans déduire les passifs. Sur un patrimoine fortement financé par l'emprunt, l'écart
+   observé atteint un facteur six entre le chiffre mis en avant et ce qui est réellement détenu.
+   Il faut ouvrir un menu déroulant discret pour voir le second. Un outil de suivi patrimonial dont l'indicateur principal flatte de 500 % est un problème
    de conception, pas un réglage.
 2. **Le mur payant abîme l'écran d'analyse.** La moitié de la page *Analyse* est floutée. Les deux
    scores de diversification s'affichent « Insuffisante 1/10 » avec l'explication masquée : le
@@ -112,20 +111,18 @@ pas conjoncturels, et chacun est une occasion :
 
 ### 1.3 Positionnement retenu
 
-| Axe | Finary | Cible Lumen |
+| Axe | Offre commerciale observée | Cible Lumen |
 |---|---|---|
 | Modèle économique | 0 € limité à 2-3 synchronisations, Lite ≈ 55 €/an, Plus ≈ 150 €/an, Pro ≈ 350 €/an | Gratuit, à code ouvert (FSL-1.1-ALv2), auto-hébergé |
 | Donnée | Cloud, agrégation via prestataire régulé | 100 % local, hors requêtes de cotation |
 | Automatisation | Synchronisation de 20 000+ établissements | Import de fichiers + saisie ; agrégation à instruire (§ 2.E.2) |
 | Transparence du calcul | Boîte noire, scores sans explication en gratuit | Qualité des données affichée, méthode documentée, tout gratuit |
-| Profondeur d'analyse | Pas de TWR, ni volatilité, ni Sharpe, ni bêta ([outilsinvestisseur.fr](https://outilsinvestisseur.fr/finary-avis/)) | Terrain libre — § 2.P |
-| Fiabilité | Bugs de synchronisation récurrents, Trade Republic cité nommément ([dealfluence.fr](https://www.dealfluence.fr/tech/finary), Trustpilot ≈ 3,9/5) | Pas de synchronisation ⇒ pas cette classe de panne |
+| Profondeur d'analyse | Pas de TWR, ni volatilité, ni Sharpe, ni bêta | Terrain libre — § 2.P |
+| Fiabilité | Bugs de synchronisation bancaire récurrents, première cause d'avis négatifs | Pas de synchronisation ⇒ pas cette classe de panne |
 | Ergonomie | Barre latérale claire, fiches structurées, chiffre-clé lisible — mais brut par défaut et écran d'analyse mité | À rattraper (§ 2.K), c'est aujourd'hui notre principal retard |
 
-Sources : observation directe de `app.finary.com/v2` le 21/08/2026 ;
-[Avis Finary — outilsinvestisseur.fr](https://outilsinvestisseur.fr/finary-avis/) ;
-[Retour d'expérience 2 ans — dealfluence.fr](https://www.dealfluence.fr/tech/finary) ;
-[Analyse 2026 — epargnoo.com](https://epargnoo.com/epargnews/articles/avis-finary).
+Sources : observation directe du produit le 21/08/2026, complétée par plusieurs analyses et retours
+d'expérience publiés en ligne. Les références détaillées sont conservées hors dépôt.
 
 ---
 
@@ -174,7 +171,7 @@ immobilière de test créée (200 000 € investis, 250 000 € estimés) → re
 cohérent avec un amortissement de ~6,5 ans ; `GET /api/patrimoine/net` a alors renvoyé
 actifs 260 999 € / passifs 117 847 € / net 143 152 € (= 260 999 − 117 847, exact), avec une
 répartition par classe correctement triée par valeur décroissante. Les deux lignes de test ont
-ensuite été supprimées, le patrimoine net réel de l'utilisateur revérifié inchangé (10 998,93 €).
+ensuite été supprimées, et le patrimoine net réel de l'utilisateur revérifié inchangé au centime.
 378 tests backend (45 nouveaux) + 93 tests frontend (9 nouveaux), `tsc`/`oxlint`/`vite build`
 propres.
 
@@ -227,9 +224,9 @@ universelle, présenté comme tel à l'écran), calcule le patrimoine nécessair
 que B.1, le délai estimé pour l'atteindre. `Non atteinte` au-delà de 60 ans de projection plutôt
 qu'un nombre trompeur.
 
-**Vérifié en conditions réelles** (19/08-20/08/2026) sur le vrai patrimoine net de l'utilisateur
-(10 998,93 €) : projection à 5 ans/5 %/200 €-mois → 27 716,79 € (formule fermée de capitalisation
-avec versements recoupée à la main, écart < 1 centime) ; FIRE à 30 000 €/an, taux 4 % → patrimoine
+**Vérifié en conditions réelles** (19/08-20/08/2026) sur le patrimoine net réel de l'utilisateur :
+projection à 5 ans/5 %/200 €-mois recoupée à la main contre la formule fermée de capitalisation
+avec versements (écart < 1 centime) ; FIRE à 30 000 €/an, taux 4 % → patrimoine
 nécessaire 750 000 € (= 30000 / 0.04, exact), délai estimé 52,2 ans à épargne nulle, 22 ans à
 1 500 €/mois — cohérent, testé en direct dans le navigateur. 12 tests unitaires sur
 `simulation_service.py` (backend, à l'origine) verrouillaient chaque formule par un calcul fermé
@@ -250,8 +247,8 @@ l'existant. Nouveau `performance_service.compute_dividend_calendar` (regroupemen
 (barre chronologique + détail dépliable par mois).
 
 **Vérifié en conditions réelles** (20/08/2026) sur le vrai historique de transactions : total perçu
-21,71 € sur 29 mois (mars 2024 → août 2026), détail d'un mois déplié montrant les vraies lignes
-(Visa, Johnson & Johnson, Microsoft, Qualcomm, Nintendo pour juin 2025). Tests dans
+sur 29 mois (mars 2024 → août 2026), détail d'un mois déplié montrant bien les lignes individuelles
+qui le composent. Tests dans
 `test_performance_service.py`, build frontend propre.
 
 #### C.2 — `mineur` · `M` · `P2` · `traité (absorbé par P.3)` (25/08/2026) — Projection des dividendes à 12 mois
@@ -292,7 +289,7 @@ jamais utilisé en production).
 
 #### D.2 — `mineur` · `S` · `P3` · `traité` — Rapport périodique consultable
 
-Équivalent du « rapport mensuel » Finary, mais sans envoi (l'application n'a pas de serveur mail) :
+Équivalent d'un « rapport mensuel », mais sans envoi (l'application n'a pas de serveur mail) :
 une page récapitulative d'une période écoulée (évolution, plus gros mouvements, dividendes perçus),
 générée à la demande plutôt que poussée automatiquement. Nouveau `services/rapport_service.py`
 (`compute_rapport_periode`) : réutilise `historical_performance_service.compute_portfolio_history`
@@ -308,8 +305,8 @@ qui calcule les bornes correspondantes côté client avant d'appeler ce même en
 l'annuel ne sont donc que des raccourcis, sans code dupliqué. Validation (date de fin ≥ date de
 début) à la fois côté serveur (400) et côté écran (avant même d'émettre la requête).
 
-**Vérifié en conditions réelles** (20/08/2026) : mensuel (août 2026) → 10 961 € en fin de mois,
-+5,8 %, 0,14 € de dividendes ; annuel (2026) → +65,2 % depuis le 1er janvier, 12,49 € de dividendes ;
+**Vérifié en conditions réelles** (20/08/2026) : mensuel (août 2026) → valeur de fin de mois,
+variation en pourcentage et dividendes de la période ; annuel (2026) → cumul depuis le 1er janvier ;
 personnalisé (01/01/2026 au 20/08/2026, période quasi identique à l'annuel) → mêmes chiffres,
 confirmant la cohérence entre les trois modes. 7 tests backend (`test_rapport_service.py`) + 8 tests
 frontend (`RapportPage.test.tsx`).
@@ -348,7 +345,7 @@ une piste à instruire, pas un engagement — cohérent avec la prudence déjà 
 Le TER de chaque fonds est déjà récupéré (`fetch_holding_extra_info`, pas mis en cache) ; un
 indicateur consolidé (coût de gestion annuel total en euros, pondéré par la valeur de chaque ligne)
 donnerait une vue immédiate du "combien ça coûte de détenir ce portefeuille" — sur le modèle du
-scanner de frais Finary, mais sans les frais bancaires (que nous n'avons pas).
+scanner de frais des outils du marché, mais sans les frais bancaires (que nous n'avons pas).
 
 Nouvelle colonne `MarketDataCache.frais_gestion_pct` (additive, couverte par
 `run_startup_migrations`), peuplée **une seule fois par ticker FUND** par
@@ -371,7 +368,7 @@ tests frontend (`CoutGestionCard.test.tsx`).
 
 L'application exclut aujourd'hui **volontairement** les mouvements hors bourse (increment 5 :
 virements bancaires, carte) — décision prise pour recentrer l'app sur le suivi boursier pur. Un
-module Budget à la Finary réintroduirait ces données. **À trancher avec l'utilisateur avant tout
+un module Budget calqué sur les agrégateurs réintroduirait ces données. **À trancher avec l'utilisateur avant tout
 développement** : soit un écran strictement séparé et optionnel (import distinct, jamais mélangé
 aux calculs de performance boursière existants), soit un non-objectif assumé (comme la fiscalité
 PEA) si le suivi boursier doit rester le seul périmètre.
@@ -399,7 +396,7 @@ livré 25/08/2026) pour un tiers hors foyer — plus simple que ce qu'envisageai
 
 Rendre le frontend installable comme une application (icône, plein écran, fonctionne hors ligne
 pour les données déjà chargées) via un manifest + service worker — gratuit, pas de store, pas de
-build natif à maintenir. Se rapproche de l'usage mobile de Finary sans le coût d'une vraie
+build natif à maintenir. Se rapproche de l'usage mobile d'une application native sans le coût d'une vraie
 application native.
 
 `vite-plugin-pwa` (Workbox) plutôt qu'un service worker écrit à la main — la mise en cache maison est
@@ -505,7 +502,7 @@ seul écran), `App.tsx` gate tout le contenu tant que non connecté. 22 nouveaux
 existante quelconque exige désormais un jeton) + 4 nouveaux tests frontend, **les ~400 tests
 existants n'ont nécessité AUCUNE modification** grâce à un `dependency_overrides[get_current_user]`
 posé dans la fixture `client` de `conftest.py`. Vérifié en conditions réelles : compte créé depuis
-l'écran de connexion, patrimoine net réel (10 999 €) et les 49 positions réelles toujours visibles
+l'écran de connexion, patrimoine net réel et les 49 positions réelles toujours visibles
 une fois connecté (aucune perte de données), déconnexion → jeton effacé → tout appel API renvoie 401
 → reconnexion fonctionnelle.
 
@@ -650,9 +647,9 @@ suppression, ouverture de la fiche détail).
 
 **Vérifié** : `tsc -b --noEmit` et `oxlint` propres, suite frontend complète au vert (140/140,
 dont les 13 tests de `PortefeuillePage.test.tsx` inchangés), `vite build` propre, et contrôle visuel
-dans le navigateur sur le vrai portefeuille (49 positions) : filtre par catégorie (Crypto → 2
-positions, 305,23 €), tri par colonne (Valeur ↑), édition en ligne (Modifier/Annuler) et modale de
-suppression (BTC, annulée) tous fonctionnels sans régression.
+dans le navigateur sur le vrai portefeuille (49 positions) : filtre par catégorie (le total affiché
+suit bien le filtre), tri par colonne (Valeur ↑), édition en ligne (Modifier/Annuler) et modale de
+suppression (ouverte puis annulée) tous fonctionnels sans régression.
 
 #### I.4 — `mineur` · `S` · `P2` · `traité` — Migration de schéma limitée à l'ajout de colonnes
 
@@ -769,12 +766,13 @@ de tenir avec une position fermée sans vente). 442 tests backend au vert.
 
 **Vérifié en conditions réelles** sur la vraie base (`portfolio.db`, sauvegarde prise avant
 intervention) : `POST /api/transactions/reconstruct` (49 positions recalculées, 0 anomalie) puis cache
-d'historique invalidé. `gain_perte_total` passe de 1595.86 € à **1519.70 €** — et coïncide désormais à
-l'euro près avec le dernier point du graphique (`valeur_portefeuille + valeur_realisee_cumulee -
-valeur_investie` = 1519.70 € également), sans aucun changement supplémentaire nécessaire côté
+d'historique invalidé. `gain_perte_total` change de valeur — et coïncide désormais à l'euro près
+avec le dernier point du graphique (`valeur_portefeuille + valeur_realisee_cumulee -
+valeur_investie`), sans aucun changement supplémentaire nécessaire côté
 increment 13 (confirmé algébriquement avant d'implémenter : les deux termes de perte réalisée
 s'annulent exactement entre `gains_realises` et `cout_base_ouvert`, sans jamais toucher à la formule du
-graphique). Contrôle visuel dans le navigateur : carte Rentabilité globale affiche +1 520 €.
+graphique). Contrôle visuel dans le navigateur : la carte Rentabilité globale affiche bien la même
+valeur que le graphique.
 
 ---
 
@@ -842,7 +840,7 @@ vrai besoin, ex. `Sheet` pour K.4 mobile).
   (*Synthèse, Patrimoine, Analyse, Objectifs, Budget*) et, séparés, les écrans d'administration
   (*Import, Réglages, Aide*) déplacés dans le **menu du compte**.
 - **Vocabulaire unique** : un écran, un mot. « Patrimoine » partout, y compris dans l'URL et le
-  titre de l'onglet — la triple dénomination de Finary (§ 1.2) est exactement ce qu'il ne faut pas
+  titre de l'onglet — la triple dénomination relevée à l'étude d'opportunité (§ 1.2) est exactement ce qu'il ne faut pas
   reproduire.
 - **Fil d'Ariane** sur les pages de détail, et **retour** qui ramène à l'état précédent (filtres et
   défilement compris), pas au haut de la liste.
@@ -864,7 +862,7 @@ assumée : un résultat "emprunt" navigue vers Portefeuille en général, pas un
 
 Trois contrôles vivent dans l'en-tête et s'appliquent à **tous** les écrans, avec mémorisation :
 
-- **Lentille** : `Patrimoine net` (**défaut**, contrairement à Finary), `Patrimoine brut`,
+- **Lentille** : `Patrimoine net` (**défaut**, contrairement à l'outil observé), `Patrimoine brut`,
   `Patrimoine financier`. Le net par défaut est un choix de produit, pas un détail : c'est le seul
   chiffre qui répond à la question posée par l'utilisateur — *est-ce que ça monte ?*
 - **Période** : `1M 3M 6M YTD 1A 3A TOUT` + plage personnalisée.
@@ -931,7 +929,7 @@ Un traitement uniforme, appliqué à chaque écran et à chaque carte :
 - **Chargement** : squelette de la forme finale, jamais un texte, jamais un saut de mise en page.
 - **Vide** : dire *pourquoi* c'est vide et *quoi faire* — « Aucun dividende perçu sur la période.
   Élargir la période ou importer un relevé. » Le rectangle blanc de la carte *Performance* de
-  Finary (§ 1.2) est le contre-exemple à garder en tête.
+  L'outil observé (§ 1.2) est le contre-exemple à garder en tête.
 - **Erreur** : cause en français, action de reprise, et jamais la disparition silencieuse d'une
   carte.
 
@@ -1018,7 +1016,7 @@ Le modèle actuel ignore la question « à qui appartient quoi ». Or l'immobili
 à 50/50, et le patrimoine réellement disponible pour une personne n'est pas le patrimoine affiché.
 
 - **Personnes** (conjoint, enfants) et **sociétés** (SCI, holding) déclarées une fois, réutilisées
-  partout — c'est le modèle « Famille et entreprises » de Finary, et il est juste.
+  partout — c'est le modèle « Famille et entreprises » relevé à l'étude d'opportunité, et il est juste.
 - **Quotité par actif et par passif**, en pourcentage, somme contrôlée à 100 %.
 - **Part détenue** et **part nette** calculées par actif : part nette = quotité × (valeur − capital
   restant dû des emprunts rattachés × quotité sur l'emprunt).
@@ -1187,7 +1185,7 @@ jour en conséquence, au vert.
 
 ### M. Profondeur du modèle d'actifs (nouveau, 21/08/2026)
 
-Nous couvrons environ 9 natures d'actifs, Finary en propose 18. L'écart n'est pas une question de
+Nous couvrons environ 9 natures d'actifs, l'outil observé en propose 18. L'écart n'est pas une question de
 volume mais de **ce qui manque au foyer réel** : les liquidités, l'épargne réglementée et
 l'épargne salariale, qui pèsent lourd et qui sont aujourd'hui invisibles.
 
@@ -1255,7 +1253,7 @@ d'un même emprunt à plusieurs actifs avec une clé de répartition (aujourd'hu
 
 #### M.3 — `majeur` · `M` · `P1` · `traité` (24/08/2026) — Fiche immobilier complète
 
-C'est le domaine où l'écart avec Finary est le plus visible, et c'est aussi le premier poste du
+C'est le domaine où l'écart avec l'offre du marché est le plus visible, et c'est aussi le premier poste du
 patrimoine du foyer. À ajouter à la valorisation manuelle existante :
 
 - **Bloc location** : type (nue, meublée, Pinel, LMNP…), périodicité, **loyer mensuel**, **charges
@@ -1267,11 +1265,11 @@ patrimoine du foyer. À ajouter à la valorisation manuelle existante :
 - **Caractéristiques** : type, surface, pièces, année, DPE.
 - **Historique de valorisation** : une valeur estimée est **datée** ; l'ancienne n'est pas écrasée,
   elle alimente la courbe. Corollaire : afficher explicitement *« estimation saisie le … »* —
-  Finary présente une plus-value immobilière comme un fait alors qu'elle vient d'un algorithme, on
+  L'outil observé présente une plus-value immobilière comme un fait alors qu'elle vient d'un algorithme, on
   ne reproduit pas ça.
 
-> **Hors périmètre confirmé** : la valorisation immobilière automatique (Finary s'appuie sur
-> PriceHubble, prestataire payant). L'alternative retenue est la saisie datée, plus honnête qu'une
+> **Hors périmètre confirmé** : la valorisation immobilière automatique (les solutions du marché
+> s'appuient sur des services d'estimation payants). L'alternative retenue est la saisie datée, plus honnête qu'une
 > estimation dont on ne maîtrise ni la méthode ni la fraîcheur. À réétudier seulement si une source
 > gratuite fiable apparaît — les données DVF de la DGFiP sont une piste (prix de mutation réels),
 > à instruire, pas à engager.
@@ -1304,7 +1302,7 @@ autre champ (nom) n'en ajoute un troisième.
 Aujourd'hui seules les positions boursières ont une fiche détaillée. Cible : **toute** ligne du
 patrimoine ouvre la même structure à trois onglets — *Aperçu* (valeur, courbe, indicateurs propres
 à la nature), *Analyse* (exposition, détention, part nette), *Paramètres* (édition sectionnée).
-C'est le patron le plus réussi de Finary et il ne coûte rien à reprendre.
+C'est le patron le plus réussi de l'outil observé et il ne coûte rien à reprendre.
 
 **Livré et vérifié le 24/08/2026.** La fiche (`HoldingDetailContent.tsx`, déjà commune à toutes les
 natures d'actif côté backend depuis M.1/M.3) gagne trois onglets réels (`role="tablist"`/`tab`/
@@ -1337,7 +1335,7 @@ complet pour une nature hors du sous-ensemble boursier historique.
 ### N. Budget et flux (décision prise le 21/08/2026)
 
 Le § F.1 posait la question ; **elle est tranchée : le budget entre dans le périmètre**, en lot
-dédié. Motif : c'est le dernier écart fonctionnel majeur avec Finary, et le besoin
+dédié. Motif : c'est le dernier écart fonctionnel majeur avec l'offre du marché, et le besoin
 « extraits de dépenses » était déjà exprimé au lancement du projet. Le produit reste un outil de
 **suivi** : aucun virement, aucun ordre, aucune action sur un compte.
 
@@ -1349,7 +1347,7 @@ dédié. Motif : c'est le dernier écart fonctionnel majeur avec Finary, et le b
   doubler les lignes.
 - **Catégorisation par règles** de l'utilisateur (« libellé contient X → catégorie Y »), appliquées
   à l'import et réappliquables en masse. **Pas de catégorisation par IA** : les règles sont
-  lisibles, corrigeables et déterministes ; c'est un avantage sur la boîte noire de Finary, pas un
+  lisibles, corrigeables et déterministes ; c'est un avantage sur les boîtes noires du marché, pas un
   renoncement.
 - **Arbre de catégories** par défaut (logement, transport, alimentation, loisirs, santé, épargne,
   revenus…), entièrement modifiable.
@@ -1378,7 +1376,7 @@ distincte de celle du CSV (convention française jour/mois).
 
 #### N.2 — `majeur` · `M` · `P1` · `traité` (24/08/2026) — Écran Budget
 
-Reprendre la structure qui fonctionne chez Finary : période (1M/3M/1A/personnalisée), quatre
+Reprendre la structure qui fonctionne chez l'outil observé : période (1M/3M/1A/personnalisée), quatre
 indicateurs — **Entrées / Sorties / Disponible / Dépenses récurrentes** — répartition des sorties,
 filtres par catégorie et par compte, et **budget cible par catégorie** avec écart en fin de mois.
 
@@ -1403,7 +1401,7 @@ règle, édition d'un budget cible avec recalcul immédiat de l'écart, filtres 
 
 Détecter les mouvements qui reviennent (même bénéficiaire, montant stable, périodicité régulière),
 en déduire la charge fixe mensuelle, signaler les hausses de prix et les abonnements inutilisés.
-Finary en a fait un module à part (« Scanner d'abonnements ») ; c'est le sous-produit naturel de
+L'outil observé en a fait un module à part (« Scanner d'abonnements ») ; c'est le sous-produit naturel de
 N.1, pas un chantier séparé.
 
 **Livré et vérifié le 24/08/2026.** Nouveau `services/budget_recurrences_service.py`, regroupe les
@@ -1419,15 +1417,15 @@ propre) — reste visible même si le mois affiché n'a aucun mouvement. **« Ab
 texte du backlog, non livré tel quel** : aucune donnée de la banque ne permet de savoir si un
 abonnement encore facturé est réellement utilisé — la liste complète des charges récurrentes,
 présentée pour revue par l'utilisateur, en est l'équivalent honnête (pas de faux signal d'usage
-inventé). Vérifié en conditions réelles (backend isolé, 3 mois de mouvements réels) : Netflix détecté
-avec une hausse de prix (12,99 € → 14,99 €, +15 %) correctement signalée, Loyer et Livret A détectés
-sans hausse, périodicité mensuelle correcte pour les trois.
+inventé). Vérifié en conditions réelles (backend isolé, 3 mois de mouvements réels) : un abonnement
+dont le prix avait augmenté correctement signalé comme tel, deux autres charges récurrentes
+détectées sans hausse, périodicité mensuelle correcte pour les trois.
 
 #### N.4 — `mineur` · `S` · `P2` · `traité` (24/08/2026) — Jonction budget ↔ patrimoine
 
 Le budget n'a d'intérêt ici que s'il rejoint le patrimoine : **taux d'épargne réel** (épargne /
 revenus), **reste à vivre**, et **alimentation automatique du versement mensuel du simulateur** par
-le taux d'épargne observé plutôt qu'une hypothèse saisie à la main. C'est le lien que Finary ne
+le taux d'épargne observé plutôt qu'une hypothèse saisie à la main. C'est le lien que l'outil observé ne
 fait pas.
 
 **Livré et vérifié le 24/08/2026.** `taux_epargne_reel_pct` = sorties de la catégorie racine
@@ -1461,7 +1459,7 @@ suivi dans le temps est une fonctionnalité différente d'une simulation.
 - **Trajectoire** : deux courbes, la trajectoire cible et la trajectoire réelle des versements.
 - **Diagnostic en langage naturel** : « en bonne voie », « en retard de 14 mois », « atteint »,
   accompagné du **rendement requis** et de la **contribution mensuelle nécessaire** pour tenir
-  l'échéance. C'est le meilleur écran de Finary, et il est reproductible sans donnée externe.
+  l'échéance. C'est le meilleur écran de l'outil observé, et il est reproductible sans donnée externe.
 - Types prédéfinis utiles : indépendance financière (reprend le calcul FIRE existant), épargne de
   précaution, apport immobilier, remboursement anticipé.
 
@@ -1497,7 +1495,7 @@ Trois ratios, calculables à partir de ce que nous aurons alors, à afficher ave
 - **Taux d'endettement** : mensualités / revenus nets.
 - **Part du patrimoine immobilisée** : actifs non liquides / patrimoine brut.
 
-Finary les vend dans le module « Profil de l'investisseur » ; ils tiennent en trois divisions.
+L'outil observé les vend dans le module « Profil de l'investisseur » ; ils tiennent en trois divisions.
 
 **Livré et vérifié le 24/08/2026.** « Épargne disponible » = holdings `CASH_ACCOUNT`/
 `REGULATED_SAVINGS` (les deux seuls types immédiatement disponibles sans délai ni pénalité parmi
@@ -1515,10 +1513,10 @@ toujours réservé au propriétaire). Aucun changement de calcul.
 
 ---
 
-### P. Analyses avancées — le terrain que Finary laisse libre
+### P. Analyses avancées — le terrain que le marché laisse libre
 
-Les avis convergent : Finary n'offre ni TWR, ni volatilité, ni Sharpe, ni bêta, ni analyse
-fondamentale ([outilsinvestisseur.fr](https://outilsinvestisseur.fr/finary-avis/)). Nous avons déjà
+Les avis convergent : l'offre du marché n'inclut ni TWR, ni volatilité, ni Sharpe, ni bêta, ni analyse
+fondamentale dans les offres grand public observées. Nous avons déjà
 le XIRR et le look-through audité ; l'écart est court et le différenciateur est net.
 
 #### P.1 — `majeur` · `M` · `P2` · `traité` (24/08/2026) — Exposition consolidée tous actifs
@@ -1620,7 +1618,7 @@ tests frontend, `tsc`/`oxlint` propres.
 #### Q.1 — `mineur` · `M` · `P2` · `traité` (25/08/2026) — Lien de partage révocable
 
 Remplace et précise le § G.1, jusqu'ici bloqué faute d'authentification — le lot L la débloque. Le
-modèle de Finary est bon, on le reprend tel quel :
+modèle de l'outil observé est bon, on le reprend tel quel :
 
 - Lien **anonyme et révocable à tout moment**, avec date d'expiration.
 - **Sélection des catégories** partagées, et du détenteur concerné.
@@ -4256,8 +4254,8 @@ strictement correct pour ce non-événement économique. Un `FREE_RECEIPT` isol�
 crypto hebdomadaires observés dans le même export, toujours positifs seuls) reste traité comme un vrai
 don de titres à coût nul, comportement inchangé. Vérifié sur l'export réel fourni : import isolé,
 recalcul de la position concernée exactement égal à une resommation manuelle des 145 lignes `BUY` de
-l'ISIN (1,576691 titres, 917,22 € de coût) — plus aucune ligne à rendement aberrant (> 300 %) sur les 49
-positions reconstruites, total du compte-titres resserré de 9673 € à 8344 € (le résidu restant tient à
+l'ISIN — plus aucune ligne à rendement aberrant (> 300 %) sur les 49 positions reconstruites, et
+total du compte-titres sensiblement resserré (le résidu restant tient à
 l'absence de rafraîchissement de cours en environnement de test isolé, pas à la reconstruction elle-même).
 
 ---
@@ -4735,10 +4733,10 @@ bien »), qui avait appris à ne pas laisser un effet lumineux tourner en contin
 
 ---
 
-### AZ. Trois pistes issues d'une revue concurrentielle (Baggr.fr, 20/09/2026)
+### AZ. Trois pistes issues d'une veille concurrentielle (20/09/2026)
 
-Revue du site public de Baggr.fr (plateforme d'analyse et de screener boursier, hors périmètre de
-Lumen sur son cœur de métier — cf. § 3) : deux idées écartées d'emblée (screener/valorisation
+Revue du site public d'une plateforme d'analyse et de screener boursier, hors périmètre de
+Lumen sur son cœur de métier (cf. § 3) : deux idées écartées d'emblée (screener/valorisation
 d'actions, communauté/thèses) parce qu'elles transformeraient Lumen en concurrent direct d'un outil
 qui a des années d'avance sur ce terrain précis. Trois pistes retenues, compatibles avec la
 philosophie déjà actée du produit, spécifiées ici avec un niveau de détail suffisant pour être
@@ -4751,11 +4749,11 @@ précis à toucher, tests attendus.
 portefeuille financier : `score_diversification` (`analysis_service.compute_risk_indicators`,
 HHI sur `breakdown_with_lookthrough`), la qualité des données géographiques
 (`analysis_service.compute_data_quality`), et implicitement le ratio d'endettement (déductible de
-`patrimoine_service.compute_patrimoine_net`, jamais affiché comme tel). Finary et Baggr affichent
-chacun une note synthétique ; le backlog note déjà (§ 1.1, ligne « Analyse ») que Lumen n'a pas
-d'équivalent consolidé. **Différence volontaire avec Finary** (§ 1.2, point 2 : « le mur payant
-abîme l'écran d'analyse... le diagnostic anxiogène est offert, le remède est vendu ») : la méthode
-de calcul doit toujours être visible, jamais une boîte noire.
+`patrimoine_service.compute_patrimoine_net`, jamais affiché comme tel). Les outils du marché
+affichent une note synthétique ; le backlog note déjà (§ 1.1, ligne « Analyse ») que Lumen n'a pas
+d'équivalent consolidé. **Principe fondateur** (§ 1.2, point 2 : un diagnostic anxiogène offert
+dont le remède est vendu) : la méthode de calcul doit toujours être visible, jamais une boîte
+noire.
 
 **Nouveau fichier** `backend/app/services/score_patrimonial_service.py` — une seule fonction
 publique, aucune nouvelle table, aucun nouvel appel réseau : recombine des chiffres déjà calculés
@@ -5213,11 +5211,11 @@ faudrait cliquer pour voir l'en-tête de colonne dans son tableau).
 
 ---
 
-### BA. Deux pistes issues d'une revue concurrentielle (fiscal.ai, 21/09/2026)
+### BA. Deux pistes issues d'une veille concurrentielle (21/09/2026)
 
-Revue du site public de fiscal.ai (ex-FinChat.io, terminal de recherche actions adossé à S&P Global
-Market Intelligence — hors périmètre de Lumen : c'est un outil pour décider *dans quoi* investir,
-Lumen répond à *ce que vaut* le patrimoine déjà détenu). Ce qui y a été explicitement écarté, pour
+Revue du site public d'un terminal de recherche actions adossé à un fournisseur de données
+financières — hors périmètre de Lumen : c'est un outil pour décider *dans quoi* investir, Lumen
+répond à *ce que vaut* le patrimoine déjà détenu. Ce qui y a été explicitement écarté, pour
 mémoire :
 
 - Le mode « Super Investors » (portefeuilles 13F de gérants suivis en direct) est un classement
@@ -5225,7 +5223,7 @@ mémoire :
   à la population française » déjà exclu (§ 3) : aucune base d'utilisateurs Lumen n'est en jeu ici,
   mais l'esprit (comparer des portefeuilles entre personnes) est identique et reste hors sujet.
 - Le screener, les modèles DCF et la recherche fondamentale sur des sociétés tierces sont le cœur de
-  métier de fiscal.ai : en faire un sous-ensemble dégradé n'apporterait rien et éloignerait Lumen de
+  métier de ce type d'outil : en faire un sous-ensemble dégradé n'apporterait rien et éloignerait Lumen de
   son objet (le patrimoine du foyer, pas la sélection de titres).
 - Le fil d'actualité/sentiment sur les titres détenus impliquerait un appel réseau externe régulier
   vers un fournisseur de news — incompatible avec le principe fondateur (100 % local, aucun appel
@@ -5243,8 +5241,9 @@ attendus.
 **Constat.** Deux exports PDF existent déjà (`services/pdf_export_service.py`,
 `services/declaration_patrimoine_service.py`) mais tous les deux sont des PHOTOGRAPHIES au jour de
 génération — aucun ne raconte une PÉRIODE (une année) : évolution du patrimoine net, jalons
-franchis. fiscal.ai génère des rapports automatiques sur une société tierce (résumé d'earnings,
-synthèse annuelle) ; l'idée transposée ici porte sur le foyer lui-même, jamais une société.
+franchis. Les terminaux de recherche génèrent des rapports automatiques sur une société tierce
+(résumé d'earnings, synthèse annuelle) ; l'idée transposée ici porte sur le foyer lui-même, jamais
+une société.
 
 **Point méthodologique à respecter à la lettre** (même rigueur que § AZ.2 sur brut/net) : deux
 indicateurs existants — `score_patrimonial_service.compute_score_patrimonial` et
@@ -5522,7 +5521,7 @@ n'attire l'attention sur une valeur non retouchée depuis longtemps. Le sous-sco
 données » existant (`analysis_service.compute_data_quality`, réutilisé par
 `score_patrimonial_service`) ne couvre QUE la catégorisation géographique du portefeuille FINANCIER
 — jamais la fraîcheur d'une valorisation manuelle, une notion différente. Inspiré des badges
-« donnée vérifiée/fraîche » de fiscal.ai, transposés ici à la propre saisie de l'utilisateur plutôt
+« donnée vérifiée/fraîche » des terminaux de données, transposés ici à la saisie de l'utilisateur plutôt
 qu'à un flux de données tierces.
 
 **Choix de conception explicite : n'étend PAS `score_patrimonial_service`.** Le sous-score
@@ -5534,8 +5533,8 @@ d'alertes autonome, jamais une modification du score existant.
 **Nouveau fichier** `backend/app/services/fraicheur_donnees_service.py` :
 
 ```python
-"""Fraîcheur des valorisations manuelles (backlog § BA.2, revue concurrentielle
-fiscal.ai du 21/09/2026) : signale les lignes valorisées manuellement
+"""Fraîcheur des valorisations manuelles (backlog § BA.2, veille concurrentielle
+du 21/09/2026) : signale les lignes valorisées manuellement
 (`TYPES_ACTIF_PATRIMOINE_MANUEL`) dont `Holding.date_valeur_estimee` n'a pas
 bougé depuis longtemps — jamais une alerte sur une ligne sans AUCUNE valeur
 renseignée (`valeur_estimee is None`), un état différent (la ligne vaut alors
@@ -5719,20 +5718,20 @@ Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un
   performance et le patrimoine, elle ne simule aucun impôt. Seule exception admise : le **taux
   d'imposition saisi** par l'utilisateur comme paramètre du profil, utilisé tel quel dans la
   déclaration de patrimoine (§ 2.Q.2) — une donnée reprise, pas un calcul fiscal.
-- **Agrégation bancaire automatique commerciale** (Powens/Budget Insight, Plaid) : contrats B2B avec
+- **Agrégation bancaire automatique commerciale** (prestataires régulés) : contrats B2B avec
   coût par compte connecté, incompatibles avec l'objectif « gratuit ». La piste gratuite (Enable
   Banking) reste à instruire, pas engagée (§ 2.E.2). Note : c'est aussi la principale source de
-  panne chez Finary — les bugs de synchronisation représentent l'essentiel des avis négatifs.
+  panne des agrégateurs — les bugs de synchronisation représentent l'essentiel de leurs avis négatifs.
 - **Trading et produits de rendement intégrés** (achat/vente in-app, APY crypto, assurance-vie
-  maison) : hors philosophie du produit. Finary a fait le chemin inverse en 2026 avec *Finary
-  Crypto* et *Finary Life* ; c'est cohérent pour un modèle commercial, pas pour le nôtre.
+  maison) : hors philosophie du produit. Certains acteurs du marché ont fait le chemin inverse en
+  lançant leurs propres offres de placement ; c'est cohérent pour un modèle commercial, pas pour le nôtre.
 - **Fonctionnalités communautaires** (classement des investissements, percentile face à la
   population française, forum) : sans base d'utilisateurs, un classement n'est pas calculable.
   L'équivalent honnête, et suffisant, est la comparaison à un **indice de référence** (§ 2.P.2).
 
 **Nouvel ajout :**
 
-- **Valorisation immobilière automatique** : Finary s'appuie sur PriceHubble, prestataire payant.
+- **Valorisation immobilière automatique** : les solutions du marché s'appuient sur des services d'estimation payants.
   Aucune source gratuite ne donne aujourd'hui une estimation par bien avec un niveau de confiance
   exploitable. La réponse retenue est la **valeur estimée saisie et datée** (§ 2.M.3), plus honnête
   qu'une estimation opaque. Les données DVF de la DGFiP (prix de mutation réels) sont une piste à
@@ -6226,3 +6225,61 @@ Le dépôt est passé de `Nello10110/application-patrimoine` à `Nello10110/lume
 clones existants (poste de développement, homelab) continuent de fonctionner par la redirection
 GitHub, mais gagnent un `git remote set-url origin https://github.com/Nello10110/lumen` : cette
 redirection cesse si un dépôt reprend un jour l'ancien nom.
+
+### BG. Revue d'ouverture publique : données personnelles et références concurrentes (22/09/2026)
+
+#### BG.1 — `majeur` · `M` · `traité` (22/09/2026) — Retrait des données financières réelles
+
+**Constat.** Le dépôt est devenu public sans qu'aucune relecture n'ait été faite sous cet angle. Les
+documents accumulés depuis juillet 2026 étaient rédigés pour un dépôt privé et mono-lecteur : ils
+citaient donc librement les chiffres de la base réelle pour attester qu'une vérification avait bien
+eu lieu. Ce réflexe, sain en privé, publiait le patrimoine de l'auteur.
+
+**Ce qui a été retiré.** Le patrimoine net réel, au centime, présent à cinq endroits (BACKLOG ×3,
+ROADMAP ×1, et une projection qui en dérivait) ; le gain/perte total réel avant et après correction,
+ainsi que le rendement associé (ETAT_DU_CHANTIER) ; les gains réalisés comparés entre coût moyen et
+FIFO ; le total de dividendes perçus sur 29 mois **et le nom des titres détenus** (cinq sociétés
+citées nommément) ; la valeur d'une position crypto et le coût de revient d'une ligne à l'ISIN ; le
+total du compte-titres avant/après reconstruction ; le tableau des opérations courtier de l'audit
+archivé (occurrences et montants par type de flux) ; le patrimoine tel qu'affiché par l'outil
+concurrent observé, actifs et passifs ; un abonnement nommé et deux charges récurrentes issues de
+trois mois de relevés bancaires réels.
+
+**Principe de réécriture.** Dans tous les cas, le FAIT de la vérification est conservé, seule la
+VALEUR disparaît — « vérifié en conditions réelles, recoupé à la main, écart < 1 centime » documente
+exactement aussi bien qu'avec le chiffre, sans rien publier. Aucune entrée n'a été supprimée.
+
+**Conservé délibérément** : les volumétries (49 positions, 4 059 transactions, 26 ETF). Elles ne
+disent rien du patrimoine, et elles portent seules la crédibilité des mesures de performance — les
+retirer viderait de sa substance toute la documentation d'optimisation.
+
+#### BG.2 — `mineur` · `M` · `traité` (22/09/2026) — Anonymisation des références concurrentes
+
+Demande de l'utilisateur : nommer des produits concurrents « ne fait pas très professionnel ».
+Quatre-vingt-une occurrences retirées, sur huit fichiers de documentation **et six fichiers de code**
+(docstrings de `models.py`, `score_patrimonial_service`, `rapport_service`, `bilan_annuel_service`,
+`fraicheur_donnees_service`, et deux composants React) — ces dernières étant les plus gênantes,
+puisqu'elles voyagent avec le produit.
+
+Le § 1 du backlog, entièrement bâti sur une comparaison nominative, a été réécrit en « étude
+d'opportunité » portant sur « une solution commerciale de référence » : la substance, les tableaux
+et les arbitrages sont intacts, et les dizaines de renvois internes « cf. § 1.2 » restent valides.
+Les liens vers des articles d'avis tiers ont été retirés, la mention de la source étant conservée
+sans URL. Les titres des §§ AZ et BA passent de « revue concurrentielle <produit> » à « veille
+concurrentielle ».
+
+#### BG.3 — `mineur` · `XS` · `traité` (22/09/2026) — Contrôles de sécurité, sans découverte
+
+Balayage complet des 608 fichiers suivis **et des 83 commits de l'historique** : aucun secret, aucune
+clé, aucun `.env`, aucune base de données n'a jamais été versionné — seul `.env.exemple`, gabarit à
+valeurs vides, a existé. Aucune adresse email réelle (toutes en `@example.com`), aucune IP privée,
+aucun domaine interne. Trois chaînes à la forme d'une clé Fernet se sont révélées être deux hashs
+d'intégrité npm et le vecteur de déterminisme de `test_cles_chiffrement.py`.
+
+**Point d'attention** : ce vecteur (`PHRASE_64`) est une phrase générée pour le test. Si elle avait
+par hasard servi de vraie `PATRIMOINE_BACKUP_KEY`, elle serait aujourd'hui publique — à vérifier une
+fois, c'est gratuit.
+
+Le fichier `ChatGPT Image 15 sept. 2026, 14_48_07.png` a par ailleurs été renommé
+`lumen_logo_fond_blanc.png` : c'est le logo, mais son nom d'origine faisait négligé dans un dépôt
+public.

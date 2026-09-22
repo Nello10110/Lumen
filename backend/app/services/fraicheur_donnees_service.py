@@ -1,5 +1,4 @@
-"""Fraîcheur des valorisations manuelles (backlog § BA.2, revue concurrentielle
-fiscal.ai du 21/09/2026) : signale les lignes valorisées manuellement
+"""Fraîcheur des valorisations manuelles (backlog § BA.2, veille concurrentielle du 21/09/2026) : signale les lignes valorisées manuellement
 (`TYPES_ACTIF_PATRIMOINE_MANUEL`) dont `Holding.date_valeur_estimee` n'a pas
 bougé depuis longtemps — jamais une alerte sur une ligne sans AUCUNE valeur
 renseignée (`valeur_estimee is None`), un état différent (la ligne vaut alors

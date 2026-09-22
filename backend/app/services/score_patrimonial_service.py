@@ -1,4 +1,4 @@
-"""Score patrimonial consolidé (backlog § AZ.1, revue concurrentielle Baggr.fr du
+"""Score patrimonial consolidé (backlog § AZ.1, veille concurrentielle du
 20/09/2026) : un chiffre 0-100, moyenne pondérée de trois sous-scores dérivés de
 données déjà calculées ailleurs — aucune nouvelle table, aucun nouvel appel réseau.
 
@@ -10,11 +10,10 @@ compute_risk_indicators`), la qualité des données géographiques
 tel). Ce module les recombine en une seule note, sur TOUT le patrimoine (pas
 seulement le portefeuille financier pour la diversification et l'endettement).
 
-Différence volontaire avec Finary (§ 1.2 du backlog, point 2 : « le mur payant
-abîme l'écran d'analyse... le diagnostic anxiogène est offert, le remède est
-vendu ») : la méthode de calcul est TOUJOURS restituée avec le chiffre
-(`sous_scores`, chacun avec son poids et son explication) — jamais une boîte
-noire.
+Principe fondateur (§ 1.2 du backlog) : un diagnostic dont la méthode reste
+cachée n'a aucune valeur, et un score anxiogène sans explication encore moins.
+La méthode de calcul est donc TOUJOURS restituée avec le chiffre (`sous_scores`,
+chacun avec son poids et son explication) — jamais une boîte noire.
 
 Portée : le FOYER CONSOLIDÉ uniquement, pas de variante par détenteur en V1
 (cf. `routers/patrimoine.py::get_score_patrimonial`, qui restreint l'accès à
