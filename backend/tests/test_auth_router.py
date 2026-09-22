@@ -342,11 +342,14 @@ def test_login_sur_compte_sans_mot_de_passe_renvoie_401_message_clair(client_ree
 
 
 def test_oidc_status_reflete_la_configuration(client_reel, monkeypatch):
-    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False, "display_name": "SSO"}
+    # `logo` : ajouté le 22/09/2026 (logo du bouton, posé depuis les Réglages), `None`
+    # tant qu'aucun n'est configuré — cf. `test_logo_connexion_sso.py` pour son
+    # comportement propre.
+    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False, "display_name": "SSO", "logo": None}
 
     _configurer_oidc(monkeypatch)
 
-    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": True, "display_name": "SSO"}
+    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": True, "display_name": "SSO", "logo": None}
 
 
 def test_oidc_status_reflete_enabled_a_false_sans_effacer_la_config(client_reel, monkeypatch):
@@ -357,7 +360,7 @@ def test_oidc_status_reflete_enabled_a_false_sans_effacer_la_config(client_reel,
 
     monkeypatch.setenv(oidc_service.VARIABLE_ENABLED, "false")
 
-    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False, "display_name": "SSO"}
+    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False, "display_name": "SSO", "logo": None}
     assert client_reel.get("/api/auth/oidc/login", follow_redirects=False).status_code == 404
 
     monkeypatch.setenv(oidc_service.VARIABLE_ENABLED, "true")

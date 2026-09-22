@@ -394,6 +394,18 @@ Général — utile pour redécouvrir les réglages de départ, sans effet sur l
 - **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
 - **Taux d'imposition** : une valeur saisie ici, jamais calculée par l'application — reprise telle quelle dans la déclaration de patrimoine (ci-dessous) quand son profil emprunteur est inclus. Laisser vide si non pertinent.
 
+### Logo du bouton de connexion SSO
+
+Onglet **Sécurité**, réservé au propriétaire du foyer. Si ce déploiement propose une connexion SSO, son
+bouton sur l'écran de connexion peut afficher le logo du fournisseur à gauche de son libellé. Deux
+façons de le fournir : **téléverser une image** (PNG, JPEG, WebP ou ICO), ou **coller l'adresse d'une
+image** — c'est alors le serveur qui va la chercher, pas ton navigateur, de sorte que la page de
+connexion fonctionne même si ton fournisseur SSO n'est joignable que depuis ton réseau. « Retirer le
+logo » ramène le bouton à son seul libellé.
+
+Le reste de la configuration SSO (fournisseur, identifiants, texte du bouton) se règle par variables
+d'environnement côté serveur, pas depuis cet écran.
+
 ### Rafraîchissement automatique des données de marché
 
 Trois tâches planifiées, chacune avec sa propre carte : **Rafraîchissement des données de marché**

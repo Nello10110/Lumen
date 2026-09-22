@@ -87,6 +87,9 @@ vi.mock('../api/client', () => ({
     apercuImportDonnees: vi.fn(),
     importerDonnees: vi.fn(),
     listSessions: vi.fn().mockResolvedValue([]),
+    // Logo du bouton de connexion SSO (22/09/2026) : `LogoConnexionSsoCard` vit dans
+    // l'onglet Sécurité, rendue pour de vrai par les tests ci-dessous.
+    getLogoConnexionSso: vi.fn().mockResolvedValue({ logo: null }),
     getAccessLog: vi.fn().mockResolvedValue([]),
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
     createHouseholdMember: vi.fn(),

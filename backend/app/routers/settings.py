@@ -3,14 +3,31 @@ déclenchement manuel — non bloquant depuis le LOT 4B, cf. `run_job_now` ci-de
 et préférences applicatives (LOT 5B, cf. `get_preferences`/`update_preferences`
 ci-dessous), consommés par la page Réglages du frontend."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
-from ..schemas import Preferences, PreferencesUpdate, PreferencesUpdateResponse, ScheduledJobOut, ScheduledJobUpdate
-from ..services import auth_service, market_data_refresh, portfolio_reconstruction, preferences_service, scheduler_service
+from ..schemas import (
+    EtablissementLogoUrlInput,
+    LogoConnexionSso,
+    Preferences,
+    PreferencesUpdate,
+    PreferencesUpdateResponse,
+    ScheduledJobOut,
+    ScheduledJobUpdate,
+)
+from ..services import (
+    auth_service,
+    logo_oidc_service,
+    logo_service,
+    market_data_refresh,
+    portfolio_reconstruction,
+    preferences_service,
+    scheduler_service,
+    upload_limits,
+)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -82,3 +99,65 @@ def run_job_now(job_key: str, forcer_non_cotables: bool = False, db: Session = D
         return scheduler_service.run_job_now(db, job_key, forcer_non_cotables=forcer_non_cotables)
     except market_data_refresh.RafraichissementDejaEnCoursError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# Logo du bouton de connexion SSO (retour utilisateur du 22/09/2026)
+# ---------------------------------------------------------------------------
+# Le RESTE de la configuration OIDC reste porté par des variables d'environnement,
+# et doit le rester : cf. la docstring de `services/oidc_service.py` (le
+# `client_secret` n'a pas à être chiffré au repos tant qu'il ne vit qu'en variable
+# d'environnement). Seule cette image fait exception, parce qu'elle n'est pas un
+# secret — elle s'affiche sur la page de connexion, avant toute authentification.
+# Justification complète dans `services/logo_oidc_service.py`.
+#
+# Routeur enregistré `_proprietaire_seul` dans `main.py` : c'est une décoration de
+# l'installation entière, pas un réglage de foyer.
+
+
+@router.get("/logo-connexion-sso", response_model=LogoConnexionSso)
+def get_logo_connexion_sso(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return LogoConnexionSso(logo=logo_oidc_service.lire_data_uri(db))
+
+
+@router.put("/logo-connexion-sso/url", response_model=LogoConnexionSso)
+def definir_logo_connexion_sso_depuis_url(
+    payload: EtablissementLogoUrlInput,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Récupération CÔTÉ SERVEUR, jamais par le navigateur : c'est ce qui rend la
+    page de connexion autonome (un SSO joignable seulement en interne fournit quand
+    même son logo) — et ce qui impose la garde anti-SSRF de
+    `logo_service._verifier_url_publique`, puisque l'URL vient d'une saisie."""
+    try:
+        png = logo_service.recuperer_depuis_url(payload.url)
+    except logo_service.LogoError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    logo_oidc_service.definir(db, png)
+    return LogoConnexionSso(logo=logo_oidc_service.lire_data_uri(db))
+
+
+@router.post("/logo-connexion-sso/fichier", response_model=LogoConnexionSso)
+async def televerser_logo_connexion_sso(
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    contenu = await file.read()
+    try:
+        upload_limits.verifier_taille_fichier(contenu)
+    except upload_limits.FichierTropVolumineuxError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    try:
+        png = logo_service.normaliser_en_png(contenu)
+    except logo_service.LogoError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    logo_oidc_service.definir(db, png)
+    return LogoConnexionSso(logo=logo_oidc_service.lire_data_uri(db))
+
+
+@router.delete("/logo-connexion-sso", response_model=LogoConnexionSso)
+def supprimer_logo_connexion_sso(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    logo_oidc_service.supprimer(db)
+    return LogoConnexionSso(logo=None)

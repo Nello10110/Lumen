@@ -5980,3 +5980,48 @@ site sans raster, SVG refusé sur une URL saisie, SVG refusé pour un `Etablisse
 raster, page HTML non prise pour un SVG, type MIME du data URI dans les trois cas (SVG, PNG, ligne
 antérieure à `logo_format`). Les faux de `recuperer_pour_domaine` portent désormais la signature
 exacte de la vraie fonction, `accepter_svg` compris.
+
+### BD. Logo du bouton de connexion SSO (retour utilisateur, 22/09/2026)
+
+#### BD.1 — `mineur` · `M` · `traité` (22/09/2026) — Logo paramétrable depuis les Réglages
+
+**Constat.** « J'aimerais bien pouvoir ajouter un logo au bouton de connexion OIDC, il faudrait que ce
+soit paramétrable dans les réglages. » Le bouton n'affichait qu'un libellé texte
+(`PATRIMOINE_OIDC_DISPLAY_NAME`).
+
+**La question à trancher : où stocker.** `services/oidc_service.py` documente longuement que la
+configuration OIDC ne passe délibérément PAS par une administration en base — un `client_secret` qui ne
+vit qu'en variable d'environnement n'a pas besoin d'être chiffré au repos. Ce raisonnement porte sur un
+SECRET. Un logo n'en est pas un : il est affiché à tout visiteur de la page de connexion, avant même
+toute authentification. Le mettre en base ne déplace donc aucune frontière de sécurité, et évite
+d'imposer un redémarrage du backend pour changer une image. La règle « aucune configuration OIDC en
+base » reste entière dans `oidc_service`, qui ignore volontairement ce nouveau module.
+
+Stocké dans `Parametre` (et non `UserParametre`) : il n'y a qu'une page de connexion pour toute
+l'installation, partagée par tous les foyers et affichée alors qu'aucun utilisateur n'est identifié —
+un réglage par foyer n'aurait aucun sens. Effet de bord souhaitable : `donnees_service` n'exporte que
+`user_parametres`, donc cette image d'installation ne part pas dans la sauvegarde des données d'un
+foyer. Aucune migration : la table existe déjà, seule une clé s'y ajoute.
+
+**Deux chemins d'alimentation**, les mêmes que pour un logo d'établissement : téléversement, ou adresse
+que **le serveur** télécharge (jamais le navigateur — c'est ce qui rend la page de connexion autonome
+vis-à-vis d'un fournisseur SSO joignable seulement en interne, et ce qui impose la garde anti-SSRF
+existante, l'URL venant d'une saisie). Dans les deux cas l'image passe par
+`logo_service.normaliser_en_png` : matriciel seulement, jamais de SVG. C'est l'inverse du choix fait
+pour le cache de logos du catalogue (§ BC.2), et pour une raison précise : celui-là ne se nourrit que
+de NOTRE liste de domaines, celui-ci d'une saisie de l'exploitant.
+
+**Le bouton affiche le logo À CÔTÉ du libellé**, pas à sa place : un logo qui ne charge pas laisserait
+sinon un bouton muet. Image décorative (`alt=""`, `aria-hidden`) — le libellé dit déjà où mène le lien,
+un lecteur d'écran annoncerait autrement deux fois la même chose.
+
+Exposé par `GET /api/auth/oidc/status` (déjà publique, déjà porteuse du libellé), et **uniquement quand
+le SSO est activé** : sans bouton à décorer, une route publique n'a aucune raison de servir une image.
+Écriture via le routeur `settings`, enregistré `_proprietaire_seul` — c'est une décoration de
+l'installation, pas un réglage de foyer.
+
+**Tests.** 14 backend (`test_logo_connexion_sso.py`) : absence par défaut, pose/remplacement en place
+sans accumulation de lignes, retrait, retrait d'un logo absent, refus d'un non-image et d'un SVG,
+récupération depuis une URL, refus d'une URL visant le réseau interne, exposition par la route publique,
+non-exposition quand le SSO est désactivé, et 403 pour un membre comme pour un invité. 7 frontend sur
+`LogoConnexionSsoCard` + 2 sur `LoginPage` (logo affiché à côté du libellé, bouton inchangé sans logo).

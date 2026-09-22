@@ -831,11 +831,15 @@ class Parametre(Base):
     (cf. `ScheduledJobConfig`, dédié à celles-ci). Depuis le Milestone 2b
     (multi-utilisateur, `docs/BACKLOG.md` § 2.I.1), les réglages propres à un
     utilisateur (méthode de coût de revient, seuil d'alerte) vivent dans
-    `UserParametre` — cette table ne sert plus qu'à `startup_maintenance`
-    (`version_calcul_portefeuille`, un marqueur de version du CODE, pas une
-    préférence : il doit rester unique pour toute l'installation, jamais par
-    compte). `valeur` est volontairement un simple texte : la conversion (booléen,
-    nombre, énumération contrainte...) est la responsabilité de l'appelant."""
+    `UserParametre`. Ne restent ici que les réglages qui doivent valoir pour
+    l'INSTALLATION ENTIÈRE, jamais par compte : `version_calcul_portefeuille`
+    (marqueur de version du CODE posé par `startup_maintenance`, pas une
+    préférence) et, depuis le 22/09/2026, le logo du bouton de connexion SSO
+    (`services/logo_oidc_service.py`) — il n'y a qu'une page de connexion pour toute
+    l'installation, affichée alors qu'aucun utilisateur n'est encore identifié.
+    `valeur` est volontairement un simple texte : la conversion (booléen, nombre,
+    énumération contrainte, image en base64...) est la responsabilité de
+    l'appelant."""
 
     __tablename__ = "parametres"
 

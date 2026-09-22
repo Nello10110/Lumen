@@ -179,6 +179,7 @@ from .portefeuille import (  # noqa: F401
     ValuationHistoryPoint,
 )
 from .reglages import (  # noqa: F401
+    LogoConnexionSso,
     Preferences,
     PreferencesUpdate,
     PreferencesUpdateResponse,

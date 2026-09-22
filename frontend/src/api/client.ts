@@ -42,6 +42,7 @@ import type {
   JonctionPatrimoine,
   ImportResult,
   Jalon,
+  LogoConnexionSso,
   LignesPatrimoineFiltreesResponse,
   Loan,
   LoanInput,
@@ -337,6 +338,20 @@ export const api = {
   },
   deleteEtablissementLogo: (id: number) =>
     request<Etablissement>(`/comptes/etablissements/${id}/logo`, { method: 'DELETE' }),
+
+  // Logo du bouton de connexion SSO (22/09/2026) — décoration de l'INSTALLATION,
+  // pas d'un foyer, d'où le routeur `settings` (réservé au propriétaire). Tout le
+  // reste de la configuration OIDC vit en variables d'environnement, cf.
+  // `services/logo_oidc_service.py` pour la raison de cette unique exception.
+  getLogoConnexionSso: () => request<LogoConnexionSso>('/settings/logo-connexion-sso'),
+  setLogoConnexionSsoUrl: (url: string) =>
+    request<LogoConnexionSso>('/settings/logo-connexion-sso/url', { method: 'PUT', body: JSON.stringify({ url }) }),
+  uploadLogoConnexionSso: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<LogoConnexionSso>('/settings/logo-connexion-sso/fichier', { method: 'POST', body: form })
+  },
+  deleteLogoConnexionSso: () => request<LogoConnexionSso>('/settings/logo-connexion-sso', { method: 'DELETE' }),
   listComptes: () => request<Compte[]>('/comptes'),
   listComptesAvecSolde: () => request<CompteAvecSolde[]>('/comptes/solde'),
   // Établissement OBLIGATOIRE à la création (revue du 03/09/2026, demande directe

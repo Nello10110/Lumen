@@ -42,6 +42,9 @@ export default function LoginPage() {
   // dans les réglages du système.
   const [statutOidc, setStatutOidc] = useState<'inconnu' | 'absent' | 'disponible' | 'indisponible'>('inconnu')
   const [oidcDisplayName, setOidcDisplayName] = useState('SSO')
+  // Logo du bouton, posé depuis les Réglages (22/09/2026) — `null` par défaut, le
+  // bouton se réduit alors à son libellé comme avant ce lot.
+  const [oidcLogo, setOidcLogo] = useState<string | null>(null)
   const [portailExpire, setPortailExpire] = useState(false)
 
   const chargerStatutOidc = useCallback(async () => {
@@ -51,6 +54,7 @@ export default function LoginPage() {
       const s = await api.getOidcStatus()
       oublierTentativeRechargement()
       setOidcDisplayName(s.display_name)
+      setOidcLogo(s.logo)
       setStatutOidc(s.enabled ? 'disponible' : 'absent')
     } catch (err) {
       // Un portail d'authentification s'est interposé (sa propre page de connexion
@@ -158,8 +162,14 @@ export default function LoginPage() {
             </div>
             <a
               href="/api/auth/oidc/login"
-              className="block rounded-control border border-hairline bg-chip px-4 py-2 text-center text-sm font-medium text-ink2 hover:bg-hover"
+              className="flex items-center justify-center gap-2 rounded-control border border-hairline bg-chip px-4 py-2 text-center text-sm font-medium text-ink2 hover:bg-hover"
             >
+              {/* `alt` vide et `aria-hidden` : le libellé juste à côté dit déjà où
+                  mène ce bouton — un lecteur d'écran annoncerait sinon deux fois la
+                  même chose. Le texte reste affiché avec le logo (et pas remplacé
+                  par lui) pour que le bouton reste lisible si l'image ne charge
+                  pas. */}
+              {oidcLogo && <img src={oidcLogo} alt="" aria-hidden className="h-5 w-5 shrink-0 object-contain" />}
               Se connecter avec {oidcDisplayName}
             </a>
           </>

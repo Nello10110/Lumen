@@ -39,6 +39,17 @@ export interface AuthResponse {
 export interface OidcStatus {
   enabled: boolean
   display_name: string
+  /** Logo du bouton de connexion, en data URI (22/09/2026) — `null` tant qu'aucun
+   * logo n'a été posé depuis les Réglages, le bouton n'affiche alors que son
+   * libellé. Absent de la réponse quand le SSO est désactivé. */
+  logo: string | null
+}
+
+/** Logo du bouton de connexion SSO, tel que le manipulent les Réglages
+ * (`LogoConnexionSsoCard`). Même donnée que `OidcStatus.logo`, exposée à part parce
+ * qu'elle se configure indépendamment de l'état du SSO. */
+export interface LogoConnexionSso {
+  logo: string | null
 }
 
 // Sessions et journal d'accès (backlog 2.L.2).

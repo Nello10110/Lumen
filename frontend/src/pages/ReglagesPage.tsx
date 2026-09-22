@@ -15,6 +15,7 @@ import GestionFoyerCard from '../components/GestionFoyerCard'
 import { IconBadge, IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
 import JobCard from '../components/JobCard'
 import JournalAccesCard from '../components/JournalAccesCard'
+import LogoConnexionSsoCard from '../components/LogoConnexionSsoCard'
 import WelcomeWizard from '../components/onboarding/WelcomeWizard'
 import PartageCard from '../components/PartageCard'
 import PreferencesCard from '../components/PreferencesCard'
@@ -241,6 +242,7 @@ export default function ReglagesPage() {
       {onglet === 'securite' && (
         <div className="space-y-[14px]">
           <GestionFoyerCard />
+          <LogoConnexionSsoCard />
           <SessionsCard />
           <JournalAccesCard />
         </div>

@@ -77,6 +77,11 @@ class OidcStatus(BaseModel):
     # le bouton de connexion — jamais un nom de fournisseur figé dans le code, cf.
     # `oidc_service.DISPLAY_NAME_PAR_DEFAUT`.
     display_name: str = "SSO"
+    # Logo du bouton, en data URI (retour utilisateur du 22/09/2026), posé depuis
+    # les Réglages — pas par variable d'environnement, cf.
+    # `services/logo_oidc_service.py`. `None` tant qu'aucun logo n'est configuré :
+    # le bouton n'affiche alors que `display_name`, comme avant ce lot.
+    logo: str | None = None
 
 
 class SessionOut(BaseModel):

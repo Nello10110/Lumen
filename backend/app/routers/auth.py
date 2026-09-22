@@ -23,7 +23,7 @@ from ..schemas import (
     SessionOut,
     UserOut,
 )
-from ..services import auth_service, comptes_service, oidc_service, preferences_service
+from ..services import auth_service, comptes_service, logo_oidc_service, oidc_service, preferences_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -107,11 +107,13 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 
 @router.get("/oidc/status", response_model=OidcStatus)
-def oidc_status():
+def oidc_status(db: Session = Depends(get_db)):
     config = oidc_service.charger_config()
     if config is None:
+        # Aucun logo renvoyé quand le SSO est désactivé : il n'y a pas de bouton à
+        # décorer, et cette route est publique — autant ne rien exposer d'inutile.
         return OidcStatus(enabled=False)
-    return OidcStatus(enabled=True, display_name=config.display_name)
+    return OidcStatus(enabled=True, display_name=config.display_name, logo=logo_oidc_service.lire_data_uri(db))
 
 
 @router.get("/oidc/login")

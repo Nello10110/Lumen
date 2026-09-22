@@ -29,7 +29,7 @@ describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login, register, logout: vi.fn(), completeOnboarding: vi.fn(), refetchUser: vi.fn() })
-    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO' })
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO', logo: null })
     window.history.replaceState(null, '', '/login')
     sessionStorage.clear()
   })
@@ -78,7 +78,7 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
   })
 
   it("n'affiche pas le bouton SSO quand il n'est pas configuré (ou désactivé) sur ce déploiement", async () => {
-    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO' })
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO', logo: null })
 
     render(<LoginPage />)
 
@@ -87,12 +87,34 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
   })
 
   it('affiche le bouton SSO avec le nom choisi par le propriétaire, pointant vers /api/auth/oidc/login', async () => {
-    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: true, display_name: 'Authentik' })
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: true, display_name: 'Authentik', logo: null })
 
     render(<LoginPage />)
 
     const lien = await screen.findByRole('link', { name: /Se connecter avec Authentik/ })
     expect(lien).toHaveAttribute('href', '/api/auth/oidc/login')
+    // Sans logo configuré, le bouton reste exactement ce qu'il était avant le
+    // 22/09/2026 : un libellé, pas d'image.
+    expect(lien.querySelector('img')).toBeNull()
+  })
+
+  // Retour utilisateur du 22/09/2026 : « pouvoir ajouter un logo au bouton de
+  // connexion OIDC, paramétrable dans les réglages ».
+  it('affiche le logo posé dans les réglages À CÔTÉ du libellé, sans le remplacer', async () => {
+    vi.mocked(api.getOidcStatus).mockResolvedValue({
+      enabled: true,
+      display_name: 'Authentik',
+      logo: 'data:image/png;base64,AAA',
+    })
+
+    render(<LoginPage />)
+
+    const lien = await screen.findByRole('link', { name: /Se connecter avec Authentik/ })
+    const image = lien.querySelector('img')
+    expect(image).toHaveAttribute('src', 'data:image/png;base64,AAA')
+    // Décorative : le libellé juste à côté dit déjà où mène le bouton, un lecteur
+    // d'écran annoncerait sinon deux fois la même chose.
+    expect(image).toHaveAttribute('alt', '')
   })
 
   // ---------------------------------------------------------------------------
@@ -125,7 +147,7 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
   it('« Réessayer » rétablit le bouton SSO sans rien vider', async () => {
     vi.mocked(api.getOidcStatus)
       .mockRejectedValueOnce(new Error('Panne réseau'))
-      .mockResolvedValueOnce({ enabled: true, display_name: 'Authentik' })
+      .mockResolvedValueOnce({ enabled: true, display_name: 'Authentik', logo: null })
 
     render(<LoginPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
@@ -190,7 +212,7 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
   })
 
   it("affiche le message d'erreur porté par ?oidc_error= puis nettoie l'URL", async () => {
-    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO' })
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO', logo: null })
     window.history.replaceState(null, '', '/login?oidc_error=Connexion%20SSO%20refus%C3%A9e')
 
     render(<LoginPage />)

@@ -81,3 +81,11 @@ class PreferencesUpdateResponse(Preferences):
     change réellement, `None` sinon)."""
 
     positions_recalculees: int | None = None
+
+
+class LogoConnexionSso(BaseModel):
+    """Logo du bouton de connexion SSO (retour utilisateur du 22/09/2026), en data
+    URI prêt pour une balise `<img>`. `None` quand aucun logo n'est posé : le bouton
+    retombe alors sur son seul libellé."""
+
+    logo: str | None = None
