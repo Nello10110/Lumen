@@ -114,7 +114,7 @@ pas conjoncturels, et chacun est une occasion :
 
 | Axe | Finary | Cible Lumen |
 |---|---|---|
-| Modèle économique | 0 € limité à 2-3 synchronisations, Lite ≈ 55 €/an, Plus ≈ 150 €/an, Pro ≈ 350 €/an | Gratuit, open source, auto-hébergé |
+| Modèle économique | 0 € limité à 2-3 synchronisations, Lite ≈ 55 €/an, Plus ≈ 150 €/an, Pro ≈ 350 €/an | Gratuit, à code ouvert (FSL-1.1-ALv2), auto-hébergé |
 | Donnée | Cloud, agrégation via prestataire régulé | 100 % local, hors requêtes de cotation |
 | Automatisation | Synchronisation de 20 000+ établissements | Import de fichiers + saisie ; agrégation à instruire (§ 2.E.2) |
 | Transparence du calcul | Boîte noire, scores sans explication en gratuit | Qualité des données affichée, méthode documentée, tout gratuit |
@@ -6082,3 +6082,55 @@ donc rien dire de l'endroit où l'utilisateur le trouve. Tout déplacement entre
 écrans doit désormais déclencher un `grep` du nom des cartes concernées dans `frontend/e2e/` avant
 d'être considéré comme fini. Le test corrigé clique l'onglet Répartition et a été renommé en
 conséquence ; suite E2E complète rejouée en local, 81/81 au vert.
+
+### BE. Licence et cadre de contribution (décision utilisateur, 22/09/2026)
+
+#### BE.1 — `majeur` · `S` · `traité` (22/09/2026) — FSL-1.1-ALv2, et pourquoi pas une licence open source
+
+**Constat.** Le dépôt était public et se décrivait comme « open source » sans le moindre fichier de
+licence. Juridiquement, un dépôt public sans licence reste **tous droits réservés** : personne ne
+pouvait légalement le réutiliser, le modifier ni contribuer. La mention était donc à la fois fausse
+et contre-productive.
+
+**Besoin exprimé.** « Je ne veux pas que quelqu'un d'autre que moi puisse utiliser le code pour se
+faire rémunérer. Mais je veux m'offrir le choix de faire une version SaaS vendue. Le self-host
+restera gratuit et ouvert à tous. »
+
+**Le point dur.** Aucune licence approuvée par l'Open Source Initiative ne peut satisfaire ça :
+interdire un domaine d'activité (« vendre un service concurrent ») viole la clause de
+non-discrimination de l'Open Source Definition. L'AGPL-3.0, souvent citée comme la licence
+« anti-SaaS », **dissuade** sans **interdire** — un concurrent peut légalement héberger et facturer
+s'il publie ses sources. La retenir aurait donc été un contresens par rapport au besoin.
+
+**Comparaison faite à partir de projets cités par l'utilisateur.** Authentik : MIT pour le cœur plus
+une licence commerciale sur le seul répertoire `enterprise/` — modèle *open core*, où rien
+n'empêche un tiers de vendre un SaaS du cœur ; ne répond pas au besoin. Dockhand : BUSL-1.1, gratuit
+pour l'usage personnel/interne/associatif/éducatif, SaaS commercial interdit, bascule en Apache-2.0
+en 2029 — répond exactement au besoin. Ce modèle est celui de la famille *fair source*, dont Sentry
+a produit une version simplifiée : la **FSL**, créée précisément parce que l'« Additional Use Grant »
+de la BUSL fait de chaque implémentation une licence sur mesure, et que quatre ans d'exclusivité
+étaient jugés trop longs.
+
+**Retenu : FSL-1.1-ALv2.** Auto-hébergement libre pour tout usage, y compris interne en entreprise ;
+seul l'usage concurrent (produit ou service commercial se substituant à Lumen) est interdit ;
+l'auteur, titulaire des droits, n'est lié par aucune restriction ; chaque version bascule
+irrévocablement en Apache-2.0 au bout de deux ans. Texte repris **mot pour mot** du gabarit officiel
+`fsl.software` (vérifié par diff), seuls l'année et le nom du titulaire étant renseignés.
+
+**Vérification préalable des dépendances.** Toutes permissives — MIT, BSD, Apache-2.0, ISC côté
+Python comme côté npm, aucune copyleft. Rien n'aurait contaminé une relicence commerciale
+ultérieure ; ce contrôle conditionnait la faisabilité de toute l'option.
+
+**Conséquences appliquées.** « Gratuit et open source » remplacé par « gratuit et à code ouvert »
+dans le README, la roadmap et le tableau de positionnement § 1.3 — l'affirmation serait sinon
+inexacte. `docs/EXPRESSION_DE_BESOIN.md` reste inchangé : c'est un instantané daté du 21/08/2026,
+explicitement figé. Champ `license` posé dans `frontend/package.json`.
+
+#### BE.2 — `majeur` · `XS` · `traité` (22/09/2026) — Cession des droits sur les contributions
+
+Conserver la possibilité de vendre une version hébergée exige de rester **seul titulaire des droits
+sur tout le code**. Une pull request acceptée sans cadre rendrait cette relicence impossible sans
+l'accord de son auteur — risque d'autant plus concret que le README refondu invite explicitement à
+contribuer. `CONTRIBUTING.md` pose donc une cession des droits patrimoniaux à la proposition d'une
+PR, avec garantie d'originalité et d'absence de code copyleft, et oriente vers les issues ceux que
+cette cession rebute. Même mécanisme que tout projet à modèle commercial.

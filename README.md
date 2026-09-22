@@ -6,10 +6,11 @@
 
 **Faites la lumière sur vos finances.**
 
-Suivi de patrimoine complet, auto-hébergé, gratuit et open source.<br>
+Suivi de patrimoine complet, auto-hébergé et gratuit.<br>
 Vos données restent sur votre machine.
 
 [![CI](https://github.com/Nello10110/lumen/actions/workflows/ci.yml/badge.svg)](https://github.com/Nello10110/lumen/actions/workflows/ci.yml)
+[![Licence](https://img.shields.io/badge/licence-FSL--1.1--ALv2-blue)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker&logoColor=white)](https://github.com/Nello10110/lumen/pkgs/container/lumen-backend)
 [![Python](https://img.shields.io/badge/python-FastAPI-3776AB?logo=python&logoColor=white)](backend/)
 [![React](https://img.shields.io/badge/react-TypeScript-61DAFB?logo=react&logoColor=black)](frontend/)
@@ -275,11 +276,29 @@ sur une base jetable — jamais la vôtre.
 
 <br>
 
+## Licence
+
+Lumen est distribué sous [**FSL-1.1-ALv2**](LICENSE) (Functional Source License), une licence
+*fair source* — la même famille que [Sentry](https://fsl.software/). En clair :
+
+- **Auto-héberger Lumen est libre et gratuit**, pour tout usage, y compris interne en entreprise.
+  Vous pouvez lire le code, le modifier, le redistribuer.
+- **Une seule chose est interdite** : en faire un produit ou un service commercial concurrent.
+- **Au bout de deux ans, chaque version bascule automatiquement en Apache-2.0**, licence open
+  source permissive. Cette bascule est irrévocable.
+
+Ce n'est donc pas « open source » au sens de l'Open Source Initiative — le dire serait inexact —
+mais le code est ouvert, lisible, modifiable, et le deviendra pleinement avec deux ans de décalage.
+
 ## Contribuer
 
 Les retours, rapports de bogue et propositions sont les bienvenus via les
-[issues](https://github.com/Nello10110/lumen/issues). Avant une pull request, faites tourner les
-vérifications ci-dessus : la CI les rejouera de toute façon.
+[issues](https://github.com/Nello10110/lumen/issues), sans formalité.
+
+Pour une pull request, lisez d'abord [CONTRIBUTING.md](CONTRIBUTING.md) : proposer du code implique
+d'en **céder les droits**, condition nécessaire pour que le projet reste relicenciable par son
+auteur. Faites tourner les vérifications ci-dessus avant d'ouvrir la PR — la CI les rejouera de
+toute façon.
 
 <br>
 

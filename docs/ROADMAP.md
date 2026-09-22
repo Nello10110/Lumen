@@ -2,7 +2,7 @@
 
 Ce document détaille comment enchaîner les points du backlog priorisé (`docs/BACKLOG.md` § 2) pour
 tendre vers la cible fixée le 19/08/2026 : une application de suivi patrimonial complet, dans
-l'esprit de Finary, mais **locale, gratuite et open source**. Il complète le backlog (qui liste et
+l'esprit de Finary, mais **locale, gratuite et à code ouvert** (licence FSL-1.1-ALv2, cf. `LICENSE`). Il complète le backlog (qui liste et
 arbitre *quoi* faire) en répondant à *dans quel ordre* et *pourquoi*.
 
 ## Vision
