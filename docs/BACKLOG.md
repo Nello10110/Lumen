@@ -849,8 +849,8 @@ vrai besoin, ex. `Sheet` pour K.4 mobile).
 **Pilote livré le 21/08/2026, complété le 21/08/2026** : barre latérale repliable (persistée),
 vocabulaire unifié, titre d'onglet dynamique, menu du compte (K.7) — inchangés. **Fil d'Ariane**
 (`FilDAriane.tsx`, dérivé de `ROUTES`) sur tous les écrans hors accueil, avec le ticker réel affiché
-sur la fiche détaillée d'une position — **disparu depuis, sans qu'aucun commit ne l'acte : cf.
-§ BH.3 (22/09/2026)**. **Retour avec restitution d'état** : catégorie/compte du
+sur la fiche détaillée d'une position — **retiré depuis, le 06/09/2026, remplacé par une pilule de
+contexte elle-même retirée le lendemain : cf. § BH.3**. **Retour avec restitution d'état** : catégorie/compte du
 Portefeuille portés par l'URL (`?categorie=&compte=`, restitués automatiquement par le retour
 navigateur), tri de `PositionsTable` et position de défilement persistés en `sessionStorage`,
 bouton retour de la fiche détaillée utilisant `navigate(-1)` quand l'origine est connue. **Recherche
@@ -2601,8 +2601,7 @@ au premier clic, pas une absence silencieuse. Nouveau `layout/routes.test.ts` : 
 Fil d'Ariane : déjà livré au lot 4 (`FilDAriane.tsx`, K.2), inchangé — revérifié à cette occasion
 qu'il s'affiche correctement sur les 12 écrans, y compris ceux du menu du compte (Import/Réglages/
 Aide), dérivés de la même source unique. **Ce constat vaut pour le 30/08 et pour lui seul : le
-composant a disparu entre cette date et le 16/09, dans la fenêtre que § BH.1 rend non traçable —
-cf. § BH.3.**
+composant a été retiré le 06/09/2026 par la refonte de la barre de contrôles — cf. § BH.3.**
 
 **Vérifié en conditions réelles** (30/08/2026) : backend + frontend lancés ensemble, connexion réelle
 par formulaire, capture d'écran de chacun des 12 écrans depuis chacun des 4 menus (barre latérale
@@ -6350,79 +6349,78 @@ Le fichier `ChatGPT Image 15 sept. 2026, 14_48_07.png` a par ailleurs été reno
 `lumen_logo_fond_blanc.png` : c'est le logo, mais son nom d'origine faisait négligé dans un dépôt
 public.
 
-### BH. Historique git tronqué, branches mortes et une régression qui s'y cachait (22/09/2026)
+### BH. Une fausse alerte sur l'historique git, et le ménage des branches (22/09/2026)
 
-Découvert en répondant à une question simple de l'utilisateur — « je vois des modifications non
-poussées sur la remote, une erreur d'affichage ou c'est le cas ? ». Rien n'était en attente ; c'est
-un `git fetch --prune` fait pour le vérifier qui a ramené deux branches inconnues, et de fil en
-aiguille les trois constats ci-dessous.
+Partie d'une question simple de l'utilisateur — « je vois des modifications non poussées sur la
+remote, une erreur d'affichage ou c'est le cas ? ». Rien n'était en attente. Mais le
+`git fetch --prune` fait pour le vérifier a ramené des branches inconnues, et l'enquête qui a suivi
+a produit **un diagnostic entièrement faux**, publié ici avant d'être vérifié correctement. Cette
+section conserve l'erreur plutôt que de l'effacer : le piège est reproductible et coûtera le même
+temps à qui le retrouvera.
 
-#### BH.1 — `majeur` · `M` · `non traité` · `P2` — L'historique de `main` s'arrête au 16/09/2026
+#### BH.1 — `mineur` · `XS` · `traité` (22/09/2026) — Un clone superficiel n'est pas un historique tronqué
 
-**Constat.** `main` ne porte que **89 commits**, et sa racine `7f09d7b` n'est pas un commit initial :
-c'est un `revert(identite): retire le halo reactif du logo (AD.2)` du 16/09/2026, qui porte déjà 549
-fichiers. Le mois de travail du 18/08 au 16/09 n'existe plus dans l'historique de `main`.
+**Le diagnostic erroné.** Depuis la session distante, `git rev-list --count main` renvoyait **89
+commits** et `git rev-list --max-parents=0 main` désignait `7f09d7b` (un `revert(identite)` du
+16/09/2026) comme racine. Deux branches distantes comparées à `main` répondaient `no merge base`.
+Conclusion tirée : l'historique de `main` aurait été tronqué au 16/09, et ces branches seraient les
+dernières porteuses du mois d'août.
 
-Deux branches restées sur le dépôt distant (`main-jm352w`, `claude/wonderful-wright-c1639d`) portent
-l'**histoire d'origine** : racine `8fb4d79`, « chore: état initial du projet avant audit », du
-18/08/2026. `git` répond littéralement `no merge base` quand on les compare à `main` — ce sont deux
-histoires sans aucun ancêtre commun. Elles s'arrêtent les 30 et 31/08, laissant de toute façon un
-trou du 31/08 au 16/09 que plus rien ne couvre.
+**La réalité.** Le clone de la session est **superficiel** (`.git/shallow` existe, et contient
+exactement `7f09d7b`). Un clone neuf du même dépôt donne **323 commits** et pour racine `8fb4d79`,
+« chore: état initial du projet avant audit » du 18/08/2026. Rien n'a jamais été tronqué sur
+GitHub ; et les deux branches étaient **déjà entièrement fusionnées dans `main`**.
 
-**Cause probable.** Un clone superficiel (`--depth`) poussé tel quel, qui transforme le commit le
-plus ancien récupéré en racine.
+**Ce qui aurait dû alerter.** Dans un dépôt superficiel, la frontière se présente comme une racine
+et `no merge base` est le symptôme normal — pas une anomalie. Les deux signaux venaient du même
+artefact. Le test décisif tient en une commande, `git rev-parse --is-shallow-repository`, et il
+n'avait pas été fait ; trois vérifications avaient été empilées **à l'intérieur** du clone tronqué,
+qui ne pouvait que les confirmer.
 
-**Conséquence.** Le contenu n'a pas souffert — `main` a 286 fichiers que ces branches n'ont pas. Ce
-qui manque, c'est la **traçabilité** : aucun `git blame`, `git log` ou `git bisect` ne remonte
-au-delà du 16/09, sur un mois qui contient l'essentiel de la construction du projet. BH.3 en est la
-première conséquence concrète, et probablement pas la seule.
+**Règle qui en sort.** Toute affirmation sur la FORME de l'historique — racine, profondeur,
+ancêtre commun, branche orpheline — est sans valeur tant qu'elle n'a pas été rejouée sur un clone
+complet. Le contenu d'un fichier se lit dans le clone de travail ; la topologie du graphe, non.
 
-**Ce qui a été fait.** Une archive `git bundle` des deux branches (1,5 Mo, 107 et 112 commits
-jusqu'à la racine du 18/08) a été produite et **remise à l'utilisateur**, après vérification par
-clonage réel — pas seulement `git bundle verify`. Rien n'est récupérable au-delà : le trou du 31/08
-au 16/09 est définitif.
+#### BH.2 — `mineur` · `XS` · `traité` (22/09/2026) — Trois branches mortes supprimées
 
-#### BH.2 — `mineur` · `XS` · `non traité` · `P3` — Trois branches mortes sur le dépôt distant
+`claude/epic-allen-hao2kt`, `main-jm352w` et `claude/wonderful-wright-c1639d` traînaient sur le
+dépôt distant. Les trois étaient **entièrement fusionnées dans `main`** : aucune ne portait le
+moindre commit absent d'ailleurs (vérifié après coup sur un clone complet, cf. BH.1 — la
+vérification faite sur le moment, depuis le clone superficiel, concluait à tort qu'elles portaient
+une histoire séparée). Supprimées par l'utilisateur le 22/09/2026 ; il ne reste que `main` et la
+branche de travail.
 
-| Branche | Commits absents de `main` | Sort |
-| --- | --- | --- |
-| `claude/epic-allen-hao2kt` | **0** (entièrement fusionnée) | à supprimer, sans risque |
-| `main-jm352w` | 107, autre histoire | à archiver en tag, puis supprimer |
-| `claude/wonderful-wright-c1639d` | 112, autre histoire | à archiver en tag, puis supprimer |
+Deux tags `archive/2026-08-*` ont été créés au passage, sur la foi du diagnostic erroné. Ils sont
+sans effet — ils pointent sur des commits que `main` contient déjà — et peuvent être supprimés à
+l'occasion.
 
-Le tag est préférable à la seule archive hors ligne : il garde l'historique sur GitHub
-indéfiniment, sans encombrer la liste des branches, et sans dépendre d'un fichier que quelqu'un doit
-penser à conserver.
+Les identifiants d'une session distante peuvent pousser des commits mais **ni supprimer une
+référence ni créer un tag** (`403` dans les deux cas) : ce ménage-là se fait depuis un clone doté
+des droits complets, ou d'un clic depuis la page *branches* de GitHub.
 
-**Pourquoi ce n'est pas fait.** Les identifiants de la session distante qui a instruit ce point
-peuvent pousser des commits sur une branche, mais **pas supprimer une référence ni créer un tag** :
-GitHub répond `403` dans les deux cas (vérifié sur l'URL de redirection et sur l'URL canonique, et
-aucun outil d'API disponible ne couvre la suppression de branche). Les tags ont été préparés
-localement ; la manœuvre reste à jouer depuis un clone doté des droits complets.
+#### BH.3 — `mineur` · `XS` · `traité` (22/09/2026) — Le fil d'Ariane : retiré volontairement, jamais consigné ici
 
-#### BH.3 — `mineur` · `S` · `non traité` · `P3` — Le fil d'Ariane a disparu sans que rien ne l'acte
+**Constat de départ.** `FilDAriane.tsx` n'existe plus nulle part, alors que ce backlog l'annonce
+trois fois comme livré — K.2 (21/08) et V.1 (30/08, « revérifié à cette occasion qu'il s'affiche
+correctement sur les 12 écrans »). Faute d'historique complet, ce retrait a d'abord été pris pour
+une régression silencieuse.
 
-**Constat.** `FilDAriane.tsx` n'existe nulle part dans `main`, et aucune trace de fil d'Ariane dans
-tout `frontend/src`. Or le backlog l'annonce **trois fois comme livré** : K.2 (21/08, « sur tous les
-écrans hors accueil, avec le ticker réel affiché sur la fiche détaillée »), et V.1 (30/08, « déjà
-livré au lot 4, inchangé — **revérifié à cette occasion** qu'il s'affiche correctement sur les 12
-écrans »).
+**Ce qui s'est réellement passé**, lisible dès que l'historique complet est disponible :
 
-**Ce n'est pas un retrait volontaire.** Aucun commit de `main` ne le supprime : il était déjà absent
-de la racine du 16/09. Il a donc disparu dans la fenêtre que BH.1 rend non traçable. L'hypothèse
-d'une refonte de navigation qui l'aurait emporté ne tient pas : `layout/routes.ts` et `ROUTES`
-existent toujours, et les deux routes de détail aussi (`/patrimoine/:holdingId`, `/comptes/:id` —
-`:ticker` a seulement été renommé `:holdingId`). Sa source de données est intacte ; il serait
-réimplémentable tel quel. Mieux : le **bouton « Retour »** livré par le même lot K.2 a survécu, et
-`HoldingDetailPage.tsx` cite toujours `backlog 2.K.2` en commentaire. Les deux moitiés d'une même
-entrée, l'une vivante et l'autre évaporée.
+1. **06/09/2026, `7c19a58`** (`refonte(etape-3): coque en verre, barre de contrôles et
+   navigation`) supprime `FilDAriane.tsx` et son test. Le message du commit porte la décision et sa
+   raison : « pilule de contexte de l'écran courant **à la place du fil d'Ariane** (supprimé, les
+   deux écrans de détail ont déjà leur lien retour en accent) ».
+2. **07/09/2026**, la pilule est retirée à son tour sur retour utilisateur — « je ne vois pas
+   l'intérêt » — parce que l'item actif de la barre latérale et le titre de la page disent déjà la
+   même chose. `BarreControles.tsx` porte ce commentaire aujourd'hui encore.
 
-**Pourquoi seulement `P3`.** La hiérarchie ne fait qu'un niveau, et les deux pages de détail
-concernées portent chacune un bouton de retour explicite. Le manque est réel mais modeste. À
-reprendre si l'arborescence se creuse au-delà d'un niveau.
+Rien n'est donc perdu, et il n'y a pas de régression à rouvrir : deux décisions de design
+successives, chacune justifiée à sa date, dont la seconde rend la première sans objet.
 
-**Ce que ça dit de la documentation.** Troisième occurrence du même travers en deux jours, après
-`A-FAIRE.md` (§ BF.6) et les composants de handoff dérivés du code réel : *une affirmation de
-livraison n'est pas une preuve de livraison*, et « revérifié à cette occasion » ne vaut que pour la
-date où c'est écrit. Seul un test verrouille un état — `layout/routes.test.ts`, écrit au même lot
-V.1, a survécu à tout, lui.
+**Ce qui reste vrai.** Ces décisions vivent dans des messages de commit et un commentaire de code,
+jamais dans ce backlog — qui continuait, lui, d'affirmer le contraire. K.2 et V.1 sont annotées sur
+place. C'est la même leçon qu'en § BF.6 avec `A-FAIRE.md`, à un détail près qui la rend plus
+gênante : ici la décision ÉTAIT documentée, correctement et au bon moment, simplement pas à
+l'endroit où on la cherche. Un `git log --diff-filter=D -- <fichier>` répond en une seconde à
+« pourquoi ce fichier n'est plus là » — encore faut-il un historique complet pour le lancer (BH.1).
