@@ -6424,3 +6424,122 @@ place. C'est la même leçon qu'en § BF.6 avec `A-FAIRE.md`, à un détail prè
 gênante : ici la décision ÉTAIT documentée, correctement et au bon moment, simplement pas à
 l'endroit où on la cherche. Un `git log --diff-filter=D -- <fichier>` répond en une seconde à
 « pourquoi ce fichier n'est plus là » — encore faut-il un historique complet pour le lancer (BH.1).
+
+### BI. Suites de l'étude « réécrire le backend en Rust ? » (décision utilisateur, 22/09/2026)
+
+**Question posée par l'utilisateur :** faut-il réécrire le backend en Rust ? **Réponse retenue :
+non**, pas d'un bloc. Le backend compte 20 700 lignes de code applicatif, 21 500 lignes de tests,
+144 endpoints, 34 modèles et 34 migrations. Une réécriture aurait dû reproduire tout cela sans rien
+apporter de visible pendant des mois, avec quatre pièges identifiés d'emblée :
+
+- **68 des 93 fichiers de test** appellent directement les services Python, dont précisément ceux
+  qui verrouillent les calculs financiers : le filet de sécurité ne se transpose pas ;
+- **`yfinance`** n'a pas d'équivalent fiable en Rust ;
+- **la génération PDF** (4 services sur `reportlab`) est à refaire sur un écosystème moins mûr ;
+- **les sauvegardes chiffrées** (Fernet, PBKDF2 à 600 000 itérations, `SEL_DERIVATION`) devraient
+  être reproduites à l'octet près, faute de quoi toutes celles qui existent deviennent illisibles.
+
+Chacun des bénéfices réels attendus de Rust a en revanche une réponse moins coûteuse, dans le
+langage actuel. **L'utilisateur a retenu les quatre**, consignées ci-dessous et traitées dans cet
+ordre : BI.2 d'abord (petit, mesurable, isolé), puis BI.1 (le gros chantier), puis BI.3 (qui doit
+mesurer l'état APRÈS BI.1, le calcul en `Decimal` étant plus lent qu'en flottant), puis BI.4.
+
+#### BI.1 — `majeur` · `L` · `non traité` · `P1` — Les montants en `Decimal`, pas en flottant
+
+**Constat.** Les 39 colonnes numériques de `models.py` sont toutes en `Float` : aucune en
+`Numeric`, et `Decimal` n'apparaît nulle part dans `app/`. Le bruit du flottant binaire est
+compensé au cas par cas : **150 appels à `round(`**, répartis dans 19 services. Chaque nouveau
+calcul doit penser à arrondir, et un oubli se voit à l'écran (`1234.5699999`) ou, pire, décale un
+total d'un centime.
+
+**Où se perd réellement la précision — vérifié, pas supposé.** Pas au stockage. SQLite n'a pas de
+type décimal natif : une colonne `Numeric` y est stockée en `real`, exactement comme un `Float`.
+Mais SQLAlchemy relit alors une `Decimal` arrondie à l'échelle déclarée, ce qui restitue
+exactement la valeur écrite tant qu'elle tient en 15 chiffres significatifs — largement le cas
+pour un patrimoine de foyer. Test fait : `Decimal("1234.56")` écrit, relu `Decimal('1234.56')` ;
+une somme SQL de dix `0.10` relue `Decimal('1.00')`. **La précision se perd dans l'arithmétique
+Python**, sur les sommes, les produits et les divisions en flottant. C'est donc là que porte le
+chantier, et `Numeric` a en prime l'avantage d'être natif et réellement exact sous Postgres (BI.4).
+
+**Classement des 39 colonnes**, qui fixe l'échelle de chacune :
+
+| Nature | Colonnes | Échelle |
+| --- | --- | --- |
+| Montants | valorisations, versements, capital et mensualité d'emprunt, loyers, charges, frais, salaire, montants de transaction et de mouvement bancaire, cibles de budget (22) | 2 |
+| Prix unitaires et cours | `prix_revient_moyen`, `Transaction.price`, `prix_actuel`, `cloture` (4) | 10 |
+| Quantités | `Holding.quantite`, `Transaction.shares` (2) — crypto à 8 décimales et au-delà | 10 |
+| Taux et quotités en % | 6 colonnes `*_pct` | 6 |
+| Poids de composition (fraction 0-1) | 3 colonnes `poids` | 8 |
+| Hors finance | `surface_m2`, `intervalle_heures` | restent en `Float` |
+
+**Principe de conception.** Deux domaines, une frontière explicite :
+
+- le **domaine comptable** — sommes, PRU, plus-values réalisées, frais, soldes, budgets,
+  échéanciers d'emprunt, quotités appliquées à un montant — calcule en `Decimal`, exact ;
+- le **domaine analytique** — XIRR, rendement pondéré, volatilité, projections, pourcentages
+  d'allocation destinés aux graphiques — reste en flottant, par nature (logarithmes, racines,
+  itérations de Newton), avec une conversion explicite à l'entrée.
+
+Mélanger `Decimal` et `float` lève un `TypeError` en Python : c'est un atout, chaque point de
+contact oublié se déclare au lieu de corrompre un résultat en silence.
+
+**Contrat d'API inchangé.** Pydantic v2 sérialise une `Decimal` en chaîne JSON par défaut, ce qui
+casserait le frontend. Les schémas sérialisent donc les montants en nombre JSON : le frontend ne
+voit aucune différence.
+
+#### BI.2 — `mineur` · `S` · `non traité` · `P2` — Retirer `pandas` des parseurs d'import
+
+**Constat.** `pandas` (et `numpy` qu'il entraîne) figure parmi les dépendances les plus lourdes de
+l'image backend, qui pèse **151 Mo compressés**. Il ne sert qu'à six fichiers, et pour presque
+rien : `read_csv(dtype=str)` suivi d'un `iterrows()` dans quatre parseurs d'import
+(`bricks_import`, `ledger_import`, `transaction_import`, `budget_import_service`), une lecture
+Excel (`bricks_import`, `csv_import`), un aperçu des dix premières lignes (`csv_import`), et la
+lecture d'un historique de cours déjà fourni en `DataFrame` par `yfinance` (`cours_service`).
+Tout cela se fait avec le module `csv` de la bibliothèque standard et `openpyxl`.
+
+**Réserve, mesurée.** `yfinance` exige lui-même `pandas` et `numpy` (`pip show yfinance`) : les
+retirer de nos parseurs **ne les retire pas de l'image** tant que `yfinance` y reste. Gain sur
+l'image : nul. Le poids installé de la chaîne de `yfinance`, lui, est considérable :
+
+| Paquet | Installé | Présent pour |
+| --- | --- | --- |
+| `pandas` | 76 Mo | `yfinance` (et nos parseurs, avant ce point) |
+| `numpy` | 72 Mo | `pandas`, `yfinance` |
+| `curl_cffi` | 38 Mo | `yfinance` (imitation de l'empreinte TLS d'un navigateur) |
+| `lxml` | 12 Mo | `yfinance` — notre code impose `html.parser` partout |
+| `protobuf`, `websockets`, `peewee` | ~5 Mo | `yfinance` |
+
+Soit **~200 Mo installés** qui n'existent que pour `yfinance` — l'essentiel de l'image. Le vrai
+levier sur le poids est donc `yfinance`, pas `pandas`. Le remplacer n'est cependant pas anodin :
+le code lui demande l'historique des cours, la fiche `info`, la recherche d'identifiant et la
+composition des fonds (`funds_data`), dont les trois dernières passent par l'API non officielle de
+Yahoo protégée par jeton et cookie — précisément ce que `curl_cffi` contourne. C'est une décision
+à soumettre à l'utilisateur, pas à prendre en passant.
+
+Ce point garde sa valeur propre : une dépendance de moins dans le code applicatif, des parseurs
+lisibles sans connaître `pandas`, et le préalable indispensable à un éventuel remplacement de
+`yfinance`.
+
+#### BI.3 — `mineur` · `M` · `non traité` · `P2` — Profiler avant d'optimiser
+
+**Principe.** Aucune ligne de Rust sans point chaud démontré. Profiler les endpoints lourds —
+reconstruction de portefeuille, historique de patrimoine, performance et XIRR — sur un jeu de
+données représentatif (plusieurs années de transactions), et ne décider que sur mesures. Si un
+point chaud apparaît, il s'écrit en Rust via PyO3, isolément, sans toucher au reste.
+
+**À faire APRÈS BI.1**, et pas avant : l'arithmétique `Decimal` est plus lente que le flottant.
+Profiler l'état actuel mesurerait un programme qui n'existera bientôt plus.
+
+#### BI.4 — `majeur` · `L` · `non traité` · `P3` — Préparer une version hébergée : Postgres et multi-foyer
+
+**Le vrai sujet d'un SaaS n'est pas le langage** mais la base et l'isolation des clients. Deux
+volets :
+
+1. **Portabilité Postgres** — inventorier tout ce qui lie le code à SQLite (SQL brut, `PRAGMA`,
+   migrations en mode `batch`, comportements de type propres à SQLite), le rendre portable, et
+   faire tourner la suite de tests contre les deux moteurs. Travail technique, sans décision
+   produit.
+2. **Modèle multi-foyer** — une base par client, un schéma par client, ou une colonne de
+   rattachement sur chaque table : c'est une **décision produit**, avec des conséquences sur
+   l'isolation, les sauvegardes et le coût d'exploitation. Elle revient à l'utilisateur ; ce point
+   s'arrête à une étude comparative étayée.
