@@ -6168,7 +6168,7 @@ Topics : `personal-finance` `wealth-management` `self-hosted` `portfolio-tracker
 `typescript` `python` `sqlite` `docker` `french`. Cocher aussi **Releases** et **Packages** dans le
 même encart, pour que les images GHCR soient visibles au premier coup d'œil.
 
-#### BF.3 — `majeur` · `S` · `non traité` · `P1` — La suite E2E ne démarre pas hors Windows
+#### BF.3 — `majeur` · `S` · `traité` (22/09/2026) — La suite E2E ne démarrait pas hors Windows
 
 `frontend/e2e/global-setup.ts` retombe sur `backend/venv/Scripts/python.exe` quand
 `PATRIMOINE_E2E_PYTHON` est absente — un chemin de venv **Windows**. Sur Linux ou macOS, `npm run
@@ -6178,18 +6178,25 @@ captures du README : le message ne mentionne ni venv, ni variable d'environnemen
 Sans conséquence tant que le dépôt était privé et mono-machine. Mais `README.md` et
 `CONTRIBUTING.md` demandent désormais explicitement à tout contributeur de lancer cette suite avant
 une pull request : le premier qui essaiera depuis autre chose qu'un poste Windows sera bloqué par un
-message incompréhensible. Correctif : détecter la plateforme (`venv/bin/python` sur POSIX,
-`venv/Scripts/python.exe` sur Windows), et lever une erreur explicite nommant
-`PATRIMOINE_E2E_PYTHON` si aucun binaire n'est trouvé.
+message incompréhensible. **Corrigé** : `resoudrePython()` cherche désormais selon la plateforme
+(`venv/Scripts/python.exe` sur Windows, `venv/bin/python` puis `venv/bin/python3` ailleurs) et,
+si rien n'est trouvé, lève une erreur qui NOMME les chemins essayés, la commande de création du
+venv et la variable `PATRIMOINE_E2E_PYTHON`. Vérifié dans les deux sens sur Linux : message
+explicite sans venv, puis suite lancée avec succès via le seul venv découvert automatiquement,
+sans la variable d'environnement.
 
-#### BF.4 — `mineur` · `XS` · `non traité` · `P2` — `compose-homelab.yaml` décrit un registre privé qui ne l'est plus
+#### BF.4 — `mineur` · `XS` · `traité` (22/09/2026) — `compose-homelab.yaml` décrivait un registre privé qui ne l'est plus
 
 L'en-tête du fichier parle de « connexion au registre privé » et donne une commande
 `docker login ghcr.io -u <utilisateur> -p <jeton read:packages>`. Or les images `lumen-backend` et
 `lumen-frontend` sont **publiques** (vérifié : manifeste servi contre un jeton anonyme). Un nouvel
 arrivant croit donc devoir créer un jeton d'accès personnel pour une commande qui marche sans rien.
-Le `README.md` refondu documente déjà la voie sans authentification — c'est le commentaire du
-compose qui est resté en arrière.
+Le `README.md` refondu documentait déjà la voie sans authentification — c'est le commentaire du
+compose qui était resté en arrière. **Corrigé dans les deux endroits** : l'en-tête du compose et
+le § « Images pré-construites » du manuel d'exploitation, ce dernier détaillant encore la création
+d'un jeton classique `read:packages`. La procédure d'authentification y est conservée, mais
+reléguée à une note conditionnelle : elle redeviendra nécessaire si les packages repassent un jour
+en privé.
 
 #### BF.5 — `mineur` · `S` · `non traité` · `P2` — Libellés des guides d'export à confirmer
 

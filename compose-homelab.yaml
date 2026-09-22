@@ -2,9 +2,13 @@
 # (`.github/workflows/docker-publish.yml`, publiées sur ghcr.io à chaque push sur
 # main) — jamais de build sur cette machine. Voir docs/MANUEL_EXPLOITATION.md
 # § « Images pré-construites (CI GitHub Actions) » pour le mode d'emploi complet
-# (génération des clés, connexion au registre privé...).
+# (génération des clés notamment).
 #
-#   docker login ghcr.io -u <utilisateur> -p <jeton d'accès personnel, read:packages>
+# Les deux images sont PUBLIQUES sur ghcr.io : aucun `docker login`, aucun jeton
+# d'accès personnel n'est nécessaire pour les tirer. Cet en-tête en réclamait un
+# jusqu'au 22/09/2026 (backlog § BF.4), du temps où le dépôt était privé — de quoi
+# envoyer un nouvel arrivant fabriquer un jeton pour une commande qui marche sans.
+#
 #   docker compose -f compose-homelab.yaml pull
 #   docker compose -f compose-homelab.yaml up -d
 #

@@ -9,9 +9,37 @@ const ROOT = path.resolve(DIRNAME, '../..')
 const BACKEND_DIR = path.join(ROOT, 'backend')
 // `PATRIMOINE_E2E_PYTHON` (CI, `.github/workflows/ci.yml`) : le runner installe les
 // dépendances directement sur le Python du système (`pip install -r
-// requirements-dev.txt`, comme le job `backend` existant), sans venv à localiser —
-// repli sur le venv local Windows du poste de développement sinon.
-const PYTHON = process.env.PATRIMOINE_E2E_PYTHON || path.join(BACKEND_DIR, 'venv', 'Scripts', 'python.exe')
+// requirements-dev.txt`, comme le job `backend` existant), sans venv à localiser.
+//
+// Sans cette variable, on cherche le venv local — à l'emplacement que lui donne la
+// PLATEFORME. `venv/Scripts/python.exe` est une convention Windows ; sur macOS et
+// Linux, Python installe `venv/bin/python`. Le repli était codé en dur sur la
+// variante Windows jusqu'au 22/09/2026 (backlog § BF.3) : ailleurs, `npm run
+// test:e2e` mourait sur un `ENOENT` brut ne mentionnant ni venv, ni plateforme, ni
+// cette variable. Sans conséquence tant que le dépôt était privé et mono-machine,
+// bloquant dès lors que `CONTRIBUTING.md` demande à tout contributeur de lancer
+// cette suite avant une pull request.
+const CHEMINS_VENV =
+  process.platform === 'win32'
+    ? [path.join(BACKEND_DIR, 'venv', 'Scripts', 'python.exe')]
+    : [path.join(BACKEND_DIR, 'venv', 'bin', 'python'), path.join(BACKEND_DIR, 'venv', 'bin', 'python3')]
+
+function resoudrePython(): string {
+  const impose = process.env.PATRIMOINE_E2E_PYTHON
+  if (impose) return impose
+  const trouve = CHEMINS_VENV.find((chemin) => existsSync(chemin))
+  if (trouve) return trouve
+  // Message explicite plutôt qu'un `ENOENT` sur un chemin que l'on ne comprend qu'en
+  // lisant ce fichier : c'est tout l'objet du correctif.
+  throw new Error(
+    `Aucun interpréteur Python trouvé pour la suite E2E.\n` +
+      `Cherché : ${CHEMINS_VENV.join(', ')}\n` +
+      `Créez le venv du backend (python -m venv backend/venv puis pip install -r backend/requirements-dev.txt), ` +
+      `ou désignez un interpréteur déjà équipé via la variable PATRIMOINE_E2E_PYTHON.`,
+  )
+}
+
+const PYTHON = resoudrePython()
 const DB_PATH = path.join(DATA_DIR, 'e2e.db')
 export const SEED_OUTPUT_PATH = path.join(DATA_DIR, 'seed-output.json')
 const BACKEND_LOG_PATH = path.join(DATA_DIR, 'backend.log')
