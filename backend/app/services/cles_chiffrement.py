@@ -45,6 +45,16 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 # l'être). Versionné dans son nom : le faire évoluer invaliderait toutes les
 # données déjà chiffrées par dérivation, ce qui exigerait une procédure de
 # migration explicite, jamais un simple changement de valeur ici.
+#
+# NE PAS Y REMPLACER « application-patrimoine » PAR « lumen ». Le projet porte ce
+# nom depuis le 15/09/2026 (cf. backlog § AD), et cette chaîne est le dernier
+# endroit du code où l'ancien y survit — ce qui en fait une cible naturelle pour
+# quiconque passe le dépôt au peigne fin, y compris un outil de renommage
+# automatique. Ce n'est PAS un libellé : c'est une entrée de la dérivation de clé.
+# La changer rendrait illisible toute sauvegarde déjà chiffrée, sans message
+# d'erreur explicite et sans retour en arrière possible pour qui aurait perdu
+# l'ancienne valeur. Le nom du produit n'a aucune importance ici ; la stabilité de
+# l'octet, si.
 SEL_DERIVATION = b"application-patrimoine::derivation-cle::v1"
 
 # Coût de la dérivation. Recommandation OWASP 2023 pour PBKDF2-HMAC-SHA256. Le coût

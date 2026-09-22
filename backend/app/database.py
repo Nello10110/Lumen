@@ -28,8 +28,14 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 logger = logging.getLogger("patrimoine.database")
 
 _RACINE_BACKEND = Path(__file__).resolve().parent.parent
+# Nom de fichier, pas un libellé : il suit les installations existantes et ne suit
+# donc PAS les renommages du produit (« Outil Bourse », puis « Application
+# Patrimoine », puis « Lumen » depuis le 15/09/2026 — cf. backlog § AD). Le
+# rebaptiser `lumen.db` par cohérence de marque ferait repartir toute installation
+# en place sur une base vide, exactement le scénario que `_chemin_base_par_defaut`
+# ci-dessous existe pour éviter.
 _NOM_BASE = "patrimoine.db"
-# Nom porté par la base avant que le projet ne soit renommé « Application Patrimoine » (aujourd'hui « Lumen »).
+# Nom porté par la base du temps d'« Outil Bourse », deux renommages plus tôt.
 _NOM_BASE_HISTORIQUE = "portfolio.db"
 
 

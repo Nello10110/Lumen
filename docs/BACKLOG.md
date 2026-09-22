@@ -6025,3 +6025,39 @@ sans accumulation de lignes, retrait, retrait d'un logo absent, refus d'un non-i
 récupération depuis une URL, refus d'une URL visant le réseau interne, exposition par la route publique,
 non-exposition quand le SSO est désactivé, et 403 pour un membre comme pour un invité. 7 frontend sur
 `LogoConnexionSsoCard` + 2 sur `LoginPage` (logo affiché à côté du libellé, bouton inchangé sans logo).
+
+#### AD.6 — `mineur` · `XS` · `traité` (22/09/2026) — Balayage de contrôle du renommage, et ce qui garde « patrimoine » exprès
+
+**Demande.** « Revoir le repo pour tout mettre au nom de Lumen et plus Application Patrimoine. »
+Balayage complet effectué : le renommage du 15/09/2026 (§ AD ci-dessus) était bien intégral côté
+marque. Étaient déjà à jour — README racine et frontend, les sept titres de `docs/`, `<title>` et
+`<meta description>`, le manifeste PWA, `FastAPI(title=...)`, `package.json`, les images GHCR
+(`lumen-backend`/`lumen-frontend`), les pieds de page des trois PDF générés, le `LumenMark` et les
+icônes. Deux seules survivances réelles, toutes deux dans le dossier de handoff de design :
+son `README.md` (titre corrigé) et le rendu `État actuel.dc.html`, laissé tel quel — c'est la
+maquette livrée par le designer de l'interface d'AVANT la refonte, la réécrire falsifierait un
+artefact daté.
+
+**Ce qui garde « patrimoine » délibérément, et pourquoi.** Le mot est à la fois l'ancien nom du
+produit ET un terme métier central, ce qui rend un renommage automatique dangereux. Trois
+catégories, aucune à toucher :
+
+1. **Terme métier** — `/patrimoine`, `patrimoine_service.py`, « patrimoine net », `PatrimoineNetCard`,
+   `score_patrimonial`... Ce sont des mots du domaine, pas une marque. Les renommer n'aurait aucun
+   sens (« lumen net » ne veut rien dire).
+2. **Contrat de déploiement** — les 14 variables `PATRIMOINE_*`, le fichier `patrimoine.db`, les
+   volumes Docker `patrimoine_data`/`patrimoine_sauvegardes`, les journaux `patrimoine.*`. Les
+   renommer casserait chaque installation en place : `.env` ignoré, base repartie à vide, volumes
+   orphelins. Un gain purement cosmétique contre une perte de données réelle.
+3. **`cles_chiffrement.SEL_DERIVATION`** — `b"application-patrimoine::derivation-cle::v1"`. Le seul
+   endroit du code où l'ancien nom subsiste littéralement, donc la cible parfaite d'un
+   chercher-remplacer. Ce n'est pas un libellé mais une entrée de la dérivation de clé : la modifier
+   rendrait illisible **toute sauvegarde déjà chiffrée**, sans erreur explicite et sans retour
+   arrière. Un avertissement dédié a été posé dessus, ainsi que sur `_NOM_BASE` dans `database.py` —
+   c'est la vraie livraison de ce point : non pas un renommage, mais deux garde-fous là où le
+   prochain balayage de marque ferait des dégâts.
+
+**Reste à la main de l'utilisateur** : le dépôt GitHub s'appelle toujours `Nello10110/application-patrimoine`
+(seul son propriétaire peut le renommer ; GitHub redirige l'ancienne URL, et les images GHCR portent
+déjà `lumen-*`, donc rien ne casserait côté CI). La seule mention de ce slug dans les docs est
+factuellement juste tant que le dépôt n'est pas renommé.

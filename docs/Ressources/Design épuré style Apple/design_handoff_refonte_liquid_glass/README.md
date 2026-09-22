@@ -1,4 +1,4 @@
-# Handoff — Refonte « liquid glass » de l'application Patrimoine
+# Handoff — Refonte « liquid glass » de Lumen
 
 ## Vue d'ensemble
 
