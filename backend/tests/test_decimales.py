@@ -135,4 +135,10 @@ def test_valeur_bruitee_deja_en_base_relue_propre(session):
     doivent se relire à l'échelle, sans reprise de données."""
     session.execute(text("INSERT INTO ligne_test_decimales (id, montant) VALUES (1, 1234.5699999999999)"))
     session.commit()
-    assert session.get(_Ligne, 1).montant == Decimal("1234.57")
+    montant = session.get(_Ligne, 1).montant
+    assert montant == Decimal("1234.57")
+    # Ce sur quoi repose le chemin rapide de la relecture (§ BI.3) : `Numeric` rend
+    # déjà une Decimal EXACTEMENT à l'échelle de la colonne, que `Decimale` rend
+    # alors telle quelle. Si une version de SQLAlchemy cessait de le faire, ce test
+    # le dirait — au lieu de laisser passer un arrondi manquant en silence.
+    assert montant.as_tuple().exponent == -2

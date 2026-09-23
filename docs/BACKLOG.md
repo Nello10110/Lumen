@@ -6623,7 +6623,7 @@ En outre, `to_float` refuse désormais `NaN` et l'infini à la source (le texte 
   encodage serait sûr (UTF-8 essayé d'abord) et épargnerait une manipulation à l'utilisateur ;
   c'est un changement de comportement, laissé à sa décision.
 
-#### BI.3 — `mineur` · `M` · `non traité` · `P2` — Profiler avant d'optimiser
+#### BI.3 — `mineur` · `M` · `traité` (23/09/2026) — Profiler avant d'optimiser
 
 **Principe.** Aucune ligne de Rust sans point chaud démontré. Profiler les endpoints lourds —
 reconstruction de portefeuille, historique de patrimoine, performance et XIRR — sur un jeu de
@@ -6632,6 +6632,52 @@ point chaud apparaît, il s'écrit en Rust via PyO3, isolément, sans toucher au
 
 **À faire APRÈS BI.1**, et pas avant : l'arithmétique `Decimal` est plus lente que le flottant.
 Profiler l'état actuel mesurerait un programme qui n'existera bientôt plus.
+
+**Verdict : aucun point chaud, aucune ligne de Rust.** Mesuré, pas supposé.
+
+**Banc rejouable** : `backend/scripts/banc_performance.py` construit dans une base jetable le
+patrimoine d'un foyer bien équipé — six ans d'historique, 20 titres dont 5 cryptos, 1 455
+transactions, 6 260 cours hebdomadaires, livrets, assurance-vie, bien immobilier financé, 2 970
+mouvements bancaires — puis chronomètre les routes À FROID (cache d'historique vidé avant chaque
+appel, le cas réel après toute saisie), réseau coupé, jeu déterministe. `--toutes` chronomètre
+les 68 routes GET.
+
+**Toutes les routes, à froid : la plus lente met 183 ms** (bilan annuel PDF, action ponctuelle).
+Les routes du tableau de bord : historique du patrimoine ~110 ms, historique de performance
+~105 ms, métriques avancées ~90 ms, performance ~65 ms, positions ~60 ms. Rien qu'un
+utilisateur perçoive comme lent, rien qui justifie une extension compilée.
+
+**Le coût de BI.1, mesuré sur le même jeu avant/après** (15 mesures, médianes) : chaque route
+lourde était de 18 à 38 % plus lente en `Decimal`. Le profil (cProfile sur les services, le
+client de test exécutant l'application dans un autre fil) a désigné la cause, et ce n'était pas
+l'arithmétique : **20 % du temps partait dans la relecture des colonnes décimales**, où
+`Decimale` ré-arrondissait une `Decimal` que `Numeric` venait de rendre déjà exacte à
+l'échelle — et recalculait le pas d'arrondi à chacun des 147 000 appels. Vérifié avant de
+toucher : sur SQLite, `Numeric` rend toujours une `Decimal` à l'échelle et le ré-arrondi ne
+change jamais rien, pas même la représentation interne ; sous Postgres, le pilote rend déjà
+une `NUMERIC` à l'échelle. La relecture la rend donc telle quelle, et le pas est mis en cache ;
+un test verrouille l'hypothèse (l'exposant de la valeur relue est bien celui de la colonne).
+
+| Route (médiane, à froid) | `float` (avant BI.1) | `Decimal` | `Decimal` optimisé |
+| --- | --- | --- | --- |
+| Bilan annuel PDF | 152 ms | 198 ms | 154 ms |
+| Export des données | 148 ms | 191 ms | 172 ms |
+| Patrimoine PDF | 115 ms | 141 ms | 107 ms |
+| Historique du patrimoine | 94 ms | 127 ms | 102 ms |
+| Historique de performance | 90 ms | 115 ms | 101 ms |
+| Métriques avancées | 77 ms | 107 ms | 87 ms |
+| Performance | 68 ms | 83 ms | 59 ms |
+| Positions | 58 ms | 69 ms | 54 ms |
+
+Six routes sur huit reviennent dans le bruit de mesure du code en flottant (−14 % à +12 %).
+Seul l'export de données garde un surcoût visible (+16 %, 172 ms pour une action ponctuelle) :
+chaque montant y est sérialisé avec une vérification d'exactitude (§ BI.1), prix assumé d'un
+fichier de sauvegarde exact.
+
+**Effet de bord utile** : faire tourner toutes les routes sur ce jeu a d'abord signalé une erreur
+500 sur les alertes de fraîcheur — due au GÉNÉRATEUR, qui posait une valeur estimée sans sa
+date, ce que l'API ne permet jamais (vérifié par l'API : la création comme la modification
+posent la date). Corrigé dans le générateur, pas dans l'application.
 
 #### BI.4 — `majeur` · `L` · `non traité` · `P3` — Préparer une version hébergée : Postgres et multi-foyer
 

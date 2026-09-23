@@ -30,13 +30,17 @@ est explicite (`en_decimal`).
    une fois, avant que le moindre fil d'exécution ne démarre.
 3. *La base ne décide de rien.* SQLite n'a pas de type décimal natif et stocke une
    colonne `NUMERIC` en `real` ; Postgres arrondit à sa façon. La valeur est donc
-   déjà arrondie côté Python avant d'être écrite, et de nouveau à la relecture — le
-   résultat est identique quel que soit le moteur. Vérifié sous SQLite : à l'échelle
-   déclarée, la relecture restitue exactement la valeur écrite tant qu'elle tient en
-   15 chiffres significatifs, ce qui couvre largement un patrimoine de foyer.
+   arrondie côté Python AVANT d'être écrite. À la relecture, `Numeric` rend déjà une
+   `Decimal` à l'échelle déclarée — sous SQLite en formatant le réel stocké à cette
+   échelle, ce qui restitue exactement la valeur écrite tant qu'elle tient en 15
+   chiffres significatifs (largement assez pour un patrimoine de foyer) ; sous
+   Postgres, nativement. Vérifié : ré-arrondir cette `Decimal` ne changerait jamais
+   rien, pas même sa représentation interne — la relecture la rend donc telle quelle
+   (§ BI.3 : ce ré-arrondi redondant pesait 20 % du temps des routes les plus lourdes).
 """
 
 import decimal
+import functools
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import Numeric, event
@@ -57,7 +61,9 @@ ECHELLE_TAUX = 6  # pourcentages : 33,333333 % pour une quotité d'un tiers
 ZERO = Decimal("0")
 
 
+@functools.cache
 def _pas(echelle: int) -> Decimal:
+    # Mis en cache : appelé à chaque conversion, et il n'existe que quatre échelles.
     return Decimal(1).scaleb(-echelle)
 
 
@@ -108,6 +114,10 @@ class Decimale(TypeDecorator):
         return en_decimal(value, self.echelle)
 
     def process_result_value(self, value, _dialect):
+        # `Numeric` a déjà rendu une `Decimal` à l'échelle (cf. garantie 3) : la
+        # ré-arrondir serait un travail pur, sans effet — chemin rapide.
+        if value is None or isinstance(value, Decimal):
+            return value
         return en_decimal(value, self.echelle)
 
 
