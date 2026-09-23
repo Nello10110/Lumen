@@ -10,6 +10,7 @@ import { SkeletonTexte } from './Skeleton'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Répartition entre détenteurs (backlog 2.L.1) — n'apparaît que si l'utilisateur a
  * déclaré au moins un détenteur (Réglages). Gère son propre état, indépendant du
@@ -43,8 +44,8 @@ export default function DetenteursSection({
 
   if (erreurChargement !== null) {
     return (
-      <Card title="Détenteurs">
-        <EtatErreur message={`Impossible de charger les détenteurs : ${erreurChargement}`} onReessayer={rechargerDetenteurs} />
+      <Card title={t('detenteursSection.detenteurs')}>
+        <EtatErreur message={t('detenteursSection.erreurDetenteurs', { erreur: erreurChargement })} onReessayer={rechargerDetenteurs} />
       </Card>
     )
   }
@@ -52,42 +53,30 @@ export default function DetenteursSection({
   if (detenteurs.length === 0) return null
 
   return (
-    <Card title="Détenteurs">
-      <p className="mb-4 text-sm text-texte">
-        Répartition de cette ligne entre les personnes déclarées dans Réglages — la somme doit faire 100 % (ou rester à
-        0 % pour ne pas répartir, 100 % foyer implicite).
-        {compte && (
+    <Card title={t('detenteursSection.detenteurs')}>
+      <p className="mb-4 text-sm text-texte">{t('detenteursSection.repartitionDeCetteLigneEntre')}{compte && (
           <>
-            {' '}
-            Cette ligne appartient au compte{' '}
+            {' '}{t('detenteursSection.cetteLigneAppartientAuCompte')}{' '}
             <Link to={`/comptes/${compte.id}`} className="font-medium text-accent hover:underline">
               {compte.nom}
-            </Link>{' '}
-            — définis-la plutôt une seule fois pour tout le compte depuis sa fiche, si les autres lignes du compte
-            doivent avoir la même répartition.
-          </>
+            </Link>{' '}{t('detenteursSection.definisLaPlutotUneSeule')}</>
         )}
       </p>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-            <th className="py-2 pr-4">Détenteur</th>
-            <th className="py-2 pr-4">
-              Quotité{' '}
-              <InfoBulle texte="La part du gâteau qui revient à chaque personne sur ce bien ou cet emprunt. La somme des quotités d'une ligne fait toujours 100 %." />
+            <th className="py-2 pr-4">{t('detenteursSection.detenteur')}</th>
+            <th className="py-2 pr-4">{t('detenteursSection.quotite')}{' '}
+              <InfoBulle texte={t('detenteursSection.laPartDuGateauQui')} />
             </th>
             {/* « Part détenue » / « Part nette » : deux notions proches et
                 systématiquement confondues sans explication (recette du
                 02/09/2026) — elles ne diffèrent QUE si un emprunt est rattaché. */}
-            <th className="py-2 pr-4 text-right" title="Valeur de l'actif revenant à ce détenteur, au prorata de sa quotité, SANS déduire l'emprunt.">
-              Part détenue
-            </th>
+            <th className="py-2 pr-4 text-right" title={t('detenteursSection.valeurDeLActifRevenant')}>{t('detenteursSection.partDetenue')}</th>
             <th
               className="py-2 pr-4 text-right"
-              title="Part détenue MOINS la part du capital restant dû de l'emprunt rattaché. Identique à la part détenue si aucun emprunt n'est rattaché à cette ligne."
-            >
-              Part nette
-            </th>
+              title={t('detenteursSection.partDetenueMoinsLaPart')}
+            >{t('detenteursSection.partNette')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">
@@ -121,10 +110,8 @@ export default function DetenteursSection({
       </table>
 
       <div className="mt-4 flex items-center gap-3">
-        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>
-          Enregistrer
-        </PrimaryButton>
-        {!totalValide && <span className="text-sm text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</span>}
+        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>{t('detenteursSection.enregistrer')}</PrimaryButton>
+        {!totalValide && <span className="text-sm text-negatif">{t('detenteursSection.totalActuel')}{' '}{total.toFixed(2)}{' '}{t('detenteursSection.doitFaire100')}</span>}
         {error && <span className="text-sm text-negatif">{error}</span>}
       </div>
     </Card>

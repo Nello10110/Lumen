@@ -10,6 +10,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
+import { t } from '../i18n'
 
 export default function HoldingPriceHistoryChart({ holdingId }: { holdingId: number }) {
   const { montantsMasques } = usePreferencesAffichage()
@@ -32,7 +33,7 @@ export default function HoldingPriceHistoryChart({ holdingId }: { holdingId: num
 
   if (loading) {
     return (
-      <Card title="Performance historique">
+      <Card title={t('holdingPriceHistoryChart.performanceHistorique')}>
         <SkeletonGraphique hauteur={240} />
       </Card>
     )
@@ -42,7 +43,7 @@ export default function HoldingPriceHistoryChart({ holdingId }: { holdingId: num
   // avant, les deux étaient confondues dans le même repli `EtatVide` ci-dessous.
   if (error) {
     return (
-      <Card title="Performance historique">
+      <Card title={t('holdingPriceHistoryChart.performanceHistorique')}>
         <EtatErreur message={error} onReessayer={charger} />
       </Card>
     )
@@ -50,14 +51,14 @@ export default function HoldingPriceHistoryChart({ holdingId }: { holdingId: num
 
   if (!data || data.points.length === 0) {
     return (
-      <Card title="Performance historique">
-        <EtatVide titre="Historique de cours non disponible pour ce titre." />
+      <Card title={t('holdingPriceHistoryChart.performanceHistorique')}>
+        <EtatVide titre={t('holdingPriceHistoryChart.historiqueDeCoursNonDisponible')} />
       </Card>
     )
   }
 
   return (
-    <Card title="Performance historique">
+    <Card title={t('holdingPriceHistoryChart.performanceHistorique')}>
       <ChartFrame reperes={reperesTemporels(data.points.map((p) => ({ date: p.date })), 'date', formatDate)} hauteur="panneau">
         <LineChart data={data.points} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <XAxis dataKey="date" hide />
@@ -80,13 +81,13 @@ export default function HoldingPriceHistoryChart({ holdingId }: { holdingId: num
 
       <div className="mt-3 flex gap-6 border-t border-bordure pt-3 text-sm">
         <div>
-          <p className="text-xs text-texte-attenue">Volatilité annualisée</p>
+          <p className="text-xs text-texte-attenue">{t('holdingPriceHistoryChart.volatiliteAnnualisee')}</p>
           <p className="font-medium text-texte">
             {data.volatilite_annualisee_pct !== null ? `${data.volatilite_annualisee_pct.toFixed(1)}%` : '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs text-texte-attenue">Perte maximale historique (drawdown)</p>
+          <p className="text-xs text-texte-attenue">{t('holdingPriceHistoryChart.perteMaximaleHistoriqueDrawdown')}</p>
           <p className="font-medium text-negatif">{data.max_drawdown_pct !== null ? `${data.max_drawdown_pct.toFixed(1)}%` : '—'}</p>
         </div>
       </div>

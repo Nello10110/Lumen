@@ -7,6 +7,7 @@ import catalogueEtablissementPicker from './catalogueEtablissementPicker'
 import celebrationJalon from './celebrationJalon'
 import champDecomposition from './champDecomposition'
 import chargementCourbeLumen from './chargementCourbeLumen'
+import classificationParametresForm from './classificationParametresForm'
 import client from './client'
 import compositionModal from './compositionModal'
 import compteDetailContent from './compteDetailContent'
@@ -14,6 +15,7 @@ import compteDetailModal from './compteDetailModal'
 import compteDetailPage from './compteDetailPage'
 import comptesPage from './comptesPage'
 import dashboardPage from './dashboardPage'
+import detenteursSection from './detenteursSection'
 import donnees from './donnees'
 import dropzone from './dropzone'
 import epargneApercu from './epargneApercu'
@@ -22,8 +24,12 @@ import etablissementsCard from './etablissementsCard'
 import etatErreur from './etatErreur'
 import field from './field'
 import holdingCategories from './holdingCategories'
+import holdingDetailContent from './holdingDetailContent'
 import holdingDetailModal from './holdingDetailModal'
 import holdingDetailPage from './holdingDetailPage'
+import holdingPriceHistoryChart from './holdingPriceHistoryChart'
+import immobilierApercu from './immobilierApercu'
+import immobilierParametresForm from './immobilierParametresForm'
 import labelAdaptatif from './labelAdaptatif'
 import ligneEpargne from './ligneEpargne'
 import lignesPatrimoineTable from './lignesPatrimoineTable'
@@ -55,6 +61,7 @@ const espaces = {
   celebrationJalon,
   champDecomposition,
   chargementCourbeLumen,
+  classificationParametresForm,
   client,
   compositionModal,
   compteDetailContent,
@@ -62,6 +69,7 @@ const espaces = {
   compteDetailPage,
   comptesPage,
   dashboardPage,
+  detenteursSection,
   donnees,
   dropzone,
   epargneApercu,
@@ -70,8 +78,12 @@ const espaces = {
   etatErreur,
   field,
   holdingCategories,
+  holdingDetailContent,
   holdingDetailModal,
   holdingDetailPage,
+  holdingPriceHistoryChart,
+  immobilierApercu,
+  immobilierParametresForm,
   labelAdaptatif,
   ligneEpargne,
   lignesPatrimoineTable,

@@ -6,6 +6,7 @@ import { PrimaryButton } from './Controls'
 import { Field, Select } from './Field'
 import { SECTEURS, ZONES_GEO } from '../utils/holdingCategories'
 import { libelleDonnee } from '../i18n/donnees'
+import { t } from '../i18n'
 
 const OPTION_AUTO = ''
 
@@ -33,22 +34,19 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
       await api.updateHolding(detail.id, { zone_geo: zoneGeo || null, secteur: secteur || null })
       onSaved()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+      setError(err instanceof Error ? err.message : t('classificationParametresForm.erreurInconnue'))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Card title="Classification géographique et sectorielle">
-      <p className="mb-4 text-sm text-texte-attenue">
-        Corrige la zone ou le secteur utilisés dans les graphiques de répartition, quand la détection automatique est
-        absente (Bricks.co et autres lignes sans cotation) ou trompeuse (pays de domiciliation d'un ETF).
-      </p>
+    <Card title={t('classificationParametresForm.classificationGeographiqueEtSectorielle')}>
+      <p className="mb-4 text-sm text-texte-attenue">{t('classificationParametresForm.corrigeLaZoneOuLe')}</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Zone géographique">
+        <Field label={t('classificationParametresForm.zoneGeographique')}>
           <Select value={zoneGeo} onChange={(e) => setZoneGeo(e.target.value)}>
-            <option value={OPTION_AUTO}>Détection automatique</option>
+            <option value={OPTION_AUTO}>{t('classificationParametresForm.detectionAutomatique')}</option>
             {ZONES_GEO.map((zone) => (
               <option key={zone} value={zone}>
                 {libelleDonnee(zone)}
@@ -56,9 +54,9 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
             ))}
           </Select>
         </Field>
-        <Field label="Secteur">
+        <Field label={t('classificationParametresForm.secteur')}>
           <Select value={secteur} onChange={(e) => setSecteur(e.target.value)}>
-            <option value={OPTION_AUTO}>Détection automatique</option>
+            <option value={OPTION_AUTO}>{t('classificationParametresForm.detectionAutomatique')}</option>
             {SECTEURS.map((s) => (
               <option key={s} value={s}>
                 {libelleDonnee(s)}
@@ -68,7 +66,7 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
         </Field>
       </div>
       <PrimaryButton onClick={handleSave} disabled={saving} className="mt-4">
-        {saving ? 'Enregistrement...' : 'Enregistrer la classification'}
+        {saving ? t('classificationParametresForm.enregistrement') : t('classificationParametresForm.enregistrerLaClassification')}
       </PrimaryButton>
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
     </Card>

@@ -4,6 +4,7 @@ import { Label } from './Field'
 import { ValorisationHistoriqueCard } from './ValorisationHistoriqueCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro, formatPct } from '../utils/format'
+import { t } from '../i18n'
 
 /** Onglet *Aperçu* de la fiche immobilier (backlog 2.M.4) : cashflow/rentabilités/
  * prix au m² déjà calculés côté serveur, et l'historique daté des valorisations —
@@ -29,48 +30,48 @@ export default function ImmobilierApercu({
   return (
     <>
       {immobilier && (immobilier.cashflow_mensuel !== null || immobilier.prix_m2 !== null || immobilier.prix_acquisition_total !== null) && (
-        <Card title="Cashflow et rentabilité">
+        <Card title={t('immobilierApercu.cashflowEtRentabilite')}>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {immobilier.cashflow_mensuel !== null && (
               <div>
-                <Label>Cashflow mensuel</Label>
+                <Label>{t('immobilierApercu.cashflowMensuel')}</Label>
                 <p className={`mt-1 text-lg font-semibold ${immobilier.cashflow_mensuel >= 0 ? 'text-positif' : 'text-negatif'}`}>
                   {formatEuro(immobilier.cashflow_mensuel, 2, montantsMasques)}
                 </p>
-                <p className="mt-1 text-xs text-texte-attenue">loyer − charges − frais/12 − mensualité</p>
+                <p className="mt-1 text-xs text-texte-attenue">{t('immobilierApercu.loyerChargesFrais12Mensualite')}</p>
               </div>
             )}
             {immobilier.rentabilite_brute_pct !== null && (
               <div>
-                <Label>Rentabilité brute</Label>
+                <Label>{t('immobilierApercu.rentabiliteBrute')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_brute_pct)}</p>
-                <p className="mt-1 text-xs text-texte-attenue">loyer annuel / prix d'acquisition total</p>
+                <p className="mt-1 text-xs text-texte-attenue">{t('immobilierApercu.loyerAnnuelPrixDAcquisition')}</p>
               </div>
             )}
             {immobilier.rentabilite_nette_pct !== null && (
               <div>
-                <Label>Rentabilité nette</Label>
+                <Label>{t('immobilierApercu.rentabiliteNette')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_nette_pct)}</p>
-                <p className="mt-1 text-xs text-texte-attenue">(loyer − charges − frais) / prix d'acquisition total</p>
+                <p className="mt-1 text-xs text-texte-attenue">{t('immobilierApercu.loyerChargesFraisPrixD')}</p>
               </div>
             )}
             {immobilier.prix_m2 !== null && (
               <div>
-                <Label>Prix au m²</Label>
+                <Label>{t('immobilierApercu.prixAuM')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.prix_m2, 2, montantsMasques)}</p>
               </div>
             )}
             {immobilier.emprunt_mensualite !== null && (
               <div>
-                <Label>Mensualité de l'emprunt rattaché</Label>
+                <Label>{t('immobilierApercu.mensualiteDeLEmpruntRattache')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.emprunt_mensualite, 2, montantsMasques)}</p>
               </div>
             )}
             {immobilier.prix_acquisition_total !== null && (
               <div>
-                <Label>Prix d'acquisition total</Label>
+                <Label>{t('immobilierApercu.prixDAcquisitionTotal')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.prix_acquisition_total, 2, montantsMasques)}</p>
-                <p className="mt-1 text-xs text-texte-attenue">prix d'achat + frais (notaire, travaux...)</p>
+                <p className="mt-1 text-xs text-texte-attenue">{t('immobilierApercu.prixDAchatFraisNotaire')}</p>
               </div>
             )}
           </div>

@@ -18,6 +18,7 @@ import InfoBulle from './InfoBulle'
 import { Badge, Field, Input, Select } from './Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { localeCourante, t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
@@ -379,7 +380,7 @@ function PositionCard({
         </div>
         <div>
           <span className="block text-xs text-texte-attenue">{t('positionsTable.secteur')}</span>
-          {md?.secteur ?? '—'}
+          {md?.secteur ? libelleDonnee(md.secteur) : '—'}
         </div>
         <div>
           <span className="block text-xs text-texte-attenue">{t('positionsTable.pays')}</span>
@@ -750,7 +751,7 @@ export default function PositionsTable({
                 <td className="py-2 pr-4">
                   <RendementCell value={h.rendement_annualise_pct} />
                 </td>
-                <td className="py-2 pr-4 text-texte">{md?.secteur ?? '—'}</td>
+                <td className="py-2 pr-4 text-texte">{md?.secteur ? libelleDonnee(md.secteur) : '—'}</td>
                 <td className="py-2 pr-4 text-texte">
                   {md?.erreur ? <span className="text-avertissement">{md.erreur}</span> : (md?.pays ?? '—')}
                 </td>

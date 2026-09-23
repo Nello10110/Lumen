@@ -25,6 +25,8 @@ import {
   STYLE_INFOBULLE,
   hauteurBarres,
 } from '../utils/chartTheme'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 function libelleTypeActif(typeActif: string | null): string | null {
   if (!typeActif) return null
@@ -34,9 +36,9 @@ function libelleTypeActif(typeActif: string | null): string | null {
 type Onglet = 'apercu' | 'analyse' | 'parametres'
 
 const ONGLETS: { key: Onglet; label: string }[] = [
-  { key: 'apercu', label: 'Aperçu' },
-  { key: 'analyse', label: 'Analyse' },
-  { key: 'parametres', label: 'Paramètres' },
+  { key: 'apercu', get label() { return t('holdingDetailContent.ongletApercu') } },
+  { key: 'analyse', get label() { return t('holdingDetailContent.ongletAnalyse') } },
+  { key: 'parametres', get label() { return t('holdingDetailContent.ongletParametres') } },
 ]
 
 /** Fiche d'actif unifiée (backlog 2.M.4) : toute ligne du patrimoine — quelle que
@@ -104,7 +106,7 @@ export default function HoldingDetailContent({
             </span>
           )}
           {estImmobilier && immo.immobilier?.residence_principale && (
-            <span className="rounded-chip bg-track px-2 py-0.5 text-xs font-medium text-ink2">Résidence principale</span>
+            <span className="rounded-chip bg-track px-2 py-0.5 text-xs font-medium text-ink2">{t('holdingDetailContent.residencePrincipale')}</span>
           )}
           {detail.compte && (
             <Link
@@ -128,8 +130,7 @@ export default function HoldingDetailContent({
             {plusValueLatente !== null && (
               <span className={`text-[13px] ${gainPositif ? 'text-pos' : 'text-neg'}`}>
                 {gainPositif ? '+' : ''}
-                {formatEuro(plusValueLatente, 0, montantsMasques)} depuis l'achat
-              </span>
+                {formatEuro(plusValueLatente, 0, montantsMasques)}{' '}{t('holdingDetailContent.depuisLAchat')}</span>
             )}
           </div>
         )}
@@ -139,7 +140,7 @@ export default function HoldingDetailContent({
         options={ONGLETS.map((o) => ({ valeur: o.key, libelle: o.label }))}
         valeur={onglet}
         onChange={setOnglet}
-        ariaLabel="Sections de la fiche"
+        ariaLabel={t('holdingDetailContent.sectionsDeLaFiche')}
         semantique="onglets"
         idOnglet={(cle) => `fiche-onglet-${cle}`}
         idPanneau={(cle) => `fiche-panneau-${cle}`}
@@ -151,29 +152,29 @@ export default function HoldingDetailContent({
           <Card>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <Label>Quantité</Label>
+                <Label>{t('holdingDetailContent.quantite')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatQuantite(detail.quantite)}</p>
               </div>
               <div>
-                <Label>Prix de revient</Label>
+                <Label>{t('holdingDetailContent.prixDeRevient')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.prix_revient_moyen, 2, montantsMasques)}</p>
               </div>
               <div>
-                <Label>Prix actuel</Label>
+                <Label>{t('holdingDetailContent.prixActuel')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.prix_actuel, 2, montantsMasques)}</p>
               </div>
               <div>
-                <Label>Valeur</Label>
+                <Label>{t('holdingDetailContent.valeur')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.valeur, 2, montantsMasques)}</p>
               </div>
               <div>
-                <Label>Depuis achat</Label>
+                <Label>{t('holdingDetailContent.depuisAchat')}</Label>
                 <p className={`mt-1 text-lg font-semibold ${gainPositif ? 'text-positif' : 'text-negatif'}`}>
                   {formatPct(detail.rendement_depuis_achat_pct)}
                 </p>
               </div>
               <div>
-                <Label>Rendement annualisé</Label>
+                <Label>{t('holdingDetailContent.rendementAnnualise')}</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(detail.rendement_annualise_pct)}</p>
                 {detail.rendement_annualise_pct === null && (
                   <p className="text-xs text-texte-attenue">
@@ -181,17 +182,15 @@ export default function HoldingDetailContent({
                         seule cause possible depuis que le rendement annualisé peut se
                         calculer sans cotation de marché dès qu'un revenu a été perçu
                         (Bricks.co et assimilés) — une ligne fraîchement achetée, sans
-                        aucun flux depuis, n'a simplement rien à mesurer pour l'instant. */}
-                    indisponible : détention trop récente, ou aucune vente/revenu connu depuis l'achat
-                  </p>
+                        aucun flux depuis, n'a simplement rien à mesurer pour l'instant. */}{t('holdingDetailContent.indisponibleDetentionTropRecenteOu')}</p>
                 )}
               </div>
               <div>
-                <Label>Secteur</Label>
-                <p className="mt-1 text-sm text-texte">{detail.secteur ?? '—'}</p>
+                <Label>{t('holdingDetailContent.secteur')}</Label>
+                <p className="mt-1 text-sm text-texte">{detail.secteur ? libelleDonnee(detail.secteur) : '—'}</p>
               </div>
               <div>
-                <Label>Pays</Label>
+                <Label>{t('holdingDetailContent.pays')}</Label>
                 <p className="mt-1 text-sm text-texte">{detail.pays ?? '—'}</p>
               </div>
             </div>
@@ -212,25 +211,25 @@ export default function HoldingDetailContent({
             <HoldingPriceHistoryChart holdingId={detail.id} />
           )}
 
-          <Card title="Émetteur, résumé & frais">
+          <Card title={t('holdingDetailContent.emetteurResumeFrais')}>
             <div className="space-y-3 text-sm">
               {detail.emetteur && (
                 <p>
-                  <span className="font-medium text-texte">Émetteur : </span>
+                  <span className="font-medium text-texte">{t('holdingDetailContent.emetteur')}{' '}</span>
                   {detail.emetteur}
                 </p>
               )}
               {detail.resume && <p className="text-texte">{detail.resume}</p>}
-              {!detail.emetteur && !detail.resume && <p className="text-texte-attenue">Informations non disponibles.</p>}
+              {!detail.emetteur && !detail.resume && <p className="text-texte-attenue">{t('holdingDetailContent.informationsNonDisponibles')}</p>}
               <div className="flex gap-6 border-t border-bordure pt-3">
                 <div>
-                  <p className="text-xs text-texte-attenue">Frais de gestion annuels</p>
+                  <p className="text-xs text-texte-attenue">{t('holdingDetailContent.fraisDeGestionAnnuels')}</p>
                   <p className="font-medium text-texte">
                     {detail.frais_gestion_pct !== null ? `${detail.frais_gestion_pct}%` : '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-texte-attenue">Frais de transaction payés (cumulés)</p>
+                  <p className="text-xs text-texte-attenue">{t('holdingDetailContent.fraisDeTransactionPayesCumules')}</p>
                   <p className="font-medium text-texte">{formatEuro(detail.frais_transaction_payes, 2, montantsMasques)}</p>
                 </div>
               </div>
@@ -242,14 +241,14 @@ export default function HoldingDetailContent({
       {onglet === 'analyse' && (
         <div id="fiche-panneau-analyse" role="tabpanel" aria-labelledby="fiche-onglet-analyse" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <PieChartCard title="Répartition géographique" items={detail.repartition_geo} />
-            <PieChartCard title="Répartition sectorielle" items={detail.repartition_sector} />
+            <PieChartCard title={t('holdingDetailContent.repartitionGeographique')} items={detail.repartition_geo} />
+            <PieChartCard title={t('holdingDetailContent.repartitionSectorielle')} items={detail.repartition_sector} />
           </div>
 
           {(detail.repartition_geo_detaillee.length > 0 || detail.repartition_sector_detaillee.length > 0) && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {detail.repartition_geo_detaillee.length > 0 && (
-                <Card title="Répartition géographique détaillée">
+                <Card title={t('holdingDetailContent.repartitionGeographiqueDetaillee')}>
                   <table className="w-full text-sm">
                     <tbody className="divide-y divide-bordure">
                       {[...detail.repartition_geo_detaillee]
@@ -265,7 +264,7 @@ export default function HoldingDetailContent({
                 </Card>
               )}
               {detail.repartition_sector_detaillee.length > 0 && (
-                <Card title="Répartition sectorielle détaillée">
+                <Card title={t('holdingDetailContent.repartitionSectorielleDetaillee')}>
                   <table className="w-full text-sm">
                     <tbody className="divide-y divide-bordure">
                       {[...detail.repartition_sector_detaillee]
@@ -284,7 +283,7 @@ export default function HoldingDetailContent({
           )}
 
           {detail.composition_actions.length > 0 && (
-            <Card title="Composition en actions (10 plus grosses lignes du fonds)">
+            <Card title={t('holdingDetailContent.compositionEnActions10Plus')}>
               <ResponsiveContainer width="100%" height={hauteurBarres(detail.composition_actions.length)}>
                 <BarChart
                   data={detail.composition_actions}
@@ -313,10 +312,10 @@ export default function HoldingDetailContent({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-                      <th className="py-2 pr-4">Action</th>
-                      <th className="py-2 pr-4">Proportion</th>
-                      <th className="py-2 pr-4">Pays</th>
-                      <th className="py-2 pr-4">Secteur</th>
+                      <th className="py-2 pr-4">{t('holdingDetailContent.action')}</th>
+                      <th className="py-2 pr-4">{t('holdingDetailContent.proportion')}</th>
+                      <th className="py-2 pr-4">{t('holdingDetailContent.pays')}</th>
+                      <th className="py-2 pr-4">{t('holdingDetailContent.secteur')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-bordure">

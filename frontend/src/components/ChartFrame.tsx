@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ResponsiveContainer } from 'recharts'
 import { HAUTEUR } from '../utils/chartTheme'
+import { libelleDonnee } from '../i18n/donnees'
 
 /** Cadre d'une COURBE (aire ou ligne dans le temps) — impose le langage graphique de
  * la maquette : aucune grille, aucun axe dessiné, et cinq repères de date en HTML
@@ -116,7 +117,7 @@ export function RepartitionEmpilee({
             key={p.nom}
             className={classe(i)}
             style={{ width: `${p.pourcentage}%` }}
-            title={`${p.nom} — ${p.valeur}`}
+            title={`${libelleDonnee(p.nom)} — ${p.valeur}`}
           />
         ))}
       </div>
@@ -125,7 +126,7 @@ export function RepartitionEmpilee({
           const contenu = (
             <>
               <span aria-hidden className={`h-2 w-2 shrink-0 rounded-[3px] ${classe(i)}`} />
-              <span className="truncate text-[13px] text-ink2">{p.nom}</span>
+              <span className="truncate text-[13px] text-ink2">{libelleDonnee(p.nom)}</span>
               {p.valeur ? (
                 <>
                   <span className="ml-auto shrink-0 text-[13px] text-ink3">{p.valeur}</span>

@@ -2,14 +2,15 @@ import type { FormImmobilier } from '../hooks/useImmobilierDetail'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
 import { Field, Input, Select } from './Field'
+import { t } from '../i18n'
 
 const OPTIONS_TYPE_LOCATION = [
-  { value: '', label: 'Non renseigné' },
-  { value: 'nue', label: 'Location nue' },
-  { value: 'meublee', label: 'Location meublée' },
-  { value: 'pinel', label: 'Pinel' },
-  { value: 'lmnp', label: 'LMNP' },
-  { value: 'saisonniere', label: 'Saisonnière' },
+  { value: '', get label() { return t('immobilierParametresForm.locationNonRenseigne') } },
+  { value: 'nue', get label() { return t('immobilierParametresForm.locationNue') } },
+  { value: 'meublee', get label() { return t('immobilierParametresForm.locationMeublee') } },
+  { value: 'pinel', get label() { return t('immobilierParametresForm.locationPinel') } },
+  { value: 'lmnp', get label() { return t('immobilierParametresForm.locationLmnp') } },
+  { value: 'saisonniere', get label() { return t('immobilierParametresForm.locationSaisonniere') } },
 ]
 
 /** Onglet *Paramètres* de la fiche immobilier (backlog 2.M.3 + 2.M.4) : formulaire de
@@ -29,17 +30,15 @@ export default function ImmobilierParametresForm({
   onSave: () => void
 }) {
   return (
-    <Card title="Immobilier — caractéristiques et location">
+    <Card title={t('immobilierParametresForm.immobilierCaracteristiquesEtLocation')}>
       <label className="mb-4 flex items-center gap-1.5 text-sm text-texte">
         <input
           type="checkbox"
           checked={form.residence_principale}
           onChange={(e) => setForm({ ...form, residence_principale: e.target.checked })}
-        />
-        Résidence principale
-      </label>
+        />{t('immobilierParametresForm.residencePrincipale')}</label>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Type de location">
+        <Field label={t('immobilierParametresForm.typeDeLocation')}>
           <Select value={form.type_location} onChange={(e) => setForm({ ...form, type_location: e.target.value })}>
             {OPTIONS_TYPE_LOCATION.map((o) => (
               <option key={o.value} value={o.value}>
@@ -48,10 +47,10 @@ export default function ImmobilierParametresForm({
             ))}
           </Select>
         </Field>
-        <Field label="Loyer mensuel (€)">
+        <Field label={t('immobilierParametresForm.loyerMensuel')}>
           <Input type="number" step="any" value={form.loyer_mensuel} onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })} />
         </Field>
-        <Field label="Charges mensuelles (€)">
+        <Field label={t('immobilierParametresForm.chargesMensuelles')}>
           <Input
             type="number"
             step="any"
@@ -59,16 +58,16 @@ export default function ImmobilierParametresForm({
             onChange={(e) => setForm({ ...form, charges_mensuelles: e.target.value })}
           />
         </Field>
-        <Field label="Frais annuels (taxe foncière, copropriété, assurance, gestion — total)">
+        <Field label={t('immobilierParametresForm.fraisAnnuelsTaxeFonciereCopropriete')}>
           <Input type="number" step="any" value={form.frais_annuels} onChange={(e) => setForm({ ...form, frais_annuels: e.target.value })} />
         </Field>
-        <Field label="Frais de notaire (€)">
+        <Field label={t('immobilierParametresForm.fraisDeNotaire')}>
           <Input type="number" step="any" value={form.frais_notaire} onChange={(e) => setForm({ ...form, frais_notaire: e.target.value })} />
         </Field>
-        <Field label="Travaux (€)">
+        <Field label={t('immobilierParametresForm.travaux')}>
           <Input type="number" step="any" value={form.frais_travaux} onChange={(e) => setForm({ ...form, frais_travaux: e.target.value })} />
         </Field>
-        <Field label="Autres frais d'acquisition (agence, garantie... — €)">
+        <Field label={t('immobilierParametresForm.autresFraisDAcquisitionAgence')}>
           <Input
             type="number"
             step="any"
@@ -76,28 +75,25 @@ export default function ImmobilierParametresForm({
             onChange={(e) => setForm({ ...form, frais_acquisition_autres: e.target.value })}
           />
         </Field>
-        <Field label="Surface (m²)">
+        <Field label={t('immobilierParametresForm.surfaceM')}>
           <Input type="number" step="any" value={form.surface_m2} onChange={(e) => setForm({ ...form, surface_m2: e.target.value })} />
         </Field>
-        <Field label="Nombre de pièces">
+        <Field label={t('immobilierParametresForm.nombreDePieces')}>
           <Input type="number" step="1" value={form.nb_pieces} onChange={(e) => setForm({ ...form, nb_pieces: e.target.value })} />
         </Field>
-        <Field label="Année de construction">
+        <Field label={t('immobilierParametresForm.anneeDeConstruction')}>
           <Input type="number" step="1" value={form.annee_construction} onChange={(e) => setForm({ ...form, annee_construction: e.target.value })} />
         </Field>
-        <Field label="DPE" className="w-20">
-          <Input value={form.dpe} onChange={(e) => setForm({ ...form, dpe: e.target.value })} placeholder="A à G" maxLength={2} />
+        <Field label={t('immobilierParametresForm.dpe')} className="w-20">
+          <Input value={form.dpe} onChange={(e) => setForm({ ...form, dpe: e.target.value })} placeholder={t('immobilierParametresForm.aAG')} maxLength={2} />
         </Field>
       </div>
 
       <hr className="my-4 border-stroke" />
-      <h3 className="mb-1 text-sm font-semibold text-ink">Simulateur achat vs location</h3>
-      <p className="mb-3 text-xs text-texte-attenue">
-        Ces valeurs alimentent uniquement la comparaison avec la location (onglet « Achat vs location » de la page
-        Analyse) — elles ne comptent jamais dans le calcul de rentabilité ci-dessus.
-      </p>
+      <h3 className="mb-1 text-sm font-semibold text-ink">{t('immobilierParametresForm.simulateurAchatVsLocation')}</h3>
+      <p className="mb-3 text-xs text-texte-attenue">{t('immobilierParametresForm.cesValeursAlimententUniquementLa')}</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Loyer mensuel estimé pour un bien équivalent (€)">
+        <Field label={t('immobilierParametresForm.loyerMensuelEstimePourUn')}>
           <Input
             type="number"
             step="any"
@@ -105,7 +101,7 @@ export default function ImmobilierParametresForm({
             onChange={(e) => setForm({ ...form, simulation_loyer_estime: e.target.value })}
           />
         </Field>
-        <Field label="Taxe d'habitation annuelle (€)">
+        <Field label={t('immobilierParametresForm.taxeDHabitationAnnuelle')}>
           <Input
             type="number"
             step="any"
@@ -113,7 +109,7 @@ export default function ImmobilierParametresForm({
             onChange={(e) => setForm({ ...form, simulation_taxe_habitation_annuelle: e.target.value })}
           />
         </Field>
-        <Field label="Charges mensuelles de comparaison (copropriété, assurance, entretien — €)">
+        <Field label={t('immobilierParametresForm.chargesMensuellesDeComparaisonCopropriete')}>
           <Input
             type="number"
             step="any"
@@ -124,7 +120,7 @@ export default function ImmobilierParametresForm({
       </div>
 
       <PrimaryButton onClick={onSave} disabled={saving} className="mt-4">
-        {saving ? 'Enregistrement...' : 'Enregistrer'}
+        {saving ? t('immobilierParametresForm.enregistrement') : t('immobilierParametresForm.enregistrer')}
       </PrimaryButton>
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
     </Card>
