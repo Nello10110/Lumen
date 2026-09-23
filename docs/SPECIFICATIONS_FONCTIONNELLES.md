@@ -2,14 +2,14 @@
 
 ## 1. Périmètre
 
-Application web locale, multi-utilisateur par foyer (propriétaire/membre/invité, backlog § 2.L.1/L.2),
+Application web locale, multi-utilisateur par foyer (propriétaire/membre/invité, backlog § L.1/L.2),
 de suivi de patrimoine et de portefeuille boursier. Elle permet de :
 
-1. reconstruire automatiquement le portefeuille réel à partir d'un export d'historique de transactions (courtier Trade Republic et compatibles), avec un choix de méthode de calcul du coût de revient (coût moyen pondéré ou FIFO) ;
-2. enrichir chaque position avec des données de marché (cours, secteur, pays, composition des ETF) via Yahoo Finance (`yfinance`), avec mise en cache pour limiter la fréquence des appels ;
+1. reconstruire automatiquement le portefeuille réel à partir d'exports d'historique reconnus sans correspondance de colonnes — Trade Republic (et compatibles), wallet Ledger (crypto), Bricks.co (crowdfunding immobilier) — ou d'un relevé de positions CSV/Excel de tout autre courtier, par correspondance de colonnes ; avec un choix de méthode de calcul du coût de revient (coût moyen pondéré ou FIFO) ;
+2. enrichir chaque position avec des données de marché (cours, secteur, pays, composition des ETF) via Yahoo Finance (`yfinance`), justETF (cours de référence, composition et description des ETF) et CoinGecko (cryptomonnaies), avec mise en cache pour limiter la fréquence des appels ;
 3. visualiser la répartition géographique et sectorielle réelle du portefeuille financier ;
 4. calculer la rentabilité globale et par ligne (gain/perte, rendement annualisé money-weighted), à partir d'une convention de données algébrique et sans double comptage des frais ;
-5. annoter chaque ligne d'un compte (PEA, CTO...) à titre purement indicatif, pour lire la répartition de la valeur actuelle par enveloppe ;
+5. ranger chaque ligne dans un **compte** (PEA, CTO, livret, assurance-vie, bien immobilier...) rattaché à un **établissement**, et répartir sa propriété entre les **détenteurs** du foyer (quotités) ;
 6. exporter positions, transactions et synthèse de rentabilité en CSV compatible Excel français ;
 7. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface ;
 8. suivre le **patrimoine net global** (roadmap Phase 1, `docs/BACKLOG.md` § 4.2) : au-delà du seul portefeuille financier, immobilier/SCPI/assurance-vie/PER/autres actifs valorisés manuellement et emprunts (passifs), avec une répartition par grande classe d'actif ;
@@ -26,20 +26,19 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : ell
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Écran d'accueil délibérément court (07/09/2026) : **le chiffre** (patrimoine net très grand, sa variation en euros et — quand il reste interprétable — en pourcentage), **la courbe** (évolution sur la période), les trois poches et la répartition par type. Tout le détail a rejoint l'écran Analyse |
-| Portefeuille | `/patrimoine` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
-| Fiche détaillée | `/patrimoine/:holdingId` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier/épargne, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
-| Épargne | `/epargne` | (backlog § 2.S.1) Comptes courants/épargne réglementée/épargne salariale/assurance-vie/PER : liste de comptes avec valeur actuelle datée, versement mensuel déclaré (additionné au préremplissage du Simulateur), historique de valorisation à date choisie par l'utilisateur (jamais figée à « maintenant »), petit graphique d'évolution, modification/suppression d'un compte |
-| Comptes | `/comptes`, `/comptes/:id` (backlog § X.1) | Vue façon Actual Budget : tous les comptes du foyer (financier, épargne, immobilier, assurance-vie...), groupés par établissement, avec le solde de chacun. Création d'un compte et gestion des établissements en feuilles ouvertes depuis l'en-tête, crayon d'édition sur chaque en-tête d'établissement, suppression d'un compte au bas de sa fiche (07/09/2026, paquet de design) — **toutes natures d'actif confondues** (remplace l'ancienne carte « Répartition par compte » du Tableau de bord, restreinte au seul portefeuille financier). Fiche détail par compte (modale ou page pleine page) : renommage, rattachement à un établissement, lignes du compte, et **répartition entre détenteurs pour tout le compte en une fois** (cf. § 3.7) |
-| Analyse | `/analyse` (`/dividendes` redirige vers `?onglet=revenus`, `/simulateur` vers `?onglet=projection`, `/objectifs` retiré 16/09/2026 — cf. § AJ du backlog) | Plusieurs onglets (07/09/2026, fusion de l'ancien écran Dividendes et du repli « Détail » du Tableau de bord ; 16/09/2026, le Simulateur rejoint depuis l'ancien écran Objectifs) : **Portefeuille** (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, indicateurs de risque, répartition géo/sectorielle réelle, qualité des données, exposition consolidée tous actifs — § 2.P.1, coût de gestion, et **indicateurs de situation** réservés au propriétaire — § 2.O.2, matelas de sécurité, taux d'endettement, part immobilisée), **Revenus** (calendrier des dividendes perçus groupés par mois avec détail dépliable, revenus passifs projetés certain/estimé — § 2.P.3), **Achat vs location** et **Simulateur** (calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel et le versement mensuel observé sur le budget — § 2.N.4 — additionné aux versements Épargne déclarés — § 2.S.1, horizon réglable 5/10/20/30 ans, tableau de détail annuel/mensuel, indépendance financière FIRE ; calculé côté client hormis les préremplissages) |
-| Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
-| Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, **décomposition « investi » (argent ajouté) vs « généré » (plus-value, dividendes, intérêts)**, dividendes perçus, cinq plus gros mouvements de la période |
-| Salaire | `/salaire` (propriétaire seul) | (backlog § 2.R.1) Calculateur brut/net — **plusieurs entrées par année** (un revenu par conjoint, chacune nommée et avec son propre taux d'imposition), montant brut ou net, mensuel ou annuel, cadre ou non-cadre, nombre de versements dans l'année, aperçu instantané côté client avant enregistrement. Chaque entrée affiche son détail brut/net avant-après impôt. **Taux d'épargne du foyer** : agrégat de toutes les entrées d'une année (revenu net total rapporté au montant réellement investi en achats de titres) — historique par année et moyenne, volontairement distinct du rendement de marché (carte Performance) |
-| Import | `/import` | Import de l'historique de transactions, d'un relevé de positions, ou de mouvements bancaires (CSV mappé, OFX, QIF — backlog § 2.N.1) pour l'écran Budget |
-| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, taux d'imposition déclaré), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV, relevé de patrimoine PDF et déclaration de patrimoine paramétrable (backlog § 2.Q.2), gestion des liens de partage (onglet Partage, backlog § 2.Q.1) |
-| Partage public | `/partage/:token` | Consultation PUBLIQUE (aucune authentification, backlog § 2.Q.1) d'un lien de partage — sections agrégées choisies par le propriétaire, code optionnel |
+| Synthèse (tableau de bord) | `/` | Écran d'accueil délibérément court (07/09/2026) : **le chiffre** (patrimoine net très grand, sa variation en euros et — quand il reste interprétable — en pourcentage, la répartition par type), **la courbe** (évolution sur la période, mode étagé investi/gains). Sans actif ni emprunt, un **état vide** explicite (23/09/2026, backlog § BJ.2) : par où commencer pour un foyer neuf, ou « rien n'est encore attribué à X » pour un détenteur sans part. Rappel discret quand les cours n'ont pas été actualisés depuis plusieurs jours. Tout le détail a rejoint l'écran Analyse |
+| Actifs | `/patrimoine` (libellé « Portefeuille » jusqu'au 16/09/2026) | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours et rafraîchissement suivi en tâche de fond, feuille « Ajouter une ligne » (un actif — coté, ou valorisé à la main par sa valeur estimée — ou un emprunt ; `?ajout=1` l'ouvre directement), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
+| Fiche détaillée | `/patrimoine/:holdingId` (page pleine page) ou modale ouverte depuis Actifs/Comptes/Analyse | **Fiche unifiée à trois onglets** (backlog § M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier/épargne, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (zone géographique et secteur déclarés pour toute ligne — backlog § AP.1/AP.2 ; caractéristiques immobilières et loyer de comparaison pour un bien) |
+| Comptes | `/comptes`, `/comptes/:id` (backlog § X.1) | Tous les comptes du foyer (financier, épargne, immobilier, assurance-vie...), groupés par établissement, avec le solde de chacun **toutes natures d'actif confondues**, sa date de dernière mise à jour et l'état de sa répartition entre détenteurs ; graphique de plus-value par compte. Création d'un compte (avec, en option, un type d'épargne qui crée la ligne 1:1 du compte) et gestion des établissements en feuilles ouvertes depuis l'en-tête, crayon d'édition sur chaque en-tête d'établissement. Fiche détail par compte (modale ou page pleine page) : renommage, rattachement à un établissement, lignes du compte — une **ligne d'épargne** s'y gère directement (valeur actuelle datée, versement mensuel, historique de valorisation à date choisie, décomposition versement/plus-value ; ex-écran Épargne `/epargne`, fusionné le 03/09/2026) —, emprunts rattachés, **répartition entre détenteurs pour tout le compte en une fois** (cf. § 3.7), classification géo/secteur pour tout le compte (§ AP.3), suppression **en cascade** au bas de la fiche (lignes et transactions, cf. § 3.7) |
+| Analyse | `/analyse` (`/dividendes` redirige vers `?onglet=revenus`, `/simulateur` vers `?onglet=projection`, `/objectifs` retiré 16/09/2026 — cf. § AJ du backlog) ; propriétaire et membres | Sept onglets (07/09/2026, fusion de l'ancien écran Dividendes et du repli « Détail » du Tableau de bord ; 16/09/2026, le Simulateur rejoint depuis l'ancien écran Objectifs ; 21/09/2026, l'onglet Portefeuille éclaté en trois) : **Portefeuille** (rentabilité globale, métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § P.2, valeur des positions et score de diversification, coût de gestion), **Répartition** (répartition géo/sectorielle réelle, qualité des données, exposition consolidée tous actifs — § P.1), **Diagnostic** (score patrimonial 0-100 à méthode visible — § AZ.1, comparaison au patrimoine médian INSEE — § AZ.2, valorisations manuelles de plus d'un an — § BA.2, **indicateurs de situation** réservés au propriétaire — § O.2), **Évolution** (courbe filtrable par classe, établissement, compte et dates, lentille/détenteur/mode étagé locaux — § AX), **Revenus** (dividendes perçus groupés par mois avec détail dépliable, revenus passifs projetés certain/estimé — § P.3), **Achat vs location** (résidence principale : loyer estimé contre intérêts + charges + taxe d'habitation) et **Simulateur** (calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel, le rendement annualisé observé — § AK.3 — et la moyenne réellement investie sur 12 mois — § AL.1 — additionnée aux versements d'épargne déclarés — § S.1 ; horizon 5/10/20/30 ans, tableau de détail annuel/mensuel, indépendance financière FIRE ; calculé côté client hormis les préremplissages) |
+| Budget | `/budget` | (backlog § N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
+| Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, **décomposition « investi » (argent ajouté) vs « généré » (plus-value, dividendes, intérêts)**, dividendes perçus, cinq plus gros mouvements de la période ; bloc Épargne (intérêts estimés au taux déclaré de chaque livret, ou versements réellement déclarés) |
+| Salaire | `/salaire` (propriétaire seul) | (backlog § R.1) Calculateur brut/net — **plusieurs entrées par année** (un revenu par conjoint, chacune nommée, rattachable à un détenteur et avec son propre taux d'imposition), montant brut ou net, mensuel ou annuel, cadre ou non-cadre, nombre de versements dans l'année, aperçu instantané côté client avant enregistrement. Chaque entrée affiche son détail brut/net avant-après impôt. **Taux d'épargne du foyer** : agrégat de toutes les entrées d'une année (revenu net total rapporté au montant réellement investi en achats de titres) — historique par année et moyenne, détail investi par compte (§ AL.2), volontairement distinct du rendement de marché (carte Performance) |
+| Import | `/import` | Grille de tuiles, une par source (Trade Republic, Ledger, Bricks.co, relevé de positions, mouvements bancaires CSV/OFX/QIF — backlog § N.1), avec date du dernier import ; la tuile est la zone de dépôt et ouvre l'aperçu/la confirmation de sa source |
+| Réglages | `/reglages?onglet=…` | Six onglets. **Général** : assistant de bienvenue, nom du foyer, préférences (méthode de calcul du coût de revient, taux d'imposition déclaré, année de naissance), langage simple, exports CSV, relevé PDF, déclaration de patrimoine paramétrable (backlog § Q.2), bilan annuel PDF (§ BA.1), sauvegarde/restauration JSON et réinitialisation du foyer. **Détenteurs**. **Comptes & sécurité** : comptes du foyer, logo du bouton SSO, sessions, journal d'accès. **Partage** : liens de partage (backlog § Q.1). **Automatisations** : les cinq tâches planifiées (cours, justETF, sauvegarde chiffrée, logos, historique des cours). **Badges** : jalons personnels (§ AG.4) |
+| Partage public | `/partage/:token` | Consultation PUBLIQUE (aucune authentification, backlog § Q.1) d'un lien de partage — sections agrégées choisies par le propriétaire, code optionnel |
 
-Un bouton dans l'en-tête bascule le thème clair/sombre (ou suit le système), sur tous les écrans.
+Une barre de contrôles, en tête de tous les écrans, règle la vue (Net/Brut/Financier), le détenteur affiché, le masquage des montants et le thème (clair/sombre, ou celui du système).
 
 ## 3. Règles métier
 
@@ -68,6 +67,13 @@ Une position dont la quantité retombe à ~0 (ou reste négative en fin de trait
 
 **Arbitrage saisie manuelle / reconstruction (origine d'une ligne).** Chaque ligne du portefeuille porte une origine, `manuel` ou `reconstruit` (`Holding.origine`). Une ligne saisie à la main (formulaire, ou relevé de positions importé) survit à un nouvel import de transactions, **sauf** si le grand livre reconstruit une position sur le même ticker : dans ce cas le grand livre fait foi, la ligne manuelle est supprimée (elle ferait doublon dans tous les calculs) et l'événement est compté et affiché à l'utilisateur. Symétriquement, un import de transactions ne touche jamais aux lignes manuelles d'un autre ticker, et « Remplacer le portefeuille existant » à l'import d'un relevé de positions ne vide que les lignes gérées manuellement, jamais celles issues du grand livre.
 
+**Provenance par compte (14/09/2026, backlog § AC.2).** Chaque transaction porte le compte d'où elle vient (`Transaction.compte_id`, posé à l'import — chaque source connaît le compte d'origine ligne par ligne — et resynchronisé au réimport). La reconstruction se fait par **`(ticker, compte)`**, pas par ticker seul : un même titre détenu dans deux comptes (du BTC chez Ledger ET chez Trade Republic) donne deux lignes distinctes, chacune avec sa quantité, son coût et sa plus-value (contrainte SQL `uq_holding_user_ticker_compte`). Une réaffectation manuelle du compte d'une ligne est préservée tant qu'elle reste sans ambiguïté (un ticker, une position).
+
+**Autres historiques reconnus sans correspondance de colonnes.** Chacun a son propre parseur et sa tuile à l'écran Import ; tous alimentent le même grand livre et la même reconstruction.
+
+- **Wallet Ledger** (`services/ledger_import.py`, 11/09/2026) : colonnes fixes de l'export Ledger Live ; seules les opérations au statut `Confirmed` sont retenues, `IN` devient un achat et `OUT` une vente. Un fichier mélange plusieurs cryptos : l'aperçu propose une case par devise pour écarter jetons spam et poussière avant import. Limites assumées : une réception est traitée comme un achat au prix du jour (`Countervalue at Operation Date`) — le fichier ne distingue pas un achat d'un transfert depuis un autre wallet ; les frais réseau, exprimés en crypto sans contrepartie en euros fiable, ne sont pas comptés.
+- **Bricks.co** (`services/bricks_import.py`, 13/09/2026) : les trois types rattachés à un bien (achat de briques, remboursement, revenus) sont importés, les cinq mouvements de portefeuille de compte (crédits, ajustements, prélèvement à la source...) exclus, comme les virements Trade Republic (§ 3.2). Le signe de `montant` est déjà celui du grand livre ; le nombre de briques se dérive de `-montant / prix_brique`. Limite assumée : le prélèvement à la source n'étant jamais rattaché à un revenu précis, les revenus importés sont **bruts**. Une ligne Bricks.co est classée avec l'immobilier (§ AO.2) et n'est pas interrogée à chaque rafraîchissement des cours (aucune cotation n'existe, § AT.2).
+
 ### 3.2 Exclusion des mouvements hors bourse
 
 Seule l'activité **boursière** est suivie. Sont exclus dès le parsing de l'import (jamais stockés en base) :
@@ -79,7 +85,7 @@ Conséquence : l'application ne calcule ni « solde de cash », ni « net invest
 
 ### 3.3 Taxonomie des catégories d'actifs
 
-Chaque position a un `type_actif` (issu de `asset_class` dans le grand livre, ou saisi explicitement pour une ligne manuelle) : `STOCK` (action), `FUND` (ETF/fonds), `CRYPTO`, `BOND` (obligation), `PRIVATE_FUND` (private equity), ou `null` (saisie manuelle sans type précisé). L'écran Portefeuille filtre sur : Tous / Actions / ETF / Crypto / Autres (regroupe obligations, private equity et non renseigné).
+Chaque position a un `type_actif` (issu de `asset_class` dans le grand livre, ou saisi explicitement pour une ligne manuelle) : `STOCK` (action), `FUND` (ETF/fonds), `CRYPTO`, `BOND` (obligation), `PRIVATE_FUND` (private equity), ou `null` (saisie manuelle sans type précisé). L'écran Actifs filtre sur : Tous / Actions / ETF / Obligations / Private Equity / Crypto / Immobilier & Épargne (tous les types valorisés à la main) / Autres (non renseigné).
 
 ### 3.4 Look-through géographique et sectoriel des fonds
 
@@ -94,12 +100,12 @@ Un ETF n'a pas de pays/secteur unique. Sa contribution à la répartition du por
 
 **Deux fourre-tout distincts.** « Non catégorisé » (donnée manquante : pays/secteur inconnu, ou fonds sans composition ni indice reconnu) est distinct d'« Autres zones »/« Autres secteurs » (une zone ou un secteur réel, connu, mais résiduel — hors des catégories habituelles). Confondre les deux masquerait la différence entre « je ne sais pas » et « je sais, et c'est une catégorie mineure ».
 
-**Qualité des données exposée.** L'API (`GET /api/analysis`, champ `qualite_donnees`) et l'interface (encart « Qualité des données » du Tableau de bord) qualifient, en euros et en pourcentage de la valeur totale du portefeuille, l'origine de la répartition géographique affichée : part en composition réelle, part estimée par indice, part non catégorisée, part valorisée à son coût de revient faute de cotation. Sans cette information, la répartition géographique affichée sur le tableau de bord laisserait croire à une précision qu'elle n'a pas.
+**Qualité des données exposée.** L'API (`GET /api/analysis`, champ `qualite_donnees`) et l'interface (encart « Qualité des données » de l'écran Analyse, onglet Répartition) qualifient, en euros et en pourcentage de la valeur totale du portefeuille, l'origine de la répartition géographique affichée : part en composition réelle, part estimée par indice, part non catégorisée, part valorisée à son coût de revient faute de cotation. Sans cette information, la répartition géographique affichée sur le tableau de bord laisserait croire à une précision qu'elle n'a pas.
 
 **Poids sectoriels normalisés.** Les poids géo et sectoriels d'un fonds sont renormalisés pour sommer exactement à 1,0 (Yahoo Finance renvoie parfois une somme légèrement différente, ex. 1,0001) — cohérence nécessaire pour que la somme des catégories affichées corresponde toujours à 100 % de la ligne.
 
 **Répartition détaillée (brute), en complément du zonage.** Les 6 zones géographiques et catégories
-sectorielles ci-dessus restent la seule base des graphiques et des objectifs du portefeuille — un
+sectorielles ci-dessus restent la seule base des graphiques du portefeuille — un
 zonage volontairement large (ex. l'Inde et la Chine sont toutes deux « Marchés émergents »). Sur la
 fiche détaillée d'une position couverte par justETF, une section supplémentaire (« Répartition
 géographique/sectorielle détaillée ») affiche les intitulés **tels que justETF les publie** (ex.
@@ -145,7 +151,7 @@ légitimement inférieure à 100 % du fonds.
 
 **Dividendes et intérêts nets.** Puisque `amount` est le montant brut et que la taxe est une ligne séparée et algébrique, `dividendes_percus`/`interets_percus` (calculés par `amount + fee + tax`) sont, par construction, des montants **nets** d'impôt — cohérent avec le libellé affiché à l'écran (« Dividendes perçus (net) », « Intérêts perçus (net) »).
 
-#### 3.5.1 Métriques de performance avancées (backlog § 2.P.2)
+#### 3.5.1 Métriques de performance avancées (backlog § P.2)
 
 Calculées à partir de la série hebdomadaire déjà produite par
 `historical_performance_service.compute_portfolio_history` (celle du graphique d'évolution) —
@@ -175,7 +181,7 @@ Calculées à partir de la série hebdomadaire déjà produite par
   publique, partagée entre tous les foyers). Les deux séries sont normalisées en pourcentage depuis
   leur valeur au premier point commun.
 
-#### 3.5.2 Revenus passifs projetés (backlog § 2.P.3, absorbe § 2.C.2)
+#### 3.5.2 Revenus passifs projetés (backlog § P.3, absorbe § C.2)
 
 `GET /api/performance/revenus-passifs` (`services/revenus_passifs_service.py`) — rendement courant
 du patrimoine et projection à 12 mois, **distinguant ce qui est certain de ce qui est estimé** plutôt
@@ -199,15 +205,13 @@ que d'abandonner la projection à cause de sa partie la moins fiable (le blocage
 
 Le compte se saisit toujours aussi librement qu'avant (sélection d'un compte existant, ou création à la volée par son nom) depuis le formulaire d'ajout, l'édition en ligne, ou l'import CSV — la création à la volée résout ou crée le compte correspondant (`comptes_service.get_or_create_compte`), sans étape manuelle supplémentaire côté écran Comptes.
 
-**Écran Comptes** (`/comptes`, `/comptes/:id`) : vue façon Actual Budget, tous les comptes du foyer groupés par établissement, avec le solde de chacun — **toutes natures d'actif confondues** (`comptes_service.solde_par_compte`), contrairement à l'ancienne répartition par compte du Tableau de bord (retirée), restreinte au seul portefeuille financier.
+**Écran Comptes** (`/comptes`, `/comptes/:id`) : tous les comptes du foyer groupés par établissement, avec le solde de chacun — **toutes natures d'actif confondues** (`comptes_service.solde_par_compte`), contrairement à l'ancienne répartition par compte du Tableau de bord (retirée), restreinte au seul portefeuille financier.
 
 **Répartition entre détenteurs au niveau du compte.** Les quotités par détenteur (`QuotiteHolding`, cf. § 3.11 pour le patrimoine net par détenteur) existaient déjà ligne par ligne, y compris pour un actif manuel. Le nouvel écran Comptes permet de les définir **une seule fois pour tout un compte** plutôt que ligne par ligne (utile en particulier pour un compte multi-lignes, ex. un CTO avec plusieurs titres) : `comptes_service.set_quotites_compte` applique la même répartition à chaque ligne actuellement rattachée au compte, en rappelant simplement `detenteurs_service.set_quotites_holding` pour chacune — même mécanisme de calcul qu'avant, pas de nouvelle table de quotités. Le formulaire est **volontairement vierge par défaut** (pas de pré-remplissage intelligent à partir des lignes existantes) et prévient explicitement que la validation **remplace** la répartition actuellement enregistrée de chaque ligne du compte. La même logique de répartition par détenteur est désormais aussi exposée pour un **emprunt** (`PUT /api/loans/{id}/quotites`, carte Dettes et emprunts), fonctionnalité déjà écrite côté service mais jamais exposée jusqu'ici — et surtout, **la répartition définie pour un compte s'applique aussi à tout emprunt rattaché** à l'une de ses lignes (`Loan.holding_id`, backlog § X.4) : demande explicite de l'utilisateur (« pareil pour un compte courant, un compte titre, un immobilier, une dette »), la fiche du compte liste ces emprunts dans une carte « Emprunts rattachés » avant le formulaire de répartition, pour que le remplacement ne surprenne jamais.
 
 La fiche détaillée d'une position (§ 3.M.4 implicite) affiche désormais le compte rattaché en badge, à côté du type d'actif — lien direct vers la fiche du compte quand elle existe, rien si la ligne n'est rattachée à aucun compte.
 
-**Rentabilité par compte non calculable.** Le grand livre de transactions importé (format Trade Republic) ne porte **aucune information de compte** : rien ne permet de savoir quelles transactions appartiennent à quel compte. Le rattachement à un compte reste donc une annotation portée par la ligne du portefeuille, jamais déduite des transactions elles-mêmes — seule la valeur actuelle par compte est calculable, jamais une rentabilité (XIRR, gains réalisés) par compte. Ce n'est pas un chantier reporté, c'est une absence structurelle de la donnée source.
-
-Le rattachement à un compte est préservé à travers un nouvel import de transactions : `rebuild_holdings` reporte le `compte_id` déjà affecté à une ligne existante vers la ligne recalculée du même ticker, pour ne pas perdre l'information entre deux imports.
+**Rentabilité par compte.** Depuis le 14/09/2026, chaque transaction porte son compte d'origine (§ 3.1, « Provenance par compte ») et chaque ligne reconstruite appartient à un seul compte. L'écran Comptes montre la **plus-value latente** par compte (somme des lignes, calculée côté client) et l'écran Salaire le montant **investi** par compte dans l'année ; une rentabilité complète par compte (XIRR, gains réalisés) n'est pas calculée à ce jour — rien ne l'empêche plus structurellement, elle n'a simplement pas été demandée.
 
 ### 3.8 Export
 
@@ -239,26 +243,30 @@ Troisième mécanisme d'export, à ne confondre ni avec les extraits CSV/PDF ci-
 
 ### 3.9 Rafraîchissement des données de marché
 
-Trois tâches planifiées indépendantes (APScheduler), chacune configurable (activation, intervalle) depuis l'écran Réglages :
+Cinq tâches planifiées indépendantes (APScheduler), chacune configurable (activation, intervalle) depuis l'écran Réglages, onglet Automatisations — les deux premières portent sur les données de marché et sont détaillées ici :
 
-- **`market_data_refresh`** : prix de toutes les positions, composition rapide et lignes sous-jacentes des fonds non couverts par justETF. **Depuis le 19/08/2026 (2.4), le cours de référence d'un ETF vient de l'API JSON de justETF** (`justetf_service.fetch_price`), pas de Yahoo Finance — décision explicite pour fiabiliser le prix des ETF ; en cas d'échec justETF, la position affiche « Cotation indisponible (justETF) », **sans repli sur Yahoo Finance** (choix délibéré, pour ne jamais mélanger deux sources de prix sur une même ligne). Les actions restent intégralement sur Yahoo Finance, sans changement. **Depuis le 15/09/2026, le cours d'une crypto (`type_actif == "CRYPTO"`) vient de l'API CoinGecko** (`coingecko_service.fetch_price`), pas de Yahoo Finance — retour utilisateur : un ticker crypto court (ex. « PKN ») pouvait résoudre à tort, via la recherche générale Yahoo, vers un titre coté totalement différent partageant le même symbole (ici l'action polonaise Orlen S.A.). CoinGecko préféré à CoinMarketCap (initialement mis en place le même jour puis abandonné) : plan gratuit sans carte bancaire à l'inscription. Même politique que justETF : en cas d'échec CoinGecko (clé d'API absente, symbole inconnu, panne), « Cotation indisponible (CoinGecko) », **sans repli sur Yahoo Finance**. `resolve_ticker` (résolution Yahoo) n'est plus jamais sollicité pour une crypto, nulle part dans l'application — y compris pour son émetteur/résumé (fiche détaillée) et son historique de cours (CoinGecko en fournit pourtant un peu gratuitement, mais son intégration n'a volontairement pas été faite dans ce lot, hors périmètre). Intervalle par défaut 24h. Déclenchement manuel possible à tout moment, depuis le Portefeuille ou les Réglages ; s'exécute **en tâche de fond**, sans bloquer l'interface — sa progression (« x / y positions ») est consultable pendant qu'il tourne, et l'écran se recharge automatiquement une fois terminé. Trois garde-fous de débit indépendants (un par ressource externe sollicitée : Yahoo Finance, justETF, CoinGecko) limitent la fréquence des appels : une temporisation entre deux positions traitées au sein d'un même rafraîchissement pour chacune, et un délai minimal entre deux déclenchements manuels.
+- **`market_data_refresh`** : prix de toutes les positions, composition rapide et lignes sous-jacentes des fonds non couverts par justETF. **Depuis le 19/08/2026 (2.4), le cours de référence d'un ETF vient de l'API JSON de justETF** (`justetf_service.fetch_price`), pas de Yahoo Finance — décision explicite pour fiabiliser le prix des ETF ; en cas d'échec justETF, la position affiche « Cotation indisponible (justETF) », **sans repli sur Yahoo Finance** (choix délibéré, pour ne jamais mélanger deux sources de prix sur une même ligne). Les actions restent intégralement sur Yahoo Finance, sans changement. **Depuis le 15/09/2026, le cours d'une crypto (`type_actif == "CRYPTO"`) vient de l'API CoinGecko** (`coingecko_service.fetch_price`), pas de Yahoo Finance — retour utilisateur : un ticker crypto court (ex. « PKN ») pouvait résoudre à tort, via la recherche générale Yahoo, vers un titre coté totalement différent partageant le même symbole (ici l'action polonaise Orlen S.A.). CoinGecko préféré à CoinMarketCap (initialement mis en place le même jour puis abandonné) : plan gratuit sans carte bancaire à l'inscription. Même politique que justETF : en cas d'échec CoinGecko (clé d'API absente, symbole inconnu, panne), « Cotation indisponible (CoinGecko) », **sans repli sur Yahoo Finance**. `resolve_ticker` (résolution Yahoo) n'est plus jamais sollicité pour une crypto, nulle part dans l'application — y compris pour son émetteur/résumé (fiche détaillée). L'historique de cours de la fiche d'une ligne crypto vient de CoinGecko depuis le 17/09/2026 (§ AR.1) ; la courbe du portefeuille entier, elle, valorise encore la crypto à son prix de revient (cf. § 5). Intervalle par défaut 24h. Déclenchement manuel possible à tout moment, depuis l'écran Actifs, la Synthèse (rappel de fraîcheur) ou les Réglages ; s'exécute **en tâche de fond**, sans bloquer l'interface — sa progression (« x / y positions ») est consultable pendant qu'il tourne, y compris après un changement d'écran (§ AT.1), et l'écran se recharge automatiquement une fois terminé. Les lignes structurellement non cotables (Bricks.co) sont sautées par défaut ; un déclenchement « forcé » depuis les Réglages les interroge aussi (§ AT.2). Trois garde-fous de débit indépendants (un par ressource externe sollicitée : Yahoo Finance, justETF, CoinGecko) limitent la fréquence des appels : une temporisation entre deux positions traitées au sein d'un même rafraîchissement pour chacune, et un délai minimal entre deux déclenchements manuels.
 - **`justetf_refresh`** (2.4) : look-through géo/secteur complet via justETF, cadence bien plus lente par défaut (une semaine) — la composition d'un fonds évolue lentement, et justETF n'offre aucun support en cas de blocage. Ne recalcule jamais la composition d'un ticker déjà couvert par `market_data_refresh` pour un même ticker sans raison : c'est l'inverse — une fois qu'un ticker a une composition justETF en base, `market_data_refresh` cesse de la recalculer pour lui (cadences différentes, la donnée la plus riche ne doit pas être écrasée par la moins riche). Déclenchement manuel synchrone (la requête HTTP attend la fin, contrairement à `market_data_refresh`) : le nombre de fonds à traiter reste faible et déjà throttlé, ce qui garde ce choix simple.
 
-Les historiques de prix (série d'une ligne pour la fiche détaillée, historique de valeur du portefeuille pour le Tableau de bord), coûteux à recalculer, sont mis en cache **24 heures** — cohérent avec la fréquence hebdomadaire des séries elles-mêmes. Le cache est invalidé automatiquement après un rafraîchissement des cours ou une reconstruction du portefeuille, pour ne jamais afficher un historique devenu incohérent avec les valeurs affichées à côté.
+Les trois autres tâches : **`sauvegarde_chiffree`** (copie chiffrée de la base SQLite, cf. manuel d'exploitation § 12 — sans objet sous Postgres), **`logos_refresh`** (logos des établissements, hebdomadaire ; un logo embarqué dans l'application — § BJ.1 — ou téléversé par l'utilisateur n'est jamais remplacé) et **`cours_historiques`** (historique hebdomadaire des cours des titres détenus, complété de façon incrémentale, pour que les courbes d'évolution s'affichent sans attendre un téléchargement).
 
-**Frais de gestion (TER) des fonds** (`MarketDataCache.frais_gestion_pct`, roadmap Phase 3, § E.3) : contrairement au prix, mis en cache **une seule fois par ticker**, jamais recalculé ensuite — `market_data_refresh` n'appelle `fetch_frais_gestion` (Yahoo Finance) que tant que cette colonne vaut `None` pour le ticker concerné. Ce choix évite de ralentir chaque rafraîchissement de prix par un appel réseau supplémentaire par fonds ; la contrepartie assumée est que la couverture (part de la valeur des fonds pour laquelle un TER est connu, affichée sur le Tableau de bord) démarre à 0 % et augmente progressivement au fil des rafraîchissements, jamais instantanément.
+Les historiques de prix (série d'une ligne pour la fiche détaillée, historique de valeur du portefeuille pour la Synthèse), coûteux à recalculer, sont mis en cache **24 heures** — cohérent avec la fréquence hebdomadaire des séries elles-mêmes. Le cache est invalidé automatiquement après un rafraîchissement des cours ou une reconstruction du portefeuille, pour ne jamais afficher un historique devenu incohérent avec les valeurs affichées à côté.
+
+**Frais de gestion (TER) des fonds** (`MarketDataCache.frais_gestion_pct`, roadmap Phase 3, § E.3) : contrairement au prix, mis en cache **une seule fois par ticker**, jamais recalculé ensuite — `market_data_refresh` n'appelle `fetch_frais_gestion` (Yahoo Finance) que tant que cette colonne vaut `None` pour le ticker concerné. Ce choix évite de ralentir chaque rafraîchissement de prix par un appel réseau supplémentaire par fonds ; la contrepartie assumée est que la couverture (part de la valeur des fonds pour laquelle un TER est connu, affichée sur l'écran Analyse, onglet Portefeuille) démarre à 0 % et augmente progressivement au fil des rafraîchissements, jamais instantanément.
 
 ### 3.10 Validation des saisies et robustesse des imports
 
 Les créations/modifications de position et la configuration des tâches planifiées sont validées (quantité strictement positive, prix non négatif, pourcentages entre 0 et 100, intervalle de planification borné...) ; toute violation renvoie une erreur **400** avec un message en français, plutôt qu'une erreur générique ou un plantage silencieux.
 
-L'import d'un relevé de positions est **transactionnel** : une erreur en cours d'import déclenche un rollback explicite, le portefeuille n'est jamais laissé dans un état partiellement vidé. Les colonnes choisies lors du mapping sont vérifiées comme existant réellement dans le fichier avant l'import, pour ne pas produire un import silencieusement vide en cas d'erreur de mapping. Les fichiers importés sont plafonnés en taille (25 Mo) pour éviter d'épuiser la mémoire du process sur un fichier anormalement volumineux.
+L'import d'un relevé de positions est **transactionnel** : une erreur en cours d'import déclenche un rollback explicite, le portefeuille n'est jamais laissé dans un état partiellement vidé. Une erreur de contenu identifiable (valeur illisible ou non finie) est renvoyée telle quelle, car elle dit quoi corriger ; toute autre exception donne un message générique à l'écran et son détail complet au journal du serveur (logger `patrimoine.import`), plutôt que d'exposer une trace technique (23/09/2026). Les colonnes choisies lors du mapping sont vérifiées comme existant réellement dans le fichier avant l'import, pour ne pas produire un import silencieusement vide en cas d'erreur de mapping. Les fichiers importés sont plafonnés en taille (25 Mo) pour éviter d'épuiser la mémoire du process sur un fichier anormalement volumineux.
+
+**Lecture des fichiers** (`services/lecture_tableau.py`, sans pandas depuis le 23/09/2026 — backlog § BI.2) : CSV et Excel sont lus en texte, la conversion des nombres et des dates restant à chaque parseur. Encodage : UTF-8 d'abord (avec ou sans BOM), puis **Windows-1252** — celui d'un CSV enregistré par Excel sous Windows —, et latin-1 en dernier recours, qui ne peut pas échouer. Windows-1252 passe avant latin-1 parce qu'il décode correctement les caractères que latin-1 transformerait en caractères de contrôle (apostrophe typographique, symbole euro, tirets longs).
 
 ### 3.11 Patrimoine net global (roadmap Phase 1)
 
-Neuf `type_actif` valorisés **manuellement** (`REAL_ESTATE`, `SCPI`, `LIFE_INSURANCE`, `PENSION`, `CASH_ACCOUNT` (compte courant), `REGULATED_SAVINGS` (Livret A, LDDS, LEP, PEL, CEL...), `EMPLOYEE_SAVINGS` (PEE, PERCO, PER entreprise), `VEHICLE`, et `OTHER_ASSET` pour tout ce qui ne rentre dans aucune autre case — objets de valeur, métaux précieux physiques, parts d'entreprise non cotée hors Private Equity déjà suivi — cf. backlog § 2.M.1) : aucune tentative de cotation automatique n'a de sens pour eux (un bien immobilier n'a pas de ticker coté). Leur valeur vient de `Holding.valeur_estimee` (montant absolu en euros, saisi et mis à jour manuellement — `quantite` reste conventionnellement à 1), distincte de `prix_revient_moyen` qui garde son sens habituel de coût d'acquisition : le rendement depuis achat de ces lignes se calcule donc normalement (`valeur_estimee / prix_revient_moyen − 1`), sans XIRR possible faute d'historique de transactions.
+Neuf `type_actif` valorisés **manuellement** (`REAL_ESTATE`, `SCPI`, `LIFE_INSURANCE`, `PENSION`, `CASH_ACCOUNT` (compte courant), `REGULATED_SAVINGS` (Livret A, LDDS, LEP, PEL, CEL...), `EMPLOYEE_SAVINGS` (PEE, PERCO, PER entreprise), `VEHICLE`, et `OTHER_ASSET` pour tout ce qui ne rentre dans aucune autre case — objets de valeur, métaux précieux physiques, parts d'entreprise non cotée hors Private Equity déjà suivi — cf. backlog § M.1) : aucune tentative de cotation automatique n'a de sens pour eux (un bien immobilier n'a pas de ticker coté). Leur valeur vient de `Holding.valeur_estimee` (montant absolu en euros, saisi et mis à jour manuellement — `quantite` reste conventionnellement à 1), distincte de `prix_revient_moyen` qui garde son sens habituel de coût d'acquisition : le rendement depuis achat de ces lignes se calcule donc normalement (`valeur_estimee / prix_revient_moyen − 1`), sans XIRR possible faute d'historique de transactions.
 
-**`Holding.date_acquisition`** (backlog § 2.S.3, retour utilisateur 26/08/2026) : date d'acquisition
+**`Holding.date_acquisition`** (backlog § S.3, retour utilisateur 26/08/2026) : date d'acquisition
 du bien (achat de l'appartement, souscription du contrat...) déclarée par l'utilisateur — distincte
 de `created_at` (date de saisie de la ligne dans l'application, souvent bien après l'achat réel) et
 de `date_valeur_estimee` (date de la dernière estimation). `None` par défaut, jamais déduite ni
@@ -273,20 +281,20 @@ qui a déjà ses propres dates de transaction.
   flux à un seul mouvement (`[(date_acquisition, -prix_revient_moyen), (maintenant, valeur_estimee)]`)
   passé à `xirr()` se réduit exactement à un CAGR — mêmes garde-fous que le portefeuille financier
   (durée minimale 90 jours, plafond 1000 %, § 3.5).
-- `patrimoine_history_service._serie_holding_manuel` (§ 3.11 courbe combinée, § 2.S.2) : si
+- `patrimoine_history_service._serie_holding_manuel` (§ 3.11 courbe combinée, § S.2) : si
   `date_acquisition` est antérieure au premier point d'historique connu, un point de départ à
   `prix_revient_moyen` y est inséré, plutôt que de démarrer artificiellement tard (`created_at`).
 - `ValorisationHistoriqueCard` (fiche détaillée, frontend) : même principe, appliqué SEULEMENT au
   graphique — jamais au tableau juste en dessous, qui reste le reflet exact des points réellement
   saisis.
 
-**`Holding.taux_pct`** (backlog § 2.M.1, épargne réglementée/salariale et véhicule) : un pourcentage annuel purement **informatif**, jamais appliqué automatiquement à `valeur_estimee` — positif pour un taux d'intérêt attendu, négatif pour une décote annuelle attendue. Sert uniquement à calculer, côté client, une « valeur projetée dans 1 an » affichée en repère ; l'utilisateur reporte lui-même ce montant dans `valeur_estimee` s'il souhaite l'adopter — même philosophie que la valorisation immobilière datée (jamais de mutation silencieuse d'une donnée financière).
+**`Holding.taux_pct`** (backlog § M.1, épargne réglementée/salariale et véhicule) : un pourcentage annuel purement **informatif**, jamais appliqué automatiquement à `valeur_estimee` — positif pour un taux d'intérêt attendu, négatif pour une décote annuelle attendue. Sert uniquement à calculer, côté client, une « valeur projetée dans 1 an » affichée en repère ; l'utilisateur reporte lui-même ce montant dans `valeur_estimee` s'il souhaite l'adopter — même philosophie que la valorisation immobilière datée (jamais de mutation silencieuse d'une donnée financière).
 
 **Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps). Les six autres caractéristiques du prêt restent librement modifiables après création (backlog quickwin § T.1, `PATCH /api/loans/{id}`, déjà supporté par `LoanUpdate`) — en cas d'erreur de saisie ou de renégociation, sans jamais toucher `capital_restant_du_manuel`, qui garde sa sémantique propre de recalage.
 
 **Deux périmètres volontairement distincts.** Le portefeuille FINANCIER (actions, ETF, crypto, obligations, private equity — `analysis_service.holdings_financiers`) reste seul concerné par le look-through géo/sectoriel et la carte Rentabilité boursière (§ 3.2, § 3.4, § 3.5) : y mélanger un bien immobilier n'aurait pas de sens (pas de géographie/secteur boursier, pas de coût de base dans le grand livre de transactions). Le **patrimoine net global** (`GET /api/patrimoine/net`, `services/patrimoine_service.py`) est une vue **additive** : actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER/autre actif, valorisés par la même règle que `value_holdings`) moins passifs totaux (somme des capitaux restants dus), avec une répartition par grande classe d'actif. Il n'écrase ni ne remplace les écrans existants.
 
-**Fiche immobilier complète** (backlog § 2.M.3) : `HoldingImmobilierDetail` (un par `Holding`, table
+**Fiche immobilier complète** (backlog § M.3) : `HoldingImmobilierDetail` (un par `Holding`, table
 séparée — ces champs n'ont de sens que pour `REAL_ESTATE`) porte le bloc location (type, loyer
 mensuel, charges mensuelles, frais annuels agrégés — taxe foncière + copropriété + assurance +
 gestion, un seul total) et les caractéristiques (surface, pièces, année de construction, DPE),
@@ -330,7 +338,7 @@ par une donnée réelle dès qu'au moins un point de la période le porte.
 
 ### 3.12 Simulateur : projection, tableau de détail et indépendance financière
 
-Écran unique (`/simulateur`) fusionnant l'ancien Simulateur (projeté depuis le patrimoine net réel) et l'ancienne page Outils (calculateur générique à capital libre) — les deux ne différaient que par la source du capital de départ, jamais par le calcul lui-même. Le capital de départ est **préempli** avec le patrimoine net actuel (`GET /api/patrimoine/net`, § 3.11 — seul appel réseau de la page) mais reste **librement modifiable**, pour couvrir aussi bien « où en sera mon patrimoine réel » que « et si je plaçais 10 000 € à 6 % ».
+Onglet Simulateur de l'écran Analyse (`/analyse?onglet=projection` ; `/simulateur` y redirige), fusion de l'ancien Simulateur (projeté depuis le patrimoine net réel) et de l'ancienne page Outils (calculateur générique à capital libre) — les deux ne différaient que par la source du capital de départ, jamais par le calcul lui-même. Tous les champs sont **préremplis** à partir de données réelles mais restent **librement modifiables**, pour couvrir aussi bien « où en sera mon patrimoine réel » que « et si je plaçais 10 000 € à 6 % » : capital de départ = patrimoine net actuel (`GET /api/patrimoine/net`, § 3.11) ; rendement annuel = rendement annualisé observé (`rendement_annualise_pct` de `GET /api/performance`, repli sur 5 % s'il est absent ou négatif — § AK.3) ; versement mensuel = moyenne réellement investie sur les 12 derniers mois glissants (`GET /api/performance/investissement-mensuel-moyen`, § AL.1) **additionnée** aux versements mensuels déclarés sur les lignes d'épargne (§ 3.24). Un échec de préremplissage est affiché avec une action de reprise, sans jamais bloquer le calcul.
 
 Toute la suite (projection, tableau de détail, FIRE) est calculée **entièrement côté client** (`frontend/src/utils/interetsComposes.ts`), intérêts composés **mensuels** + versement mensuel constant — mise à jour instantanée à chaque changement d'hypothèse, sans aller-retour réseau. Ce module a remplacé l'ancien `services/simulation_service.py` (roadmap Phase 2), qui n'acceptait pas de capital de départ personnalisé et ne calculait qu'une trajectoire annuelle sans détail mensuel ; ses formules et scénarios de test ont été repris à l'identique côté client (`interetsComposes.test.ts`) pour garantir un comportement inchangé.
 
@@ -358,7 +366,7 @@ Aucun nouveau calcul de fond : uniquement une agrégation par mois de données d
 contrairement aux points ci-dessus, entièrement dérivé des lignes `TYPES_EPARGNE` (livrets, PEE/PERCO,
 assurance-vie, PER, comptes courants), jamais du grand livre de transactions boursières —
 `rapport_service.compute_rapport_epargne_periode`. Réutilise `patrimoine_history_service.
-_serie_holding_manuel` (même bloc de construction que la courbe combinée du Tableau de bord, § 3.16)
+_serie_holding_manuel` (même bloc de construction que la courbe combinée de la Synthèse, § 3.16)
 pour évaluer chaque ligne aux deux bornes de la période plutôt qu'en série complète : valeur/évolution
 de l'épargne, répartition par type en fin de période. `interets_periode`/`versements_periode` (backlog
 § U.2) suivent deux régimes possibles, signalés par `decomposition_estimee` :
@@ -381,25 +389,26 @@ Le frontend est installable comme une application (icône, plein écran) via un 
 
 Au-delà du graphique, un **tableau de détail** (bascule Annuelle/Mensuelle) liste, pour chaque période, les versements de la période, les intérêts gagnés sur la période, le capital de fin de période, le versé cumulé et les intérêts cumulés à date. La vue annuelle et la vue mensuelle partagent la même trajectoire mensuelle sous-jacente (`calculerTrajectoireMensuelle`, agrégée par année via `agregerParAnnee` pour la vue annuelle) : les deux vues, ainsi que le graphique et `calculerTrajectoire` lui-même, ne peuvent donc jamais diverger entre elles. Convention de capitalisation : l'intérêt d'un mois se calcule sur le capital **avant** le versement de ce mois — un versement ne produit son premier intérêt qu'au mois suivant.
 
-### 3.16 Hiérarchie de lecture du tableau de bord (backlog § 2.K.6)
+### 3.16 Hiérarchie de lecture du tableau de bord (backlog § K.6)
 
-Trois temps : **le chiffre** (`PatrimoineNetCard`, patrimoine net en très grand — jeton `text-display`
-du système de design, § 2.K.1 — avec la répartition actifs/passifs juste en dessous, puis un camembert
-« Par type d'investissement » ET la liste détaillée des montants exacts, l'un n'ayant jamais remplacé
-l'autre (retour utilisateur), sur la répartition par classe pertinente pour la lentille active (§ ci-
-dessous) dès qu'elle n'est pas vide — pourcentages du camembert toujours affichés, contrairement aux
-montants en euros qui respectent le masquage), **la
-courbe** (`PortfolioHistoryChart`, évolution du portefeuille financier), **le détail** (tout le reste :
-indicateurs de risque, répartitions géo/sectorielles réelles, qualité des données, exposition
-consolidée tous actifs — § 3.20, coût de gestion) regroupé dans un composant
-repliable générique (`Disclosure.tsx`, natif `<details>`-like, état persisté dans `localStorage`),
-ouvert par défaut. Le bandeau d'accueil (aucune position) reste hors du repliable : c'est un appel à
-l'action, pas de la simple information complémentaire.
+Deux temps depuis le 07/09/2026 (la Synthèse ne garde que ce qui répond à « combien, et dans quel
+sens ») : **le chiffre** (`PatrimoineNetCard`, patrimoine net en très grand — jeton `text-display`
+du système de design, § K.1 — avec la répartition actifs/passifs juste en dessous, puis une barre
+empilée « Par type d'investissement » ET la liste détaillée des montants exacts, l'une n'ayant jamais
+remplacé l'autre (retour utilisateur), sur la répartition par classe pertinente pour la lentille
+active (§ ci-dessous) — pourcentages toujours affichés, contrairement aux montants en euros qui
+respectent le masquage), puis **la courbe** (`PortfolioHistoryChart`). Le troisième temps, « le
+détail » (indicateurs de risque, répartitions, qualité des données, exposition consolidée, coût de
+gestion), vivait dans un repliable sous la courbe ; il a rejoint l'écran Analyse, vers lequel un lien
+reste en bas de la Synthèse. Hors du bloc principal : l'encart « aucune position » (appel à l'action)
+et le rappel de fraîcheur des cours (§ AF.4). Sans actif ni emprunt, `PatrimoineVide` remplace le
+bloc principal par un état vide qui dit par où commencer — deux messages, foyer vide ou détenteur
+sans part, et aucune action proposée à un invité (§ BJ.2).
 
 **Variation, phrase en langage naturel et courbe pilotées par la lentille Net/Brut/Financier**
-(backlog § 2.S.2) : la courbe (`PortfolioHistoryChart`), le camembert/liste et la variation
+(backlog § S.2) : la courbe (`PortfolioHistoryChart`), le camembert/liste et la variation
 (`{signe}{pct}% {libellé période}`, ex. « +10,0 % depuis le début du suivi ») suivent désormais le
-sélecteur Net/Brut/Financier (§ 2.K.3), et non plus systématiquement le seul portefeuille financier.
+sélecteur Net/Brut/Financier (§ K.3), et non plus systématiquement le seul portefeuille financier.
 En lentille **Financier**, comportement historique inchangé : série `GET /api/performance/history`
 (`compute_portfolio_history`), légende « portefeuille suivi, hors immobilier/épargne/dettes ». En
 lentille **Brut**/**Net**, la source devient `GET /api/patrimoine/historique`
@@ -449,14 +458,14 @@ appels réseau (financier et combiné, tous deux coûteux — jusqu'à une minut
 par `DashboardPage` plutôt que chargés en double ; la courbe ne dépend plus de l'analyse
 géo/sectorielle (`analysis`/`loading`), elle reste visible même si celle-ci échoue à charger.
 
-### 3.17 Mobile et responsive (backlog § 2.K.4)
+### 3.17 Mobile et responsive (backlog § K.4)
 
 **Point de rupture unique** à 768 px (`md:`, valeur par défaut Tailwind v4). Au-dessus : barre
 latérale (`Sidebar`) et tableaux classiques. En dessous : barre de navigation inférieure fixe
 (`BottomNav`, 4 routes de consultation directes + un bouton **« Plus »** ouvrant une feuille
 glissante avec le reste de la navigation, l'administration, le thème et la déconnexion — écart
 assumé avec une lecture littérale de « cinq entrées » : le nombre de routes directes dépend du rôle
-via le filtrage déjà en place, § 2.L.2, un invité n'en ayant que deux), et deux tableaux transformés
+via le filtrage déjà en place, § L.2, un invité n'en ayant que deux), et deux tableaux transformés
 en cartes (`PositionsTable`, `LoansCard` — les plus consultés/complexes ; les 5 tableaux de la fiche
 détaillée d'une position et les tableaux d'Import/Simulateur/Répartition/Dividendes restent en
 défilement horizontal classique, hors périmètre de cet incrément). Les filtres de `PortefeuillePage`
@@ -464,7 +473,7 @@ défilement horizontal classique, hors périmètre de cet incrément). Les filtr
 Cibles tactiles ≥ 44 px sur tout le nouveau code mobile, zones de sécurité iOS couvertes
 (`env(safe-area-inset-bottom)`).
 
-### 3.18 Budget : import, catégorisation, indicateurs, récurrences, jonction patrimoine (backlog § 2.N)
+### 3.18 Budget : import, catégorisation, indicateurs, récurrences, jonction patrimoine (backlog § N)
 
 Suivi des mouvements bancaires, **totalement indépendant** du grand livre de transactions du
 courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires` vs `transactions`).
@@ -484,7 +493,7 @@ courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires
   dépenses récurrentes — un couple (libellé normalisé, montant arrondi à l'euro) revenant sur au
   moins 2 des 3 mois précédant la fin de la période compte comme récurrent.
 - **Budget cible** par catégorie racine, comparé aux sorties réelles de la période (écart affiché).
-- **Charges récurrentes et abonnements** (§ 2.N.3) : regroupement par libellé normalisé seul (pas le
+- **Charges récurrentes et abonnements** (§ N.3) : regroupement par libellé normalisé seul (pas le
   montant, contrairement à l'indicateur ci-dessus — pour permettre à un même abonnement de
   regrouper deux montants différents et révéler une hausse de prix), sur une fenêtre glissante de 12
   mois, indépendante de la période affichée à l'écran. Un mouvement non revu depuis plus de 45 jours
@@ -493,18 +502,19 @@ courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires
   dernières occurrences. Pas de détection d'abonnement « inutilisé » (aucun signal d'usage
   disponible depuis un relevé bancaire) — la liste complète, présentée pour revue, en est
   l'équivalent honnête.
-- **Jonction budget ↔ patrimoine** (§ 2.N.4) : taux d'épargne réel (sorties de la catégorie racine
+- **Jonction budget ↔ patrimoine** (§ N.4) : taux d'épargne réel (sorties de la catégorie racine
   « Épargne » / entrées de la période), reste à vivre (entrées − sorties « Logement » − charges
   récurrentes mensuelles détectées ci-dessus). Les deux catégories sont repérées **par leur nom**
   (comparaison normalisée insensible à la casse/aux accents, pas un champ dédié sur
   `CategorieBudget`) : un renommage de l'une d'elles rend le rapprochement correspondant
   indisponible, signalé explicitement plutôt que de produire un chiffre faux. Le Simulateur (§ 3.12)
-  préremplit son « Versement mensuel » avec le disponible moyen observé sur les 3 derniers mois de
-  budget, librement modifiable ensuite.
+  préremplissait son « Versement mensuel » avec le disponible moyen des 3 derniers mois de budget ;
+  depuis le 16/09/2026 il part de la moyenne réellement investie sur 12 mois (§ AL.1), le Budget ne
+  lui fournissant plus que la somme des versements d'épargne déclarés.
 
-### 3.19 Indicateurs de situation (backlog § 2.O.2)
+### 3.19 Indicateurs de situation (backlog § O.2)
 
-Le suivi d'objectifs qui occupait initialement cette section (§ 2.O.1) a été **retiré le 16/09/2026**
+Le suivi d'objectifs qui occupait initialement cette section (§ O.1) a été **retiré le 16/09/2026**
 (retour utilisateur direct — cf. `docs/BACKLOG.md` § AJ pour le détail) : mécanique d'« actifs
 rattachés » qui n'avait de sens que pour un objectif adossé à une poche dédiée, jamais pour un
 objectif portant sur tout le patrimoine, et chevauchement avec le Simulateur (§ 3.12). Numéro de
@@ -512,8 +522,8 @@ section conservé plutôt que renuméroté (même convention que § 3.6, devenue
 antérieur), pour ne pas invalider les références croisées existantes.
 
 Les indicateurs de situation, logiquement distincts du suivi d'objectifs, ont survécu au retrait et
-vivent désormais dans l'onglet Portefeuille de l'écran Analyse (§ AI/§ AJ du backlog), réservés au
-propriétaire :
+vivent désormais dans l'écran Analyse (§ AI/§ AJ du backlog ; onglet Diagnostic depuis le 21/09/2026),
+réservés au propriétaire :
 
 - **Matelas de sécurité** : épargne `CASH_ACCOUNT`/`REGULATED_SAVINGS` / dépenses mensuelles
   moyennes sur 3 mois de budget.
@@ -524,25 +534,28 @@ propriétaire :
 `null` plutôt qu'un chiffre trompeur si une donnée manque (aucun mouvement bancaire importé, aucun
 emprunt).
 
-### 3.20 Exposition consolidée tous actifs (backlog § 2.P.1)
+### 3.20 Exposition consolidée tous actifs (backlog § P.1)
 
 Distinct du § 3.4 (portefeuille FINANCIER seul) et du § 3.11 (patrimoine net, additif mais sans
 géographie ni concentration) : une seule répartition géo/classe, **financier ET immobilier/épargne
 confondus** (`GET /api/patrimoine/exposition-consolidee`,
-`services/patrimoine_service.compute_exposition_consolidee`) — affichée dans le détail repliable du
-Tableau de bord (relocalisée depuis l'ancien écran Répartition, retiré le 25/08/2026 avec la feature
+`services/patrimoine_service.compute_exposition_consolidee`) — affichée dans l'écran Analyse, onglet
+Répartition (après être passée par le détail repliable du Tableau de bord, puis par l'onglet
+Portefeuille de l'Analyse ; l'ancien écran Répartition a été retiré le 25/08/2026 avec la feature
 d'objectifs de répartition annuelle, cf. § 3.6 devenue vacante).
 
 - **Géographie** : réutilise le look-through des fonds (§ 3.4) pour le financier ; un actif valorisé
   manuellement y contribue via un nouveau champ `Holding.zone_geo` (une des 6 zones de
   `reference_indices`, jamais une granularité par pays), `None` retombant sur `ZONE_EUROPE`
   (hypothèse la plus probable pour ce type d'actif français) plutôt que sur « Non catégorisé » — le
-  champ est éditable à la création via le formulaire d'ajout manuel du Portefeuille.
+  champ est éditable à la création (écran Actifs), puis à tout moment dans l'onglet Paramètres de la
+  fiche détaillée — pour toute ligne, financière comprise, une déclaration primant alors sur la
+  détection automatique (§ AP.1) — ou pour tout un compte à la fois (§ AP.3).
 - **Classe d'actif** : réutilise le dictionnaire de labels déjà étendu par § 3.11 (M.1).
 - **Concentration** : plus grosse ligne (ticker + %), part des 5 plus grosses lignes, première zone
   géographique — « premier émetteur » interprété comme la plus grosse LIGNE (pas un vrai agrégat
   multi-fonds par émetteur réel, limite assumée).
-- **Pilotée par la lentille Net/Brut/Financier** (backlog § 2.S.2, retour utilisateur 26/08/2026) :
+- **Pilotée par la lentille Net/Brut/Financier** (backlog § S.2, retour utilisateur 26/08/2026) :
   `compute_exposition_consolidee` renvoie DEUX jeux de champs sur la même requête — sans suffixe pour
   la valeur BRUTE, suffixés `_nette` pour la valeur nette de SON emprunt rattaché par ligne
   (`Loan.holding_id`, même principe que `repartition_par_classe`/`repartition_par_classe_nette` du
@@ -558,19 +571,19 @@ d'objectifs de répartition annuelle, cf. § 3.6 devenue vacante).
   réduit `valeur_totale_nette` sans catégorie géo/classe associée.
 - **`part_estimee_manuelle_pct`** : part du patrimoine dont la géo est déclarée (via `zone_geo`)
   plutôt que mesurée (look-through) — rappel honnête sans dupliquer l'encart de qualité des données
-  existant (§ 3.4), qui reste affiché tel quel sur l'écran Répartition pour le seul financier.
+  existant (§ 3.4), qui reste affiché tel quel dans le même onglet pour le seul financier.
 - Ouvert propriétaire+membre ; hors du périmètre invité (§ 3.11, seuls Patrimoine net/Portefeuille/
   Emprunts le sont).
-- **Détail des lignes au clic** (backlog § 2.W.1, retour utilisateur 31/08/2026) : cliquer une part
+- **Détail des lignes au clic** (backlog § W.1, retour utilisateur 31/08/2026) : cliquer une part
   d'un des deux camemberts ouvre `CompositionModal` (composant généralisé, partagé avec les camemberts
-  géo/sectoriel financier du Tableau de bord) sur `GET /api/patrimoine/exposition-consolidee/composition
+  géo/sectoriel financier du même onglet) sur `GET /api/patrimoine/exposition-consolidee/composition
   ?dimension=geo|classe&categorie=…&net=…`. Dimension `geo` réutilise le look-through déjà décrit
   ci-dessus (`analysis_service.holdings_in_category`, générique — pas de restriction au financier dans
   son implémentation, seul l'appelant `/api/analysis/composition` s'y limite). Dimension `classe`
   correspond directement par `LABEL_TYPE_ACTIF` (aucun look-through pour une classe d'actif). `net`
   suit la même lentille que la carte.
 
-### 3.21 Lien de partage révocable (backlog § 2.Q.1)
+### 3.21 Lien de partage révocable (backlog § Q.1)
 
 Premier point d'accès **public** de toute l'application (aucune authentification) : un lien anonyme,
 révocable à tout moment, donnant à un tiers (banque, notaire, famille) une vue en lecture seule d'un
@@ -608,7 +621,7 @@ en lecture/écriture sur les données du foyer mais ne peut pas les exposer publ
   (mauvais code) n'invalide jamais la session d'un propriétaire déjà connecté qui testerait son
   propre lien dans un nouvel onglet (même exemption que `/api/auth/*` dans `api/client.ts`).
 
-### 3.22 Déclaration de patrimoine paramétrable (backlog § 2.Q.2)
+### 3.22 Déclaration de patrimoine paramétrable (backlog § Q.2)
 
 Distincte du relevé PDF existant (§ 3.11, D.1, resté inchangé) : un document **paramétrable**,
 destiné à un tiers concret (banque, notaire) — `POST /api/export/declaration-patrimoine.pdf`
@@ -638,7 +651,7 @@ sur un grand nombre d'identifiants).
   factorisée avec `request` — même gestion d'erreur/jeton, seule la lecture du corps de réponse
   diffère) + `<a download>` généré côté client.
 
-### 3.23 Calculateur brut/net et taux d'épargne (backlog § 2.R.1)
+### 3.23 Calculateur brut/net et taux d'épargne (backlog § R.1)
 
 Table `salaires` : **plusieurs lignes possibles par année** (`user_id` + `annee`, sans contrainte
 d'unicité — un revenu par conjoint, par exemple), à l'échelle du foyer, pas par détenteur.
@@ -664,15 +677,16 @@ d'unicité — un revenu par conjoint, par exemple), à l'échelle du foyer, pas
   mesure un comportement d'épargne, le second la performance de ce qui est déjà investi — les deux ne
   se recoupent jamais dans ce calcul.
 
-### 3.24 Écran Épargne et valorisation datée par l'utilisateur (backlog § 2.S.1)
+### 3.24 Lignes d'épargne et valorisation datée par l'utilisateur (backlog § S.1)
 
-`TYPES_EPARGNE` (`models.py`) : sous-ensemble de `TYPES_ACTIF_PATRIMOINE_MANUEL` couvert par l'écran
-`/epargne` — `CASH_ACCOUNT` / `REGULATED_SAVINGS` / `EMPLOYEE_SAVINGS` / `LIFE_INSURANCE` / `PENSION`.
-Le Véhicule en reste exclu (décote plutôt qu'épargne, futur rapprochement avec une catégorie « biens »
-aux côtés de l'immobilier) ; ces 5 types restent aussi visibles dans Portefeuille (onglet « Immobilier
-& Épargne ») — l'écran Épargne est un complément adapté à leur usage, pas un remplacement.
+`TYPES_EPARGNE` (`models.py`) : sous-ensemble de `TYPES_ACTIF_PATRIMOINE_MANUEL` — `CASH_ACCOUNT` /
+`REGULATED_SAVINGS` / `EMPLOYEE_SAVINGS` / `LIFE_INSURANCE` / `PENSION`. Le Véhicule en reste exclu
+(décote plutôt qu'épargne). Ces lignes avaient leur propre écran (`/epargne`) jusqu'au 03/09/2026 ;
+il a fusionné dans l'écran Comptes (demande directe) : une ligne d'épargne étant 1:1 avec son compte,
+elle se gère désormais dans la fiche de ce compte (`LigneEpargne`, dans `CompteDetailContent`). Elles
+restent aussi visibles dans l'écran Actifs (filtre « Immobilier & Épargne »).
 
-- **Valorisation à date choisie** : `PUT /portfolio/holdings/{ticker}/valorisation`
+- **Valorisation à date choisie** : `PUT /portfolio/holdings/{holding_id}/valorisation`
   (`ValorisationInput{valeur, date}`) enregistre un point d'historique à la date indiquée par
   l'utilisateur — contrairement à `create_holding`/`update_holding` (routes existantes, inchangées)
   qui stampent toujours `datetime.now()`. **Règle d'antidatage** : la « valeur courante »
@@ -688,23 +702,25 @@ aux côtés de l'immobilier) ; ces 5 types restent aussi visibles dans Portefeui
 - **Versement mensuel déclaré** (`Holding.versement_mensuel`, `None` par défaut) : jamais déduit
   automatiquement, même philosophie que `taux_pct`. `budget_service.compute_jonction_patrimoine`
   renvoie `versement_mensuel_epargne_declare` (somme des `versement_mensuel` des lignes `TYPES_EPARGNE`
-  du foyer) — **additionné**, jamais fusionné côté backend, au `versement_mensuel_suggere` déjà dérivé
-  du Budget (§ 3.18) pour le préremplissage du Simulateur (§ 3.12) ; la légende sous le champ détaille
-  les deux sources séparément. Les deux ne se recoupent jamais : un virement réel déjà suivi par le
-  Budget est déjà soustrait de `disponible` (`compute_summary`), la somme des versements déclarés
-  mesure autre chose (l'intention documentée, pas le mouvement déjà compté).
-- **Écran `/epargne`** : liste de « comptes » (pas un tableau boursier) — valeur courante, date de
-  dernière mise à jour, versement mensuel, mini-historique, action rapide « Ajouter une valorisation » ;
-  formulaire « + Ajouter un compte » réutilisant `POST /portfolio/holdings` (quantité fixée à 1, même
-  convention que l'immobilier/l'assurance-vie).
-- **Modifier/Supprimer un compte** (retour utilisateur du 25/08, après premier usage réel) : chaque
-  carte expose « Modifier » (nom + `versement_mensuel` via `PATCH /portfolio/holdings/{id}`, jamais
+  du foyer) — **additionné**, jamais fusionné, à la moyenne réellement investie sur 12 mois (§ AL.1,
+  qui a remplacé le 16/09/2026 le `versement_mensuel_suggere` dérivé du Budget) pour le
+  préremplissage du Simulateur (§ 3.12) ; la légende sous le champ détaille les deux sources
+  séparément. Les deux ne se recoupent pas : la moyenne investie compte les achats de titres du grand
+  livre, les versements déclarés portent sur des lignes d'épargne valorisées à la main.
+- **Dans la fiche du compte** : valeur courante, date de dernière mise à jour, versement mensuel,
+  historique déplié à la demande (chargé à la première ouverture seulement, § Z.1), action rapide
+  « Ajouter une valorisation » avec décomposition optionnelle versement/plus-value (§ U.2). Le
+  formulaire « Ajouter un compte » de l'écran Comptes accepte un type d'épargne optionnel : il crée
+  alors en un geste la ligne ET son compte (`POST /portfolio/holdings` avec `compte_nom`, quantité
+  fixée à 1, même convention que l'immobilier/l'assurance-vie).
+- **Modifier/Supprimer une ligne** (retour utilisateur du 25/08, après premier usage réel) : chaque
+  ligne expose « Modifier » (nom + `versement_mensuel` via `PATCH /portfolio/holdings/{id}`, jamais
   `valeur_estimee`/`date_valeur_estimee` — ces deux champs ne passent QUE par la route `valorisation`
   pour ne jamais casser la cohérence de l'historique daté) et « Supprimer » (confirmation obligatoire,
   `DELETE /portfolio/holdings/{id}`, réutilise les routes déjà existantes pour toute ligne du
   portefeuille — aucune route dédiée à créer).
 - **Graphique d'évolution** (même retour du 25/08) : `ValorisationHistoriqueCard` (partagée entre la
-  fiche détaillée et l'écran Épargne) affiche un `LineChart` au-dessus du tableau dès que l'historique
+  fiche détaillée et la fiche du compte) affiche un `LineChart` au-dessus du tableau dès que l'historique
   compte au moins deux points — `historique` est déjà trié chronologiquement par
   `immobilier_service.historique_valorisation` (`ORDER BY date_valeur`), directement exploitable sans
   retri ; le tableau en dessous garde son propre tri inverse (le plus récent en premier) sans affecter
@@ -714,28 +730,36 @@ aux côtés de l'immobilier) ; ces 5 types restent aussi visibles dans Portefeui
 
 | Table | Rôle |
 |---|---|
-| `transactions` | Grand livre importé (source de vérité), dédoublonné par `transaction_id` |
-| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte_id` rattache la ligne à un `Compte` structurel, nullable (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de la taxonomie élargie (immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicule, cf. § 3.11) ; `taux_pct` porte le taux annuel informatif (épargne/véhicule, cf. § 3.11) ; `zone_geo` porte la zone géographique déclarée d'un actif manuel, `None` repliant sur Europe (cf. § 3.20) |
+| `users` | Comptes de connexion. Le `user_id` du propriétaire identifie le **foyer** : toutes les tables de données du foyer portent ce `user_id` (clé étrangère), les membres et invités y sont rattachés (`perimetres_invites` restreint un invité à des détenteurs) |
+| `transactions` | Grand livre importé (source de vérité), dédoublonné par `(transaction_id, user_id)` ; `compte_id` = compte d'origine de chaque mouvement (§ 3.1) |
+| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte_id` rattache la ligne à un `Compte` structurel, nullable (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de la taxonomie élargie (immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicule, cf. § 3.11) ; `taux_pct` porte le taux annuel informatif (épargne/véhicule, cf. § 3.11) ; `zone_geo`/`secteur` portent la zone géographique et le secteur déclarés, prioritaires sur la détection automatique (§ AP.1/AP.2 ; pour un actif manuel sans zone, repli sur Europe, cf. § 3.20) ; `versement_mensuel` (§ 3.24). Unique par `(user_id, ticker, compte_id)` |
 | `comptes` | Compte structurel (PEA, CTO, livret, compte immobilier...), rattaché à un `Etablissement` optionnel (cf. § 3.7) — écran dédié `/comptes` |
-| `etablissements` | Établissement financier (banque, courtier...) regroupant plusieurs `comptes` — liste gérée par l'utilisateur (CRUD), cf. § 3.7 |
+| `etablissements` | Établissement financier (banque, courtier...) regroupant plusieurs `comptes` — liste gérée par l'utilisateur (CRUD), cf. § 3.7 ; logo téléversé, saisi par URL ou issu du catalogue |
+| `logos_catalogue` | Cache des logos des établissements connus (`etablissements_connus.py`), partagé par tous les foyers ; les logos embarqués dans l'application (`assets/logos/`) y prennent le pas sur le site officiel (§ BJ.1) |
+| `detenteurs`, `quotites_holdings`, `quotites_loans` | Personnes du foyer et leur part (en %) de chaque ligne et de chaque emprunt (§ 3.11, backlog § L.1) |
+| `journal_import` | Date et volume du dernier import par source, affichés sur les tuiles de l'écran Import |
 | `loans` | Emprunts (patrimoine net, cf. § 3.11) : capital initial, taux, mensualité, date de début, durée, recalage manuel optionnel du capital restant dû |
-| `holding_immobilier_details` | Fiche immobilier complète (§ 3.11, backlog § 2.M.3) : bloc location + caractéristiques, un par `Holding` |
-| `holding_valuation_history` | Historique daté des valorisations manuelles (§ 3.11, backlog § 2.M.3) — jamais écrasé, générique (pas réservé à l'immobilier) |
+| `holding_immobilier_details` | Fiche immobilier complète (§ 3.11, backlog § M.3) : bloc location + caractéristiques, un par `Holding` |
+| `holding_valuation_history` | Historique daté des valorisations manuelles (§ 3.11, backlog § M.3) — jamais écrasé, générique (pas réservé à l'immobilier) |
 | `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) ; `frais_gestion_pct` (fonds uniquement, mis en cache une seule fois par ticker, cf. § 3.9) |
 | `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques de répartition). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
 | `fund_composition_brute` | Répartition géo/sectorielle **brute** (non zone-mappée) d'un fonds telle que publiée par justETF, affichage seul sur la fiche détaillée (cf. § 3.4) — jamais utilisée dans un calcul agrégé |
 | `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds — justETF pour un fonds couvert (2.4), Yahoo Finance en repli sinon |
 | `ticker_resolution` | Cache ISIN/symbole → ticker Yahoo Finance. `echec_structurel` (Lot 13, § AB.4) distingue un échec définitif — symbole fabriqué par l'application (`BRICKS-…`), bien immobilier, livret : rien à trouver, jamais réessayé — d'un échec conjoncturel, réessayé chaque jour |
 | `salaires` | Calculateur brut/net + taux d'épargne — plusieurs lignes possibles par année à l'échelle du foyer, chacune avec son propre taux d'imposition (§ 3.23) |
-| `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |
-| `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, taux d'imposition déclaré — § 3.22), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
+| `categories_budget`, `mouvements_bancaires`, `regles_categorisation`, `budget_cibles` | Budget (§ 3.18) : catégories hiérarchiques, mouvements importés, règles de catégorisation explicites, budgets cibles par catégorie |
+| `scheduled_job_config` | Configuration et suivi d'exécution des cinq tâches planifiées (§ 3.9) |
+| `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, taux d'imposition déclaré — § 3.22), exposés par `services/preferences_service.py` (propres à un foyer ou à un utilisateur : `user_parametres`) ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
 | `cours_historique` | **Séries de cours hebdomadaires** `(ticker, date) → clôture`, dans la devise d'origine (Lot 13, § AB.2). La donnée la plus coûteuse à acquérir de l'application et la plus stable qui soit : téléchargée une seule fois par ticker, puis complétée de façon incrémentale. Partagée par tous les usages (historique du portefeuille, fiche d'une position, indice de référence) et par tous les foyers — c'est une donnée de marché publique. Les **taux de change** y vivent aussi, `yfinance` les exposant comme des tickers ordinaires (`USDEUR=X`) |
 | `cours_serie` | Métadonnées d'une série : devise de cotation (relue en base au lieu d'un appel `Ticker.info` par calcul — 77 % du temps mesuré avant le Lot 13), bornes couvertes et fraîcheur |
 | `historique_cache` | Cache persistant (24 h) de l'historique de valeur du PORTEFEUILLE, par combinaison de filtres (§ 3.5.1). Depuis le Lot 13 il n'évite plus un téléchargement — `cours_historique` s'en charge — mais un calcul, qui reste réel : 332 ms contre 1 ms en lecture. Les caches d'agrégat de la fiche d'une ligne et de l'indice de référence ont, eux, été supprimés, devenus de simples doublons des séries |
-| `liens_partage` | Liens de partage révocables (§ 3.21, backlog 2.Q.1) : jeton opaque, sections activées, code haché optionnel, expiration, révocation |
+| `liens_partage` | Liens de partage révocables (§ 3.21, backlog § Q.1) : jeton opaque, sections activées, code haché optionnel, expiration, révocation |
 | `partage_acces` | Journal des consultations d'un lien de partage public (§ 3.21) — alimente le verrouillage temporaire par lien |
+| `auth_tokens`, `access_log_entries` | Sessions révocables et journal d'accès (backlog § L.2) |
 
-Aucune vraie clé étrangère : les relations se font par correspondance de `ticker` (identifiant ISIN/symbole), car `holdings` (les lignes d'origine `reconstruit`) est entièrement reconstructible depuis `transactions`. Toute évolution de ce modèle est appliquée automatiquement au démarrage par des migrations non destructives (`ALTER TABLE ADD COLUMN`, `CREATE UNIQUE INDEX`) — voir `MANUEL_EXPLOITATION.md`.
+Les relations structurelles sont de vraies clés étrangères (foyer, compte, établissement, détenteur, ligne, emprunt, catégorie). Une seule relation passe par une correspondance de valeurs plutôt que par une clé : grand livre → ligne, par `(ticker, compte_id)`, parce que les lignes d'origine `reconstruit` sont entièrement recalculables depuis `transactions`. Les données de marché (`market_data_cache`, `fund_*`, `cours_*`, `ticker_resolution`) sont indexées par ticker et partagées par tous les foyers.
+
+**Montants** : colonnes `Numeric` lues et calculées en `Decimal` — exacts au centime, sans les arrondis binaires d'un flottant (backlog § BI.1). **Base** : SQLite par défaut ; Postgres pris en charge pour une future version hébergée, où chaque table du foyer est en plus protégée par une politique de sécurité au niveau des lignes (RLS) — un foyer ne peut lire ni écrire les lignes d'un autre, même en cas d'oubli de filtre dans le code (§ BI.4/BI.5, `MANUEL_EXPLOITATION.md` § 14). **Évolutions du schéma** : migrations Alembic (`backend/alembic/versions/`), appliquées automatiquement au démarrage — voir `MANUEL_EXPLOITATION.md`.
 
 ## 5. Limites connues
 
@@ -743,9 +767,10 @@ Voir `BACKLOG.md` pour la liste complète des points relevés à l'audit et leur
 
 - **Look-through géographique encore partiel.** justETF (2.4) donne la composition réelle des ~4-5 plus grosses lignes par fonds + un résiduel « Autres » agrégé, pas la liste complète (la fiche justETF l'offre via un bouton « Show more » nécessitant une session dynamique côté site, volontairement non reproduite — jugée trop fragile hors navigateur, cf. `services/justetf_service.py`). Pour les fonds hors couverture justETF (réplication synthétique/swap, ETC), l'extrapolation Yahoo Finance ou le repli par indice (§ 3.4) restent des estimations à revoir périodiquement.
 - **Dépendance à justETF, sans SLA ni support.** Le look-through complet (2.4) **et désormais le cours de référence des ETF** (§ 3.9) reposent sur une autorisation informelle obtenue directement de justETF, révocable et non garantie dans le temps. Deux comportements différents en cas de blocage/changement de mise en page côté justETF : la **composition** échoue proprement (statut « erreur » de `justetf_refresh` visible dans Réglages) sans perdre les données déjà en base, et une position retombe alors sur la source suivante de la hiérarchie (§ 3.4) ; le **prix** d'un ETF, lui, n'a **aucun repli** (décision utilisateur explicite, § 3.9) — un échec affiche « Cotation indisponible (justETF) » plutôt que de retomber sur Yahoo Finance.
-- **Rentabilité par compte non calculable.** Cf. § 3.7 : le rattachement à un compte est une annotation portée par la ligne du portefeuille, le grand livre importé ne porte aucune information de compte. Ce n'est pas un chantier reporté, c'est une absence structurelle de la donnée source.
-- **Aucune simulation fiscale.** L'application suit la performance d'un portefeuille, elle ne modélise ni le régime PEA (durée de détention, plafond de versement), ni aucune autre fiscalité. Non-objectif produit assumé (point 5.7 du backlog).
-- **Authentification multi-utilisateur avec rôles (propriétaire/membre/invité), verrouillage de connexion, sessions révocables et journal d'accès (backlog 2.L.2).** Reste néanmoins à compléter avant une exposition réellement publique hors homelab : pas de second facteur (TOTP), jeton transporté en en-tête `Authorization` (pas encore un cookie `Secure`/`SameSite=Strict`), HTTPS/reverse proxy hors du dépôt (responsabilité de l'exploitant, cf. `docs/MANUEL_EXPLOITATION.md` §12).
+- **Pas de rentabilité complète par compte.** Cf. § 3.7 : depuis le 14/09/2026 la donnée existe (compte d'origine de chaque transaction), mais seule la plus-value latente par compte est affichée — un XIRR ou des gains réalisés par compte n'ont pas été demandés.
+- **Aucune simulation fiscale.** L'application suit la performance d'un portefeuille, elle ne modélise ni le régime PEA (durée de détention, plafond de versement), ni aucune autre fiscalité. Non-objectif produit assumé (`BACKLOG.md` § 3).
+- **Authentification multi-utilisateur avec rôles (propriétaire/membre/invité), verrouillage de connexion, sessions révocables et journal d'accès (backlog § L.2).** Reste néanmoins à compléter avant une exposition réellement publique hors homelab : pas de second facteur (TOTP), jeton transporté en en-tête `Authorization` (pas encore un cookie `Secure`/`SameSite=Strict`), HTTPS/reverse proxy hors du dépôt (responsabilité de l'exploitant, cf. `docs/MANUEL_EXPLOITATION.md` §12).
 - **Dépendance à Yahoo Finance (`yfinance`), sans SLA officiel.** Les garde-fous de fréquence (§ 3.9) réduisent le risque de blocage mais ne l'éliminent pas ; une indisponibilité ou une limitation côté Yahoo Finance dégrade la fraîcheur des données sans faire échouer l'application (chaque position est traitée indépendamment, une erreur reste locale à la ligne concernée).
-- **Un seul format de courtier reconnu automatiquement (Trade Republic).** D'autres exports (Boursorama, Degiro, Interactive Brokers...) passent par le mapping manuel de colonnes (relevé de positions), jamais par la reconstruction depuis un grand livre — élargir cette reconnaissance suppose un vrai fichier d'export d'un autre courtier comme référence, indisponible à ce jour (roadmap Phase 3, § E.1, backlog).
-- **Pas de projection des dividendes futurs.** Le calendrier (§ 3.13) et le rapport récapitulatif (§ 3.14) ne montrent que des dividendes déjà perçus : `yfinance` n'expose pas de façon fiable la régularité de versement par ligne, en particulier pour les ETF — extrapoler sans cette fiabilité risquerait d'afficher un montant qui n'est pas garanti (roadmap Phase 4, § C.2, backlog).
+- **Trois historiques reconnus automatiquement : Trade Republic, Ledger, Bricks.co** (§ 3.1). Les autres courtiers (Boursorama, Degiro, Interactive Brokers...) passent par le mapping manuel de colonnes (relevé de positions), jamais par la reconstruction depuis un grand livre — ajouter un format suppose un vrai fichier d'export comme référence, ce qui a permis Ledger et Bricks.co (backlog § E.1).
+- **Pas de projection des dividendes ligne par ligne.** Le calendrier (§ 3.13) et le rapport récapitulatif (§ 3.14) ne montrent que des dividendes déjà perçus : `yfinance` n'expose pas de façon fiable la régularité de versement par ligne, en particulier pour les ETF. Les revenus passifs projetés (onglet Revenus, backlog § P.3) extrapolent seulement le total des 12 derniers mois, présenté comme une estimation (roadmap Phase 4, § C.2, backlog).
+- **Cryptos à leur prix de revient dans la courbe du portefeuille entier.** La fiche d'une ligne crypto a son historique de cours CoinGecko, mais la courbe globale (`historical_performance_service`) n'interroge pas CoinGecko pour chaque titre à chaque date (crédits d'API) : elle y valorise la crypto à son prix de revient (backlog § 2.1, AR.1).

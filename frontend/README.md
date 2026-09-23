@@ -1,7 +1,7 @@
 # Frontend — Lumen
 
-Interface web (React + TypeScript + Vite + Tailwind CSS) de l'application de suivi
-de portefeuille boursier. Voir le [README racine](../README.md) pour une vue
+Interface web (React + TypeScript + Vite + Tailwind CSS) de Lumen, application de suivi
+de patrimoine. Voir le [README racine](../README.md) pour une vue
 d'ensemble du projet et le [manuel utilisateur](../docs/MANUEL_UTILISATEUR.md) pour
 le mode d'emploi de chaque écran.
 
@@ -25,17 +25,24 @@ l'API » ci-dessous.
 | `npm run test`     | Lance la suite de tests (Vitest + Testing Library)                              |
 | `npm run lint`     | Analyse statique du code avec Oxlint                                            |
 | `npm run preview`  | Sert localement le build de production déjà généré                              |
+| `npm run test:e2e` | Tests de bout en bout (Playwright) : vrai navigateur, backend dédié sur base jetable |
 
 ## Organisation des dossiers
 
-- `src/pages/` — un composant par écran/route (Tableau de bord, Portefeuille, Import,
-  Analyse, Réglages, fiche détaillée en pleine page...).
+- `src/pages/` — un composant par écran/route (Synthèse, Actifs, Comptes, Analyse,
+  Budget, Import, Réglages, fiches détaillées en pleine page...).
 - `src/components/` — composants réutilisables entre plusieurs pages (cartes,
   modales, graphiques, tuiles de statistiques...).
 - `src/hooks/` — logique d'état réutilisable indépendante de l'affichage (ex. suivi
   d'un rafraîchissement en tâche de fond, gestion du thème clair/sombre).
 - `src/api/` — `client.ts` (appels HTTP vers l'API, un point d'entrée unique `api.*`)
-  et `types.ts` (types TypeScript reflétant les schémas Pydantic du backend).
+  et `types/` (types TypeScript reflétant les schémas Pydantic du backend, un fichier par
+  domaine ; `types.ts` les réexporte tous).
+- `src/contexts/` — état partagé par toute l'application (session, préférences d'affichage :
+  lentille, personne sélectionnée, montants masqués...).
+- `src/layout/` — table des routes (`routes.ts` : titre, entrée de navigation, rôles autorisés)
+  et correspondance route → écran (`pageComponents.ts`).
+- `e2e/` — tests de bout en bout Playwright, et leur jeu de données (`backend/scripts/seed_e2e.py`).
 - `src/utils/` — fonctions pures partagées (formatage de nombres, dates...).
 
 ## Proxy vers l'API en développement

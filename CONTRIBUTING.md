@@ -50,6 +50,12 @@ npx playwright install --with-deps chromium   # une seule fois
 npm run test:e2e
 ```
 
+Un changement qui touche au **modèle de données ou aux requêtes** gagne à passer aussi la suite
+backend sous Postgres, sur une base jetable : `PATRIMOINE_TEST_DATABASE_URL=postgresql+psycopg://…
+python -m pytest -q` (détail au § 7 du [manuel d'exploitation](docs/MANUEL_EXPLOITATION.md)). La CI
+la rejoue de toute façon : Postgres vérifie les clés étrangères, SQLite non, et c'est ainsi qu'une
+fuite de données a été trouvée (`docs/BACKLOG.md` § BI.4).
+
 La suite de bout en bout n'est pas facultative dès qu'un changement touche à la **navigation** —
 déplacer un composant d'un onglet à l'autre, renommer une route, réorganiser un écran. Les tests
 unitaires montent le composant isolément et ne peuvent rien dire de l'endroit où l'utilisateur le

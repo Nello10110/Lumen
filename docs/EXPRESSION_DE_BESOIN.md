@@ -9,8 +9,13 @@ par une décision/donnée externe plutôt que par du développement (détail dan
 Ce document reste tel qu'approuvé le 21/08/2026 (snapshot de planification) plutôt que réécrit au fil
 de l'eau ; l'état de livraison courant, y compris une quinzaine de demandes directes de l'utilisateur
 reçues après coup une fois l'usage réel commencé (regroupées en **Lot 9**, hors périmètre de ce
-document puisqu'elles n'ont jamais été planifiées à l'avance), vit dans `docs/BACKLOG.md` § 4 et
-dans l'artefact « Roadmap Patrimoine » publié.
+document puisqu'elles n'ont jamais été planifiées à l'avance), vit dans `docs/BACKLOG.md` (§ 1 pour
+l'état, § 2 pour ce qui reste, § 4 pour l'historique).
+
+**Mise à jour du 23/09/2026.** EF-26 (E.1) a avancé depuis : deux nouveaux historiques sont
+reconnus sans correspondance de colonnes, le wallet Ledger (11/09) et Bricks.co (13/09) ; les
+autres courtiers restent en attente d'un fichier d'export réel. EF-25 (Q.3, devise) est toujours
+ouvert. Les chiffres du § 1.1 (lignes de code, nombre de tests) datent du 21/08/2026.
 
 Ce document est le **point d'entrée des équipes de développement**. Il dit *ce qu'il faut construire
 et pourquoi*, avec les critères permettant de juger que c'est fait. Il ne dit pas *comment* :

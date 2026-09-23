@@ -459,10 +459,20 @@ describe('CompteDetailContent — suppression du compte (paquet de design)', () 
   })
 
   // Le point qui inquiète réellement quelqu'un devant ce bouton rouge : « est-ce que
-  // je perds mes lignes ? ». Non — elles retombent dans « Sans compte ».
-  it('annonce que les lignes rattachées ne sont pas supprimées', async () => {
+  // je perds mes lignes ? ». Oui, depuis la suppression en cascade (§ AK.2) — et le
+  // texte promettait l'inverse jusqu'au 23/09/2026.
+  it('annonce que les lignes et les transactions rattachées seront supprimées', async () => {
     renderContent(compte({ id: 42, nom: 'PEA' }), [holding(), holding({ id: 2, ticker: 'BBB' })], vi.fn(), vi.fn())
 
-    expect(await screen.findByText(/2 lignes de ce compte ne sont pas supprimées/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Les 2 lignes de ce compte seront supprimées avec lui, ainsi que les transactions/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/retombent dans « Sans compte »/)).not.toBeInTheDocument()
+  })
+
+  it('compte sans ligne : prévient quand même que ses transactions partent avec lui', async () => {
+    renderContent(compte({ id: 42, nom: 'PEA' }), [], vi.fn(), vi.fn())
+
+    expect(await screen.findByText(/transactions importées qui s'y rattachent encore/)).toBeInTheDocument()
   })
 })

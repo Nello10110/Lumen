@@ -252,13 +252,13 @@ Chaque écran est détaillé dans le [manuel utilisateur](docs/MANUEL_UTILISATEU
 | [Manuel d'exploitation](docs/MANUEL_EXPLOITATION.md) | Architecture, déploiement, sauvegarde, SSO, dépannage |
 | [Spécifications fonctionnelles](docs/SPECIFICATIONS_FONCTIONNELLES.md) | Périmètre, règles métier, modèle de données |
 | [Expression de besoin](docs/EXPRESSION_DE_BESOIN.md) | Contexte, exigences, critères d'acceptation |
-| [Backlog](docs/BACKLOG.md) | Journal des décisions et des arbitrages, évolutions envisagées |
+| [Backlog et feuille de route](docs/BACKLOG.md) | Où en est le projet, ce qui reste à faire, journal des décisions |
 
 <br>
 
 ## Sous le capot
 
-**Backend** — Python, FastAPI, SQLAlchemy 2.0, SQLite, Alembic, APScheduler, `yfinance`
+**Backend** — Python, FastAPI, SQLAlchemy 2.0, SQLite (Postgres pris en charge), Alembic, APScheduler, `yfinance`
 **Frontend** — React, TypeScript, Vite, Tailwind CSS, Recharts
 
 Le code et la documentation sont **en français**, commentaires compris : ce projet est lu autant
@@ -283,8 +283,8 @@ npm run test:e2e
 ```
 
 Ces cinq vérifications tournent aussi sur chaque push et chaque pull request
-([`ci.yml`](.github/workflows/ci.yml)). La suite de bout en bout démarre elle-même un backend dédié
-sur une base jetable — jamais la vôtre.
+([`ci.yml`](.github/workflows/ci.yml)), la suite backend deux fois : sous SQLite et sous Postgres. La
+suite de bout en bout démarre elle-même un backend dédié sur une base jetable — jamais la vôtre.
 
 <br>
 

@@ -17,6 +17,11 @@ Sévérité `majeur` (structurant) ou `mineur` (confort) ; effort `XS` (quelques
 (fondation) à `P3` (confort). Un point n'est `traité` que vérifié — tests, et contrôle en conditions
 réelles quand c'est possible.
 
+**Anciens renvois.** Avant la fusion, le détail des points vivait au § 2 du backlog : les renvois
+« backlog 2.S.1 » ou « § 2.S.1 » qu'on trouve encore dans les commentaires du code désignent le
+point **§ S.1** de ce document (retirer le « 2. »). Ceux de la forme « roadmap phase N » renvoient
+au § 4.2.
+
 ---
 
 ## 1. Où en est Lumen (23/09/2026)
@@ -70,6 +75,8 @@ file et reçoit son détail au § 5.
 | **AG.7** — mode découverte avec données fictives | Utile seulement si l'application s'ouvre à d'autres utilisateurs | Différé ; à reprendre avec la version hébergée |
 | **BF.1b** — relecture juridique de la licence avant monétisation | Un avocat (droit moral inaliénable en droit français) | Action de l'utilisateur |
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
+| **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
+| **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
@@ -228,7 +235,7 @@ l'usage réel a fait remonter.
 | BB, BC | Analyse éclatée ; écran Import en grille de sources | 21-22/09 |
 | BD à BH | Logo SSO, licence, ouverture publique du dépôt, données personnelles, ménage git | 22/09 |
 | BI | Suites de l'étude « réécrire en Rust ? » : décimal, pandas, profilage, Postgres, séparation des foyers | 22-23/09 |
-| BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine | 23/09 |
+| BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine, avertissement de suppression d'un compte | 23/09 |
 
 ---
 
@@ -1465,7 +1472,7 @@ dédié. Motif : c'est le dernier écart fonctionnel majeur avec l'offre du marc
 
 **Livré et vérifié le 24/08/2026.** Nouvelles tables `categories_budget` (un niveau de
 sous-catégorie), `mouvements_bancaires`, `regles_categorisation`, `budget_cibles` — isolées par
-foyer comme le reste du modèle (backlog 2.I.1). CSV : réutilise intégralement le mécanisme de
+foyer comme le reste du modèle (backlog § I.1). CSV : réutilise intégralement le mécanisme de
 mapping manuel existant (`csv_import.py`, aperçu + cache serveur), avec une bascule montant signé /
 débit+crédit séparés (les deux conventions existent selon les banques). OFX (SGML, balises non
 fermées) et QIF parsés par expression régulière/ligne à ligne, sans nouvelle dépendance — même
@@ -2675,7 +2682,7 @@ reproduise plus, et d'ajouter un fil d'Ariane au passage.
 
 **Constat.** Au moment de l'audit, aucune page n'était réellement absente d'un menu : les 12 écrans
 et leurs 4 menus (barre latérale, barre inférieure mobile, feuille « Plus », menu du compte)
-partageaient déjà `ROUTES` (`layout/routes.ts`, backlog 2.K.2) comme source unique pour le chemin, le
+partageaient déjà `ROUTES` (`layout/routes.ts`, backlog § K.2) comme source unique pour le chemin, le
 libellé et le titre d'onglet — et un fil d'Ariane (`FilDAriane.tsx`) dérivé de ce même tableau
 existait déjà depuis le même lot. Le risque réel n'était donc pas déjà matérialisé, mais bien présent
 à deux endroits :
@@ -4290,7 +4297,7 @@ glissants jusqu'à aujourd'hui — jamais un calendrier civil comme le taux d'é
 Salaire (§ R.1), une vraie fenêtre glissante. Nouvel endpoint
 `GET /api/performance/investissement-mensuel-moyen`. `None` (jamais `0.0`) si rien n'a été investi
 sur la fenêtre, pour ne jamais laisser croire à une donnée mesurée — le champ garde alors son défaut
-de 0. Toujours ADDITIONNÉ aux versements mensuels déclarés sur les comptes Épargne (backlog 2.S.1,
+de 0. Toujours ADDITIONNÉ aux versements mensuels déclarés sur les comptes Épargne (backlog § S.1,
 `GET /api/budget/jonction-patrimoine`), qui reste l'unique raison pour laquelle cet endpoint est
 encore appelé depuis le Simulateur.
 
@@ -4471,7 +4478,7 @@ façon la répartition sectorielle ».
 
 #### AP.1 — `mineur` · `S` · `traité` (17/09/2026) — Une déclaration prime sur la détection automatique, éditable ligne par ligne
 
-`Holding.zone_geo` existait déjà (backlog 2.P.1) mais n'était consulté par `analysis_service.value_holdings`
+`Holding.zone_geo` existait déjà (backlog § P.1) mais n'était consulté par `analysis_service.value_holdings`
 QUE pour les lignes valorisées manuellement (`valeur_estimee`) — jamais pour une ligne financière (celle
 qui a un vrai `market_data`), et surtout jamais exposé nulle part en ÉDITION après la création (ni
 `HoldingDetailContent.tsx`, ni `PositionsTable.tsx`). Deux changements :
@@ -6925,6 +6932,26 @@ barre latérale, masqué sur mobile, que Chrome ne peint pas — tout autre logo
 
 **Vérifié** en navigateur (bureau, mobile, thème sombre, clic réel sur « Saisir une ligne ») ;
 9 tests, dont 4 en échec sur l'ancien code.
+
+#### BJ.3 — `majeur` · `XS` · `traité` (23/09/2026) — L'avertissement de suppression d'un compte disait l'inverse de ce qui se passe
+
+**Trouvé** en relisant le manuel utilisateur contre le code, à la fusion des documents. Depuis le
+16/09/2026 (§ AK.2), supprimer un compte supprime **en cascade** ses lignes ET les transactions du
+grand livre qui s'y rattachent. Mais le texte affiché juste au-dessus du bouton rouge, écrit le
+07/09 pour l'ancien comportement, promettait toujours : « les lignes de ce compte ne sont pas
+supprimées : elles retombent dans « Sans compte » ». Le manuel disait la même chose. Un utilisateur
+qui le croyait perdait ses lignes et son historique sans avoir été prévenu.
+
+**Correctif** (`CompteDetailContent.tsx`, `ZoneSuppression`) : le texte annonce ce qui part avec le
+compte — les lignes, et les transactions importées qui s'y rattachent —, ce qui reste (un emprunt
+rattaché, seulement détaché), et renvoie vers une sauvegarde en cas de doute. Les transactions sont
+nommées **même pour un compte sans ligne** : une position entièrement vendue n'a plus de ligne, mais
+son historique d'achats et de ventes reste rattaché au compte et part avec lui. Manuel utilisateur
+corrigé. La confirmation reste un simple second clic : la faire recopier le nom du compte serait
+plus sûr pour une action désormais définitive, mais c'est un changement d'usage à proposer à
+l'utilisateur plutôt qu'à décider ici.
+
+**Tests** : 2 dans `CompteDetailContent.test.tsx`, en échec sur l'ancien texte.
 
 ---
 

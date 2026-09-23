@@ -322,10 +322,16 @@ export default function CompteDetailContent({
  * 89 000 €. Ici, il faut avoir ouvert le compte, être descendu jusqu'au bas de sa
  * fiche, puis confirmer.
  *
- * La confirmation reste un bouton et non la saisie du nom : supprimer un compte NE
- * SUPPRIME AUCUNE ligne de patrimoine — elles retombent dans « Sans compte » et
- * restent toutes visibles. Exiger de recopier un nom pour une action réversible en
- * deux clics dresserait un obstacle sans rapport avec le risque réel. */
+ * Depuis le 16/09/2026 (backlog § AK.2), la suppression est en CASCADE côté
+ * serveur (`comptes_service.delete_compte`) : les lignes du compte ET les
+ * transactions du grand livre qui s'y rattachent disparaissent avec lui, seul un
+ * emprunt rattaché survit (détaché). Le texte ci-dessous l'a longtemps ignoré —
+ * il promettait encore que les lignes « retombent dans Sans compte » (relevé à la
+ * relecture des docs du 23/09/2026) : le seul endroit où l'utilisateur lit ce que
+ * fait le bouton rouge doit dire ce qu'il fait vraiment. Les transactions sont
+ * nommées même pour un compte sans ligne : une position entièrement vendue n'a
+ * plus de ligne, mais son historique d'achats et de ventes reste rattaché au
+ * compte. */
 function ZoneSuppression({
   compte,
   nombreLignes,
@@ -356,8 +362,10 @@ function ZoneSuppression({
       <p className="text-sm font-semibold text-negatif">Supprimer ce compte</p>
       <p className="mt-1 text-xs text-texte-attenue">
         {nombreLignes > 0
-          ? `Les ${nombreLignes} ligne${nombreLignes > 1 ? 's' : ''} de ce compte ne sont pas supprimées : elles retombent dans « Sans compte », où vous pourrez les rattacher ailleurs.`
-          : 'Ce compte est vide : sa suppression ne touche aucune ligne de patrimoine.'}
+          ? `${nombreLignes > 1 ? `Les ${nombreLignes} lignes` : 'La ligne'} de ce compte ${nombreLignes > 1 ? 'seront supprimées' : 'sera supprimée'} avec lui, ainsi que les transactions importées qui s'y rattachent.`
+          : "Aucune ligne n'est rattachée à ce compte ; les transactions importées qui s'y rattachent encore (une position entièrement vendue, par exemple) seront supprimées avec lui."}{' '}
+        Un emprunt rattaché est conservé, seulement détaché. Suppression définitive : en cas de doute, exportez d'abord
+        une sauvegarde (Réglages).
       </p>
       {erreur && (
         <div className="mt-3">
