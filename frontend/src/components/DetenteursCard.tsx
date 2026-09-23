@@ -7,6 +7,7 @@ import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input } from './Field'
 import { SkeletonTexte } from './Skeleton'
+import { t } from '../i18n'
 
 /** Personnes du foyer (backlog 2.L.1) : déclarées une fois ici, réutilisées
  * ensuite pour répartir la propriété des actifs (quotités, sur la fiche
@@ -61,36 +62,29 @@ export default function DetenteursCard() {
   }
 
   return (
-    <Card title="Personnes">
-      <p className="mb-4 text-sm text-texte">
-        Déclarées une fois, réutilisées pour répartir la propriété des actifs et des emprunts (quotités, depuis la fiche
-        détaillée de chaque position) et filtrer le patrimoine par détenteur (barre de contrôles, en haut de l'écran).
-      </p>
+    <Card title={t('detenteursCard.personnes')}>
+      <p className="mb-4 text-sm text-texte">{t('detenteursCard.declareesUneFoisReutiliseesPour')}</p>
 
       {loading ? (
         <SkeletonTexte />
       ) : detenteurs.length === 0 ? (
-        <EtatVide titre="Aucun détenteur déclaré." />
+        <EtatVide titre={t('detenteursCard.aucunDetenteurDeclare')} />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
           {detenteurs.map((d) => (
             <li key={d.id} className="flex items-center justify-between py-2 text-sm">
               <span className="text-texte">{d.nom}</span>
-              <button onClick={() => handleDelete(d.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
-                Supprimer
-              </button>
+              <button onClick={() => handleDelete(d.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">{t('detenteursCard.supprimer')}</button>
             </li>
           ))}
         </ul>
       )}
 
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
-        <Field label="Nom" className="w-40">
-          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Alice" />
+        <Field label={t('detenteursCard.nom')} className="w-40">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={t('detenteursCard.alice')} />
         </Field>
-        <PrimaryButton type="submit" disabled={saving}>
-          Ajouter
-        </PrimaryButton>
+        <PrimaryButton type="submit" disabled={saving}>{t('detenteursCard.ajouter')}</PrimaryButton>
       </form>
       {error && <EtatErreur message={error} onReessayer={load} />}
     </Card>

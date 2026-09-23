@@ -7,6 +7,7 @@ import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
+import { t } from '../i18n'
 
 /** Liens de partage révocables (backlog 2.Q.1) — premier point d'accès PUBLIC de
  * l'application, sans authentification : réservée au propriétaire (comme les
@@ -87,18 +88,13 @@ export default function PartageCard() {
   }
 
   return (
-    <Card title="Liens de partage">
-      <p className="mb-4 text-sm text-texte">
-        Un lien anonyme, révocable à tout moment, donnant à un tiers (banque, notaire, famille) une vue en lecture
-        seule limitée aux sections choisies ci-dessous — jamais le détail position par position, les transactions, ni
-        les comptes. Le budget n'est pas filtré par détenteur : n'active cette section avec un détenteur
-        sélectionné que si tu veux le partager pour tout le foyer.
-      </p>
+    <Card title={t('partageCard.liensDePartage')}>
+      <p className="mb-4 text-sm text-texte">{t('partageCard.unLienAnonymeRevocableA')}</p>
 
       {loading ? (
         <SkeletonTexte />
       ) : liens.length === 0 ? (
-        <EtatVide titre="Aucun lien de partage créé." />
+        <EtatVide titre={t('partageCard.aucunLienDePartageCree')} />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
           {liens.map((lien) => {
@@ -109,14 +105,12 @@ export default function PartageCard() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <span className="font-medium text-texte">{lien.nom}</span>{' '}
-                    {revoque && <span className="text-xs text-negatif">révoqué</span>}
-                    {expire && <span className="text-xs text-avertissement">expiré</span>}
-                    {lien.code_requis && !revoque && !expire && <span className="text-xs text-texte-attenue">code requis</span>}
+                    {revoque && <span className="text-xs text-negatif">{t('partageCard.revoque')}</span>}
+                    {expire && <span className="text-xs text-avertissement">{t('partageCard.expire')}</span>}
+                    {lien.code_requis && !revoque && !expire && <span className="text-xs text-texte-attenue">{t('partageCard.codeRequis')}</span>}
                   </div>
                   {!revoque && (
-                    <button onClick={() => handleRevoke(lien.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
-                      Révoquer
-                    </button>
+                    <button onClick={() => handleRevoke(lien.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">{t('partageCard.revoquer')}</button>
                   )}
                 </div>
                 {!revoque && !expire && (
@@ -135,12 +129,12 @@ export default function PartageCard() {
 
       <form onSubmit={handleCreate} className="space-y-3 border-t border-bordure pt-4">
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="Nom (pour te repérer)" className="w-48">
-            <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Pour la banque" />
+          <Field label={t('partageCard.nomPourTeReperer')} className="w-48">
+            <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={t('partageCard.pourLaBanque')} />
           </Field>
-          <Field label="Détenteur (optionnel)" className="w-40">
+          <Field label={t('partageCard.detenteurOptionnel')} className="w-40">
             <Select value={detenteurId} onChange={(e) => setDetenteurId(e.target.value)}>
-              <option value="">Foyer entier</option>
+              <option value="">{t('partageCard.foyerEntier')}</option>
               {detenteurs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.nom}
@@ -148,39 +142,29 @@ export default function PartageCard() {
               ))}
             </Select>
           </Field>
-          <Field label="Durée (jours)" className="w-24">
+          <Field label={t('partageCard.dureeJours')} className="w-24">
             <Input value={dureeJours} onChange={(e) => setDureeJours(Number(e.target.value))} type="number" min={1} max={365} />
           </Field>
-          <Field label="Code d'accès (optionnel)" className="w-36">
-            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="min. 4 caractères" />
+          <Field label={t('partageCard.codeDAccesOptionnel')} className="w-36">
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('partageCard.min4Caracteres')} />
           </Field>
         </div>
 
         <div className="flex flex-wrap gap-4 text-sm text-texte">
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={inclurePatrimoineNet} onChange={(e) => setInclurePatrimoineNet(e.target.checked)} />
-            Patrimoine net
-          </label>
+            <input type="checkbox" checked={inclurePatrimoineNet} onChange={(e) => setInclurePatrimoineNet(e.target.checked)} />{t('partageCard.patrimoineNet')}</label>
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={inclureRepartition} onChange={(e) => setInclureRepartition(e.target.checked)} />
-            Exposition consolidée
-          </label>
+            <input type="checkbox" checked={inclureRepartition} onChange={(e) => setInclureRepartition(e.target.checked)} />{t('partageCard.expositionConsolidee')}</label>
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={inclurePerformance} onChange={(e) => setInclurePerformance(e.target.checked)} />
-            Rentabilité
-          </label>
+            <input type="checkbox" checked={inclurePerformance} onChange={(e) => setInclurePerformance(e.target.checked)} />{t('partageCard.rentabilite')}</label>
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={inclureBudget} onChange={(e) => setInclureBudget(e.target.checked)} />
-            Budget
-          </label>
+            <input type="checkbox" checked={inclureBudget} onChange={(e) => setInclureBudget(e.target.checked)} />{t('partageCard.budget')}</label>
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={masquerValeurs} onChange={(e) => setMasquerValeurs(e.target.checked)} />
-            Masquer les montants (proportions seulement)
-          </label>
+            <input type="checkbox" checked={masquerValeurs} onChange={(e) => setMasquerValeurs(e.target.checked)} />{t('partageCard.masquerLesMontantsProportionsSeulement')}</label>
         </div>
 
         <PrimaryButton type="submit" disabled={saving}>
-          {saving ? 'Création...' : 'Créer le lien'}
+          {saving ? t('partageCard.creation') : t('partageCard.creerLeLien')}
         </PrimaryButton>
         {erreurCreation && <p className="text-sm text-negatif">{erreurCreation}</p>}
       </form>

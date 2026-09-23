@@ -1,0 +1,45 @@
+import type fr from '../fr/sauvegardeDonneesCard'
+import type { Structure } from '../../types'
+
+/** Anglais — espace « sauvegardeDonneesCard » (backlog § BL.2), traduit depuis le français. */
+const sauvegardeDonneesCard: Structure<typeof fr> = {
+  sauvegardeCompleteDesDonnees: "Full data backup",
+  exporte: "Exports",
+  tout: "all",
+  lePatrimoineDuFoyerDans: "of the household’s wealth into a single file: positions, transactions, real estate, loans, accounts and institutions, holders and shares, savings, salaries, budget and preferences. Useful to make a backup before an operation, or to move to another installation.",
+  lesCoursEtCompositionsDe: "Prices and fund compositions are not included: they re-download on their own. Nothing sensitive either (passwords, share tokens, access log). The file does however contain all your amounts — keep it as a confidential document.",
+  exporterMesDonneesJson: "Export my data (JSON)",
+  restaurerDepuisUnFichier: "Restore from a file",
+  lImport: "Importing",
+  remplaceIntegralement: "fully replaces",
+  lesDonneesActuellesDuFoyer: "the household’s current data with that of the file. The file’s content is shown to you before any change.",
+  fichierDeSauvegardeARestaurer: "Backup file to restore",
+  analyseDuFichier: "Analyzing the file…",
+  reinitialiserLeFoyer: "Reset the household",
+  efface: "Erases",
+  definitivement: "permanently",
+  toutLePatrimoineDuFoyer: "all of the household’s wealth (accounts, institutions, positions, transactions, loans, budget...) and the share links. The household’s user accounts (owner, members, guests) are never deleted.",
+  remplacerToutesVosDonnees: "Replace all your data?",
+  leFichier: "The file",
+  exporteLe: "(exported on",
+  contient: "contains:",
+  aucuneDonnee: "No data.",
+  toutLePatrimoineActuellementEnregistre: "All currently recorded wealth will be erased and replaced by this content. This action cannot be undone.",
+  annuler: "Cancel",
+  importEnCours: "Importing…",
+  remplacerMesDonnees: "Replace my data",
+  reinitialiserLeFoyer2: "Reset the household?",
+  serontEffacesToutLePatrimoine: "Will be erased: all wealth (accounts, institutions, positions, transactions, real estate, loans, budget, salaries) and the share links.",
+  neSeront: "Will",
+  pas: "not",
+  touchesLesComptesDuFoyer: "be affected: the household’s user accounts (owner, members, guests) and the access log.",
+  cetteActionEstIrreversible: "This action cannot be undone.",
+  pourConfirmerTapezExactement: "To confirm, type exactly “{phrase}” below",
+  confirmationDeLaReinitialisationDu: "Household reset confirmation",
+  reinitialisationEnCours: "Resetting…",
+  reinitialiserDefinitivement: "Reset permanently",
+  importTermine: { one: "Import complete: {n} record restored.", other: "Import complete: {n} records restored." },
+  table: { etablissements: "institutions", comptes: "accounts", detenteurs: "holders (people)", holdings: "wealth lines", holding_immobilier_details: "real estate records", holding_valuation_history: "valuation points", quotites_holdings: "splits between holders", loans: "loans", quotites_loans: "loan splits", transactions: "transactions", salaires: "salaries", categories_budget: "budget categories", mouvements_bancaires: "bank transactions", regles_categorisation: "categorization rules", budget_cibles: "target budgets", user_parametres: "preferences" },
+}
+
+export default sauvegardeDonneesCard

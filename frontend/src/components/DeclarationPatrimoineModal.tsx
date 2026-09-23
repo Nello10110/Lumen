@@ -8,6 +8,7 @@ import { IconFermer } from './icons'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
 import { dateVersISO } from '../utils/format'
+import { t } from '../i18n'
 
 /** Déclaration de patrimoine PDF paramétrable (backlog 2.Q.2) : sélection actif par
  * actif et emprunt par emprunt, filtrage par détenteur, destinataire, et reprise du
@@ -96,10 +97,8 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
       {({ titleId }) => (
         <>
           <div className="mb-4 flex items-start justify-between">
-            <h3 id={titleId} className="text-lg font-semibold text-texte">
-              Déclaration de patrimoine
-            </h3>
-            <button onClick={onClose} aria-label="Fermer" className="text-texte-attenue hover:text-texte">
+            <h3 id={titleId} className="text-lg font-semibold text-texte">{t('declarationPatrimoineModal.declarationDePatrimoine')}</h3>
+            <button onClick={onClose} aria-label={t('declarationPatrimoineModal.fermer')} className="text-texte-attenue hover:text-texte">
               <IconFermer className="h-4 w-4" />
             </button>
           </div>
@@ -110,12 +109,12 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
           {!loading && !error && (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-3">
-                <Field label="Destinataire (optionnel)" className="w-48">
-                  <Input value={destinataire} onChange={(e) => setDestinataire(e.target.value)} placeholder="Banque XYZ" />
+                <Field label={t('declarationPatrimoineModal.destinataireOptionnel')} className="w-48">
+                  <Input value={destinataire} onChange={(e) => setDestinataire(e.target.value)} placeholder={t('declarationPatrimoineModal.banqueXyz')} />
                 </Field>
-                <Field label="Détenteur (optionnel)" className="w-40">
+                <Field label={t('declarationPatrimoineModal.detenteurOptionnel')} className="w-40">
                   <Select value={detenteurId} onChange={(e) => setDetenteurId(e.target.value)}>
-                    <option value="">Foyer entier</option>
+                    <option value="">{t('declarationPatrimoineModal.foyerEntier')}</option>
                     {detenteurs.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.nom}
@@ -125,20 +124,16 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
                 </Field>
               </div>
               {detenteurId && (
-                <p className="text-xs text-texte-attenue">
-                  Seuls les actifs et emprunts avec une quotité attribuée à ce détenteur apparaîtront dans le document.
-                </p>
+                <p className="text-xs text-texte-attenue">{t('declarationPatrimoineModal.seulsLesActifsEtEmprunts')}</p>
               )}
 
               <label className="flex items-center gap-1.5 text-sm text-texte">
-                <input type="checkbox" checked={inclureProfil} onChange={(e) => setInclureProfil(e.target.checked)} />
-                Inclure le profil emprunteur (revenus, dépenses, taux d'endettement, reste à vivre, taux d'imposition)
-              </label>
+                <input type="checkbox" checked={inclureProfil} onChange={(e) => setInclureProfil(e.target.checked)} />{t('declarationPatrimoineModal.inclureLeProfilEmprunteurRevenus')}</label>
 
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">Actifs à inclure</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">{t('declarationPatrimoineModal.actifsAInclure')}</p>
                 {holdings.length === 0 ? (
-                  <p className="text-sm text-texte-attenue">Aucun actif dans le portefeuille.</p>
+                  <p className="text-sm text-texte-attenue">{t('declarationPatrimoineModal.aucunActifDansLePortefeuille')}</p>
                 ) : (
                   <ul className="max-h-40 divide-y divide-bordure overflow-y-auto rounded-control border border-bordure">
                     {holdings.map((h) => (
@@ -154,9 +149,9 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
               </div>
 
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">Emprunts à inclure</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">{t('declarationPatrimoineModal.empruntsAInclure')}</p>
                 {loans.length === 0 ? (
-                  <p className="text-sm text-texte-attenue">Aucun emprunt enregistré.</p>
+                  <p className="text-sm text-texte-attenue">{t('declarationPatrimoineModal.aucunEmpruntEnregistre')}</p>
                 ) : (
                   <ul className="max-h-32 divide-y divide-bordure overflow-y-auto rounded-control border border-bordure">
                     {loans.map((l) => (
@@ -174,9 +169,9 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
               {erreurGeneration && <p className="text-sm text-negatif">{erreurGeneration}</p>}
 
               <div className="flex justify-end gap-3 border-t border-hairline pt-4">
-                <SecondaryButton onClick={onClose}>Annuler</SecondaryButton>
+                <SecondaryButton onClick={onClose}>{t('declarationPatrimoineModal.annuler')}</SecondaryButton>
                 <PrimaryButton onClick={handleGenerer} disabled={generating}>
-                  {generating ? 'Génération...' : 'Générer le PDF'}
+                  {generating ? t('declarationPatrimoineModal.generation') : t('declarationPatrimoineModal.genererLePdf')}
                 </PrimaryButton>
               </div>
             </div>

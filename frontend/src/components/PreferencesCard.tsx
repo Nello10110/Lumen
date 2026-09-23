@@ -4,17 +4,18 @@ import type { Preferences } from '../api/types'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import { SkeletonTexte } from './Skeleton'
+import { t } from '../i18n'
 
 const METHODE_OPTIONS: { value: Preferences['methode_cout']; label: string; description: string }[] = [
   {
     value: 'cout_moyen_pondere',
-    label: 'Coût moyen pondéré',
-    description: "Chaque vente retire le coût moyen de TOUTE la position au moment de la vente : le prix de revient reste une moyenne unique, quelle que soit l'ancienneté des titres vendus. Méthode par défaut de l'application.",
+    get label() { return t('preferencesCard.coutMoyenPondere') },
+    get description() { return t('preferencesCard.coutMoyenPondereDescription') },
   },
   {
     value: 'fifo',
-    label: 'FIFO (premier entré, premier sorti)',
-    description: "Chaque vente consomme d'abord les titres achetés les plus anciens : le coût retiré est celui de ces titres-là, pas une moyenne. Le prix de revient restant ne reflète alors que les lots les plus récents.",
+    get label() { return t('preferencesCard.fifo') },
+    get description() { return t('preferencesCard.fifoDescription') },
   },
 ]
 
@@ -51,9 +52,7 @@ export default function PreferencesCard() {
       setPrefs(resultat)
       if (resultat.positions_recalculees !== null) {
         setMessage(
-          `${resultat.positions_recalculees} position${resultat.positions_recalculees > 1 ? 's' : ''} du portefeuille recalculée${
-            resultat.positions_recalculees > 1 ? 's' : ''
-          } avec la nouvelle méthode.`,
+          t('preferencesCard.positionsRecalculees', { n: resultat.positions_recalculees }),
         )
       }
     } catch (err) {
@@ -104,11 +103,8 @@ export default function PreferencesCard() {
 
   return (
     <>
-      <Card title="Méthode de calcul du coût de revient">
-        <p className="mb-4 text-sm text-avertissement">
-          Attention : changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de TOUT le
-          portefeuille.
-        </p>
+      <Card title={t('preferencesCard.methodeDeCalculDuCout')}>
+        <p className="mb-4 text-sm text-avertissement">{t('preferencesCard.attentionChangerDeMethodeRecalcule')}</p>
         <div className="space-y-3">
           {METHODE_OPTIONS.map((option) => (
             <label
@@ -134,21 +130,16 @@ export default function PreferencesCard() {
         {error && <EtatErreur message={error} />}
       </Card>
 
-      <Card title="Déclaration de patrimoine">
-        <p className="mb-4 text-sm text-texte">
-          Taux d'imposition saisi ici, repris tel quel dans la déclaration de patrimoine (onglet Exporter) — l'application ne
-          réalise aucun calcul fiscal, cette valeur est celle que tu renseignes.
-        </p>
-        <label className="flex items-center gap-2 text-sm text-texte">
-          Taux d'imposition
-          <input
+      <Card title={t('preferencesCard.declarationDePatrimoine')}>
+        <p className="mb-4 text-sm text-texte">{t('preferencesCard.tauxDImpositionSaisiIci')}</p>
+        <label className="flex items-center gap-2 text-sm text-texte">{t('preferencesCard.tauxDImposition')}<input
             type="number"
             min={0}
             max={100}
             step="0.5"
             defaultValue={prefs.taux_imposition_pct ?? ''}
             disabled={saving}
-            placeholder="non renseigné"
+            placeholder={t('preferencesCard.nonRenseigne')}
             onBlur={(e) => {
               const brut = e.target.value.trim()
               const valeur = brut === '' ? null : Number(brut)
@@ -162,21 +153,16 @@ export default function PreferencesCard() {
         </label>
       </Card>
 
-      <Card title="Comparaison patrimoniale">
-        <p className="mb-4 text-sm text-texte">
-          Sert uniquement à choisir la bonne tranche d'âge de comparaison au patrimoine médian français (écran
-          Analyse) — jamais stockée ni utilisée ailleurs.
-        </p>
-        <label className="flex items-center gap-2 text-sm text-texte">
-          Année de naissance
-          <input
+      <Card title={t('preferencesCard.comparaisonPatrimoniale')}>
+        <p className="mb-4 text-sm text-texte">{t('preferencesCard.sertUniquementAChoisirLa')}</p>
+        <label className="flex items-center gap-2 text-sm text-texte">{t('preferencesCard.anneeDeNaissance')}<input
             type="number"
             min={1900}
             max={new Date().getFullYear() - 16}
             step="1"
             defaultValue={prefs.annee_naissance_foyer ?? ''}
             disabled={saving}
-            placeholder="non renseignée"
+            placeholder={t('preferencesCard.nonRenseignee')}
             onBlur={(e) => {
               const brut = e.target.value.trim()
               const valeur = brut === '' ? null : Number(brut)

@@ -5,6 +5,7 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import { SkeletonTexte } from './Skeleton'
 import { formatDateHeure } from '../utils/format'
+import { t } from '../i18n'
 
 /** Sessions actives du compte (backlog 2.L.2) : liste tous les jetons valides (un
  * par appareil/navigateur connecté), révocables individuellement — jamais "tout
@@ -37,11 +38,8 @@ export default function SessionsCard() {
   }
 
   return (
-    <Card title="Sessions actives">
-      <p className="mb-4 text-sm text-texte-attenue">
-        Un appareil ou navigateur connecté par ligne. Révoquer une session déconnecte immédiatement cet appareil, sans
-        toucher aux autres.
-      </p>
+    <Card title={t('sessionsCard.sessionsActives')}>
+      <p className="mb-4 text-sm text-texte-attenue">{t('sessionsCard.unAppareilOuNavigateurConnecte')}</p>
       {loading ? (
         <SkeletonTexte />
       ) : (
@@ -50,19 +48,17 @@ export default function SessionsCard() {
             <li key={s.id_session} className="flex items-center justify-between gap-4 py-2 text-sm">
               <span className="min-w-0">
                 <span className="block truncate text-texte">
-                  {s.ip ?? 'IP inconnue'} {s.est_courante && <span className="text-xs text-accent">(session actuelle)</span>}
+                  {s.ip ?? t('sessionsCard.ipInconnue')} {s.est_courante && <span className="text-xs text-accent">{t('sessionsCard.sessionActuelle')}</span>}
                 </span>
                 <span className="block truncate text-xs text-texte-attenue">
-                  {s.user_agent ?? 'Agent inconnu'} · dernière activité {formatDateHeure(s.derniere_utilisation)}
+                  {s.user_agent ?? t('sessionsCard.agentInconnu')}{' '}{t('sessionsCard.derniereActivite')}{' '}{formatDateHeure(s.derniere_utilisation)}
                 </span>
               </span>
               <button
                 onClick={() => handleRevoke(s.id_session)}
                 disabled={s.est_courante}
                 className="shrink-0 text-xs text-negatif hover:underline disabled:opacity-40 disabled:hover:no-underline"
-              >
-                Révoquer
-              </button>
+              >{t('sessionsCard.revoquer')}</button>
             </li>
           ))}
         </ul>

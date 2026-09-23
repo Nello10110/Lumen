@@ -8,8 +8,14 @@ import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import { formatDateHeure } from '../utils/format'
+import { t } from '../i18n'
 
-const ROLE_LABELS: Record<Role, string> = { proprietaire: 'Propriétaire', membre: 'Membre du foyer', invite: 'Invité' }
+// Getters : la table est une constante de module, elle doit suivre la langue du foyer (§ BL.2).
+const ROLE_LABELS: Record<Role, string> = {
+  get proprietaire() { return t('gestionFoyerCard.roleProprietaire') },
+  get membre() { return t('gestionFoyerCard.roleMembre') },
+  get invite() { return t('gestionFoyerCard.roleInvite') },
+}
 
 /** Comptes du foyer (backlog 2.L.2, écran d'administration étendu le 04/09/2026) :
  * le propriétaire crée les comptes membre/invité — l'auto-inscription se ferme après
@@ -124,12 +130,8 @@ export default function GestionFoyerCard() {
   }
 
   return (
-    <Card title="Comptes du foyer">
-      <p className="mb-4 text-sm text-texte-attenue">
-        Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les indicateurs de
-        situation ni la sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des détenteurs qui lui
-        sont assignés ci-dessous.
-      </p>
+    <Card title={t('gestionFoyerCard.comptesDuFoyer')}>
+      <p className="mb-4 text-sm text-texte-attenue">{t('gestionFoyerCard.unMembrePeutConsulterEt')}</p>
 
       {loading ? (
         <SkeletonTexte />
@@ -137,7 +139,7 @@ export default function GestionFoyerCard() {
         // En pratique jamais atteint (le propriétaire lui-même fait toujours partie
         // de la liste, cf. `routers/auth.py::list_household_members`) — gardé en
         // repli défensif si l'API venait à ne rien renvoyer.
-        <EtatVide titre="Aucun compte à afficher." description="Ajoute un membre ou un invité avec le formulaire ci-dessous." />
+        <EtatVide titre={t('gestionFoyerCard.aucunCompteAAfficher')} description={t('gestionFoyerCard.ajouteUnMembreOuUn')} />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
           {membres.map((m) => {
@@ -152,19 +154,15 @@ export default function GestionFoyerCard() {
                         <Input
                           value={usernameEdition}
                           onChange={(e) => setUsernameEdition(e.target.value)}
-                          aria-label={`Nom d'utilisateur de ${m.username} (édition)`}
+                          aria-label={t('gestionFoyerCard.ariaNomUtilisateurEdition', { nom: m.username })}
                           className="w-32"
                         />
                         <button
                           type="submit"
                           disabled={saving || !usernameEdition.trim()}
                           className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-accent hover:underline disabled:opacity-40"
-                        >
-                          Enregistrer
-                        </button>
-                        <button type="button" onClick={() => setIdUsernameEnEdition(null)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
-                          Annuler
-                        </button>
+                        >{t('gestionFoyerCard.enregistrer')}</button>
+                        <button type="button" onClick={() => setIdUsernameEnEdition(null)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">{t('gestionFoyerCard.annuler')}</button>
                       </form>
                     ) : (
                       <>
@@ -174,37 +172,34 @@ export default function GestionFoyerCard() {
                         {!cestMoi && (
                           <button
                             onClick={() => commencerEditionUsername(m)}
-                            aria-label={`Modifier le nom d'utilisateur de ${m.username}`}
+                            aria-label={t('gestionFoyerCard.ariaModifierNomUtilisateur', { nom: m.username })}
                             className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-accent hover:underline"
-                          >
-                            Modifier
-                          </button>
+                          >{t('gestionFoyerCard.modifier')}</button>
                         )}
                       </>
                     )}
-                    {cestMoi && <span className="text-xs text-texte-attenue">(vous)</span>}
+                    {cestMoi && <span className="text-xs text-texte-attenue">{t('gestionFoyerCard.vous')}</span>}
                     {m.nom && <span className="text-xs text-texte-attenue">{m.nom}</span>}
                     {m.email && <span className="text-xs text-texte-attenue">· {m.email}</span>}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-texte-attenue">
-                    <span title={m.oidc_display_name ? `Compte provisionné/lié via ${m.oidc_display_name}` : 'Compte mot de passe local'}>
-                      {m.oidc_display_name ? `Connexion SSO (${m.oidc_display_name})` : 'Connexion locale'}
+                    <span title={m.oidc_display_name ? t('gestionFoyerCard.compteLieVia', { fournisseur: m.oidc_display_name }) : t('gestionFoyerCard.compteMotDePasseLocal')}>
+                      {m.oidc_display_name ? t('gestionFoyerCard.connexionSso', { fournisseur: m.oidc_display_name }) : t('gestionFoyerCard.connexionLocale')}
                     </span>
                     <span>·</span>
                     <span>
-                      {m.derniere_connexion ? `Dernière connexion ${formatDateHeure(m.derniere_connexion)}` : 'Jamais connecté'}
+                      {m.derniere_connexion ? t('gestionFoyerCard.derniereConnexion', { date: formatDateHeure(m.derniere_connexion) }) : t('gestionFoyerCard.jamaisConnecte')}
                     </span>
                     {!!m.sessions_actives && (
                       <span>
-                        · {m.sessions_actives} session{m.sessions_actives > 1 ? 's' : ''} active{m.sessions_actives > 1 ? 's' : ''}
+                        · {t('gestionFoyerCard.sessionsActives', { n: m.sessions_actives })}
                       </span>
                     )}
                     {verrouille && (
                       <span
                         className="rounded-chip bg-negatif/10 px-1.5 py-0.5 font-medium text-negatif"
-                        title="Trop de tentatives de connexion échouées récentes"
-                      >
-                        Verrouillé jusqu'à {formatDateHeure(m.verrouille_jusqua!)}
+                        title={t('gestionFoyerCard.tropDeTentativesDeConnexion')}
+                      >{t('gestionFoyerCard.verrouilleJusquA')}{' '}{formatDateHeure(m.verrouille_jusqua!)}
                       </span>
                     )}
                   </div>
@@ -218,10 +213,8 @@ export default function GestionFoyerCard() {
                     <span className="text-xs text-texte-attenue">{ROLE_LABELS.proprietaire}</span>
                   ) : (
                     <>
-                      <label className="flex items-center gap-1.5 text-xs text-texte-attenue">
-                        Rôle
-                        <Select
-                          aria-label={`Rôle de ${m.username}`}
+                      <label className="flex items-center gap-1.5 text-xs text-texte-attenue">{t('gestionFoyerCard.role')}<Select
+                          aria-label={t('gestionFoyerCard.ariaRole', { nom: m.username })}
                           value={m.role}
                           disabled={changingRoleId === m.id}
                           onChange={(e) => handleRoleChange(m.id, e.target.value as 'membre' | 'invite')}
@@ -233,11 +226,9 @@ export default function GestionFoyerCard() {
                       </label>
                       <button
                         onClick={() => handleDelete(m.id)}
-                        aria-label={`Supprimer le compte ${m.username}`}
+                        aria-label={t('gestionFoyerCard.ariaSupprimerCompte', { nom: m.username })}
                         className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline"
-                      >
-                        Supprimer
-                      </button>
+                      >{t('gestionFoyerCard.supprimer')}</button>
                     </>
                   )}
                 </div>
@@ -248,21 +239,19 @@ export default function GestionFoyerCard() {
       )}
 
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
-        <Field label="Nom d'utilisateur" className="w-36">
+        <Field label={t('gestionFoyerCard.nomDUtilisateur')} className="w-36">
           <Input value={username} onChange={(e) => setUsername(e.target.value)} />
         </Field>
-        <Field label="Mot de passe" className="w-36">
+        <Field label={t('gestionFoyerCard.motDePasse')} className="w-36">
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} />
         </Field>
-        <Field label="Rôle">
+        <Field label={t('gestionFoyerCard.role')}>
           <Select value={role} onChange={(e) => setRole(e.target.value as 'membre' | 'invite')}>
-            <option value="membre">Membre du foyer</option>
-            <option value="invite">Invité</option>
+            <option value="membre">{t('gestionFoyerCard.membreDuFoyer')}</option>
+            <option value="invite">{t('gestionFoyerCard.invite')}</option>
           </Select>
         </Field>
-        <PrimaryButton type="submit" disabled={saving}>
-          Ajouter
-        </PrimaryButton>
+        <PrimaryButton type="submit" disabled={saving}>{t('gestionFoyerCard.ajouter')}</PrimaryButton>
       </form>
 
       {role === 'invite' && (
@@ -273,7 +262,7 @@ export default function GestionFoyerCard() {
               {d.nom}
             </label>
           ))}
-          {detenteurs.length === 0 && <span className="text-xs text-texte-attenue">Aucun détenteur déclaré.</span>}
+          {detenteurs.length === 0 && <span className="text-xs text-texte-attenue">{t('gestionFoyerCard.aucunDetenteurDeclare')}</span>}
         </div>
       )}
 

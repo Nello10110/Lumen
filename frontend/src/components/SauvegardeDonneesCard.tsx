@@ -6,33 +6,37 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import Modale from './Modale'
 import { SecondaryButton } from './Controls'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 /** Libellés lisibles des tables du fichier d'export — le décompte brut
  * (`holding_valuation_history: 12`) ne dit rien à un utilisateur. Une table absente
  * de cette table de correspondance s'affiche sous son nom technique plutôt que
  * d'être masquée : mieux vaut un libellé imparfait qu'un contenu invisible. */
-const LIBELLES: Record<string, string> = {
-  etablissements: 'établissements',
-  comptes: 'comptes',
-  detenteurs: 'détenteurs (personnes)',
-  holdings: 'lignes de patrimoine',
-  holding_immobilier_details: 'fiches immobilier',
-  holding_valuation_history: 'points de valorisation',
-  quotites_holdings: 'répartitions entre détenteurs',
-  loans: 'emprunts',
-  quotites_loans: "répartitions d'emprunt",
-  transactions: 'transactions',
-  salaires: 'salaires',
-  categories_budget: 'catégories de budget',
-  mouvements_bancaires: 'mouvements bancaires',
-  regles_categorisation: 'règles de catégorisation',
-  budget_cibles: 'budgets cibles',
-  user_parametres: 'préférences',
-}
+const TABLES_CONNUES = [
+  'etablissements',
+  'comptes',
+  'detenteurs',
+  'holdings',
+  'holding_immobilier_details',
+  'holding_valuation_history',
+  'quotites_holdings',
+  'loans',
+  'quotites_loans',
+  'transactions',
+  'salaires',
+  'categories_budget',
+  'mouvements_bancaires',
+  'regles_categorisation',
+  'budget_cibles',
+  'user_parametres',
+] as const
+type TableConnue = (typeof TABLES_CONNUES)[number]
 
 function libelle(table: string): string {
-  return LIBELLES[table] ?? table
+  // Traduit à l'appel (§ BL.2) : une table de module figerait la langue du chargement.
+  return (TABLES_CONNUES as readonly string[]).includes(table)
+    ? t(`sauvegardeDonneesCard.table.${table as TableConnue}`)
+    : table
 }
 
 /** Sauvegarde complète : export JSON de tout le patrimoine du foyer, et import
@@ -116,7 +120,7 @@ export default function SauvegardeDonneesCard() {
     try {
       const resultat = await api.importerDonnees(fichier)
       const total = Object.values(resultat.contenu).reduce((somme, n) => somme + n, 0)
-      setSucces(`Import terminé : ${total} enregistrement${total > 1 ? 's' : ''} restauré${total > 1 ? 's' : ''}.`)
+      setSucces(t('sauvegardeDonneesCard.importTermine', { n: total }))
       reinitialiser()
     } catch (err) {
       setErreur((err as Error).message)
@@ -146,52 +150,34 @@ export default function SauvegardeDonneesCard() {
   }
 
   return (
-    <Card title="Sauvegarde complète des données">
-      <p className="mb-4 text-sm text-texte">
-        Exporte <span className="font-medium text-texte">tout</span> le patrimoine du foyer dans un seul fichier :
-        positions, transactions, immobilier, emprunts, comptes et établissements, détenteurs et répartitions, épargne,
-        salaires, budget et préférences. Utile pour se faire une sauvegarde avant une manipulation, ou pour
-        déménager vers une autre installation.
-      </p>
-      <p className="mb-4 text-sm text-texte-attenue">
-        Les cours et compositions de fonds ne sont pas inclus : ils se retéléchargent seuls. Rien de sensible non plus
-        (mots de passe, jetons de partage, journal d'accès). Le fichier contient en revanche tous vos montants —
-        conservez-le comme un document confidentiel.
-      </p>
+    <Card title={t('sauvegardeDonneesCard.sauvegardeCompleteDesDonnees')}>
+      <p className="mb-4 text-sm text-texte">{t('sauvegardeDonneesCard.exporte')}{' '}<span className="font-medium text-texte">{t('sauvegardeDonneesCard.tout')}</span>{' '}{t('sauvegardeDonneesCard.lePatrimoineDuFoyerDans')}</p>
+      <p className="mb-4 text-sm text-texte-attenue">{t('sauvegardeDonneesCard.lesCoursEtCompositionsDe')}</p>
 
-      <SecondaryButton onClick={handleExport}>Exporter mes données (JSON)</SecondaryButton>
+      <SecondaryButton onClick={handleExport}>{t('sauvegardeDonneesCard.exporterMesDonneesJson')}</SecondaryButton>
 
       <div className="mt-6 border-t border-bordure pt-4">
-        <p className="mb-1 text-sm font-medium text-texte">Restaurer depuis un fichier</p>
-        <p className="mb-3 text-sm text-texte-attenue">
-          L'import <span className="font-medium text-negatif">remplace intégralement</span> les données actuelles du
-          foyer par celles du fichier. Le contenu du fichier vous est présenté avant toute modification.
-        </p>
+        <p className="mb-1 text-sm font-medium text-texte">{t('sauvegardeDonneesCard.restaurerDepuisUnFichier')}</p>
+        <p className="mb-3 text-sm text-texte-attenue">{t('sauvegardeDonneesCard.lImport')}{' '}<span className="font-medium text-negatif">{t('sauvegardeDonneesCard.remplaceIntegralement')}</span>{' '}{t('sauvegardeDonneesCard.lesDonneesActuellesDuFoyer')}</p>
         <input
           ref={inputRef}
           type="file"
           accept=".json,application/json"
           onChange={handleFichierChoisi}
-          aria-label="Fichier de sauvegarde à restaurer"
+          aria-label={t('sauvegardeDonneesCard.fichierDeSauvegardeARestaurer')}
           className="block w-full text-sm text-texte file:mr-3 file:rounded-control file:border-0 file:bg-surface-elevee file:px-4 file:py-2 file:text-sm file:font-medium file:text-texte"
         />
-        {analyse && <p className="mt-2 text-sm text-texte-attenue">Analyse du fichier…</p>}
+        {analyse && <p className="mt-2 text-sm text-texte-attenue">{t('sauvegardeDonneesCard.analyseDuFichier')}</p>}
       </div>
 
       <div className="mt-6 border-t border-bordure pt-4">
-        <p className="mb-1 text-sm font-medium text-texte">Réinitialiser le foyer</p>
-        <p className="mb-3 text-sm text-texte-attenue">
-          Efface <span className="font-medium text-negatif">définitivement</span> tout le patrimoine du foyer
-          (comptes, établissements, positions, transactions, emprunts, budget...) et les liens de partage.
-          Les comptes du foyer (propriétaire, membres, invités) ne sont, eux, jamais supprimés.
-        </p>
+        <p className="mb-1 text-sm font-medium text-texte">{t('sauvegardeDonneesCard.reinitialiserLeFoyer')}</p>
+        <p className="mb-3 text-sm text-texte-attenue">{t('sauvegardeDonneesCard.efface')}{' '}<span className="font-medium text-negatif">{t('sauvegardeDonneesCard.definitivement')}</span>{' '}{t('sauvegardeDonneesCard.toutLePatrimoineDuFoyer')}</p>
         <button
           type="button"
           onClick={() => setWipeOuverte(true)}
           className="rounded-control border border-negatif px-4 py-2 text-sm font-medium text-negatif"
-        >
-          Réinitialiser le foyer
-        </button>
+        >{t('sauvegardeDonneesCard.reinitialiserLeFoyer')}</button>
       </div>
 
       {succes && <p className="mt-3 text-sm text-positif">{succes}</p>}
@@ -201,13 +187,9 @@ export default function SauvegardeDonneesCard() {
         <Modale onClose={reinitialiser} panelClassName="w-full max-w-md rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-texte">
-                Remplacer toutes vos données ?
-              </h2>
-              <p className="mt-2 text-sm text-texte">
-                Le fichier <span className="font-medium text-texte">{fichier.name}</span>
-                {apercu.exporte_le && <> (exporté le {new Date(apercu.exporte_le).toLocaleDateString(localeCourante())})</>} contient :
-              </p>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">{t('sauvegardeDonneesCard.remplacerToutesVosDonnees')}</h2>
+              <p className="mt-2 text-sm text-texte">{t('sauvegardeDonneesCard.leFichier')}{' '}<span className="font-medium text-texte">{fichier.name}</span>
+                {apercu.exporte_le && <>{' '}{t('sauvegardeDonneesCard.exporteLe')}{' '}{new Date(apercu.exporte_le).toLocaleDateString(localeCourante())})</>}{' '}{t('sauvegardeDonneesCard.contient')}</p>
               <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-texte">
                 {Object.entries(apercu.contenu).map(([table, nombre]) => (
                   <li key={table} className="flex justify-between gap-4">
@@ -215,26 +197,21 @@ export default function SauvegardeDonneesCard() {
                     <span className="font-medium tabular-nums">{nombre}</span>
                   </li>
                 ))}
-                {Object.keys(apercu.contenu).length === 0 && <li className="text-texte-attenue">Aucune donnée.</li>}
+                {Object.keys(apercu.contenu).length === 0 && <li className="text-texte-attenue">{t('sauvegardeDonneesCard.aucuneDonnee')}</li>}
               </ul>
-              <p className="mt-3 text-sm text-negatif">
-                Tout le patrimoine actuellement enregistré sera effacé et remplacé par ce contenu. Cette action est
-                irréversible.
-              </p>
+              <p className="mt-3 text-sm text-negatif">{t('sauvegardeDonneesCard.toutLePatrimoineActuellementEnregistre')}</p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={reinitialiser}
                   disabled={importEnCours}
                   className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
-                >
-                  Annuler
-                </button>
+                >{t('sauvegardeDonneesCard.annuler')}</button>
                 <button
                   onClick={confirmerImport}
                   disabled={importEnCours}
                   className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
-                  {importEnCours ? 'Import en cours…' : 'Remplacer mes données'}
+                  {importEnCours ? t('sauvegardeDonneesCard.importEnCours') : t('sauvegardeDonneesCard.remplacerMesDonnees')}
                 </button>
               </div>
             </>
@@ -252,24 +229,14 @@ export default function SauvegardeDonneesCard() {
         >
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-texte">
-                Réinitialiser le foyer ?
-              </h2>
-              <p className="mt-2 text-sm text-texte">
-                Seront effacés : tout le patrimoine (comptes, établissements, positions, transactions, immobilier,
-                emprunts, budget, salaires) et les liens de partage.
-              </p>
-              <p className="mt-2 text-sm text-texte">
-                Ne seront <span className="font-medium text-texte">pas</span> touchés : les comptes du foyer
-                (propriétaire, membres, invités) et le journal d'accès.
-              </p>
-              <p className="mt-3 text-sm text-negatif">Cette action est irréversible.</p>
-              <label className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                Pour confirmer, tapez exactement « {phraseAttendue} » ci-dessous
-                <input
+              <h2 id={titleId} className="text-lg font-semibold text-texte">{t('sauvegardeDonneesCard.reinitialiserLeFoyer2')}</h2>
+              <p className="mt-2 text-sm text-texte">{t('sauvegardeDonneesCard.serontEffacesToutLePatrimoine')}</p>
+              <p className="mt-2 text-sm text-texte">{t('sauvegardeDonneesCard.neSeront')}{' '}<span className="font-medium text-texte">{t('sauvegardeDonneesCard.pas')}</span>{' '}{t('sauvegardeDonneesCard.touchesLesComptesDuFoyer')}</p>
+              <p className="mt-3 text-sm text-negatif">{t('sauvegardeDonneesCard.cetteActionEstIrreversible')}</p>
+              <label className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('sauvegardeDonneesCard.pourConfirmerTapezExactement', { phrase: phraseAttendue })}<input
                   value={confirmationSaisie}
                   onChange={(e) => setConfirmationSaisie(e.target.value)}
-                  aria-label="Confirmation de la réinitialisation du foyer"
+                  aria-label={t('sauvegardeDonneesCard.confirmationDeLaReinitialisationDu')}
                   autoComplete="off"
                   className="rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
@@ -282,15 +249,13 @@ export default function SauvegardeDonneesCard() {
                   }}
                   disabled={wipeEnCours}
                   className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
-                >
-                  Annuler
-                </button>
+                >{t('sauvegardeDonneesCard.annuler')}</button>
                 <button
                   onClick={confirmerEffacement}
                   disabled={wipeEnCours || confirmationSaisie !== phraseAttendue}
                   className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
-                  {wipeEnCours ? 'Réinitialisation en cours…' : 'Réinitialiser définitivement'}
+                  {wipeEnCours ? t('sauvegardeDonneesCard.reinitialisationEnCours') : t('sauvegardeDonneesCard.reinitialiserDefinitivement')}
                 </button>
               </div>
             </>

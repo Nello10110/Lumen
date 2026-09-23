@@ -25,19 +25,20 @@ import SessionsCard from '../components/SessionsCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import { useAuth } from '../hooks/useAuth'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
+import { t } from '../i18n'
 
 type OngletKey = 'general' | 'detenteurs' | 'securite' | 'partage' | 'automatisations' | 'badges'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconReglages }[] = [
-  { key: 'general', label: 'Général', Icone: IconReglages },
-  { key: 'detenteurs', label: 'Détenteurs', Icone: IconPersonne },
-  { key: 'securite', label: 'Comptes & sécurité', Icone: IconBouclier },
-  { key: 'partage', label: 'Partage', Icone: IconPartage },
-  { key: 'automatisations', label: 'Automatisations', Icone: IconHorloge },
+  { key: 'general', get label() { return t('reglagesPage.ongletGeneral') }, Icone: IconReglages },
+  { key: 'detenteurs', get label() { return t('reglagesPage.ongletDetenteurs') }, Icone: IconPersonne },
+  { key: 'securite', get label() { return t('reglagesPage.ongletSecurite') }, Icone: IconBouclier },
+  { key: 'partage', get label() { return t('reglagesPage.ongletPartage') }, Icone: IconPartage },
+  { key: 'automatisations', get label() { return t('reglagesPage.ongletAutomatisations') }, Icone: IconHorloge },
   // Backlog § AG.4 (16/09/2026) — dernier onglet : une galerie personnelle, pas un
   // réglage à proprement parler, mais réservée au propriétaire comme le reste de
   // cette page (§ /api/jalons, `_proprietaire_seul` dans `main.py`).
-  { key: 'badges', label: 'Badges', Icone: IconBadge },
+  { key: 'badges', get label() { return t('reglagesPage.ongletBadges') }, Icone: IconBadge },
 ]
 
 const ONGLET_PAR_DEFAUT: OngletKey = 'general'
@@ -109,7 +110,7 @@ export default function ReglagesPage() {
     // introduits en réponse au retour « une dizaine de cartes empilées, difficile à
     // parcourir ». Les empiler à nouveau ramènerait le défaut signalé.
     <div className="mx-auto max-w-[760px] space-y-[14px]">
-      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Réglages</h1>
+      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('reglagesPage.reglages')}</h1>
 
       <SegmentedControl
         options={ONGLETS.map(({ key, label, Icone }) => ({
@@ -123,7 +124,7 @@ export default function ReglagesPage() {
         }))}
         valeur={onglet}
         onChange={setOnglet}
-        ariaLabel="Catégories de réglages"
+        ariaLabel={t('reglagesPage.categoriesDeReglages')}
         semantique="onglets"
         // Sous 768 px, les cinq onglets se repliaient sur trois lignes DANS la
         // gouttière arrondie du contrôle segmenté, qui n'est pas faite pour ça — la
@@ -135,14 +136,9 @@ export default function ReglagesPage() {
       {onglet === 'general' && (
         <div className="space-y-[14px]">
           {user?.role === 'proprietaire' && (
-            <Card title="Assistant de bienvenue">
-              <p className="mb-4 text-sm text-texte">
-                Le parcours guidé affiché à la création de ce compte — utile pour redécouvrir les réglages de départ, ou
-                revoir ceux qui n'auraient pas été renseignés au premier passage.
-              </p>
-              <SecondaryButton onClick={() => setAssistantOuvert(true)}>
-                Revoir l'assistant de bienvenue
-              </SecondaryButton>
+            <Card title={t('reglagesPage.assistantDeBienvenue')}>
+              <p className="mb-4 text-sm text-texte">{t('reglagesPage.leParcoursGuideAfficheA')}</p>
+              <SecondaryButton onClick={() => setAssistantOuvert(true)}>{t('reglagesPage.revoirLAssistantDeBienvenue')}</SecondaryButton>
             </Card>
           )}
           <FoyerCard />
@@ -152,69 +148,44 @@ export default function ReglagesPage() {
               purement d'affichage, jamais backend (`usePreferencesAffichage`, même
               patron que « Masquer les montants »), donc pas de chargement réseau
               ici contrairement à `PreferencesCard` juste au-dessus. */}
-          <Card title="Langage simple">
-            <p className="mb-4 text-sm text-texte">
-              Remplace le jargon financier (TWR, volatilité, drawdown...) par sa formulation en langage courant, avec le
-              terme technique toujours accessible derrière un lien « terme technique ».
-            </p>
-            <Pill actif={langageSimple} onClick={toggleLangageSimple} ariaLabel="Langage simple">
-              {langageSimple ? 'Activé' : 'Désactivé'}
+          <Card title={t('reglagesPage.langageSimple')}>
+            <p className="mb-4 text-sm text-texte">{t('reglagesPage.remplaceLeJargonFinancierTwr')}</p>
+            <Pill actif={langageSimple} onClick={toggleLangageSimple} ariaLabel={t('reglagesPage.langageSimple')}>
+              {langageSimple ? t('reglagesPage.active') : t('reglagesPage.desactive')}
             </Pill>
           </Card>
-          <Card title="Exporter">
-            <p className="mb-4 text-sm text-texte">
-              Fichiers CSV compatibles Excel (séparateur point-virgule, décimale virgule), téléchargés directement par le
-              navigateur.
-            </p>
+          <Card title={t('reglagesPage.exporter')}>
+            <p className="mb-4 text-sm text-texte">{t('reglagesPage.fichiersCsvCompatiblesExcelSeparateur')}</p>
             <div className="flex flex-wrap gap-3">
               <a
                 href="/api/export/positions"
                 className={CLASSES_BOUTON_SECONDAIRE}
-              >
-                Positions
-              </a>
+              >{t('reglagesPage.positions')}</a>
               <a
                 href="/api/export/transactions"
                 className={CLASSES_BOUTON_SECONDAIRE}
-              >
-                Transactions
-              </a>
+              >{t('reglagesPage.transactions')}</a>
               <a
                 href="/api/export/performance"
                 className={CLASSES_BOUTON_SECONDAIRE}
-              >
-                Rentabilité
-              </a>
+              >{t('reglagesPage.rentabilite')}</a>
             </div>
 
-            <p className="mb-4 mt-6 text-sm text-texte">
-              Relevé de patrimoine PDF : une photographie mise en forme, prête à imprimer ou archiver — patrimoine net,
-              répartition et rentabilité globale.
-            </p>
+            <p className="mb-4 mt-6 text-sm text-texte">{t('reglagesPage.releveDePatrimoinePdfUne')}</p>
             <a
               href="/api/export/patrimoine.pdf"
               className={CLASSES_BOUTON_PRIMAIRE}
-            >
-              Relevé de patrimoine (PDF)
-            </a>
+            >{t('reglagesPage.releveDePatrimoinePdf')}</a>
 
-            <p className="mb-4 mt-6 text-sm text-texte">
-              Déclaration de patrimoine (backlog 2.Q.2) : un document paramétrable pour un tiers concret (banque pour un prêt,
-              notaire pour une donation) — sélection actif par actif, filtrage par détenteur, profil emprunteur optionnel.
-            </p>
-            <SecondaryButton onClick={() => setDeclarationOuverte(true)}>
-              Déclaration de patrimoine (PDF)
-            </SecondaryButton>
+            <p className="mb-4 mt-6 text-sm text-texte">{t('reglagesPage.declarationDePatrimoineIntro')}</p>
+            <SecondaryButton onClick={() => setDeclarationOuverte(true)}>{t('reglagesPage.declarationDePatrimoinePdf')}</SecondaryButton>
 
-            <p className="mb-2 mt-6 text-sm text-texte">
-              Bilan annuel : évolution du patrimoine net et jalons franchis sur une année, avec la situation
-              actuelle pour l'année en cours.
-            </p>
+            <p className="mb-2 mt-6 text-sm text-texte">{t('reglagesPage.bilanAnnuelEvolutionDuPatrimoine')}</p>
             <div className="flex flex-wrap items-center gap-3">
               <Select
                 value={anneeBilan}
                 onChange={(e) => setAnneeBilan(Number(e.target.value))}
-                aria-label="Année du bilan"
+                aria-label={t('reglagesPage.anneeDuBilan')}
                 className="w-28"
               >
                 {ANNEES_BILAN.map((a) => (
@@ -223,9 +194,7 @@ export default function ReglagesPage() {
                   </option>
                 ))}
               </Select>
-              <a href={`/api/export/bilan-annuel.pdf?annee=${anneeBilan}`} className={CLASSES_BOUTON_SECONDAIRE}>
-                Bilan annuel (PDF)
-              </a>
+              <a href={`/api/export/bilan-annuel.pdf?annee=${anneeBilan}`} className={CLASSES_BOUTON_SECONDAIRE}>{t('reglagesPage.bilanAnnuelPdf')}</a>
             </div>
           </Card>
           {/* Sauvegarde complète (backlog Y.1) : carte distincte de « Exporter »
@@ -260,7 +229,7 @@ export default function ReglagesPage() {
         <div className="space-y-[14px]">
           {loading && <SkeletonTexte />}
           {error && <EtatErreur message={error} onReessayer={chargerJobs} />}
-          {!loading && !error && jobs.length === 0 && <EtatVide titre="Aucune tâche planifiée." />}
+          {!loading && !error && jobs.length === 0 && <EtatVide titre={t('reglagesPage.aucuneTachePlanifiee')} />}
           {jobs.map((job) => (
             <JobCard key={job.job_key} job={job} onChange={updateJobInState} />
           ))}
@@ -282,7 +251,7 @@ export default function ReglagesPage() {
         // les technologies d'assistance tant que l'assistant est ouvert (et, au
         // passage, distingue sans ambiguïté son titre "Bienvenue" de la carte
         // "Assistant de bienvenue" affichée juste en dessous).
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Assistant de bienvenue">
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label={t('reglagesPage.assistantDeBienvenue')}>
           <WelcomeWizard onClose={() => setAssistantOuvert(false)} />
         </div>
       )}

@@ -1,11 +1,13 @@
 // Généré par `scripts/i18n-agreger.mjs` — ne pas modifier à la main.
 import ajoutCompteForm from './ajoutCompteForm'
+import ajoutDetenteurModale from './ajoutDetenteurModale'
 import ajoutHoldingForm from './ajoutHoldingForm'
 import ajoutValorisationForm from './ajoutValorisationForm'
 import alerteFraicheurCard from './alerteFraicheurCard'
 import allocationBarChart from './allocationBarChart'
 import allocationChartCard from './allocationChartCard'
 import analysePage from './analysePage'
+import badgesCard from './badgesCard'
 import budgetPage from './budgetPage'
 import catalogueEtablissementPicker from './catalogueEtablissementPicker'
 import categoriesEtReglesSection from './categoriesEtReglesSection'
@@ -22,6 +24,8 @@ import compteDetailPage from './compteDetailPage'
 import comptesPage from './comptesPage'
 import coutGestionCard from './coutGestionCard'
 import dashboardPage from './dashboardPage'
+import declarationPatrimoineModal from './declarationPatrimoineModal'
+import detenteursCard from './detenteursCard'
 import detenteursSection from './detenteursSection'
 import donnees from './donnees'
 import dropzone from './dropzone'
@@ -32,6 +36,8 @@ import etatErreur from './etatErreur'
 import evolutionFinanciereCard from './evolutionFinanciereCard'
 import expositionConsolideeCard from './expositionConsolideeCard'
 import field from './field'
+import foyerCard from './foyerCard'
+import gestionFoyerCard from './gestionFoyerCard'
 import guidesExport from './guidesExport'
 import holdingCategories from './holdingCategories'
 import holdingDetailContent from './holdingDetailContent'
@@ -47,17 +53,21 @@ import importPage from './importPage'
 import importRelevePositionsSection from './importRelevePositionsSection'
 import importTransactionsSection from './importTransactionsSection'
 import indicateursSituationCard from './indicateursSituationCard'
+import jobCard from './jobCard'
+import journalAccesCard from './journalAccesCard'
 import labelAdaptatif from './labelAdaptatif'
 import ligneEpargne from './ligneEpargne'
 import lignesPatrimoineTable from './lignesPatrimoineTable'
 import loanFormFields from './loanFormFields'
 import loansCard from './loansCard'
+import logoConnexionSsoCard from './logoConnexionSsoCard'
 import lumenFaitAmusant from './lumenFaitAmusant'
 import metriquesAvanceesCard from './metriquesAvanceesCard'
 import miseAJourDisponible from './miseAJourDisponible'
 import mouvementsSection from './mouvementsSection'
 import pageIntrouvablePage from './pageIntrouvablePage'
 import paletteRecherche from './paletteRecherche'
+import partageCard from './partageCard'
 import patrimoineNetCard from './patrimoineNetCard'
 import patrimoineVide from './patrimoineVide'
 import performanceCard from './performanceCard'
@@ -67,17 +77,21 @@ import plusValueParCompteCard from './plusValueParCompteCard'
 import portefeuillePage from './portefeuillePage'
 import portfolioHistoryChart from './portfolioHistoryChart'
 import positionsTable from './positionsTable'
+import preferencesCard from './preferencesCard'
 import qualiteDonneesCard from './qualiteDonneesCard'
 import rafraichissementCoursIndicateur from './rafraichissementCoursIndicateur'
 import rapportPage from './rapportPage'
 import recurrencesSection from './recurrencesSection'
+import reglagesPage from './reglagesPage'
 import repartitionSection from './repartitionSection'
 import resultatImport from './resultatImport'
 import revenusPassifsCard from './revenusPassifsCard'
 import revenusSection from './revenusSection'
 import salairePage from './salairePage'
+import sauvegardeDonneesCard from './sauvegardeDonneesCard'
 import scorePatrimonialCard from './scorePatrimonialCard'
 import selecteurEtablissement from './selecteurEtablissement'
+import sessionsCard from './sessionsCard'
 import simulateurAchatLocationCard from './simulateurAchatLocationCard'
 import simulateurProjectionSection from './simulateurProjectionSection'
 import skeleton from './skeleton'
@@ -86,12 +100,14 @@ import valorisationHistoriqueCard from './valorisationHistoriqueCard'
 
 const espaces = {
   ajoutCompteForm,
+  ajoutDetenteurModale,
   ajoutHoldingForm,
   ajoutValorisationForm,
   alerteFraicheurCard,
   allocationBarChart,
   allocationChartCard,
   analysePage,
+  badgesCard,
   budgetPage,
   catalogueEtablissementPicker,
   categoriesEtReglesSection,
@@ -108,6 +124,8 @@ const espaces = {
   comptesPage,
   coutGestionCard,
   dashboardPage,
+  declarationPatrimoineModal,
+  detenteursCard,
   detenteursSection,
   donnees,
   dropzone,
@@ -118,6 +136,8 @@ const espaces = {
   evolutionFinanciereCard,
   expositionConsolideeCard,
   field,
+  foyerCard,
+  gestionFoyerCard,
   guidesExport,
   holdingCategories,
   holdingDetailContent,
@@ -133,17 +153,21 @@ const espaces = {
   importRelevePositionsSection,
   importTransactionsSection,
   indicateursSituationCard,
+  jobCard,
+  journalAccesCard,
   labelAdaptatif,
   ligneEpargne,
   lignesPatrimoineTable,
   loanFormFields,
   loansCard,
+  logoConnexionSsoCard,
   lumenFaitAmusant,
   metriquesAvanceesCard,
   miseAJourDisponible,
   mouvementsSection,
   pageIntrouvablePage,
   paletteRecherche,
+  partageCard,
   patrimoineNetCard,
   patrimoineVide,
   performanceCard,
@@ -153,17 +177,21 @@ const espaces = {
   portefeuillePage,
   portfolioHistoryChart,
   positionsTable,
+  preferencesCard,
   qualiteDonneesCard,
   rafraichissementCoursIndicateur,
   rapportPage,
   recurrencesSection,
+  reglagesPage,
   repartitionSection,
   resultatImport,
   revenusPassifsCard,
   revenusSection,
   salairePage,
+  sauvegardeDonneesCard,
   scorePatrimonialCard,
   selecteurEtablissement,
+  sessionsCard,
   simulateurAchatLocationCard,
   simulateurProjectionSection,
   skeleton,

@@ -5,6 +5,7 @@ import Card from './Card'
 import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import { Field, Input } from './Field'
+import { t } from '../i18n'
 
 /** Nom du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité) — réglage
  * partagé par tout le foyer (propriétaire, membres, invités voient tous le même),
@@ -26,7 +27,7 @@ export default function FoyerCard() {
     try {
       await api.updateFoyerNom(nom.trim())
       await refetchUser()
-      setSucces('Nom enregistré.')
+      setSucces(t('foyerCard.nomEnregistre'))
     } catch (err) {
       setErreur((err as Error).message)
     } finally {
@@ -35,17 +36,14 @@ export default function FoyerCard() {
   }
 
   return (
-    <Card title="Mon foyer">
-      <p className="mb-4 text-sm text-texte-attenue">
-        Le nom du foyer est visible par tous ses comptes (propriétaire, membres, invités). Une fois défini, il sert
-        aussi de phrase de confirmation avant une remise à zéro complète des données.
-      </p>
+    <Card title={t('foyerCard.monFoyer')}>
+      <p className="mb-4 text-sm text-texte-attenue">{t('foyerCard.leNomDuFoyerEst')}</p>
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-        <Field label="Nom du foyer" className="w-64">
-          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Famille Dupont" maxLength={60} />
+        <Field label={t('foyerCard.nomDuFoyer')} className="w-64">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={t('foyerCard.familleDupont')} maxLength={60} />
         </Field>
         <PrimaryButton type="submit" disabled={saving || !nom.trim()}>
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
+          {saving ? t('foyerCard.enregistrement') : t('foyerCard.enregistrer')}
         </PrimaryButton>
       </form>
       {succes && <p className="mt-3 text-sm text-positif">{succes}</p>}

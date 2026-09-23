@@ -6,25 +6,25 @@ import EtatErreur from './EtatErreur'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure } from '../utils/format'
 import { SecondaryButton } from './Controls'
+import { t } from '../i18n'
 
-const JOB_LABELS: Record<string, string> = {
-  market_data_refresh: 'Rafraîchissement des données de marché',
-  justetf_refresh: 'Composition géographique/sectorielle (justETF)',
-  sauvegarde_chiffree: 'Sauvegarde chiffrée',
-  logos_refresh: "Logos des établissements",
-  cours_historiques: 'Historique des cours',
+/** Nom et description de chaque job, par clé stable (`scheduler_service.DEFAULTS`).
+ * Fonctions plutôt que tables de module : le texte doit suivre la langue du foyer
+ * (§ BL.2). Une clé inconnue (job ajouté côté serveur sans passer par ici) s'affiche
+ * telle quelle, sans description, plutôt que de faire échouer la carte. */
+const JOBS_CONNUS = ['market_data_refresh', 'justetf_refresh', 'sauvegarde_chiffree', 'logos_refresh', 'cours_historiques'] as const
+type JobConnu = (typeof JOBS_CONNUS)[number]
+
+function estJobConnu(cle: string): cle is JobConnu {
+  return (JOBS_CONNUS as readonly string[]).includes(cle)
 }
 
-const JOB_DESCRIPTIONS: Record<string, string> = {
-  market_data_refresh: 'Cours, composition des ETF et principales lignes sous-jacentes, pour toutes les positions du portefeuille.',
-  justetf_refresh:
-    "Répartition pays/secteurs réelle des ETF détenus, récupérée sur justETF.com. Cadence hebdomadaire par défaut : la composition d'un ETF évolue lentement, et justETF n'offre aucun support en cas de blocage.",
-  sauvegarde_chiffree:
-    "Copie chiffrée de la base, déposée dans backend/sauvegardes/ (rétention des 10 plus récentes). Nécessite la variable d'environnement PATRIMOINE_BACKUP_KEY sur le serveur — sans elle, ce job échoue proprement (visible ci-dessous) sans affecter les autres.",
-  logos_refresh:
-    "Re-télécharge les logos des établissements depuis leur site officiel (ou depuis l'adresse que vous avez saisie). Hebdomadaire par défaut : un logo bouge rarement, et rien n'est réécrit si l'image n'a pas changé. Un logo que vous avez téléversé vous-même n'est jamais touché.",
-  cours_historiques:
-    "Complète l'historique de cours hebdomadaire des titres détenus, en ne téléchargeant que les semaines écoulées depuis la dernière fois. C'est ce qui permet aux graphiques d'évolution de s'afficher immédiatement : le temps de téléchargement est dépensé ici, en arrière-plan, plutôt qu'au moment où vous ouvrez un écran.",
+function libelleJob(cle: string): string {
+  return estJobConnu(cle) ? t(`jobCard.job.${cle}.libelle`) : cle
+}
+
+function descriptionJob(cle: string): string | undefined {
+  return estJobConnu(cle) ? t(`jobCard.job.${cle}.description`) : undefined
 }
 
 // 168h (une semaine) couvre l'intervalle par défaut de justetf_refresh
@@ -37,8 +37,6 @@ const INTERVAL_OPTIONS = [1, 6, 12, 24, 48, 168]
 // les positions Bricks.co, symbole interne `BRICKS-*`) sont désormais sautées par
 // défaut à chaque rafraîchissement — ce bouton, réservé à ce job précis, permet de
 // les réinterroger explicitement (utile après une évolution de leur cotabilité).
-const TITRE_FORCER_NON_COTABLES =
-  "Réinterroge aussi les positions habituellement sautées (ex. Bricks.co) car connues comme jamais cotables. Rarement utile — surtout en cas de doute."
 
 export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: ScheduledJob) => void }) {
   const [saving, setSaving] = useState(false)
@@ -95,22 +93,18 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
 
   const libelleRunNow =
     etatRafraichissement?.en_cours && etatRafraichissement.positions_total > 0
-      ? `Exécution... (${etatRafraichissement.positions_traitees} / ${etatRafraichissement.positions_total} positions)`
-      : 'Exécution...'
+      ? t('jobCard.executionProgression', { traitees: etatRafraichissement.positions_traitees, total: etatRafraichissement.positions_total })
+      : t('jobCard.execution')
 
   return (
-    <Card title={JOB_LABELS[job.job_key] ?? job.job_key}>
-      <p className="mb-4 text-sm text-texte">{JOB_DESCRIPTIONS[job.job_key]}</p>
+    <Card title={libelleJob(job.job_key)}>
+      <p className="mb-4 text-sm text-texte">{descriptionJob(job.job_key)}</p>
 
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2 text-sm text-texte">
-          <input type="checkbox" checked={job.enabled} disabled={saving} onChange={(e) => handleToggle(e.target.checked)} />
-          Activé
-        </label>
+          <input type="checkbox" checked={job.enabled} disabled={saving} onChange={(e) => handleToggle(e.target.checked)} />{t('jobCard.active')}</label>
 
-        <label className="flex items-center gap-2 text-sm text-texte">
-          Toutes les
-          <select
+        <label className="flex items-center gap-2 text-sm text-texte">{t('jobCard.toutesLes')}<select
             value={job.intervalle_heures}
             disabled={saving || !job.enabled}
             onChange={(e) => handleIntervalChange(Number(e.target.value))}
@@ -118,28 +112,25 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
           >
             {INTERVAL_OPTIONS.map((h) => (
               <option key={h} value={h}>
-                {h}h
-              </option>
+                {h}{t('jobCard.h')}</option>
             ))}
           </select>
         </label>
 
         <SecondaryButton onClick={() => handleRunNow(false)} disabled={running} className="ml-auto">
-          {running ? libelleRunNow : 'Lancer maintenant'}
+          {running ? libelleRunNow : t('jobCard.lancerMaintenant')}
         </SecondaryButton>
 
         {job.job_key === 'market_data_refresh' && (
-          <SecondaryButton onClick={() => handleRunNow(true)} disabled={running} title={TITRE_FORCER_NON_COTABLES}>
-            Forcer aussi les cotations indisponibles
-          </SecondaryButton>
+          <SecondaryButton onClick={() => handleRunNow(true)} disabled={running} title={t('jobCard.titreForcerNonCotables')}>{t('jobCard.forcerAussiLesCotationsIndisponibles')}</SecondaryButton>
         )}
       </div>
 
       <div className="mt-4 border-t border-bordure pt-3 text-xs text-texte-attenue">
-        <p>Dernière exécution : {formatDateHeure(job.derniere_execution)}</p>
+        <p>{t('jobCard.derniereExecution')}{' '}{formatDateHeure(job.derniere_execution)}</p>
         {job.dernier_statut && (
           <p className={job.dernier_statut === 'ok' ? 'text-positif' : 'text-negatif'}>
-            {job.dernier_statut === 'ok' ? 'Succès' : 'Échec'} — {job.dernier_message}
+            {job.dernier_statut === 'ok' ? t('jobCard.succes') : t('jobCard.echec')} — {job.dernier_message}
           </p>
         )}
       </div>

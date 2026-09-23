@@ -1,0 +1,38 @@
+/** Textes français — espace « gestionFoyerCard » (backlog § BL.2). Généré par
+ * `scripts/i18n-extraire.mjs`, puis relu à la main. */
+const gestionFoyerCard = {
+  comptesDuFoyer: "Comptes du foyer",
+  unMembrePeutConsulterEt: "Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les indicateurs de situation ni la sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des détenteurs qui lui sont assignés ci-dessous.",
+  aucunCompteAAfficher: "Aucun compte à afficher.",
+  ajouteUnMembreOuUn: "Ajoute un membre ou un invité avec le formulaire ci-dessous.",
+  enregistrer: "Enregistrer",
+  annuler: "Annuler",
+  modifier: "Modifier",
+  vous: "(vous)",
+  compteMotDePasseLocal: "Compte mot de passe local",
+  connexionLocale: "Connexion locale",
+  jamaisConnecte: "Jamais connecté",
+  tropDeTentativesDeConnexion: "Trop de tentatives de connexion échouées récentes",
+  verrouilleJusquA: "Verrouillé jusqu'à",
+  role: "Rôle",
+  supprimer: "Supprimer",
+  nomDUtilisateur: "Nom d'utilisateur",
+  motDePasse: "Mot de passe",
+  membreDuFoyer: "Membre du foyer",
+  invite: "Invité",
+  ajouter: "Ajouter",
+  aucunDetenteurDeclare: "Aucun détenteur déclaré.",
+  roleProprietaire: "Propriétaire",
+  roleMembre: "Membre du foyer",
+  roleInvite: "Invité",
+  ariaNomUtilisateurEdition: "Nom d'utilisateur de {nom} (édition)",
+  ariaModifierNomUtilisateur: "Modifier le nom d'utilisateur de {nom}",
+  compteLieVia: "Compte provisionné/lié via {fournisseur}",
+  connexionSso: "Connexion SSO ({fournisseur})",
+  derniereConnexion: "Dernière connexion {date}",
+  sessionsActives: { one: "{n} session active", other: "{n} sessions actives" },
+  ariaRole: "Rôle de {nom}",
+  ariaSupprimerCompte: "Supprimer le compte {nom}",
+} as const
+
+export default gestionFoyerCard

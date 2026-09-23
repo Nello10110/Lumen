@@ -6,6 +6,7 @@ import EtatErreur from './EtatErreur'
 import { IconBadge } from './icons'
 import { SkeletonTexte } from './Skeleton'
 import { formatDate } from '../utils/format'
+import { t } from '../i18n'
 
 /** Backlog § AG.4 (16/09/2026) — galerie privée des jalons personnels, obtenus ET
  * à venir : strictement personnelle, jamais partageable ni comparée à qui que ce
@@ -33,11 +34,8 @@ export default function BadgesCard() {
   useEffect(charger, [])
 
   return (
-    <Card title="Badges">
-      <p className="mb-4 text-sm text-texte-attenue">
-        Une petite galerie strictement personnelle — jamais partagée, jamais comparée. Valorise la régularité du suivi,
-        jamais le montant investi.
-      </p>
+    <Card title={t('badgesCard.badges')}>
+      <p className="mb-4 text-sm text-texte-attenue">{t('badgesCard.unePetiteGalerieStrictementPersonnelle')}</p>
 
       {jalons === null && !erreur && <SkeletonTexte lignes={3} />}
       {erreur && <EtatErreur message={erreur} onReessayer={charger} />}
@@ -56,9 +54,9 @@ export default function BadgesCard() {
                 <p className="text-sm font-semibold text-texte">{jalon.titre}</p>
                 <p className="text-xs text-texte-attenue">{jalon.description}</p>
                 {jalon.atteint && jalon.date_atteint && (
-                  <p className="mt-1 text-[11px] text-texte-attenue">Obtenu le {formatDate(jalon.date_atteint)}</p>
+                  <p className="mt-1 text-[11px] text-texte-attenue">{t('badgesCard.obtenuLe')}{' '}{formatDate(jalon.date_atteint)}</p>
                 )}
-                {!jalon.atteint && <p className="mt-1 text-[11px] text-texte-attenue">Pas encore obtenu</p>}
+                {!jalon.atteint && <p className="mt-1 text-[11px] text-texte-attenue">{t('badgesCard.pasEncoreObtenu')}</p>}
               </div>
             </div>
           ))}

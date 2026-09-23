@@ -1,0 +1,45 @@
+import type fr from '../fr/sauvegardeDonneesCard'
+import type { Structure } from '../../types'
+
+/** Italien — espace « sauvegardeDonneesCard » (backlog § BL.2), traduit depuis le français. */
+const sauvegardeDonneesCard: Structure<typeof fr> = {
+  sauvegardeCompleteDesDonnees: "Backup completo dei dati",
+  exporte: "Esporta",
+  tout: "tutto",
+  lePatrimoineDuFoyerDans: "il patrimonio del nucleo in un unico file: posizioni, transazioni, immobili, prestiti, conti e istituti, titolari e ripartizioni, risparmio, stipendi, budget e preferenze. Utile per fare un backup prima di un’operazione o per trasferirsi su un’altra installazione.",
+  lesCoursEtCompositionsDe: "Quotazioni e composizioni dei fondi non sono incluse: si riscaricano da sole. Nemmeno nulla di sensibile (password, token di condivisione, registro degli accessi). Il file contiene invece tutti i Suoi importi: lo conservi come un documento riservato.",
+  exporterMesDonneesJson: "Esporta i miei dati (JSON)",
+  restaurerDepuisUnFichier: "Ripristina da un file",
+  lImport: "L’importazione",
+  remplaceIntegralement: "sostituisce integralmente",
+  lesDonneesActuellesDuFoyer: "i dati attuali del nucleo con quelli del file. Il contenuto del file Le viene mostrato prima di qualsiasi modifica.",
+  fichierDeSauvegardeARestaurer: "File di backup da ripristinare",
+  analyseDuFichier: "Analisi del file…",
+  reinitialiserLeFoyer: "Azzera il nucleo",
+  efface: "Cancella",
+  definitivement: "definitivamente",
+  toutLePatrimoineDuFoyer: "tutto il patrimonio del nucleo (conti, istituti, posizioni, transazioni, prestiti, budget...) e i link di condivisione. Gli account del nucleo (proprietario, membri, ospiti) non vengono mai eliminati.",
+  remplacerToutesVosDonnees: "Sostituire tutti i Suoi dati?",
+  leFichier: "Il file",
+  exporteLe: "(esportato il",
+  contient: "contiene:",
+  aucuneDonnee: "Nessun dato.",
+  toutLePatrimoineActuellementEnregistre: "Tutto il patrimonio attualmente registrato sarà cancellato e sostituito da questo contenuto. Questa azione è irreversibile.",
+  annuler: "Annulla",
+  importEnCours: "Importazione in corso…",
+  remplacerMesDonnees: "Sostituisci i miei dati",
+  reinitialiserLeFoyer2: "Azzerare il nucleo?",
+  serontEffacesToutLePatrimoine: "Saranno cancellati: tutto il patrimonio (conti, istituti, posizioni, transazioni, immobili, prestiti, budget, stipendi) e i link di condivisione.",
+  neSeront: "Non",
+  pas: "saranno",
+  touchesLesComptesDuFoyer: "toccati: gli account del nucleo (proprietario, membri, ospiti) e il registro degli accessi.",
+  cetteActionEstIrreversible: "Questa azione è irreversibile.",
+  pourConfirmerTapezExactement: "Per confermare, digiti esattamente «{phrase}» qui sotto",
+  confirmationDeLaReinitialisationDu: "Conferma dell’azzeramento del nucleo",
+  reinitialisationEnCours: "Azzeramento in corso…",
+  reinitialiserDefinitivement: "Azzera definitivamente",
+  importTermine: { one: "Importazione completata: {n} record ripristinato.", other: "Importazione completata: {n} record ripristinati." },
+  table: { etablissements: "istituti", comptes: "conti", detenteurs: "titolari (persone)", holdings: "righe di patrimonio", holding_immobilier_details: "schede immobiliari", holding_valuation_history: "punti di valutazione", quotites_holdings: "ripartizioni tra titolari", loans: "prestiti", quotites_loans: "ripartizioni dei prestiti", transactions: "transazioni", salaires: "stipendi", categories_budget: "categorie di budget", mouvements_bancaires: "movimenti bancari", regles_categorisation: "regole di classificazione", budget_cibles: "budget obiettivo", user_parametres: "preferenze" },
+}
+
+export default sauvegardeDonneesCard

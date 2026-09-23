@@ -5,6 +5,7 @@ import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import { Field, Input } from './Field'
 import Modale from './Modale'
+import { t } from '../i18n'
 
 /** Petite pop-up « juste le nom » (retour utilisateur du 09/09/2026, écran Salaire :
  * pouvoir ajouter une personne du foyer sans quitter le formulaire en cours). `onCree`
@@ -36,19 +37,15 @@ export default function AjoutDetenteurModale({ onClose, onCree }: { onClose: () 
             ajouter()
           }}
         >
-          <h2 id={titleId} className="mb-4 text-lg font-semibold text-texte">
-            Nouvelle personne du foyer
-          </h2>
-          <Field label="Nom">
-            <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="ex. Julie" autoFocus />
+          <h2 id={titleId} className="mb-4 text-lg font-semibold text-texte">{t('ajoutDetenteurModale.nouvellePersonneDuFoyer')}</h2>
+          <Field label={t('ajoutDetenteurModale.nom')}>
+            <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={t('ajoutDetenteurModale.exJulie')} autoFocus />
           </Field>
           {erreur && <EtatErreur message={erreur} />}
           <div className="mt-4 flex justify-end gap-2">
-            <SecondaryButton type="button" onClick={onClose}>
-              Annuler
-            </SecondaryButton>
+            <SecondaryButton type="button" onClick={onClose}>{t('ajoutDetenteurModale.annuler')}</SecondaryButton>
             <PrimaryButton type="submit" disabled={creation || !nom.trim()}>
-              {creation ? 'Ajout…' : 'Ajouter'}
+              {creation ? t('ajoutDetenteurModale.ajout') : t('ajoutDetenteurModale.ajouter')}
             </PrimaryButton>
           </div>
         </form>

@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import Card from './Card'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import { Field, Input } from './Field'
+import { t } from '../i18n'
 
 type Action = 'chargement' | 'fichier' | 'url' | 'suppression' | null
 
@@ -52,30 +53,27 @@ export default function LogoConnexionSsoCard() {
   const occupe = enCours !== null
 
   return (
-    <Card title="Logo du bouton de connexion SSO">
-      <p className="text-sm text-texte">
-        L'image affichée à gauche du libellé sur la page de connexion. Le reste de la configuration SSO (fournisseur,
-        identifiants, libellé du bouton) se règle par variables d'environnement, pas ici.
-      </p>
+    <Card title={t('logoConnexionSsoCard.logoDuBoutonDeConnexion')}>
+      <p className="text-sm text-texte">{t('logoConnexionSsoCard.lImageAfficheeAGauche')}</p>
 
       <div className="mt-4 flex items-center gap-3 border-t border-bordure pt-4">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-chip border border-bordure bg-surface">
           {logo ? (
-            <img src={logo} alt="Logo actuel du bouton de connexion SSO" className="h-full w-full object-contain" />
+            <img src={logo} alt={t('logoConnexionSsoCard.logoActuelDuBoutonDe')} className="h-full w-full object-contain" />
           ) : (
-            <span className="text-[10px] text-texte-attenue">Aucun</span>
+            <span className="text-[10px] text-texte-attenue">{t('logoConnexionSsoCard.aucun')}</span>
           )}
         </span>
         <p className="text-xs text-texte-attenue">
           {logo
-            ? 'Le bouton affiche ce logo suivi de son libellé.'
-            : "Sans logo, le bouton n'affiche que son libellé — c'est le comportement par défaut."}
+            ? t('logoConnexionSsoCard.leBoutonAfficheCeLogo')
+            : t('logoConnexionSsoCard.sansLogoLeBoutonN')}
         </p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <SecondaryButton onClick={() => fichierRef.current?.click()} disabled={occupe}>
-          {enCours === 'fichier' ? 'Envoi…' : 'Téléverser une image'}
+          {enCours === 'fichier' ? t('logoConnexionSsoCard.envoi') : t('logoConnexionSsoCard.televerserUneImage')}
         </SecondaryButton>
         {logo && (
           <SecondaryButton
@@ -83,7 +81,7 @@ export default function LogoConnexionSsoCard() {
             disabled={occupe}
             className="text-negatif hover:bg-neg-bg"
           >
-            {enCours === 'suppression' ? 'Retrait…' : 'Retirer le logo'}
+            {enCours === 'suppression' ? t('logoConnexionSsoCard.retrait') : t('logoConnexionSsoCard.retirerLeLogo')}
           </SecondaryButton>
         )}
       </div>
@@ -92,7 +90,7 @@ export default function LogoConnexionSsoCard() {
         ref={fichierRef}
         type="file"
         accept="image/png,image/jpeg,image/webp,image/x-icon"
-        aria-label="Image du logo de connexion SSO"
+        aria-label={t('logoConnexionSsoCard.imageDuLogoDeConnexion')}
         className="sr-only"
         onChange={(e) => {
           const fichier = e.target.files?.[0]
@@ -109,11 +107,11 @@ export default function LogoConnexionSsoCard() {
         }}
         className="mt-4 flex flex-wrap items-end gap-3"
       >
-        <Field label="Adresse d'une image (le serveur la télécharge et la stocke)" className="flex-1">
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://auth.exemple.fr/logo.png" />
+        <Field label={t('logoConnexionSsoCard.adresseDUneImageLe')} className="flex-1">
+          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('logoConnexionSsoCard.httpsAuthExempleFrLogo')} />
         </Field>
         <PrimaryButton type="submit" disabled={occupe || !url.trim()}>
-          {enCours === 'url' ? 'Récupération…' : 'Utiliser cette adresse'}
+          {enCours === 'url' ? t('logoConnexionSsoCard.recuperation') : t('logoConnexionSsoCard.utiliserCetteAdresse')}
         </PrimaryButton>
       </form>
 

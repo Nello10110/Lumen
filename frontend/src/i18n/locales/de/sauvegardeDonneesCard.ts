@@ -1,0 +1,45 @@
+import type fr from '../fr/sauvegardeDonneesCard'
+import type { Structure } from '../../types'
+
+/** Allemand — espace « sauvegardeDonneesCard » (backlog § BL.2), traduit depuis le français. */
+const sauvegardeDonneesCard: Structure<typeof fr> = {
+  sauvegardeCompleteDesDonnees: "Vollständige Datensicherung",
+  exporte: "Exportiert",
+  tout: "das gesamte",
+  lePatrimoineDuFoyerDans: "Vermögen des Haushalts in eine einzige Datei: Positionen, Transaktionen, Immobilien, Kredite, Konten und Institute, Inhaber und Aufteilungen, Ersparnisse, Gehälter, Budget und Einstellungen. Nützlich als Sicherung vor einem Eingriff oder für den Umzug auf eine andere Installation.",
+  lesCoursEtCompositionsDe: "Kurse und Fondszusammensetzungen sind nicht enthalten: Sie werden von selbst neu geladen. Auch nichts Sensibles (Passwörter, Freigabe-Token, Zugriffsprotokoll). Die Datei enthält jedoch alle Ihre Beträge — bewahren Sie sie als vertrauliches Dokument auf.",
+  exporterMesDonneesJson: "Meine Daten exportieren (JSON)",
+  restaurerDepuisUnFichier: "Aus einer Datei wiederherstellen",
+  lImport: "Der Import",
+  remplaceIntegralement: "ersetzt vollständig",
+  lesDonneesActuellesDuFoyer: "die aktuellen Daten des Haushalts durch die der Datei. Der Inhalt der Datei wird Ihnen vor jeder Änderung angezeigt.",
+  fichierDeSauvegardeARestaurer: "Wiederherzustellende Sicherungsdatei",
+  analyseDuFichier: "Datei wird analysiert…",
+  reinitialiserLeFoyer: "Haushalt zurücksetzen",
+  efface: "Löscht",
+  definitivement: "endgültig",
+  toutLePatrimoineDuFoyer: "das gesamte Vermögen des Haushalts (Konten, Institute, Positionen, Transaktionen, Kredite, Budget...) und die Freigabelinks. Die Benutzerkonten des Haushalts (Eigentümer, Mitglieder, Gäste) werden nie gelöscht.",
+  remplacerToutesVosDonnees: "Alle Ihre Daten ersetzen?",
+  leFichier: "Die Datei",
+  exporteLe: "(exportiert am",
+  contient: "enthält:",
+  aucuneDonnee: "Keine Daten.",
+  toutLePatrimoineActuellementEnregistre: "Das gesamte derzeit erfasste Vermögen wird gelöscht und durch diesen Inhalt ersetzt. Diese Aktion kann nicht rückgängig gemacht werden.",
+  annuler: "Abbrechen",
+  importEnCours: "Import läuft…",
+  remplacerMesDonnees: "Meine Daten ersetzen",
+  reinitialiserLeFoyer2: "Haushalt zurücksetzen?",
+  serontEffacesToutLePatrimoine: "Gelöscht werden: das gesamte Vermögen (Konten, Institute, Positionen, Transaktionen, Immobilien, Kredite, Budget, Gehälter) und die Freigabelinks.",
+  neSeront: "Nicht",
+  pas: "betroffen",
+  touchesLesComptesDuFoyer: "sind: die Benutzerkonten des Haushalts (Eigentümer, Mitglieder, Gäste) und das Zugriffsprotokoll.",
+  cetteActionEstIrreversible: "Diese Aktion kann nicht rückgängig gemacht werden.",
+  pourConfirmerTapezExactement: "Geben Sie zur Bestätigung unten genau „{phrase}“ ein",
+  confirmationDeLaReinitialisationDu: "Bestätigung des Zurücksetzens des Haushalts",
+  reinitialisationEnCours: "Wird zurückgesetzt…",
+  reinitialiserDefinitivement: "Endgültig zurücksetzen",
+  importTermine: { one: "Import abgeschlossen: {n} Datensatz wiederhergestellt.", other: "Import abgeschlossen: {n} Datensätze wiederhergestellt." },
+  table: { etablissements: "Institute", comptes: "Konten", detenteurs: "Inhaber (Personen)", holdings: "Vermögenspositionen", holding_immobilier_details: "Immobilienangaben", holding_valuation_history: "Bewertungspunkte", quotites_holdings: "Aufteilungen zwischen Inhabern", loans: "Kredite", quotites_loans: "Kreditaufteilungen", transactions: "Transaktionen", salaires: "Gehälter", categories_budget: "Budgetkategorien", mouvements_bancaires: "Kontobewegungen", regles_categorisation: "Kategorisierungsregeln", budget_cibles: "Zielbudgets", user_parametres: "Einstellungen" },
+}
+
+export default sauvegardeDonneesCard
