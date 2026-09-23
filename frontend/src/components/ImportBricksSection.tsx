@@ -112,7 +112,7 @@ export default function ImportBricksSection({
           </p>
           <Dropzone
             ref={inputRef}
-            accept=".csv,.xlsx,.xls"
+            accept=".csv,.xlsx"
             hint="Fichier CSV ou Excel, export Bricks.co"
             uploading={uploading}
             onFileSelected={handleFileChange}

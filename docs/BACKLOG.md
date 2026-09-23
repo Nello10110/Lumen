@@ -6487,7 +6487,7 @@ contact oublié se déclare au lieu de corrompre un résultat en silence.
 casserait le frontend. Les schémas sérialisent donc les montants en nombre JSON : le frontend ne
 voit aucune différence.
 
-#### BI.2 — `mineur` · `S` · `non traité` · `P2` — Retirer `pandas` des parseurs d'import
+#### BI.2 — `majeur` · `M` · `traité` (23/09/2026) — Retirer `pandas` des parseurs d'import
 
 **Constat.** `pandas` (et `numpy` qu'il entraîne) figure parmi les dépendances les plus lourdes de
 l'image backend, qui pèse **151 Mo compressés**. Il ne sert qu'à six fichiers, et pour presque
@@ -6519,6 +6519,55 @@ Yahoo protégée par jeton et cookie — précisément ce que `curl_cffi` contou
 Ce point garde sa valeur propre : une dépendance de moins dans le code applicatif, des parseurs
 lisibles sans connaître `pandas`, et le préalable indispensable à un éventuel remplacement de
 `yfinance`.
+
+**Ce qui a été fait.** Un module unique, `services/lecture_tableau.py`, lit CSV et Excel avec le
+module `csv` et `openpyxl`, et rend **toutes les cellules en texte** — une cellule vide vaut `""`,
+jamais `NaN`, jamais un nombre deviné. Les six fichiers et les deux routeurs qui consommaient un
+`DataFrame` passent dessus ; `cours_service` parcourt toujours le `DataFrame` que fabrique
+`yfinance`, mais sans importer `pandas` lui-même. `pandas` quitte `requirements.txt`, et un test
+échoue si un module de `app/` le réimporte.
+
+**Méthode : un banc différentiel, pas une réécriture à l'estime.** Avant de brancher quoi que ce
+soit, 54 cas limites ont été passés à l'ancienne lecture et à la nouvelle, dans les deux modes en
+service — « tout en texte » des parseurs spécialisés, et inférence de types de l'import générique :
+BOM, fins de ligne Windows, guillemets, lignes blanches, lignes courtes et longues, en-têtes vides
+ou en double, cellules « NA » ou « 000660 », fichiers non UTF-8, Excel à plusieurs feuilles, types
+de cellule. Chaque écart a été classé : soit une erreur équivalente (les exceptions de `pandas`
+dérivent toutes de `ValueError`, les routeurs répondent le même 400, désormais avec un message en
+français), soit une correction délibérée. Trois écarts où la nouvelle lecture avait tort ont été
+corrigés avant branchement.
+
+**Ce que le banc a révélé : l'ancienne lecture corrompait des données en silence.**
+
+| Défaut de l'ancienne lecture par `pandas` | Effet constaté |
+| --- | --- |
+| Cellule vide → `NaN`, que `to_float` laissait passer | **Une seule quantité vide faisait échouer tout l'import de positions** (400, rien importé), avec l'erreur SQL brute renvoyée à l'utilisateur, requête `INSERT` comprise — vérifié en rejouant le scénario sur l'ancien code. Désormais la ligne est écartée et nommée, les autres importées. |
+| Séparateur final sur les seules lignes de données (`1,2,`) | La 1ʳᵉ colonne devenait un index implicite : **chaque valeur décalée d'une colonne vers la gauche**, la première perdue. |
+| Repli de séparateur non bridé | `a,b` / `1,2` / `,,` : la virgule butait, le repli sur `;` rangeait chaque ligne dans UNE colonne « a,b », et `to_float("1,2")` y lisait le **décimal français 1,2**. |
+| Libellé bancaire vide → `str(NaN)` | Mouvement enregistré avec le libellé **« nan »**. |
+| « NA », « N/A », « null » → `NaN` ; « 000660 » → `660` | Un ticker ou un code réel effacé ou tronqué. |
+| Colonne à un trou convertie en flottant | Aperçu affichant `10.0` pour une saisie `10`. |
+| BOM de l'import générique | Colonne nommée `\ufeffa`. |
+| Excel : ligne vide avant l'en-tête | La ligne vide prise pour l'en-tête, la vraie en-tête pour une donnée. |
+| `.xls` accepté mais `xlrd` absent | `ImportError` non interceptée : erreur 500. Désormais refusé avec un message clair, et retiré des sélecteurs de fichier du frontend. |
+| Fichier d'une colonne `ticker` | Séparateur deviné « t » : colonne nommée « icker ». |
+
+En outre, `to_float` refuse désormais `NaN` et l'infini à la source (le texte « inf » passait
+`float()`), plutôt que de compter sur chaque appelant. Chaque défaut a son test dans
+`tests/test_lecture_tableau.py` (34 tests) ; suite complète : 1 435 tests verts, contre 1 402 avant.
+
+**Gain sur l'image : nul, comme annoncé.** `pandas` et `numpy` restent installés par `yfinance`.
+
+**Deux constats annexes, non traités ici :**
+
+- **L'import de positions renvoie l'exception brute à l'utilisateur** (`except Exception` →
+  `detail=f"… {exc}"`, `routers/portfolio.py`) : toute erreur de base y expose la requête SQL et
+  ses paramètres. Le cas de la quantité vide est corrigé, mais le canal reste ouvert pour toute
+  autre erreur. À remplacer par un message générique, l'exception allant au journal.
+- **Les CSV non UTF-8 restent refusés**, comme avant — seul le message a changé (« enregistrez en
+  CSV UTF-8 »). Or les banques françaises exportent souvent en Windows-1252. Un repli sur cet
+  encodage serait sûr (UTF-8 essayé d'abord) et épargnerait une manipulation à l'utilisateur ;
+  c'est un changement de comportement, laissé à sa décision.
 
 #### BI.3 — `mineur` · `M` · `non traité` · `P2` — Profiler avant d'optimiser
 

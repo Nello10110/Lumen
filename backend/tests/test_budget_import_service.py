@@ -2,22 +2,18 @@
 `services/budget_import_service.py` — CSV mappé, OFX, QIF, déduplication,
 réapplication des règles."""
 
-import pandas as pd
-
 from app.models import MouvementBancaire
 from app.services import budget_categories_service, budget_import_service
 
 from .conftest import ID_UTILISATEUR_TEST
 
 
-def test_mouvements_depuis_dataframe_colonne_montant_signee():
-    df = pd.DataFrame(
-        [
-            {"Date": "01/02/2026", "Libellé": "Salaire", "Montant": "2000,00"},
-            {"Date": "02/02/2026", "Libellé": "Loyer", "Montant": "-800,00"},
-        ]
-    )
-    mouvements, ignorees = budget_import_service.mouvements_depuis_dataframe(df, "Date", "Libellé", "Montant", None, None)
+def test_mouvements_depuis_lignes_colonne_montant_signee():
+    lignes = [
+        {"Date": "01/02/2026", "Libellé": "Salaire", "Montant": "2000,00"},
+        {"Date": "02/02/2026", "Libellé": "Loyer", "Montant": "-800,00"},
+    ]
+    mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(lignes, "Date", "Libellé", "Montant", None, None)
 
     assert ignorees == 0
     assert len(mouvements) == 2
@@ -25,29 +21,25 @@ def test_mouvements_depuis_dataframe_colonne_montant_signee():
     assert mouvements[1].montant == -800.0
 
 
-def test_mouvements_depuis_dataframe_colonnes_debit_credit_separees():
-    df = pd.DataFrame(
-        [
-            {"Date": "2026-02-01", "Libellé": "Virement reçu", "Débit": "", "Crédit": "500"},
-            {"Date": "2026-02-02", "Libellé": "Carte", "Débit": "42.50", "Crédit": ""},
-        ]
-    )
-    mouvements, ignorees = budget_import_service.mouvements_depuis_dataframe(df, "Date", "Libellé", None, "Débit", "Crédit")
+def test_mouvements_depuis_lignes_colonnes_debit_credit_separees():
+    lignes = [
+        {"Date": "2026-02-01", "Libellé": "Virement reçu", "Débit": "", "Crédit": "500"},
+        {"Date": "2026-02-02", "Libellé": "Carte", "Débit": "42.50", "Crédit": ""},
+    ]
+    mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(lignes, "Date", "Libellé", None, "Débit", "Crédit")
 
     assert ignorees == 0
     assert mouvements[0].montant == 500.0
     assert mouvements[1].montant == -42.5
 
 
-def test_mouvements_depuis_dataframe_ignore_les_lignes_avec_date_ou_montant_illisible():
-    df = pd.DataFrame(
-        [
-            {"Date": "pas une date", "Libellé": "?", "Montant": "10"},
-            {"Date": "2026-02-01", "Libellé": "ok", "Montant": "pas un montant"},
-            {"Date": "2026-02-02", "Libellé": "ok2", "Montant": "10"},
-        ]
-    )
-    mouvements, ignorees = budget_import_service.mouvements_depuis_dataframe(df, "Date", "Libellé", "Montant", None, None)
+def test_mouvements_depuis_lignes_ignore_les_lignes_avec_date_ou_montant_illisible():
+    lignes = [
+        {"Date": "pas une date", "Libellé": "?", "Montant": "10"},
+        {"Date": "2026-02-01", "Libellé": "ok", "Montant": "pas un montant"},
+        {"Date": "2026-02-02", "Libellé": "ok2", "Montant": "10"},
+    ]
+    mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(lignes, "Date", "Libellé", "Montant", None, None)
 
     assert ignorees == 2
     assert len(mouvements) == 1

@@ -29,14 +29,12 @@ BRUTS, pas nets de fiscalité.
 """
 
 import hashlib
-import io
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-import pandas as pd
-
 from .csv_import import to_float
+from .lecture_tableau import lire_fichier
 
 REQUIRED_COLUMNS_BRICKS = {
     "id",
@@ -96,30 +94,18 @@ class ParsedBricksOperations:
     montant_total_investi: float = 0.0
 
 
-def _lire_fichier(filename: str, content: bytes) -> pd.DataFrame:
-    """Même dispatch `.csv`/`.xlsx`/`.xls` que `csv_import.parse_upload` — Bricks.co
-    exporte en `.xlsx`, mais rien n'empêche un futur export CSV du même format."""
-    nom = filename.lower()
-    if nom.endswith(".csv"):
-        df = pd.read_csv(io.BytesIO(content), dtype=str, keep_default_na=False)
-    elif nom.endswith(".xlsx") or nom.endswith(".xls"):
-        df = pd.read_excel(io.BytesIO(content), dtype=str, keep_default_na=False)
-    else:
-        raise ValueError("Format de fichier non supporté (attendu : .csv, .xlsx, .xls)")
-    df.columns = [str(c).strip() for c in df.columns]
-    return df
-
-
 def parse_bricks_file(filename: str, content: bytes) -> ParsedBricksOperations:
-    df = _lire_fichier(filename, content)
+    # Bricks.co exporte en `.xlsx`, mais rien n'empêche un futur export CSV du même
+    # format : l'aiguillage commun accepte les deux.
+    tableau = lire_fichier(filename, content)
 
-    if not looks_like_bricks_export(list(df.columns)):
+    if not looks_like_bricks_export(tableau.colonnes):
         raise ValueError("Ce fichier ne ressemble pas à un export Bricks.co reconnu")
 
-    result = ParsedBricksOperations(lignes_lues=len(df))
+    result = ParsedBricksOperations(lignes_lues=len(tableau.lignes))
 
     lignes = []
-    for _, row in df.iterrows():
+    for row in tableau.lignes:
         date_brute = _clean(row.get("date"))
         try:
             dt = datetime.strptime(date_brute, "%d/%m/%Y") if date_brute else None

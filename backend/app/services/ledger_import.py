@@ -23,14 +23,12 @@ qu'une fausse précision) :
   revient (`fee=0.0` sur chaque ligne), plutôt que d'inventer un taux de change approximatif.
 """
 
-import io
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-import pandas as pd
-
 from .csv_import import to_float
+from .lecture_tableau import lire_csv
 
 REQUIRED_COLUMNS_LEDGER = {
     "Operation Date",
@@ -85,15 +83,14 @@ def _clean(value) -> str | None:
 
 
 def parse_ledger_file(content: bytes) -> ParsedLedgerOperations:
-    df = pd.read_csv(io.BytesIO(content), dtype=str, keep_default_na=False)
-    df.columns = [str(c).strip() for c in df.columns]
+    tableau = lire_csv(content)
 
-    if not looks_like_ledger_export(list(df.columns)):
+    if not looks_like_ledger_export(tableau.colonnes):
         raise ValueError("Ce fichier ne ressemble pas à un export Ledger reconnu")
 
-    result = ParsedLedgerOperations(lignes_lues=len(df))
+    result = ParsedLedgerOperations(lignes_lues=len(tableau.lignes))
 
-    for _, row in df.iterrows():
+    for row in tableau.lignes:
         statut = _clean(row.get("Status"))
         if statut != STATUT_CONFIRME:
             result.lignes_ignorees_statut += 1

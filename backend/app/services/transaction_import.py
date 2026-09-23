@@ -8,14 +8,12 @@ sont pas des flux d'investissement du point de vue de l'utilisateur — ils sont
 détectés et exclus dès le parsing, jamais stockés en base.
 """
 
-import io
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-import pandas as pd
-
 from .csv_import import to_float
+from .lecture_tableau import lire_csv
 
 REQUIRED_COLUMNS = {
     "datetime",
@@ -121,15 +119,14 @@ def _clean(value) -> str | None:
 
 
 def parse_transactions_file(content: bytes) -> ParsedTransactions:
-    df = pd.read_csv(io.BytesIO(content), dtype=str, keep_default_na=False)
-    df.columns = [str(c).strip() for c in df.columns]
+    tableau = lire_csv(content)
 
-    if not looks_like_transaction_export(list(df.columns)):
+    if not looks_like_transaction_export(tableau.colonnes):
         raise ValueError("Ce fichier ne ressemble pas à un export d'historique de transactions reconnu")
 
-    result = ParsedTransactions(lignes_lues=len(df))
+    result = ParsedTransactions(lignes_lues=len(tableau.lignes))
 
-    for _, row in df.iterrows():
+    for row in tableau.lignes:
         type_ = _clean(row.get("type")) or ""
         mcc = _clean(row.get("mcc_code"))
         if type_ in EXCLUDED_TYPES or mcc:
@@ -188,10 +185,10 @@ def parse_transactions_file(content: bytes) -> ParsedTransactions:
 
 # Staging du résultat de parsing entre l'aperçu et la confirmation (redesign du
 # 03/09/2026, import du grand livre en deux temps — même patron que
-# `csv_import._PENDING_IMPORTS`, mais un `ParsedTransactions` complet plutôt qu'un
-# `DataFrame` brut : `parse_transactions_file` a ses propres réglages de lecture
-# (`dtype=str, keep_default_na=False`) et sa propre logique métier (exclusion des
-# mouvements hors bourse, `cle_compte`...), déjà entièrement calculée à l'aperçu —
+# `csv_import._PENDING_IMPORTS`, mais un `ParsedTransactions` complet plutôt que le
+# tableau brut du fichier : `parse_transactions_file` a sa propre logique métier
+# (exclusion des mouvements hors bourse, `cle_compte`...), déjà entièrement calculée
+# à l'aperçu —
 # la confirmation réutilise ce résultat tel quel plutôt que de re-parser le fichier
 # une seconde fois (évite aussi tout risque de divergence entre les deux passages).
 _PENDING_TRANSACTIONS: dict[str, tuple[ParsedTransactions, datetime]] = {}

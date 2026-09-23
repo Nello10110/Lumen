@@ -43,10 +43,10 @@ détail. `rafraichir`/`serie_en_euros` restent le chemin yfinance, inchangé.
 
 import bisect
 import logging
+import math
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-import pandas as pd
 import yfinance as yf
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -84,8 +84,11 @@ def _maintenant() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def _en_serie(hist: pd.DataFrame) -> list[tuple[str, float]]:
+def _en_serie(hist) -> list[tuple[str, float]]:
     """DataFrame yfinance -> [(date ISO, clôture)], dans la devise d'origine.
+
+    `hist` est bien un `DataFrame` pandas, mais c'est `yfinance` qui le fabrique : ce
+    module le parcourt sans importer pandas lui-même (§ BI.2).
 
     La date est tronquée au jour : une série hebdomadaire n'a pas d'heure utile, et
     c'est la granularité de comparaison utilisée partout ailleurs (`Transaction.date`,
@@ -93,11 +96,16 @@ def _en_serie(hist: pd.DataFrame) -> list[tuple[str, float]]:
     conversion que faisait `historical_performance_service._history_to_series`."""
     points: list[tuple[str, float]] = []
     for idx, row in hist.iterrows():
-        close = row.get("Close")
-        if close is None or pd.isna(close):
+        # `float()` puis `isfinite` couvre tous les « pas de cours » : `None`, `NaN`,
+        # et `pd.NA` — sur lequel un `close != close` lèverait au lieu de répondre.
+        try:
+            cloture = float(row.get("Close"))
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(cloture):
             continue
         dt = idx.to_pydatetime().astimezone(UTC).replace(tzinfo=None)
-        points.append((dt.date().isoformat(), float(close)))
+        points.append((dt.date().isoformat(), cloture))
     return points
 
 

@@ -106,11 +106,11 @@ def _colonnes_mappees_absentes(mapping: ColumnMapping, colonnes_fichier: list[st
 @router.post("/import/confirm", response_model=ImportResult)
 def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     try:
-        df = csv_import.get_pending(mapping.file_token)
+        tableau = csv_import.get_pending(mapping.file_token)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    colonnes_absentes = _colonnes_mappees_absentes(mapping, list(df.columns))
+    colonnes_absentes = _colonnes_mappees_absentes(mapping, tableau.colonnes)
     if colonnes_absentes:
         raise HTTPException(
             status_code=400,
@@ -174,13 +174,13 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
             # l'utilisateur comprenne pourquoi (cf. `models.Holding.origine`).
             db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_MANUEL).delete()
 
-        for idx, row in df.iterrows():
+        for row in tableau.lignes:
             ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
             qty_val = csv_import.to_float(row.get(mapping.quantite_col))
 
             if not ticker or qty_val is None:
                 skipped += 1
-                errors.append(f"Ligne {idx + 2}: ticker ou quantité invalide")
+                errors.append(f"Ligne {row.numero}: ticker ou quantité invalide")
                 continue
 
             db.add(

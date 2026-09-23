@@ -133,19 +133,19 @@ async def import_csv_preview(file: UploadFile):
 @router.post("/import/csv/confirm", response_model=BudgetImportResult)
 def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        df = csv_import.get_pending(mapping.file_token)
+        tableau = csv_import.get_pending(mapping.file_token)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    colonnes = set(df.columns)
+    colonnes = set(tableau.colonnes)
     colonnes_attendues = {mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col}
     colonnes_absentes = [c for c in colonnes_attendues if c and c not in colonnes]
     if colonnes_absentes:
         raise HTTPException(status_code=400, detail=f"Colonne(s) introuvable(s) dans le fichier : {', '.join(colonnes_absentes)}")
 
     user_id = auth_service.id_foyer(current_user)
-    mouvements, ignorees = budget_import_service.mouvements_depuis_dataframe(
-        df, mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col
+    mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(
+        tableau.lignes, mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col
     )
     resultat = budget_import_service.importer_mouvements(
         db, user_id, mouvements, lignes_ignorees=ignorees, compte=mapping.compte

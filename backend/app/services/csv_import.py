@@ -6,17 +6,17 @@ token, puis l'utilisateur choisit dans l'UI quelle colonne correspond à quel ch
 avant l'import définitif en base.
 """
 
-import io
+import math
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-import pandas as pd
+from .lecture_tableau import Tableau, lire_csv_separateur_detecte, lire_fichier
 
 # Chaque entrée porte l'horodatage de son dépôt, pour purger celles qui traînent
 # (LOT 3.5) : `_MAX_PENDING` bornait déjà le nombre d'entrées mais pas leur durée de
 # vie — un fichier oublié restait potentiellement en mémoire indéfiniment.
-_PENDING_IMPORTS: dict[str, tuple[pd.DataFrame, datetime]] = {}
+_PENDING_IMPORTS: dict[str, tuple[Tableau, datetime]] = {}
 _MAX_PENDING = 20
 DUREE_EXPIRATION_PENDING = timedelta(minutes=30)
 
@@ -46,36 +46,21 @@ def _purger_imports_expires() -> None:
 def parse_upload(filename: str, content: bytes) -> ParsedFile:
     _purger_imports_expires()
 
-    lower = filename.lower()
-    if lower.endswith(".csv"):
-        df = _read_csv(content)
-    elif lower.endswith(".xlsx") or lower.endswith(".xls"):
-        df = pd.read_excel(io.BytesIO(content))
-    else:
-        raise ValueError("Format de fichier non supporté (attendu: .csv, .xlsx, .xls)")
-
-    df = df.dropna(how="all")
-    df.columns = [str(c).strip() for c in df.columns]
+    # Le séparateur CSV n'est pas connu d'avance ici (chaque courtier a le sien) : il
+    # est détecté. Tout le reste — `.xlsx` lu, `.xls` et autres extensions refusés
+    # avec un message clair — relève de l'aiguillage commun.
+    tableau = lire_csv_separateur_detecte(content) if filename.lower().endswith(".csv") else lire_fichier(filename, content)
 
     token = uuid.uuid4().hex
     if len(_PENDING_IMPORTS) >= _MAX_PENDING:
         _PENDING_IMPORTS.pop(next(iter(_PENDING_IMPORTS)))
-    _PENDING_IMPORTS[token] = (df, datetime.now(UTC))
+    _PENDING_IMPORTS[token] = (tableau, datetime.now(UTC))
 
-    preview = df.head(10).fillna("").astype(str).to_dict(orient="records")
-    return ParsedFile(token=token, columns=list(df.columns), preview_rows=preview, total_rows=len(df))
-
-
-def _read_csv(content: bytes) -> pd.DataFrame:
-    for sep in (None, ";", ",", "\t"):
-        try:
-            return pd.read_csv(io.BytesIO(content), sep=sep, engine="python")
-        except Exception:
-            continue
-    raise ValueError("Impossible de lire le fichier CSV")
+    preview = [dict(ligne) for ligne in tableau.lignes[:10]]
+    return ParsedFile(token=token, columns=tableau.colonnes, preview_rows=preview, total_rows=len(tableau.lignes))
 
 
-def get_pending(token: str) -> pd.DataFrame:
+def get_pending(token: str) -> Tableau:
     _purger_imports_expires()
     entree = _PENDING_IMPORTS.get(token)
     if entree is None:
@@ -97,5 +82,12 @@ def to_float(value) -> float | None:
     try:
         result = float(value)
     except (TypeError, ValueError):
+        return None
+    # `NaN` et l'infini ne sont jamais une valeur saisie : ce sont des artefacts. Le
+    # texte « inf » passait `float()`, et un `NaN` flottant (ce que pandas rendait pour
+    # une cellule vide de l'import générique, avant § BI.2) traversait la fonction
+    # tel quel — puis le garde-fou `is None` des appelants. Filtrés ici, à la
+    # source, plutôt que chez chacun d'eux.
+    if not math.isfinite(result):
         return None
     return result

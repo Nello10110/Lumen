@@ -7,10 +7,10 @@ fournit pas de stable ; catégorisation automatique par les règles de l'utilisa
 
 import hashlib
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 
-import pandas as pd
 from sqlalchemy.orm import Session
 
 from ..models import MouvementBancaire
@@ -65,8 +65,8 @@ def _parser_date_flexible(valeur: str, prioriser_mois_jour: bool = False) -> str
 # ---------------------------------------------------------------------------
 
 
-def mouvements_depuis_dataframe(
-    df: pd.DataFrame,
+def mouvements_depuis_lignes(
+    lignes: Iterable[Mapping[str, str]],
     date_col: str,
     libelle_col: str,
     montant_col: str | None,
@@ -79,7 +79,7 @@ def mouvements_depuis_dataframe(
     réalité perdu des lignes en cours de route."""
     mouvements: list[MouvementBrut] = []
     ignorees = 0
-    for _, row in df.iterrows():
+    for row in lignes:
         date = _parser_date_flexible(str(row.get(date_col, "")))
         libelle = str(row.get(libelle_col, "")).strip() or "(sans libellé)"
 

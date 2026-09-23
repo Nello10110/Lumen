@@ -6,10 +6,9 @@ purge des fichiers en attente au bout de 30 minutes (LOT 3.5), plafond de taille
 
 from datetime import datetime, timedelta, timezone
 
-import pandas as pd
-
 from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Etablissement, Holding
 from app.services import comptes_service, csv_import, transaction_import, upload_limits
+from app.services.lecture_tableau import Ligne, Tableau
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
 
@@ -310,8 +309,8 @@ def test_get_pending_token_expire_renvoie_message_existant():
 
 def test_get_pending_token_non_expire_fonctionne():
     parsed = csv_import.parse_upload("portefeuille.csv", CSV_VALIDE)
-    df = csv_import.get_pending(parsed.token)
-    assert list(df.columns) == ["ticker", "quantite"]
+    tableau = csv_import.get_pending(parsed.token)
+    assert tableau.colonnes == ["ticker", "quantite"]
 
 
 def test_import_confirm_token_expire_via_api_renvoie_404(client):
@@ -339,9 +338,9 @@ def test_remplacer_existant_epargne_les_lignes_du_grand_livre(db, client, monkey
     db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MANUELLE", quantite=3.0, prix_revient_moyen=20.0, origine=ORIGINE_MANUEL))
     db.commit()
 
-    df = pd.DataFrame({"Ticker": ["NOUVELLE"], "Qte": [7.0]})
+    tableau = Tableau(colonnes=["Ticker", "Qte"], lignes=[Ligne({"Ticker": "NOUVELLE", "Qte": "7"}, numero=2)])
     token = "token-remplacement"
-    monkeypatch.setattr(csv_import, "_PENDING_IMPORTS", {token: (df, datetime.now(timezone.utc))})
+    monkeypatch.setattr(csv_import, "_PENDING_IMPORTS", {token: (tableau, datetime.now(timezone.utc))})
 
     reponse = client.post(
         "/api/portfolio/import/confirm",

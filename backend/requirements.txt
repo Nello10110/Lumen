@@ -2,7 +2,10 @@ fastapi>=0.115
 uvicorn[standard]>=0.34
 sqlalchemy>=2.0.36
 pydantic>=2.11
-pandas>=2.3
+# `pandas` n'est plus une dépendance directe (§ BI.2) : les imports lisent CSV et
+# Excel par `services/lecture_tableau.py`, avec `csv` et `openpyxl`. Il reste
+# pourtant installé, parce que `yfinance` l'exige — l'image n'en maigrit donc pas
+# tant que `yfinance` y reste. Ne pas le réintroduire dans le code applicatif.
 openpyxl>=3.1.5
 yfinance>=0.2.51
 python-multipart>=0.0.20

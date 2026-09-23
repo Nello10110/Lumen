@@ -79,7 +79,7 @@ export const SOURCES_IMPORT: SourceImport[] = [
     cle: 'bricks',
     nom: 'Bricks.co',
     sousTitre: 'Crowdfunding immobilier',
-    accept: '.csv,.xlsx,.xls',
+    accept: '.csv,.xlsx',
     logoKey: 'bricks_co',
     guide: {
       intro:
@@ -97,7 +97,7 @@ export const SOURCES_IMPORT: SourceImport[] = [
     cle: 'releve',
     nom: 'Relevé de positions',
     sousTitre: 'Tout autre courtier',
-    accept: '.csv,.xlsx,.xls',
+    accept: '.csv,.xlsx',
     Icone: IconPatrimoine,
     guide: {
       intro:
