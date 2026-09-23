@@ -1191,3 +1191,35 @@ describe('PortefeuillePage', () => {
     })
   })
 })
+
+describe("`?ajout=1` — arrivée depuis l'accueil vide (23/09/2026)", () => {
+  function SondeRecherche() {
+    return <p data-testid="sonde-recherche">{useLocation().search || '(vide)'}</p>
+  }
+
+  it("ouvre directement le formulaire d'ajout, puis retire le paramètre de l'URL", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    render(
+      <MemoryRouter initialEntries={['/patrimoine?ajout=1']}>
+        <PortefeuillePage />
+        <SondeRecherche />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    // Un rechargement ne doit pas rouvrir le formulaire.
+    await waitFor(() => expect(screen.getByTestId('sonde-recherche')).toHaveTextContent('(vide)'))
+  })
+
+  it("sans le paramètre, le formulaire reste fermé", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    render(
+      <MemoryRouter initialEntries={['/patrimoine']}>
+        <PortefeuillePage />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('button', { name: 'Ajouter une ligne' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})

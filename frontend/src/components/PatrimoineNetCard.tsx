@@ -9,6 +9,7 @@ import Card from './Card'
 import { DeltaBadge } from './Controls'
 import EtatErreur from './EtatErreur'
 import { GlassPanel } from './GlassPanel'
+import PatrimoineVide from './PatrimoineVide'
 import { SkeletonTexte } from './Skeleton'
 
 // Une seule famille, du plus au moins important (`--s1`…`--s5`) — les catégories
@@ -49,6 +50,9 @@ interface PatrimoineNetCardProps {
    * manuelles clairsemées, ratio flou pour le scoping détenteur de la poche
    * financière). */
   historiquePatrimoine?: { points: PatrimoineHistoryPoint[] | null; loading: boolean }
+  /** Prévenu quand il n'y a rien à chiffrer (ni actif ni emprunt) : la carte affiche
+   * alors son propre état vide, et l'accueil retire ce qui ferait doublon autour. */
+  onVide?: (vide: boolean) => void
   /** La courbe d'évolution, rendue DANS le bloc héros (maquette de la refonte) et
    * non dans une carte séparée : le chiffre, sa variation et la forme qui l'explique
    * appartiennent au même bloc — les séparer obligeait à lire deux panneaux pour une
@@ -96,7 +100,13 @@ function Poche({
  * indépendante de l'année sélectionnée et du reste du tableau de bord (comme
  * `PerformanceCard`) : chargée et affichée même si l'analyse géo/sectorielle
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
-export default function PatrimoineNetCard({ historiquePortefeuille, historiquePatrimoine, courbe, controlesCourbe }: PatrimoineNetCardProps = {}) {
+export default function PatrimoineNetCard({
+  historiquePortefeuille,
+  historiquePatrimoine,
+  courbe,
+  controlesCourbe,
+  onVide,
+}: PatrimoineNetCardProps = {}) {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -134,6 +144,11 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
 
   useEffect(charger, [detenteurId])
 
+  const vide = patrimoine !== null && patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0
+  // La page qui l'accueille retire alors ce qui n'a plus de sens autour (invitation
+  // à importer, renvoi vers l'analyse) : l'état vide ci-dessous les remplace.
+  useEffect(() => onVide?.(vide), [vide, onVide])
+
   if (loading) {
     return (
       <Card title="Patrimoine net">
@@ -150,11 +165,12 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
     )
   }
 
-  // Rien à montrer tant qu'aucun actif n'a été ajouté nulle part (positions,
-  // immobilier, épargne...) — pas de carte vide pour un portefeuille tout neuf.
-  // Atteint désormais uniquement sur une vraie absence de données (backlog 2.K.5),
-  // plus jamais sur un chargement ou un échec réseau (couverts ci-dessus).
-  if (!patrimoine || (patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0)) return null
+  // Rien à chiffrer (ni actif ni emprunt, pour le foyer ou pour la personne
+  // sélectionnée) : un vrai état vide, qui dit quoi faire — plus jamais la carte
+  // escamotée d'avant le 23/09/2026, qui laissait l'accueil blanc. Atteint uniquement
+  // sur une vraie absence de données (backlog 2.K.5), jamais sur un chargement ou un
+  // échec réseau (couverts ci-dessus).
+  if (!patrimoine || vide) return <PatrimoineVide />
 
   const principale = TUILE_PRINCIPALE[lentille](patrimoine)
 

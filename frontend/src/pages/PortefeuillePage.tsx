@@ -109,6 +109,22 @@ export default function PortefeuillePage() {
   const categorie = (searchParams.get('categorie') as Categorie | null) ?? 'TOUS'
   const filtreCompte = searchParams.get('compte') ?? FILTRE_TOUS_COMPTES
 
+  // `?ajout=1` (bouton « Saisir une ligne à la main » de l'accueil vide, 23/09/2026) :
+  // ouvre directement le formulaire d'ajout, puis retire le paramètre de l'URL — un
+  // rechargement de la page ne doit pas le rouvrir.
+  useEffect(() => {
+    if (searchParams.get('ajout') !== '1') return
+    setAjoutOuvert(true)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('ajout')
+        return next
+      },
+      { replace: true },
+    )
+  }, [searchParams, setSearchParams])
+
   function setCategorie(suivante: Categorie) {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)

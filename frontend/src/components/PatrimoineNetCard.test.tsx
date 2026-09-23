@@ -13,6 +13,9 @@ vi.mock('../api/client', () => ({
   },
 }))
 
+// L'état vide (`PatrimoineVide`) lit le rôle pour ne pas proposer d'action à un invité.
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'proprietaire' } }) }))
+
 function patrimoine(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
   return {
     actifs_totaux: 0,
@@ -83,14 +86,62 @@ function pointPatrimoine(overrides: Partial<PatrimoineHistoryPoint> = {}): Patri
 }
 
 describe('PatrimoineNetCard', () => {
-  it("n'affiche rien tant qu'aucun actif ni passif n'est enregistré", async () => {
+  it("sans actif ni passif, affiche l'état vide et le signale à la page (plus jamais un écran blanc)", async () => {
+    // Jusqu'au 23/09/2026, la carte ne rendait RIEN ici : l'accueil d'un foyer neuf
+    // restait blanc. Le contenu de l'état vide est verrouillé par `PatrimoineVide.test`.
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine())
-    const { container } = renderCard()
+    const onVide = vi.fn()
+    render(
+      <MemoryRouter>
+        <PreferencesAffichageContext.Provider
+          value={{
+            lentille: 'net',
+            setLentille: vi.fn(),
+            montantsMasques: false,
+            toggleMontantsMasques: vi.fn(),
+            detenteurId: null,
+            setDetenteurId: vi.fn(),
+            periode: PERIODE_DEFAUT,
+            setPeriode: vi.fn(),
+            langageSimple: false,
+            toggleLangageSimple: vi.fn(),
+          }}
+        >
+          <PatrimoineNetCard onVide={onVide} />
+        </PreferencesAffichageContext.Provider>
+      </MemoryRouter>,
+    )
 
-    // Attend la fin du chargement (le squelette disparaît), pas seulement l'appel
-    // API lui-même — sinon la vérification peut s'exécuter pendant que le squelette
-    // est encore affiché (backlog 2.K.5).
-    await vi.waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(await screen.findByRole('heading', { name: 'Ton patrimoine commence ici' })).toBeInTheDocument()
+    expect(onVide).toHaveBeenLastCalledWith(true)
+  })
+
+  it('signale un patrimoine non vide à la page', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1000, patrimoine_net: 1000 }))
+    const onVide = vi.fn()
+    render(
+      <MemoryRouter>
+        <PreferencesAffichageContext.Provider
+          value={{
+            lentille: 'net',
+            setLentille: vi.fn(),
+            montantsMasques: false,
+            toggleMontantsMasques: vi.fn(),
+            detenteurId: null,
+            setDetenteurId: vi.fn(),
+            periode: PERIODE_DEFAUT,
+            setPeriode: vi.fn(),
+            langageSimple: false,
+            toggleLangageSimple: vi.fn(),
+          }}
+        >
+          <PatrimoineNetCard onVide={onVide} />
+        </PreferencesAffichageContext.Provider>
+      </MemoryRouter>,
+    )
+
+    await screen.findByText(/Patrimoine net · Foyer/)
+    expect(onVide).toHaveBeenLastCalledWith(false)
   })
 
   it('affiche un squelette pendant le chargement, jamais une carte vide', () => {

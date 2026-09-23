@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import DashboardPage from './DashboardPage'
 
@@ -38,7 +38,17 @@ vi.mock('../api/client', () => ({
 // Composants lourds (recharts, appels réseau propres) mis de côté : ce fichier ne
 // verrouille pas leur rendu interne, couvert dans leurs propres fichiers.
 vi.mock('../components/PortfolioHistoryChart', () => ({ default: () => <div />, ControlesCourbe: () => <div /> }))
-vi.mock('../components/PatrimoineNetCard', () => ({ default: () => <div /> }))
+// `etatCarte.vide` : ce que la carte signale à la page (`onVide`) — faux par défaut,
+// comme un foyer qui a du patrimoine.
+const etatCarte = vi.hoisted(() => ({ vide: false }))
+vi.mock('../components/PatrimoineNetCard', async () => {
+  const { useEffect } = await import('react')
+  function PatrimoineNetCardFactice({ onVide }: { onVide?: (vide: boolean) => void }) {
+    useEffect(() => onVide?.(etatCarte.vide), [onVide])
+    return <div />
+  }
+  return { default: PatrimoineNetCardFactice }
+})
 
 vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn(), detenteurId: null, setDetenteurId: vi.fn() }),
@@ -133,6 +143,28 @@ describe('DashboardPage — invitation à importer (portefeuille vide)', () => {
 
     await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
     expect(screen.queryByText(/Aucune position dans le portefeuille/)).not.toBeInTheDocument()
+  })
+})
+
+describe("DashboardPage — rien à chiffrer : l'état vide de la carte suffit (23/09/2026)", () => {
+  afterEach(() => {
+    etatCarte.vide = false
+  })
+
+  it("retire le bandeau « aucune position » et le renvoi vers l'analyse, qui feraient doublon", async () => {
+    etatCarte.vide = true
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    renderPage()
+
+    await waitFor(() => expect(api.listHoldings).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByText(/voir l'analyse détaillée/)).not.toBeInTheDocument())
+    expect(screen.queryByText(/Aucune position dans le portefeuille/)).not.toBeInTheDocument()
+  })
+
+  it('les garde quand il y a du patrimoine', async () => {
+    renderPage()
+
+    expect(await screen.findByText(/voir l'analyse détaillée/)).toBeInTheDocument()
   })
 })
 

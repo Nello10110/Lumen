@@ -72,6 +72,12 @@ export default function DashboardPage() {
   // n'a plus de raison d'être appelé depuis cet écran.
   const [portefeuilleVide, setPortefeuilleVide] = useState(false)
 
+  // Rien à chiffrer du tout (foyer tout neuf, ou personne sélectionnée sans actif) :
+  // `PatrimoineNetCard` affiche alors un état vide qui dit par où commencer. Le
+  // bandeau « aucune position » et le renvoi vers l'analyse feraient doublon, ou
+  // mèneraient à un écran tout aussi vide : ils se retirent.
+  const [patrimoineVide, setPatrimoineVide] = useState(false)
+
   // Backlog § AF.4 : nombre de jours depuis le dernier rafraîchissement des cours
   // RÉELLEMENT tenté (`GET /market-data/derniere-actualisation`, tous
   // déclencheurs confondus) — `null` tant qu'aucun rafraîchissement n'a jamais
@@ -168,6 +174,7 @@ export default function DashboardPage() {
         historiquePortefeuille={{ points: historique, loading: chargementHistorique }}
         historiquePatrimoine={{ points: patrimoineHistorique, loading: chargementPatrimoineHistorique }}
         controlesCourbe={<ControlesCourbe stacked={modeEtage} onStackedChange={setModeEtage} />}
+        onVide={setPatrimoineVide}
         courbe={
           <PortfolioHistoryChart
             stacked={modeEtage}
@@ -185,7 +192,7 @@ export default function DashboardPage() {
 
       {/* Encart d'appel à l'action, pas de l'information complémentaire : il reste
           sur l'écran d'accueil quand tout le reste part. */}
-      {portefeuilleVide && (
+      {portefeuilleVide && !patrimoineVide && (
         <Card className="border-warn/25 bg-warn-bg">
           <p className="text-sm text-warn">
             Aucune position dans le portefeuille. Commence par{' '}
@@ -223,13 +230,15 @@ export default function DashboardPage() {
       {/* Le contenu déplacé doit rester trouvable depuis l'endroit d'où il vient :
           sans ce lien, quelqu'un qui consultait la répartition sectorielle sous le
           repli « Détail » n'aurait aucun moyen de deviner où elle est passée. */}
-      <p className="text-[13px] text-ink3">
-        Répartitions, rentabilité, qualité des données et revenus ont leur écran :{' '}
-        <Link to="/analyse" className="font-medium text-accent hover:underline">
-          voir l'analyse détaillée
-        </Link>
-        .
-      </p>
+      {!patrimoineVide && (
+        <p className="text-[13px] text-ink3">
+          Répartitions, rentabilité, qualité des données et revenus ont leur écran :{' '}
+          <Link to="/analyse" className="font-medium text-accent hover:underline">
+            voir l'analyse détaillée
+          </Link>
+          .
+        </p>
+      )}
     </div>
   )
 }
