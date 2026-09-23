@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { PrimaryButton, SecondaryButton } from './Controls'
+import { t } from '../i18n'
 
 // Un déploiement peut survenir n'importe quand pendant qu'un onglet reste ouvert
 // (retour utilisateur du 10/09/2026 : le bouton de connexion SSO disparaissait
@@ -66,10 +67,10 @@ export default function MiseAJourDisponible() {
       role="status"
       className="fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center gap-3 rounded-panel border border-stroke bg-panel-hi px-4 py-3 text-sm text-ink shadow-glass-lg backdrop-blur-glass"
     >
-      <span>Une nouvelle version de l'application est disponible.</span>
+      <span>{t('miseAJourDisponible.uneNouvelleVersionDeL')}</span>
       <div className="flex gap-2">
-        <PrimaryButton onClick={() => void updateServiceWorker(true)}>Recharger</PrimaryButton>
-        <SecondaryButton onClick={() => setNeedRefresh(false)}>Plus tard</SecondaryButton>
+        <PrimaryButton onClick={() => void updateServiceWorker(true)}>{t('miseAJourDisponible.recharger')}</PrimaryButton>
+        <SecondaryButton onClick={() => setNeedRefresh(false)}>{t('miseAJourDisponible.plusTard')}</SecondaryButton>
       </div>
     </div>,
     document.body,

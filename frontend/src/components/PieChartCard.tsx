@@ -2,6 +2,7 @@ import type { RepartitionItem } from '../api/types'
 import Card from './Card'
 import { RepartitionEmpilee } from './ChartFrame'
 import EtatVide from './EtatVide'
+import { t } from '../i18n'
 
 /** Répartition d'une composition (géographie/secteur d'un fonds).
  *
@@ -25,7 +26,7 @@ export default function PieChartCard({
   if (items.length === 0) {
     return (
       <Card title={title}>
-        <EtatVide titre="Titre unique, pas de décomposition interne." />
+        <EtatVide titre={t('pieChartCard.titreUniquePasDeDecomposition')} />
       </Card>
     )
   }

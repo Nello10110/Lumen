@@ -108,7 +108,7 @@ const FONCTIONS_TECHNIQUES = /^(api\.|fetch$|console\.|localStorage\.|sessionSto
 
 function dansFonction(n) {
   for (let p = n.parent; p; p = p.parent) {
-    if (ts.isFunctionDeclaration(p) || ts.isFunctionExpression(p) || ts.isArrowFunction(p) || ts.isMethodDeclaration(p) || ts.isGetAccessorDeclaration(p)) return true
+    if (ts.isFunctionDeclaration(p) || ts.isFunctionExpression(p) || ts.isArrowFunction(p) || ts.isMethodDeclaration(p) || ts.isGetAccessorDeclaration(p) || ts.isConstructorDeclaration(p)) return true
   }
   return false
 }
@@ -154,6 +154,11 @@ function ressembleATexte(texte, enJsx) {
   if (/^[\w-]+(\/[\w-]+)+/.test(texte) || /^\//.test(texte) || /^https?:/.test(texte)) return false // chemin, URL
   if (/^[\w-]+\.(tsx?|png|svg|pdf|csv|json)$/.test(texte)) return false
   if (/^(bg|text|border|px|py|mt|mb|flex|grid|w-|h-|rounded|shadow|hover|md:|sm:|lg:)/.test(texte)) return false
+  // Liste de classes CSS (« min-h-11 px-3 md:py-[5px] ») : jetons sans majuscule ni
+  // accent, dont au moins un porte un tiret, deux-points ou crochet.
+  const jetons = texte.trim().split(/\s+/)
+  if (!ACCENT.test(texte) && jetons.every((j) => /^[!a-z0-9:[\]()/.%#_,=&>*+-]+$/.test(j)) && jetons.some((j) => /[-:[]/.test(j))) return false
+  if (/^[a-z0-9]+(\s*,\s*[a-z0-9]+)*$/.test(texte.trim()) && !/\s/.test(texte.trim())) return false
   if (ACCENT.test(texte) || /\s/.test(texte.trim())) return true
   return enJsx && /^[A-ZÀ-Ý][a-zà-ÿ]{2,}/.test(texte)
 }

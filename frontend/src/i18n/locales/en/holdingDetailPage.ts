@@ -1,0 +1,9 @@
+import type fr from '../fr/holdingDetailPage'
+import type { Structure } from '../../types'
+
+/** Anglais — espace « holdingDetailPage » (backlog § BL.2), traduit depuis le français. */
+const holdingDetailPage: Structure<typeof fr> = {
+  patrimoine: "Assets",
+}
+
+export default holdingDetailPage

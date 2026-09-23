@@ -4,8 +4,8 @@ import type { Compte, Etablissement, Holding } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import {
-  TEXTE_PRIX_REVIENT,
-  TEXTE_VALEUR_ESTIMEE,
+  textePrixRevient,
+  texteValeurEstimee,
   TYPES_ACTIF_SANS_ETABLISSEMENT,
   TYPES_PATRIMOINE,
   TYPE_ACTIF_OPTIONS,
@@ -228,7 +228,7 @@ function PositionCard({
           </Field>
           <Field
             label={
-              <span className="inline-flex items-center gap-1">{t('positionsTable.prixDeRevient')}<InfoBulle texte={TEXTE_PRIX_REVIENT} />
+              <span className="inline-flex items-center gap-1">{t('positionsTable.prixDeRevient')}<InfoBulle texte={textePrixRevient()} />
               </span>
             }
           >
@@ -264,7 +264,7 @@ function PositionCard({
           </Field>
           <Field
             label={
-              <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+              <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
               </span>
             }
           >
@@ -791,7 +791,7 @@ export default function PositionsTable({
                   )}
                   <Field
                     label={
-                      <span className="inline-flex items-center gap-1">{t('positionsTable.prixDeRevient')}<InfoBulle texte={TEXTE_PRIX_REVIENT} />
+                      <span className="inline-flex items-center gap-1">{t('positionsTable.prixDeRevient')}<InfoBulle texte={textePrixRevient()} />
                       </span>
                     }
                     className="w-32"
@@ -830,7 +830,7 @@ export default function PositionsTable({
                   </Field>
                   <Field
                     label={
-                      <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+                      <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
                       </span>
                     }
                     className="w-32"

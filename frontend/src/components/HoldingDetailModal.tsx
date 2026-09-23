@@ -5,6 +5,7 @@ import EtatErreur from './EtatErreur'
 import HoldingDetailContent from './HoldingDetailContent'
 import { IconFermer, IconLienExterne } from './icons'
 import Modale from './Modale'
+import { t } from '../i18n'
 
 // Par `holdingId`, pas par ticker (revu le 14/09/2026) : deux lignes peuvent
 // désormais partager un ticker (une par compte) — seul l'id désigne sans ambiguïté
@@ -20,7 +21,7 @@ export default function HoldingDetailModal({ holdingId, onClose }: { holdingId: 
             <h2 id={titleId} className="text-lg font-semibold text-texte">
               {detail?.nom ?? detail?.ticker}
             </h2>
-            <button onClick={onClose} aria-label="Fermer" className="shrink-0 text-texte-attenue hover:text-texte">
+            <button onClick={onClose} aria-label={t('holdingDetailModal.fermer')} className="shrink-0 text-texte-attenue hover:text-texte">
               <IconFermer className="h-4 w-4" />
             </button>
           </div>
@@ -37,8 +38,7 @@ export default function HoldingDetailModal({ holdingId, onClose }: { holdingId: 
             state={{ depuisPatrimoine: true }}
             onClick={onClose}
             className="mb-4 inline-flex items-center gap-1 text-xs text-accent hover:underline"
-          >
-            Ouvrir en pleine page <IconLienExterne className="h-3 w-3" />
+          >{t('holdingDetailModal.ouvrirEnPleinePage')}{' '}<IconLienExterne className="h-3 w-3" />
           </Link>
 
           {/* `loading && !detail` (pas `loading` seul) : un `recharger()` (§ AP.1)

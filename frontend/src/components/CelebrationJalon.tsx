@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { Jalon } from '../api/types'
 import { IconBadge, IconFermer } from './icons'
+import { t } from '../i18n'
 
 const DUREE_AFFICHAGE_MS = 7000
 
@@ -35,7 +36,7 @@ export default function CelebrationJalon({ jalon, onFermer }: { jalon: Jalon; on
       <button
         type="button"
         onClick={onFermer}
-        aria-label="Fermer"
+        aria-label={t('celebrationJalon.fermer')}
         className="shrink-0 text-texte-attenue hover:text-texte"
       >
         <IconFermer className="h-4 w-4" />

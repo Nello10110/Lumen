@@ -1,4 +1,5 @@
 import LumenMark from './LumenMark'
+import { t } from '../i18n'
 
 const HAUTEUR_PAR_DEFAUT = 280
 
@@ -18,19 +19,19 @@ const HAUTEUR_PAR_DEFAUT = 280
 export default function ChargementCourbeLumen({ hauteur = HAUTEUR_PAR_DEFAUT }: { hauteur?: number }) {
   return (
     <output
-      aria-label="Chargement de l'historique en cours"
+      aria-label={t('chargementCourbeLumen.chargementDeLHistoriqueEn')}
       className="flex flex-col items-center justify-center gap-3 rounded-control bg-bordure/25"
       style={{ height: hauteur }}
     >
       <LumenMark className="h-9 w-9 animate-lumen-pouls" />
       <div className="flex flex-col items-center gap-0.5 text-center">
-        <p className="text-[13px] text-ink3">Lumen fait la lumière sur votre historique…</p>
+        <p className="text-[13px] text-ink3">{t('chargementCourbeLumen.lumenFaitLaLumiereSur')}</p>
         {/* « une seule fois » est désormais littéralement vrai (backlog § AB) :
             l'attente ne concerne que des titres dont la série de cours n'est pas
             encore en base. Une fois remplie — par cet écran ou par le job planifié
             « Historique des cours » —, le calcul retombe à ~330 ms, réseau compris
             (mesuré sur le portefeuille réel). */}
-        <p className="text-[11px] text-ink4">(seulement pour les titres jamais téléchargés)</p>
+        <p className="text-[11px] text-ink4">{t('chargementCourbeLumen.seulementPourLesTitresJamais')}</p>
       </div>
       <div className="h-1.5 w-56 max-w-[70%] overflow-hidden rounded-full bg-bordure">
         <div className="h-full rounded-full bg-accent animate-lumen-progression" />

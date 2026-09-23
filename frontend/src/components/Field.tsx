@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { t } from '../i18n'
 
 /* Champs de saisie — la primitive qui manquait au paquet v1, et la cause n°1 de la
  * non-uniformité constatée après portage.
@@ -194,7 +195,7 @@ export function Sheet({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('field.fermer')}
             className="ml-auto flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-chip bg-track text-ink3 transition-colors hover:bg-hover"
           >
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">

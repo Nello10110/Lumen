@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
+import { t } from '../i18n'
 
 /** Backlog § AG.1 (16/09/2026) — mode « langage simple » : remplace un libellé
  * technique par sa formulation en langage courant quand la préférence est
@@ -28,7 +29,7 @@ export default function LabelAdaptatif({ simple, technique }: { simple: string; 
         onClick={() => setDeplie((v) => !v)}
         className="text-[10px] font-normal normal-case tracking-normal text-texte-attenue underline hover:text-texte"
       >
-        {deplie ? 'langage simple' : 'terme technique'}
+        {deplie ? t('labelAdaptatif.langageSimple') : t('labelAdaptatif.termeTechnique')}
       </button>
     </span>
   )

@@ -3,6 +3,7 @@
  * Rapport (cf. `PreferencesAffichageContext`). */
 
 import { dateVersISO } from './format'
+import { t } from '../i18n'
 
 /** Cinq périodes, libellés courts (maquette de la refonte, 07/09/2026). Les sept
  * d'avant portaient des libellés longs (« Depuis janvier », « 3 mois ») qui
@@ -14,11 +15,13 @@ export type PeriodeRelative = '1M' | '3M' | '1A' | '5A' | 'TOUT'
 export type Periode = { type: 'relative'; valeur: PeriodeRelative } | { type: 'personnalisee'; dateDebut: string; dateFin: string }
 
 export const PERIODES_RELATIVES: { valeur: PeriodeRelative; label: string }[] = [
-  { valeur: '1M', label: '1M' },
-  { valeur: '3M', label: '3M' },
-  { valeur: '1A', label: '1A' },
-  { valeur: '5A', label: '5A' },
-  { valeur: 'TOUT', label: 'Tout' },
+  // Libellés en accesseurs, lus dans la langue active (§ BL) : « 1A » (an) devient
+  // « 1Y » en anglais, « 1J » en allemand.
+  { valeur: '1M', get label() { return t('periode.court1M') } },
+  { valeur: '3M', get label() { return t('periode.court3M') } },
+  { valeur: '1A', get label() { return t('periode.court1A') } },
+  { valeur: '5A', get label() { return t('periode.court5A') } },
+  { valeur: 'TOUT', get label() { return t('periode.courtTout') } },
 ]
 
 /** Une période lue depuis `localStorage` peut dater d'avant ce resserrage (« 6M »,
@@ -52,18 +55,18 @@ export const PERIODE_DEFAUT: Periode = { type: 'relative', valeur: 'TOUT' }
 // dire précisément ce qui est mesuré plutôt que de laisser croire à une variation du
 // patrimoine net lui-même.
 export function libellePeriodeEcoulee(periode: Periode): string {
-  if (periode.type === 'personnalisee') return 'sur la période sélectionnée'
+  if (periode.type === 'personnalisee') return t('periode.surLaPeriodeSelectionnee')
   switch (periode.valeur) {
     case 'TOUT':
-      return 'depuis le début du suivi'
+      return t('periode.depuisLeDebutDuSuivi')
     case '1M':
-      return 'sur le dernier mois'
+      return t('periode.surLeDernierMois')
     case '3M':
-      return 'sur les 3 derniers mois'
+      return t('periode.surLes3DerniersMois')
     case '1A':
-      return 'sur la dernière année'
+      return t('periode.surLaDerniereAnnee')
     case '5A':
-      return 'sur les 5 dernières années'
+      return t('periode.surLes5DernieresAnnees')
   }
 }
 

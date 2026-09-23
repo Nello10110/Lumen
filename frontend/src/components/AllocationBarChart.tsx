@@ -1,4 +1,6 @@
 import type { AllocationBreakdownItem } from '../api/types'
+import { libelleDonnee } from '../i18n/donnees'
+import { t } from '../i18n'
 
 /** Barres horizontales de répartition (écran Analyse) — la forme exacte de la
  * maquette : une grille CSS de trois colonnes, `libellé | piste | valeur`, en
@@ -36,8 +38,8 @@ export default function AllocationBarChart({
       {items.map((item) => {
         const contenu = (
           <>
-            <span title={item.categorie} className="flex h-10 items-center truncate text-[13px] text-ink2">
-              {item.categorie}
+            <span title={libelleDonnee(item.categorie)} className="flex h-10 items-center truncate text-[13px] text-ink2">
+              {libelleDonnee(item.categorie)}
             </span>
             <span className="flex h-10 min-w-0 items-center">
               <span
@@ -55,7 +57,7 @@ export default function AllocationBarChart({
             key={item.categorie}
             type="button"
             onClick={() => onCategoryClick(item.categorie)}
-            title={`Voir le détail des lignes de « ${item.categorie} »`}
+            title={t('allocationBarChart.voirDetail', { categorie: libelleDonnee(item.categorie) })}
             className="col-span-3 grid grid-cols-subgrid rounded-control text-left transition-colors hover:bg-hover"
           >
             {contenu}

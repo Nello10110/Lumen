@@ -10,6 +10,7 @@ import { formatDate, formatEuro } from '../utils/format'
 import { PERIODES_RELATIVES, bornesPeriode } from '../utils/periode'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
+import { t } from '../i18n'
 
 /** Contrôles de la courbe — pilule « Mode étagé » et sélecteur de période. Séparés
  * du graphique parce que la maquette les place dans l'EN-TÊTE du bloc héros, alignés
@@ -33,10 +34,8 @@ export function ControlesCourbe({ stacked, onStackedChange }: { stacked: boolean
       <Pill
         actif={stacked}
         onClick={() => onStackedChange(!stacked)}
-        title="Superpose l'investi sous le total : la tranche visible entre les deux courbes, ce sont les gains."
-      >
-        Mode étagé
-      </Pill>
+        title={t('portfolioHistoryChart.superposeLInvestiSousLe')}
+      >{t('portfolioHistoryChart.modeEtage')}</Pill>
       {/* La période vit à CÔTÉ de la courbe qu'elle change (deuxième décision
           structurelle du paquet de design). Elle reste la préférence transverse et
           non un état local : le chiffre héros juste à gauche affiche sa variation sur
@@ -46,7 +45,7 @@ export function ControlesCourbe({ stacked, onStackedChange }: { stacked: boolean
         valeur={periode.type === 'relative' ? periode.valeur : 'TOUT'}
         onChange={(valeur) => setPeriode({ type: 'relative', valeur })}
         taille="sm"
-        ariaLabel="Période du graphique"
+        ariaLabel={t('portfolioHistoryChart.periodeDuGraphique')}
         className="hidden md:flex"
       />
     </div>
@@ -162,7 +161,7 @@ export default function PortfolioHistoryChart({
     <>
       {loadingActif && <ChargementCourbeLumen />}
       {errorActif && <EtatErreur message={errorActif} onReessayer={onRetryActif} />}
-      {!loadingActif && !errorActif && data.length === 0 && <EtatVide titre="Pas encore d'historique disponible." illustration />}
+      {!loadingActif && !errorActif && data.length === 0 && <EtatVide titre={t('portfolioHistoryChart.pasEncoreDHistoriqueDisponible')} illustration />}
 
       {!loadingActif && !errorActif && data.length > 0 && (
         <>
@@ -174,13 +173,9 @@ export default function PortfolioHistoryChart({
           {stackedEffectif && (
             <div className="mb-2 flex justify-end gap-3 text-[11px] text-ink3">
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />
-                Investi
-              </span>
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />{t('portfolioHistoryChart.investi')}</span>
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />
-                Gains
-              </span>
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />{t('portfolioHistoryChart.gains')}</span>
             </div>
           )}
           {/* Langage graphique de la refonte, désormais porté par `ChartFrame` : ni
@@ -201,7 +196,7 @@ export default function PortfolioHistoryChart({
                 valeur={periode.type === 'relative' ? periode.valeur : 'TOUT'}
                 onChange={(valeur) => setPeriode({ type: 'relative', valeur })}
                 taille="sm"
-                ariaLabel="Période du graphique (mobile)"
+                ariaLabel={t('portfolioHistoryChart.periodeDuGraphiqueMobile')}
                 className="mt-3 md:hidden"
               />
             }
@@ -248,8 +243,8 @@ export default function PortfolioHistoryChart({
           {stackedEffectif && (
             <p className="mt-2 text-[11px] text-ink4">
               {enFinancier
-                ? "« Gains » inclut les ventes réalisées, dividendes et intérêts perçus — même chiffre que le Gain/Perte total de la carte Rentabilité globale."
-                : "Pour l'immobilier/l'épargne, seul un versement explicitement déclaré compte comme « Investi » — une hausse non déclarée est traitée comme un gain."}
+                ? t('portfolioHistoryChart.gainsInclutLesVentesRealisees')
+                : t('portfolioHistoryChart.pourLImmobilierLEpargne')}
             </p>
           )}
         </>

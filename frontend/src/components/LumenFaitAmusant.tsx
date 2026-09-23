@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { IconFermer } from './icons'
+import { t } from '../i18n'
 
 const DUREE_AFFICHAGE_MS = 6000
 
@@ -23,14 +24,11 @@ export default function LumenFaitAmusant({ onFermer }: { onFermer: () => void })
       role="status"
       className="fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-start gap-3 rounded-panel border border-stroke bg-panel-hi px-4 py-3 text-sm text-ink shadow-glass-lg backdrop-blur-glass"
     >
-      <span>
-        Un lumen, c'est le flux lumineux d'une bougie à un mètre. Votre patrimoine, lui, n'a pas d'unité SI — mais on garde
-        le nom.
-      </span>
+      <span>{t('lumenFaitAmusant.unLumenCEstLe')}</span>
       <button
         type="button"
         onClick={onFermer}
-        aria-label="Fermer"
+        aria-label={t('lumenFaitAmusant.fermer')}
         className="shrink-0 text-texte-attenue hover:text-texte"
       >
         <IconFermer className="h-4 w-4" />

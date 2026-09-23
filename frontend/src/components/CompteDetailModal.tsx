@@ -5,6 +5,7 @@ import EtatErreur from './EtatErreur'
 import { IconFermer, IconLienExterne } from './icons'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
+import { t } from '../i18n'
 
 export default function CompteDetailModal({
   compteId,
@@ -24,9 +25,9 @@ export default function CompteDetailModal({
         <>
           <div className="mb-2 flex items-start justify-between gap-4">
             <h2 id={titleId} className="text-lg font-semibold text-texte">
-              {compte?.nom ?? 'Compte'}
+              {compte?.nom ?? t('compteDetailModal.compte')}
             </h2>
-            <button onClick={onClose} aria-label="Fermer" className="shrink-0 text-texte-attenue hover:text-texte">
+            <button onClick={onClose} aria-label={t('compteDetailModal.fermer')} className="shrink-0 text-texte-attenue hover:text-texte">
               <IconFermer className="h-4 w-4" />
             </button>
           </div>
@@ -38,8 +39,7 @@ export default function CompteDetailModal({
             to={`/comptes/${compteId}`}
             onClick={onClose}
             className="mb-4 inline-flex items-center gap-1 text-xs text-accent hover:underline"
-          >
-            Ouvrir en pleine page <IconLienExterne className="h-3 w-3" />
+          >{t('compteDetailModal.ouvrirEnPleinePage')}{' '}<IconLienExterne className="h-3 w-3" />
           </Link>
 
           {loading && <SkeletonTexte lignes={4} />}

@@ -1,5 +1,6 @@
 import { forwardRef, useState, type ReactNode } from 'react'
 import { IconImport } from './icons'
+import { t } from '../i18n'
 
 /** Zone de dépôt de fichier réutilisable (refonte import, 05/09/2026, retour
  * utilisateur : « pas assez d'information, on a l'impression que ça ne marche
@@ -42,7 +43,7 @@ const Dropzone = forwardRef<
     className?: string
   }
 >(function Dropzone(
-  { accept, hint, label = 'Glissez un fichier ici ou cliquez pour parcourir', uploading = false, onFileSelected, ariaLabel, children, className },
+  { accept, hint, label = t('dropzone.glissezUnFichierIciOu'), uploading = false, onFileSelected, ariaLabel, children, className },
   ref,
 ) {
   const [dragActive, setDragActive] = useState(false)
@@ -92,7 +93,7 @@ const Dropzone = forwardRef<
         <>
           <IconImport className={`h-6 w-6 ${dragActive ? 'text-accent' : 'text-texte-attenue'}`} />
           <p className="text-sm font-medium text-texte">
-            {uploading ? 'Lecture du fichier...' : dragActive ? 'Déposez le fichier ici' : label}
+            {uploading ? t('dropzone.lectureDuFichier') : dragActive ? t('dropzone.deposezLeFichierIci') : label}
           </p>
           {hint && !uploading && <p className="text-xs text-texte-attenue">{hint}</p>}
         </>

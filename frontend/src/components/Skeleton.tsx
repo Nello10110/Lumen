@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 // États de chargement uniformes (backlog 2.K.1), remplace les `<p>Chargement...</p>`
 // répétés à l'identique dans une quinzaine de fichiers. Hors périmètre volontaire :
 // le `Suspense fallback` de `App.tsx` et l'écran de connexion/chargement initial
@@ -15,7 +16,7 @@ export function Skeleton({ className = '', style }: { className?: string; style?
 /** Bloc de texte en cours de chargement (remplace `<p>Chargement...</p>`). */
 export function SkeletonTexte({ lignes = 3 }: { lignes?: number }) {
   return (
-    <div className="space-y-2" role="status" aria-label="Chargement en cours">
+    <div className="space-y-2" role="status" aria-label={t('skeleton.chargementEnCours')}>
       {Array.from({ length: lignes }).map((_, i) => (
         <Skeleton key={i} className={`h-4 ${i === lignes - 1 ? 'w-2/3' : 'w-full'}`} />
       ))}

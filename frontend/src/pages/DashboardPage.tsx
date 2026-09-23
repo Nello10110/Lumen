@@ -9,6 +9,7 @@ import PortfolioHistoryChart, { ControlesCourbe } from '../components/PortfolioH
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { parseDateApi } from '../utils/format'
+import { t } from '../i18n'
 
 // Backlog § AF.4 (15/09/2026, révisé le 21/09/2026 suite à un rapport
 // utilisateur) — au-delà de ce nombre de jours sans qu'un rafraîchissement des
@@ -164,9 +165,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-[14px]">
       <div className="flex items-center justify-end md:justify-between">
-        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Tableau de bord</h1>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('dashboardPage.tableauDeBord')}</h1>
         <SecondaryButton onClick={chargerDonnees} disabled={chargement} className="min-h-11 md:min-h-0">
-          {chargement ? 'Actualisation...' : 'Actualiser'}
+          {chargement ? t('dashboardPage.actualisation') : t('dashboardPage.actualiser')}
         </SecondaryButton>
       </div>
 
@@ -194,11 +195,8 @@ export default function DashboardPage() {
           sur l'écran d'accueil quand tout le reste part. */}
       {portefeuilleVide && !patrimoineVide && (
         <Card className="border-warn/25 bg-warn-bg">
-          <p className="text-sm text-warn">
-            Aucune position dans le portefeuille. Commence par{' '}
-            <Link to="/import" className="font-medium underline">
-              importer ton portefeuille
-            </Link>
+          <p className="text-sm text-warn">{t('dashboardPage.aucunePositionDansLePortefeuille')}{' '}
+            <Link to="/import" className="font-medium underline">{t('dashboardPage.importerTonPortefeuille')}</Link>
             .
           </p>
         </Card>
@@ -213,15 +211,12 @@ export default function DashboardPage() {
       {joursSansRafraichissement !== null && auMoinsUnePositionCotee && !portefeuilleVide && (
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-texte-attenue">
-              Vos cours n'ont pas été actualisés depuis {joursSansRafraichissement} jour
-              {joursSansRafraichissement > 1 ? 's' : ''} — les actualiser&nbsp;?
-            </p>
+            <p className="text-sm text-texte-attenue">{t('dashboardPage.coursNonActualises', { n: joursSansRafraichissement })}</p>
             <SecondaryButton
               onClick={() => declencherRafraichissement(() => api.refreshMarketData())}
               disabled={rafraichissementEnCours}
             >
-              {rafraichissementEnCours ? 'Actualisation...' : 'Actualiser les cours'}
+              {rafraichissementEnCours ? t('dashboardPage.actualisation') : t('dashboardPage.actualiserLesCours')}
             </SecondaryButton>
           </div>
         </Card>
@@ -231,11 +226,8 @@ export default function DashboardPage() {
           sans ce lien, quelqu'un qui consultait la répartition sectorielle sous le
           repli « Détail » n'aurait aucun moyen de deviner où elle est passée. */}
       {!patrimoineVide && (
-        <p className="text-[13px] text-ink3">
-          Répartitions, rentabilité, qualité des données et revenus ont leur écran :{' '}
-          <Link to="/analyse" className="font-medium text-accent hover:underline">
-            voir l'analyse détaillée
-          </Link>
+        <p className="text-[13px] text-ink3">{t('dashboardPage.repartitionsRentabiliteQualiteDesDonnees')}{' '}
+          <Link to="/analyse" className="font-medium text-accent hover:underline">{t('dashboardPage.voirLAnalyseDetaillee')}</Link>
           .
         </p>
       )}

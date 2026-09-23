@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Compte, Etablissement, Holding, Loan } from '../api/types'
 import {
-  TEXTE_PRIX_REVIENT,
-  TEXTE_VALEUR_ESTIMEE,
+  textePrixRevient,
+  texteValeurEstimee,
   TYPES_ACTIF_SANS_ETABLISSEMENT,
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
@@ -25,6 +25,7 @@ import { LOAN_FORM_VIDE, type LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { localeCourante, t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 // Sentinelle pour l'option "+ Nouveau compte..." du sélecteur — distincte de toute
 // valeur réelle possible (un id de compte est toujours numérique).
@@ -396,7 +397,7 @@ export default function AjoutHoldingForm({
             )}
             <Field
               label={
-                <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.prixDeRevient')}<InfoBulle texte={TEXTE_PRIX_REVIENT} />
+                <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.prixDeRevient')}<InfoBulle texte={textePrixRevient()} />
                 </span>
               }
             >
@@ -450,7 +451,7 @@ export default function AjoutHoldingForm({
             )}
             <Field
               label={
-                <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.valeurEstimee')}<InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+                <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
                 </span>
               }
             >
@@ -491,7 +492,7 @@ export default function AjoutHoldingForm({
                   <option value="">{t('ajoutHoldingForm.europeParDefaut')}</option>
                   {ZONES_GEO.map((zone) => (
                     <option key={zone} value={zone}>
-                      {zone}
+                      {libelleDonnee(zone)}
                     </option>
                   ))}
                 </Select>

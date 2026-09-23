@@ -1,16 +1,18 @@
 import type { Compte, Holding } from '../api/types'
+import { t } from '../i18n'
 
 export type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'BOND' | 'PRIVATE_FUND' | 'CRYPTO' | 'PATRIMOINE' | 'AUTRES'
 
+// Libellés en accesseurs : lus à l'affichage, dans la langue active (§ BL).
 export const CATEGORY_TABS: { key: Categorie; label: string }[] = [
-  { key: 'TOUS', label: 'Tous' },
-  { key: 'STOCK', label: 'Actions' },
-  { key: 'FUND', label: 'ETF' },
-  { key: 'BOND', label: 'Obligations' },
-  { key: 'PRIVATE_FUND', label: 'Private Equity' },
-  { key: 'CRYPTO', label: 'Crypto' },
-  { key: 'PATRIMOINE', label: 'Immobilier & Épargne' },
-  { key: 'AUTRES', label: 'Autres' },
+  { key: 'TOUS', get label() { return t('holdingCategories.onglet.tous') } },
+  { key: 'STOCK', get label() { return t('holdingCategories.onglet.actions') } },
+  { key: 'FUND', get label() { return t('holdingCategories.onglet.etf') } },
+  { key: 'BOND', get label() { return t('holdingCategories.onglet.obligations') } },
+  { key: 'PRIVATE_FUND', get label() { return t('holdingCategories.onglet.privateEquity') } },
+  { key: 'CRYPTO', get label() { return t('holdingCategories.onglet.crypto') } },
+  { key: 'PATRIMOINE', get label() { return t('holdingCategories.onglet.immobilierEpargne') } },
+  { key: 'AUTRES', get label() { return t('holdingCategories.onglet.autres') } },
 ]
 
 // Immobilier/SCPI/assurance-vie/PER/autre actif/taxonomie élargie (roadmap Phase 1
@@ -36,21 +38,21 @@ export const TYPES_PATRIMOINE = new Set([
 // échappe au look-through par catégorie — d'où l'option "Non précisé" plutôt qu'un
 // type par défaut implicite.
 export const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'Non précisé' },
-  { value: 'STOCK', label: 'Action' },
-  { value: 'FUND', label: 'ETF / Fonds' },
-  { value: 'CRYPTO', label: 'Crypto' },
-  { value: 'BOND', label: 'Obligation' },
-  { value: 'PRIVATE_FUND', label: 'Private Equity' },
-  { value: 'REAL_ESTATE', label: 'Immobilier' },
-  { value: 'SCPI', label: 'SCPI' },
-  { value: 'LIFE_INSURANCE', label: 'Assurance-vie' },
-  { value: 'PENSION', label: 'PER / Épargne retraite' },
-  { value: 'CASH_ACCOUNT', label: 'Compte courant' },
-  { value: 'REGULATED_SAVINGS', label: 'Épargne réglementée (Livret A, LDDS...)' },
-  { value: 'EMPLOYEE_SAVINGS', label: 'Épargne salariale (PEE, PERCO...)' },
-  { value: 'VEHICLE', label: 'Véhicule' },
-  { value: 'OTHER_ASSET', label: 'Autre actif' },
+  { value: '', get label() { return t('holdingCategories.type.nonPrecise') } },
+  { value: 'STOCK', get label() { return t('holdingCategories.type.action') } },
+  { value: 'FUND', get label() { return t('holdingCategories.type.etfFonds') } },
+  { value: 'CRYPTO', get label() { return t('holdingCategories.type.crypto') } },
+  { value: 'BOND', get label() { return t('holdingCategories.type.obligation') } },
+  { value: 'PRIVATE_FUND', get label() { return t('holdingCategories.type.privateEquity') } },
+  { value: 'REAL_ESTATE', get label() { return t('holdingCategories.type.immobilier') } },
+  { value: 'SCPI', get label() { return t('holdingCategories.type.scpi') } },
+  { value: 'LIFE_INSURANCE', get label() { return t('holdingCategories.type.assuranceVie') } },
+  { value: 'PENSION', get label() { return t('holdingCategories.type.per') } },
+  { value: 'CASH_ACCOUNT', get label() { return t('holdingCategories.type.compteCourant') } },
+  { value: 'REGULATED_SAVINGS', get label() { return t('holdingCategories.type.epargneReglementee') } },
+  { value: 'EMPLOYEE_SAVINGS', get label() { return t('holdingCategories.type.epargneSalariale') } },
+  { value: 'VEHICLE', get label() { return t('holdingCategories.type.vehicule') } },
+  { value: 'OTHER_ASSET', get label() { return t('holdingCategories.type.autreActif') } },
 ]
 
 // Sous-ensemble de `TYPES_PATRIMOINE` dispensé de compte (revue du 03/09/2026,
@@ -79,10 +81,13 @@ export const TYPES_AVEC_TAUX = new Set(['REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS',
 // centralisés ici pour rester identiques entre le formulaire d'ajout
 // (`PortefeuillePage.tsx`) et l'édition en ligne (`PositionsTable.tsx`, mobile et
 // desktop), plutôt que dupliqués à 3 endroits.
-export const TEXTE_PRIX_REVIENT =
-  "Montant investi à l'achat. Pour une action/ETF importé, calculé automatiquement à partir de vos transactions ; pour une ligne saisie à la main (immobilier, assurance-vie...), à renseigner vous-même. Reste une base fixe, utilisée pour calculer votre gain ou perte."
-export const TEXTE_VALEUR_ESTIMEE =
-  "Valeur actuelle du bien, à mettre à jour vous-même (estimation d'agence, avis de valeur...) — concerne uniquement les lignes valorisées manuellement (immobilier, SCPI, assurance-vie...). Remplace alors le calcul prix × quantité. Chaque changement est conservé dans l'historique, jamais écrasé silencieusement."
+// Fonctions, pas constantes : lues à l'affichage, dans la langue active (§ BL).
+export function textePrixRevient(): string {
+  return t('holdingCategories.aidePrixRevient')
+}
+export function texteValeurEstimee(): string {
+  return t('holdingCategories.aideValeurEstimee')
+}
 
 // Sous-ensemble de TYPES_PATRIMOINE couvert par l'écran Épargne (backlog 2.S.1) —
 // miroir de `models.TYPES_EPARGNE` côté backend. Le Véhicule en reste exclu (décote
@@ -122,7 +127,7 @@ export const SECTEURS = [
 ]
 
 export function libelleTaux(typeActif: string): string {
-  return typeActif === 'VEHICLE' ? 'Décote annuelle (%)' : "Taux d'intérêt annuel (%)"
+  return typeActif === 'VEHICLE' ? t('holdingCategories.decoteAnnuelle') : t('holdingCategories.tauxDInteretAnnuel')
 }
 
 // Identifiant technique dérivé du Nom pour une ligne patrimoniale (retour

@@ -4,6 +4,7 @@ import EtatErreur from '../components/EtatErreur'
 import { SkeletonTexte } from '../components/Skeleton'
 import { IconFlecheGauche } from '../components/icons'
 import { useHoldingDetail } from '../hooks/useHoldingDetail'
+import { t } from '../i18n'
 
 export default function HoldingDetailPage() {
   const { holdingId } = useParams<{ holdingId: string }>()
@@ -32,8 +33,7 @@ export default function HoldingDetailPage() {
   return (
     <div className="space-y-[14px]">
       <button onClick={handleRetour} className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 text-[13px] text-accent hover:underline md:min-h-0 md:py-3">
-        <IconFlecheGauche className="h-4 w-4" /> Patrimoine
-      </button>
+        <IconFlecheGauche className="h-4 w-4" />{' '}{t('holdingDetailPage.patrimoine')}</button>
       <HoldingDetailContent detail={detail} onRecharger={recharger} />
     </div>
   )

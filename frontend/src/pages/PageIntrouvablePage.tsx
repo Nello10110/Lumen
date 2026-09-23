@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import EtatVide from '../components/EtatVide'
+import { t } from '../i18n'
 
 /** Route `*` (backlog § AD.3, 15/09/2026) — jusqu'ici une URL inconnue tombait sur
  * un cadre vide (aucune `<Route>` ne correspondait), sans jamais planter (l'ossature
@@ -10,13 +11,10 @@ export default function PageIntrouvablePage() {
   return (
     <div className="p-6">
       <EtatVide
-        titre="Aucune lumière par ici."
+        titre={t('pageIntrouvablePage.aucuneLumiereParIci')}
         description={
-          <>
-            Cette page n'existe pas.{' '}
-            <Link to="/" className="font-medium text-accent hover:underline">
-              Retour au tableau de bord
-            </Link>
+          <>{t('pageIntrouvablePage.cettePageNExistePas')}{' '}
+            <Link to="/" className="font-medium text-accent hover:underline">{t('pageIntrouvablePage.retourAuTableauDeBord')}</Link>
             .
           </>
         }

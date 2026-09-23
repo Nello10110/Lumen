@@ -86,21 +86,22 @@ import type {
   ValuationHistoryPoint,
   ZoneGeographiqueInfo,
 } from './types'
+import { t } from '../i18n'
 
 // Messages génériques (LOT 6.8) : utilisés seulement quand l'API ne fournit aucun
 // `detail` textuel exploitable — sinon on garde toujours celui du backend tel quel,
 // il est déjà rédigé en français métier (cf. les `HTTPException` des routers).
-const MESSAGE_ERREUR_RESEAU = 'Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.'
-
-const MESSAGES_PAR_STATUT: Record<number, string> = {
-  404: 'La ressource demandée est introuvable.',
-  413: 'Le fichier envoyé est trop volumineux.',
-  429: 'Trop de requêtes envoyées en peu de temps. Merci de patienter avant de réessayer.',
-  500: 'Une erreur interne est survenue côté serveur. Réessayez plus tard.',
+// Fonctions, pas constantes : dans la langue active au moment de l'erreur (§ BL).
+function messageErreurReseau(): string {
+  return t('client.erreurReseau')
 }
 
 function messageGenerique(status: number, statusText: string): string {
-  return MESSAGES_PAR_STATUT[status] ?? `Une erreur inattendue est survenue (${status}${statusText ? ` ${statusText}` : ''}).`
+  if (status === 404) return t('client.introuvable')
+  if (status === 413) return t('client.tropVolumineux')
+  if (status === 429) return t('client.tropDeRequetes')
+  if (status === 500) return t('client.erreurInterne')
+  return t('client.erreurInattendue', { statut: statusText ? `${status} ${statusText}` : String(status) })
 }
 
 // Routes publiques (Milestone 1, multi-utilisateur) : un 401 y est une erreur de
@@ -130,7 +131,7 @@ async function fetchApi(path: string, options?: RequestInit): Promise<Response> 
   } catch {
     // `fetch` a échoué avant toute réponse (connexion au serveur perdue, serveur non
     // démarré...) : il n'y a aucun `detail` métier possible à afficher.
-    throw new Error(MESSAGE_ERREUR_RESEAU)
+    throw new Error(messageErreurReseau())
   }
   if (!res.ok) {
     if (res.status === 401 && !estRoutePublique(path)) {
@@ -172,10 +173,7 @@ async function fetchApi(path: string, options?: RequestInit): Promise<Response> 
  * intercepter et rediriger — un `fetch` ne le peut pas. */
 export class ErreurPortailAuthentification extends Error {
   constructor() {
-    super(
-      "La session avec le portail d'authentification a expiré. " +
-        'Recharge la page pour t’y reconnecter.',
-    )
+    super(t('client.portailExpire'))
     this.name = 'ErreurPortailAuthentification'
   }
 }

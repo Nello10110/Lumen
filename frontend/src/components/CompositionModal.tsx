@@ -9,6 +9,8 @@ import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 
 /** Détail des lignes d'une catégorie d'un camembert cliquable — réutilisé par le
@@ -55,11 +57,11 @@ export default function CompositionModal({
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <h3 id={titleId} className="text-lg font-semibold text-texte">
-                  {categorie}
+                  {libelleDonnee(categorie)}
                 </h3>
                 <p className="text-xs text-texte-attenue">{sousTitre}</p>
               </div>
-              <button onClick={onClose} aria-label="Fermer" className="text-texte-attenue hover:text-texte">
+              <button onClick={onClose} aria-label={t('compositionModal.fermer')} className="text-texte-attenue hover:text-texte">
                 <IconFermer className="h-4 w-4" />
               </button>
             </div>
@@ -67,12 +69,11 @@ export default function CompositionModal({
             {loading && <SkeletonTexte />}
             {error && <EtatErreur message={error} onReessayer={charger} />}
 
-            {data && data.lignes.length === 0 && <EtatVide titre="Aucune ligne ne compose cette catégorie." />}
+            {data && data.lignes.length === 0 && <EtatVide titre={t('compositionModal.aucuneLigneNeComposeCette')} />}
 
             {data && data.lignes.length > 0 && (
               <>
-                <p className="mb-2 text-sm text-texte">
-                  Valeur totale : <span className="font-medium text-texte">{formatEuro(data.valeur_totale, 2, montantsMasques)}</span>
+                <p className="mb-2 text-sm text-texte">{t('compositionModal.valeurTotale')}{' '}<span className="font-medium text-texte">{formatEuro(data.valeur_totale, 2, montantsMasques)}</span>
                 </p>
                 {/* Barre empilée + liste plutôt qu'un camembert (passe d'uniformité) :
                     cette modale s'ouvre depuis l'écran Analyse, au clic sur une barre

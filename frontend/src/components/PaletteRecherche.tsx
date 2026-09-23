@@ -124,9 +124,7 @@ export default function PaletteRecherche({ compact = false }: { compact?: boolea
         <Modale onClose={fermer} panelClassName="w-full max-w-lg rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass">
           {({ titleId }) => (
             <div className="flex max-h-[70vh] flex-col">
-              <h2 id={titleId} className="sr-only">
-                Recherche
-              </h2>
+              <h2 id={titleId} className="sr-only">{t('paletteRecherche.recherche')}</h2>
               <div className="flex items-center gap-2 border-b border-bordure px-4 py-3">
                 <IconRecherche className="h-4 w-4 shrink-0 text-texte-attenue" />
                 <input

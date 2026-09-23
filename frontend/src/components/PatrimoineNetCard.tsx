@@ -11,6 +11,8 @@ import EtatErreur from './EtatErreur'
 import { GlassPanel } from './GlassPanel'
 import PatrimoineVide from './PatrimoineVide'
 import { SkeletonTexte } from './Skeleton'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 // Une seule famille, du plus au moins important (`--s1`…`--s5`) — les catégories
 // au-delà de la cinquième partagent la teinte la plus claire : au-delà, la
@@ -22,18 +24,18 @@ const COULEURS_SERIE = ['bg-s1', 'bg-s2', 'bg-s3', 'bg-s4', 'bg-s5']
 // chiffre qui répond à "est-ce que ça monte ?"), Brut/Financier restent neutres
 // (pas de jugement, ce sont des sous-totaux).
 const TUILE_PRINCIPALE = {
-  net: (p: PatrimoineNet) => ({ label: 'Patrimoine net', valeur: p.patrimoine_net, tone: 'good' as const }),
-  brut: (p: PatrimoineNet) => ({ label: 'Patrimoine brut', valeur: p.actifs_totaux, tone: 'neutral' as const }),
-  financier: (p: PatrimoineNet) => ({ label: 'Patrimoine financier', valeur: p.patrimoine_financier, tone: 'neutral' as const }),
+  net: (p: PatrimoineNet) => ({ label: t('patrimoineNetCard.patrimoineNet'), valeur: p.patrimoine_net, tone: 'good' as const }),
+  brut: (p: PatrimoineNet) => ({ label: t('patrimoineNetCard.patrimoineBrut'), valeur: p.actifs_totaux, tone: 'neutral' as const }),
+  financier: (p: PatrimoineNet) => ({ label: t('patrimoineNetCard.patrimoineFinancier'), valeur: p.patrimoine_financier, tone: 'neutral' as const }),
 }
 
 // Légende sous le chiffre principal, une par lentille (feature Net/Brut/Financier sur
 // toute la page Synthèse) — la même honnêteté que partout ailleurs dans le projet sur
 // la portée réelle de la donnée affichée.
-const LEGENDE_VARIATION = {
-  financier: 'portefeuille suivi, hors immobilier/épargne/dettes',
-  brut: "patrimoine brut suivi — immobilier/épargne valorisés à leurs derniers points connus, parfois espacés",
-  net: "patrimoine net suivi — immobilier/épargne valorisés à leurs derniers points connus, parfois espacés",
+function legendeVariation(lentille: 'financier' | 'brut' | 'net'): string {
+  if (lentille === 'financier') return t('patrimoineNetCard.legendeFinancier')
+  if (lentille === 'brut') return t('patrimoineNetCard.legendeBrut')
+  return t('patrimoineNetCard.legendeNet')
 }
 
 interface PatrimoineNetCardProps {
@@ -151,7 +153,7 @@ export default function PatrimoineNetCard({
 
   if (loading) {
     return (
-      <Card title="Patrimoine net">
+      <Card title={t('patrimoineNetCard.patrimoineNet')}>
         <SkeletonTexte lignes={3} />
       </Card>
     )
@@ -159,7 +161,7 @@ export default function PatrimoineNetCard({
 
   if (error) {
     return (
-      <Card title="Patrimoine net">
+      <Card title={t('patrimoineNetCard.patrimoineNet')}>
         <EtatErreur message={error} onReessayer={charger} />
       </Card>
     )
@@ -208,7 +210,7 @@ export default function PatrimoineNetCard({
           titre de carte, libellé, valeur — et empilait quatre tuiles de même poids.
           Il ne reste que le sur-titre, le chiffre à 54 px et sa variation. */}
       <p className="text-[13px] font-medium text-ink3">
-        {principale.label} · {detenteurId === null ? 'Foyer' : 'Détenteur sélectionné'}
+        {principale.label} · {detenteurId === null ? t('patrimoineNetCard.foyer') : t('patrimoineNetCard.detenteurSelectionne')}
       </p>
       {/* Chiffre héros TOUJOURS en encre, jamais en vert ou en rouge (maquette de la
           refonte) : un patrimoine n'est ni un gain ni une perte, c'est un état. Le
@@ -235,7 +237,7 @@ export default function PatrimoineNetCard({
           <span className="text-[13px] text-ink3">
             {delta >= 0 ? '+' : '−'}
             {formatEuro(Math.abs(delta), 0, montantsMasques)} {libellePeriodeEcoulee(periode)}
-            <span className="hidden md:inline"> — {LEGENDE_VARIATION[lentille]}</span>
+            <span className="hidden md:inline"> — {legendeVariation(lentille)}</span>
           </span>
         </div>
       )}
@@ -256,23 +258,23 @@ export default function PatrimoineNetCard({
           la ventilation, et passifs). */}
       <div className="grid grid-cols-2 gap-[14px] lg:grid-cols-3">
         <Poche
-          libelle="Financier"
+          libelle={t('patrimoineNetCard.financier')}
           valeur={patrimoine.patrimoine_financier}
-          note="Actions, ETF, crypto, obligations"
+          note={t('patrimoineNetCard.actionsEtfCryptoObligations')}
           vers="/patrimoine"
           montantsMasques={montantsMasques}
         />
         <Poche
-          libelle="Immobilier & épargne"
+          libelle={t('patrimoineNetCard.immobilierEpargne')}
           valeur={patrimoine.actifs_totaux - patrimoine.patrimoine_financier}
-          note="Biens, assurances-vie, livrets"
+          note={t('patrimoineNetCard.biensAssurancesVieLivrets')}
           vers="/comptes"
           montantsMasques={montantsMasques}
         />
         <Poche
-          libelle="Emprunts"
+          libelle={t('patrimoineNetCard.emprunts')}
           valeur={patrimoine.passifs_totaux}
-          note="Capital restant dû"
+          note={t('patrimoineNetCard.capitalRestantDu')}
           vers="/comptes"
           montantsMasques={montantsMasques}
         />
@@ -280,7 +282,7 @@ export default function PatrimoineNetCard({
 
       {repartitionAffichee.length > 0 && (
         <GlassPanel className="px-5 py-[18px]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink3">Par type d'investissement</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink3">{t('patrimoineNetCard.parTypeDInvestissement')}</p>
 
           {/* UN SEUL langage graphique (troisième décision structurelle) : le
               camembert à 7 couleurs doublé d'une liste qui répétait les mêmes
@@ -297,7 +299,7 @@ export default function PatrimoineNetCard({
                   key={item.categorie}
                   className={COULEURS_SERIE[Math.min(i, COULEURS_SERIE.length - 1)]}
                   style={{ width: `${(item.valeur / totalPositif) * 100}%` }}
-                  title={`${item.categorie} : ${formatEuro(item.valeur, 0, montantsMasques)}`}
+                  title={`${libelleDonnee(item.categorie)} : ${formatEuro(item.valeur, 0, montantsMasques)}`}
                 />
               ))}
             </div>
@@ -314,7 +316,7 @@ export default function PatrimoineNetCard({
                       rang >= 0 ? COULEURS_SERIE[Math.min(rang, COULEURS_SERIE.length - 1)] : 'bg-ink4'
                     }`}
                   />
-                  <span className="min-w-0 flex-1 truncate text-xs text-ink3">{item.categorie}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-ink3">{libelleDonnee(item.categorie)}</span>
                   <span className={`text-[15px] font-semibold ${item.valeur < 0 ? 'text-neg' : 'text-ink'}`}>
                     {formatEuro(item.valeur, 0, montantsMasques)}
                   </span>

@@ -4,6 +4,7 @@ import EtatErreur from '../components/EtatErreur'
 import { IconFlecheGauche } from '../components/icons'
 import { SkeletonTexte } from '../components/Skeleton'
 import { useCompteDetail } from '../hooks/useCompteDetail'
+import { t } from '../i18n'
 
 export default function CompteDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -20,8 +21,7 @@ export default function CompteDetailPage() {
         onClick={() => navigate('/comptes')}
         className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
       >
-        <IconFlecheGauche className="h-4 w-4" /> Retour aux comptes
-      </button>
+        <IconFlecheGauche className="h-4 w-4" />{' '}{t('compteDetailPage.retourAuxComptes')}</button>
       <CompteDetailContent compte={compte} holdings={holdings} onChanged={recharger} />
     </div>
   )

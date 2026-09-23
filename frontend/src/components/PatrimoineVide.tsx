@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth'
 import { CLASSES_BOUTON_PRIMAIRE, CLASSES_BOUTON_SECONDAIRE, SecondaryButton } from './Controls'
 import { GlassPanel } from './GlassPanel'
 import LumenMark from './LumenMark'
+import { t } from '../i18n'
 
 /** Bloc héros de l'accueil quand il n'y a encore rien à chiffrer (retour utilisateur
  * du 23/09/2026 : « la page d'accueil est vide, ça fait pas propre »).
@@ -44,19 +45,14 @@ export default function PatrimoineVide() {
       <GlassPanel niveau="hero" className="px-[26px] py-10 text-center">
         <LumenMark className="mx-auto mb-4 h-14 w-14 opacity-[0.2]" />
         <h2 className="text-[22px] font-semibold tracking-title text-ink">
-          {nomDetenteur ? `Rien n'est encore attribué à ${nomDetenteur}` : "Rien n'est encore attribué à cette personne"}
+          {nomDetenteur ? t('patrimoineVide.rienAttribueA', { nom: nomDetenteur }) : t('patrimoineVide.rienNEstEncoreAttribue')}
         </h2>
-        <p className="mx-auto mt-2 max-w-[520px] text-sm text-ink3">
-          Un actif appartient au foyer tant qu'il n'est pas réparti. Indique la part de chacun depuis un compte : son
-          patrimoine apparaîtra ici.
-        </p>
+        <p className="mx-auto mt-2 max-w-[520px] text-sm text-ink3">{t('patrimoineVide.unActifAppartientAuFoyer')}</p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
           {peutSaisir && (
-            <Link to="/comptes" className={CLASSES_BOUTON_PRIMAIRE}>
-              Répartir un compte
-            </Link>
+            <Link to="/comptes" className={CLASSES_BOUTON_PRIMAIRE}>{t('patrimoineVide.repartirUnCompte')}</Link>
           )}
-          <SecondaryButton onClick={() => setDetenteurId(null)}>Voir tout le foyer</SecondaryButton>
+          <SecondaryButton onClick={() => setDetenteurId(null)}>{t('patrimoineVide.voirToutLeFoyer')}</SecondaryButton>
         </div>
       </GlassPanel>
     )
@@ -65,20 +61,16 @@ export default function PatrimoineVide() {
   return (
     <GlassPanel niveau="hero" className="px-[26px] py-10 text-center">
       <LumenMark className="mx-auto mb-4 h-14 w-14 opacity-[0.2]" />
-      <h2 className="text-[22px] font-semibold tracking-title text-ink">Ton patrimoine commence ici</h2>
+      <h2 className="text-[22px] font-semibold tracking-title text-ink">{t('patrimoineVide.tonPatrimoineCommenceIci')}</h2>
       <p className="mx-auto mt-2 max-w-[520px] text-sm text-ink3">
         {peutSaisir
-          ? 'Ajoute tes comptes, placements, biens et emprunts : Lumen calcule ton patrimoine net et suit son évolution dans le temps.'
-          : "Aucun actif ne t'est encore visible. Il apparaîtra ici dès qu'un membre du foyer l'aura ajouté."}
+          ? t('patrimoineVide.ajouteTesComptesPlacementsBiens')
+          : t('patrimoineVide.aucunActifNeTEst')}
       </p>
       {peutSaisir && (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <Link to="/import" className={CLASSES_BOUTON_PRIMAIRE}>
-            Importer un relevé
-          </Link>
-          <Link to="/patrimoine?ajout=1" className={CLASSES_BOUTON_SECONDAIRE}>
-            Saisir une ligne à la main
-          </Link>
+          <Link to="/import" className={CLASSES_BOUTON_PRIMAIRE}>{t('patrimoineVide.importerUnReleve')}</Link>
+          <Link to="/patrimoine?ajout=1" className={CLASSES_BOUTON_SECONDAIRE}>{t('patrimoineVide.saisirUneLigneALa')}</Link>
         </div>
       )}
     </GlassPanel>
