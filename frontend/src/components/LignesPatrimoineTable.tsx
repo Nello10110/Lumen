@@ -2,6 +2,8 @@ import type { LignePatrimoineFiltree } from '../api/types'
 import EtatVide from './EtatVide'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro, formatQuantite } from '../utils/format'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 /** Détail des lignes composant le total affiché par le graphique Évolution de
  * l'écran Analyse (§ AX, retour utilisateur du 17/09/2026 : « ajouter en dessous du
@@ -23,7 +25,7 @@ export default function LignesPatrimoineTable({
   const { montantsMasques } = usePreferencesAffichage()
 
   if (lignes.length === 0) {
-    return <EtatVide titre="Aucune ligne pour cette combinaison de filtres." />
+    return <EtatVide titre={t('lignesPatrimoineTable.aucuneLignePourCetteCombinaison')} />
   }
 
   const cleValeur = lentille === 'brut' ? 'valeur' : 'valeur_nette'
@@ -34,21 +36,21 @@ export default function LignesPatrimoineTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-            <th className="py-2 pr-4">Ligne</th>
-            <th className="py-2 pr-4">Classe</th>
-            <th className="py-2 pr-4">Compte</th>
-            <th className="py-2 pr-4 text-right">Quantité</th>
-            {detenteurFiltre && <th className="py-2 pr-4 text-right">Quote-part</th>}
-            <th className="py-2 pr-4 text-right">{lentille === 'brut' ? 'Valeur' : 'Valeur nette'}</th>
+            <th className="py-2 pr-4">{t('lignesPatrimoineTable.ligne')}</th>
+            <th className="py-2 pr-4">{t('lignesPatrimoineTable.classe')}</th>
+            <th className="py-2 pr-4">{t('lignesPatrimoineTable.compte')}</th>
+            <th className="py-2 pr-4 text-right">{t('lignesPatrimoineTable.quantite')}</th>
+            {detenteurFiltre && <th className="py-2 pr-4 text-right">{t('lignesPatrimoineTable.quotePart')}</th>}
+            <th className="py-2 pr-4 text-right">{lentille === 'brut' ? t('lignesPatrimoineTable.valeur') : t('lignesPatrimoineTable.valeurNette')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">
           {lignes.map((l) => (
             <tr key={l.holding_id}>
               <td className="py-2 pr-4 text-texte">{l.nom || l.ticker}</td>
-              <td className="py-2 pr-4 text-texte-attenue">{l.type_actif_label}</td>
+              <td className="py-2 pr-4 text-texte-attenue">{libelleDonnee(l.type_actif_label)}</td>
               <td className="py-2 pr-4 text-texte-attenue">
-                {l.compte_nom ?? 'Sans compte'}
+                {l.compte_nom ?? t('lignesPatrimoineTable.sansCompte')}
                 {l.etablissement_nom ? ` · ${l.etablissement_nom}` : ''}
               </td>
               <td className="py-2 pr-4 text-right text-texte">{formatQuantite(l.quantite)}</td>
@@ -63,9 +65,7 @@ export default function LignesPatrimoineTable({
         </tbody>
         <tfoot>
           <tr className="border-t border-bordure font-semibold">
-            <td className="py-2 pr-4 text-texte" colSpan={detenteurFiltre ? 5 : 4}>
-              Total
-            </td>
+            <td className="py-2 pr-4 text-texte" colSpan={detenteurFiltre ? 5 : 4}>{t('lignesPatrimoineTable.total')}</td>
             <td className="py-2 pr-4 text-right text-texte">{formatEuro(total, 0, montantsMasques)}</td>
           </tr>
         </tfoot>

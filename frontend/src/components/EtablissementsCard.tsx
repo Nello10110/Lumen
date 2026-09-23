@@ -11,6 +11,7 @@ import EtablissementLogo from './EtablissementLogo'
 import { Field, Input } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import { invaliderLogos } from '../utils/logosEtablissements'
+import { t } from '../i18n'
 
 /** Établissements financiers (écran Comptes, backlog X.1) : déclarés une fois
  * ici, réutilisés ensuite pour regrouper les comptes à l'écran (ex. « Caisse
@@ -116,17 +117,13 @@ export default function EtablissementsCard({
 
   const contenu = (
     <>
-      <p className="mb-4 text-sm text-texte">
-        Banques et courtiers, déclarés une fois, réutilisés pour regrouper tes comptes à l'écran{' '}
-        <span className="font-medium text-texte">Comptes</span> (ex. « Caisse d'Épargne » contenant un compte courant et une
-        assurance-vie). Supprimer un établissement ne touche jamais les comptes qui lui étaient rattachés — ils retombent
-        simplement dans « Sans établissement ».
-      </p>
+      <p className="mb-4 text-sm text-texte">{t('etablissementsCard.banquesEtCourtiersDeclaresUne')}{' '}
+        <span className="font-medium text-texte">{t('etablissementsCard.comptes')}</span>{' '}{t('etablissementsCard.exCaisseDEpargneContenant')}</p>
 
       {loading ? (
         <SkeletonTexte />
       ) : etablissements.length === 0 ? (
-        <EtatVide titre="Aucun établissement déclaré." />
+        <EtatVide titre={t('etablissementsCard.aucunEtablissementDeclare')} />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
           {etablissements.map((e) => (
@@ -136,12 +133,8 @@ export default function EtablissementsCard({
                 {e.nom}
               </span>
               <span className="flex items-center gap-3">
-                <button onClick={() => setEnEdition(e)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-accent hover:underline">
-                  Modifier
-                </button>
-                <button onClick={() => handleDelete(e.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
-                  Supprimer
-                </button>
+                <button onClick={() => setEnEdition(e)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-accent hover:underline">{t('etablissementsCard.modifier')}</button>
+                <button onClick={() => handleDelete(e.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">{t('etablissementsCard.supprimer')}</button>
               </span>
             </li>
           ))}
@@ -165,19 +158,17 @@ export default function EtablissementsCard({
           }}
         />
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="Nom" className="w-48">
+          <Field label={t('etablissementsCard.nom')} className="w-48">
             <Input
               value={nom}
               onChange={(e) => {
                 setNom(e.target.value)
                 setNomLogoKey(null)
               }}
-              placeholder="Caisse d'Épargne"
+              placeholder={t('etablissementsCard.caisseDEpargne')}
             />
           </Field>
-          <PrimaryButton type="submit" disabled={saving}>
-            Ajouter
-          </PrimaryButton>
+          <PrimaryButton type="submit" disabled={saving}>{t('etablissementsCard.ajouter')}</PrimaryButton>
         </div>
       </form>
       {error && <EtatErreur message={error} onReessayer={load} />}
@@ -187,5 +178,5 @@ export default function EtablissementsCard({
   // Sans enveloppe quand l'appelant fournit déjà son cadre (feuille modale de
   // l'écran Comptes) : une carte dans une feuille ferait deux panneaux imbriqués
   // pour un seul contenu.
-  return sansCarte ? contenu : <Card title="Établissements">{contenu}</Card>
+  return sansCarte ? contenu : <Card title={t('etablissementsCard.etablissements')}>{contenu}</Card>
 }

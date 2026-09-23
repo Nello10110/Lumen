@@ -5,6 +5,7 @@ import Card from './Card'
 import { PrimaryButton } from './Controls'
 import { Field, Select } from './Field'
 import { SECTEURS, ZONES_GEO } from '../utils/holdingCategories'
+import { libelleDonnee } from '../i18n/donnees'
 
 const OPTION_AUTO = ''
 
@@ -50,7 +51,7 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
             <option value={OPTION_AUTO}>Détection automatique</option>
             {ZONES_GEO.map((zone) => (
               <option key={zone} value={zone}>
-                {zone}
+                {libelleDonnee(zone)}
               </option>
             ))}
           </Select>
@@ -60,7 +61,7 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
             <option value={OPTION_AUTO}>Détection automatique</option>
             {SECTEURS.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {libelleDonnee(s)}
               </option>
             ))}
           </Select>

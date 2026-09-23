@@ -1,0 +1,47 @@
+import type fr from '../fr/compteDetailContent'
+import type { Structure } from '../../types'
+
+/** Espagnol — espace « compteDetailContent » (backlog § BL.2), traduit depuis le français. */
+const compteDetailContent: Structure<typeof fr> = {
+  nomDuCompte: "Nombre de la cuenta",
+  etablissement: "Entidad",
+  sansEtablissement: "— Sin entidad —",
+  enregistrer: "Guardar",
+  empruntsRattaches: "Préstamos vinculados",
+  restant: "pendiente",
+  repartitionEntreDetenteurs: "Reparto entre titulares",
+  totalActuel: "Total actual:",
+  doitFaire100: "% (debe sumar 100 %)",
+  repartitionAppliqueeAToutesLes: "Reparto aplicado a todas las líneas de la cuenta.",
+  erreurInconnue: "Error desconocido",
+  detectionAutomatique: "Detección automática",
+  enregistrement: "Guardando...",
+  laZone: "la zona",
+  leSecteur: "el sector",
+  appliqueAToutesLesLignes: "Aplicado a todas las líneas de la cuenta.",
+  classificationGeographiqueEtSectorielle: "Clasificación geográfica y sectorial",
+  zoneGeographique: "Zona geográfica",
+  secteur: "Sector",
+  sansEtablissement2: "Sin entidad",
+  informations: "Información",
+  solde: "Saldo",
+  lignesRattachees: "Líneas vinculadas",
+  aucuneLigneRattacheeACe: "Ninguna línea vinculada a esta cuenta.",
+  rattacheUnePositionDepuisPortefeuille: "Vincula una posición desde Activos (formulario de alta o edición de una línea), o crea una de ahorro directamente arriba.",
+  pourMettreAJourLa: "Para actualizar el valor de esta línea (inmueble...), abre su ficha detallada arriba.",
+  supprimerCeCompte: "Eliminar esta cuenta",
+  aucuneLigneNEstRattachee: "Ninguna línea está vinculada a esta cuenta; las operaciones importadas que aún se le asocian (una posición vendida por completo, por ejemplo) se eliminarán con ella.",
+  unEmpruntRattacheEstConserve: "Un préstamo vinculado se conserva, solo se desvincula. Eliminación definitiva: en caso de duda, exporte antes una copia de seguridad (Ajustes).",
+  suppression: "Eliminando...",
+  annuler: "Cancelar",
+  supprimerLeCompte: "Eliminar la cuenta",
+  erreurDetenteurs: "No se pueden cargar los titulares: {erreur}",
+  appliqueRepartition: "Se aplica a TODAS las líneas de esta cuenta ({portee}): sustituye el reparto guardado en cada una, en lugar de definirlo línea por línea.",
+  appliqueDeclaration: "Se aplica a TODAS las líneas de esta cuenta ({portee}): sustituye la declaración guardada en cada una, en lugar de definirla línea por línea.",
+  nLignes: { one: "{n} línea", other: "{n} líneas" },
+  etNEmpruntsRattaches: { one: ", y {n} préstamo vinculado", other: ", y {n} préstamos vinculados" },
+  nLignesRattachees: { one: "{n} línea vinculada", other: "{n} líneas vinculadas" },
+  suppressionLignes: { one: "La línea de esta cuenta se eliminará con ella, junto con las operaciones importadas asociadas.", other: "Las {n} líneas de esta cuenta se eliminarán con ella, junto con las operaciones importadas asociadas." },
+}
+
+export default compteDetailContent

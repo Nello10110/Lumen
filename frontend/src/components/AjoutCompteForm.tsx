@@ -8,16 +8,17 @@ import EtatErreur from './EtatErreur'
 import { Field, Input, Select } from './Field'
 import InfoBulle from './InfoBulle'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
+import { t } from '../i18n'
 
-const AIDE_NOM_COMPTE =
-  "Le nom que VOUS lui donnez, pas un numéro de compte : « PEA Boursorama », « Livret A », « Appartement Lyon ». C'est ce nom qui apparaîtra partout dans l'application."
-const AIDE_ETABLISSEMENT =
-  "La banque ou le courtier qui héberge ce compte (revue du 03/09/2026 : un compte doit toujours avoir un établissement). Choisissez-en un existant ou créez-le à la volée."
+
 
 // Vide en premier ("compte vide", comportement historique de ce formulaire) — les
 // 5 types épargne ensuite (fusion de l'écran Épargne dans Comptes, 03/09/2026,
 // demande directe de l'utilisateur).
-const OPTIONS_TYPE = [{ value: '', label: '— Compte vide —' }, ...TYPE_ACTIF_OPTIONS.filter((o) => TYPES_EPARGNE.has(o.value))]
+// Fonction : libellés lus dans la langue active (§ BL).
+function optionsType() {
+  return [{ value: '', label: t('ajoutCompteForm.compteVide') }, ...TYPE_ACTIF_OPTIONS.filter((o) => TYPES_EPARGNE.has(o.value))]
+}
 
 /** Formulaire d'ajout d'un compte (nom + établissement, tous deux obligatoires
  * depuis le 03/09/2026) — patron `DetenteursCard.tsx`. Extrait de `ComptesPage.tsx`
@@ -102,12 +103,12 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
   return (
     <form onSubmit={handleAdd} className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label={<span className="inline-flex items-center gap-1">Nom <InfoBulle texte={AIDE_NOM_COMPTE} /></span>} className="col-span-2">
-          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="PEA, Livret A..." />
+        <Field label={<span className="inline-flex items-center gap-1">{t('ajoutCompteForm.nom')}{' '}<InfoBulle texte={t('ajoutCompteForm.aideNom')} /></span>} className="col-span-2">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={t('ajoutCompteForm.peaLivretA')} />
         </Field>
-        <Field label="Type" className={typeActif ? undefined : 'col-span-2'}>
+        <Field label={t('ajoutCompteForm.type')} className={typeActif ? undefined : 'col-span-2'}>
           <Select value={typeActif} onChange={(e) => setTypeActif(e.target.value)}>
-            {OPTIONS_TYPE.map((o) => (
+            {optionsType().map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -116,16 +117,16 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
         </Field>
         {typeActif && (
           <>
-            <Field label="Valeur initiale (€, optionnel)">
+            <Field label={t('ajoutCompteForm.valeurInitialeOptionnel')}>
               <Input type="number" step="any" min={0} value={valeurEstimee} onChange={(e) => setValeurEstimee(e.target.value)} />
             </Field>
-            <Field label="Versement mensuel (€, optionnel)" className="col-span-2">
+            <Field label={t('ajoutCompteForm.versementMensuelOptionnel')} className="col-span-2">
               <Input type="number" step="any" min={0} value={versementMensuel} onChange={(e) => setVersementMensuel(e.target.value)} />
             </Field>
           </>
         )}
         <Field
-          label={<span className="inline-flex items-center gap-1">Établissement <InfoBulle texte={AIDE_ETABLISSEMENT} /></span>}
+          label={<span className="inline-flex items-center gap-1">{t('ajoutCompteForm.etablissement')}{' '}<InfoBulle texte={t('ajoutCompteForm.aideEtablissement')} /></span>}
           className="col-span-2"
         >
           <SelecteurEtablissement
@@ -137,13 +138,11 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
             logoKeyNouveau={etablissementLogoKey}
             onLogoKeyNouveauChange={setEtablissementLogoKey}
             required
-            ariaLabel="Établissement"
+            ariaLabel={t('ajoutCompteForm.etablissement')}
           />
         </Field>
       </div>
-      <PrimaryButton type="submit" disabled={saving || !nom.trim() || !etablissementValide} className="self-start">
-        + Nouveau compte
-      </PrimaryButton>
+      <PrimaryButton type="submit" disabled={saving || !nom.trim() || !etablissementValide} className="self-start">{t('ajoutCompteForm.nouveauCompte')}</PrimaryButton>
       {error && <EtatErreur message={error} />}
     </form>
   )

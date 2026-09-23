@@ -2,6 +2,7 @@ import type { ModeDecomposition } from '../utils/valorisationDecomposition'
 import { formatEuro } from '../utils/format'
 import { SegmentedControl } from './Controls'
 import { Field, Input } from './Field'
+import { t } from '../i18n'
 
 /** Bascule versement/plus-value (retour utilisateur 30/08/2026, suite § U.2) :
  * selon ce que l'utilisateur connaît réellement (un versement précis relevé sur son
@@ -46,11 +47,11 @@ export default function ChampDecomposition({
       <span className="w-fit">
         <SegmentedControl
           options={[
-            { valeur: 'versement', libelle: 'Versement' },
+            { valeur: 'versement', libelle: t('champDecomposition.versement') },
             {
               valeur: 'plus_value',
-              libelle: 'Plus-value',
-              aide: valeurPrecedente === null ? 'Nécessite un point antérieur connu' : undefined,
+              libelle: t('champDecomposition.plusValue'),
+              aide: valeurPrecedente === null ? t('champDecomposition.necessiteUnPointAnterieurConnu') : undefined,
               desactive: valeurPrecedente === null,
             },
           ]}
@@ -60,7 +61,7 @@ export default function ChampDecomposition({
             onMontantChange('')
           }}
           taille="sm"
-          ariaLabel="Nature du montant saisi"
+          ariaLabel={t('champDecomposition.natureDuMontantSaisi')}
         />
       </span>
       <Field label={mode === 'versement' ? libelleVersement : libellePlusValue} className="w-32">
@@ -69,13 +70,13 @@ export default function ChampDecomposition({
           onChange={(e) => onMontantChange(e.target.value)}
           type="number"
           step="any"
-          placeholder="optionnel"
+          placeholder={t('champDecomposition.optionnel')}
           aria-label={mode === 'versement' ? ariaLabelVersement : ariaLabelPlusValue}
         />
       </Field>
       {autre !== null && (
         <span className="text-xs font-medium text-ink3">
-          → {mode === 'versement' ? 'plus-value déduite' : 'versement déduit'} : {formatEuro(autre, 2, montantsMasques)}
+          → {mode === 'versement' ? t('champDecomposition.plusValueDeduite') : t('champDecomposition.versementDeduit')} : {formatEuro(autre, 2, montantsMasques)}
         </span>
       )}
     </div>

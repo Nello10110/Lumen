@@ -13,6 +13,7 @@ import {
 } from '../utils/chartTheme'
 import { formatEuro, formatPct } from '../utils/format'
 import { calculerGainsParCompte } from '../utils/gainsParCompte'
+import { t } from '../i18n'
 
 /** Plus-value par compte (retour utilisateur, 05/09/2026) : « voir où j'ai de la
  * plus-value, où j'en ai moins », au même titre que le Gain/Perte de la Synthèse
@@ -35,10 +36,10 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
 
   if (lignes.length === 0) {
     return (
-      <Card title="Plus-value par compte">
+      <Card title={t('plusValueParCompteCard.plusValueParCompte')}>
         <EtatVide
-          titre="Rien à comparer pour l'instant."
-          description="Ce comparatif porte sur les lignes avec un prix de revient connu (actions, fonds, immobilier...) — un compte courant ou un livret n'en a pas."
+          titre={t('plusValueParCompteCard.rienAComparerPourL')}
+          description={t('plusValueParCompteCard.ceComparatifPorteSurLes')}
         />
       </Card>
     )
@@ -51,11 +52,8 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
   const data = lignes.map((l) => ({ nom: l.compteNom, gain: l.gain }))
 
   return (
-    <Card title="Plus-value par compte">
-      <p className="mb-4 text-sm text-texte-attenue">
-        Plus-value latente (valeur actuelle moins prix de revient) par compte — permet de repérer d'un coup d'œil les
-        comptes qui tirent le patrimoine vers le haut ou vers le bas.
-      </p>
+    <Card title={t('plusValueParCompteCard.plusValueParCompte')}>
+      <p className="mb-4 text-sm text-texte-attenue">{t('plusValueParCompteCard.plusValueLatenteValeurActuelle')}</p>
 
       {/* Barres de part et d'autre d'un filet central (maquette de l'écran Analyse) :
           l'axe des valeurs disparaît, seul le zéro reste — c'est lui qui donne son
@@ -82,27 +80,23 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
 
       <div className="mt-2 flex items-center gap-4 text-xs text-texte-attenue">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-[3px] bg-pos" /> Plus-value
-        </span>
+          <span className="inline-block h-2 w-2 rounded-[3px] bg-pos" />{' '}{t('plusValueParCompteCard.plusValue')}</span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-[3px] bg-neg" /> Moins-value
-        </span>
+          <span className="inline-block h-2 w-2 rounded-[3px] bg-neg" />{' '}{t('plusValueParCompteCard.moinsValue')}</span>
       </div>
 
       <div className="mt-4 overflow-x-auto border-t border-bordure pt-4">
         <table className="w-full min-w-[480px] text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-texte-attenue">
-              <th className="pb-2 font-medium">Compte</th>
-              <th className="pb-2 font-medium">Valeur</th>
-              <th className="pb-2 font-medium">Plus-value</th>
+              <th className="pb-2 font-medium">{t('plusValueParCompteCard.compte')}</th>
+              <th className="pb-2 font-medium">{t('plusValueParCompteCard.valeur')}</th>
+              <th className="pb-2 font-medium">{t('plusValueParCompteCard.plusValue')}</th>
               <th className="pb-2 font-medium">
                 <span
                   className="cursor-help underline decoration-dotted"
-                  title="Moyenne des rendements annualisés (XIRR) de chaque ligne du compte, pondérée par leur valeur actuelle — indicatif, pas un calcul flux par flux au niveau du compte : le grand livre de transactions ne conserve pas le compte d'origine de chaque mouvement."
-                >
-                  Rendement annualisé
-                </span>
+                  title={t('plusValueParCompteCard.moyenneDesRendementsAnnualisesXirr')}
+                >{t('plusValueParCompteCard.rendementAnnualise')}</span>
               </th>
             </tr>
           </thead>
@@ -113,7 +107,7 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
                 <tr key={l.compteId}>
                   <td className="py-2 text-texte">{l.compteNom}</td>
                   <td className="py-2 text-texte">{formatEuro(l.valeur, 0, montantsMasques)}</td>
-                  <td className={`py-2 font-medium ${couleur}`} title={l.gain === null ? 'Pas de valorisation connue pour ce compte (positions valorisées au coût, faute de cotation).' : undefined}>
+                  <td className={`py-2 font-medium ${couleur}`} title={l.gain === null ? t('plusValueParCompteCard.pasDeValorisationConnuePour') : undefined}>
                     {l.gain !== null && l.gain >= 0 ? '+' : ''}
                     {formatEuro(l.gain, 0, montantsMasques)}
                     {l.gainPct !== null && <span className="ml-1.5 font-normal">({formatPct(l.gainPct)})</span>}

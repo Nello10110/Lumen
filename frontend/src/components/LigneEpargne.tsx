@@ -10,6 +10,7 @@ import { PrimaryButton } from './Controls'
 import { Field, Input } from './Field'
 import Modale from './Modale'
 import { ValorisationHistoriqueCard } from './ValorisationHistoriqueCard'
+import { t } from '../i18n'
 
 const OPTIONS_EPARGNE = TYPE_ACTIF_OPTIONS.filter((o) => TYPES_EPARGNE.has(o.value))
 
@@ -47,18 +48,16 @@ function ModifierLigneEpargneForm({ holding, onSaved, onCancel }: { holding: Hol
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-      <Field label="Nom du compte" className="w-48">
+      <Field label={t('ligneEpargne.nomDuCompte')} className="w-48">
         <Input type="text" value={nom} onChange={(e) => setNom(e.target.value)} />
       </Field>
-      <Field label="Versement mensuel (€)" className="w-32">
-        <Input type="number" step="any" min={0} value={versementMensuel} onChange={(e) => setVersementMensuel(e.target.value)} placeholder="optionnel" />
+      <Field label={t('ligneEpargne.versementMensuel')} className="w-32">
+        <Input type="number" step="any" min={0} value={versementMensuel} onChange={(e) => setVersementMensuel(e.target.value)} placeholder={t('ligneEpargne.optionnel')} />
       </Field>
       <PrimaryButton type="submit" disabled={saving}>
-        {saving ? 'Enregistrement...' : 'Enregistrer'}
+        {saving ? t('ligneEpargne.enregistrement') : t('ligneEpargne.enregistrer')}
       </PrimaryButton>
-      <button type="button" onClick={onCancel} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-texte-attenue hover:text-texte">
-        Annuler
-      </button>
+      <button type="button" onClick={onCancel} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-texte-attenue hover:text-texte">{t('ligneEpargne.annuler')}</button>
       {error && <span className="text-sm text-negatif">{error}</span>}
     </form>
   )
@@ -144,25 +143,23 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <button type="button" onClick={() => setEdition((v) => !v)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-accent hover:underline">
-            {edition ? 'Fermer' : 'Modifier'}
+            {edition ? t('ligneEpargne.fermer') : t('ligneEpargne.modifier')}
           </button>
           <button type="button" onClick={() => setOuvert((v) => !v)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-accent hover:underline">
-            {ouvert ? 'Fermer' : 'Ajouter une valorisation'}
+            {ouvert ? t('ligneEpargne.fermer') : t('ligneEpargne.ajouterUneValorisation')}
           </button>
-          <button type="button" onClick={() => setConfirmSuppression(true)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-negatif hover:underline">
-            Supprimer
-          </button>
+          <button type="button" onClick={() => setConfirmSuppression(true)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-negatif hover:underline">{t('ligneEpargne.supprimer')}</button>
         </div>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div>
-          <p className="text-xs text-texte-attenue">Valeur actuelle</p>
+          <p className="text-xs text-texte-attenue">{t('ligneEpargne.valeurActuelle')}</p>
           <p className="font-medium text-texte">{formatEuro(valeurActuelle, 2, montantsMasques)}</p>
-          {dateValeurActuelle && <p className="text-xs text-texte-attenue">au {formatDate(dateValeurActuelle)}</p>}
+          {dateValeurActuelle && <p className="text-xs text-texte-attenue">{t('ligneEpargne.au')}{' '}{formatDate(dateValeurActuelle)}</p>}
         </div>
         <div>
-          <p className="text-xs text-texte-attenue">Versement mensuel</p>
+          <p className="text-xs text-texte-attenue">{t('ligneEpargne.versementMensuel2')}</p>
           <p className="font-medium text-texte">{versementActuel !== null ? formatEuro(versementActuel, 2, montantsMasques) : '—'}</p>
         </div>
       </div>
@@ -193,27 +190,21 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
         <Modale onClose={() => setConfirmSuppression(false)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-texte">
-                Supprimer cette ligne ?
-              </h2>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">{t('ligneEpargne.supprimerCetteLigne')}</h2>
               <p className="mt-2 text-sm text-texte">
-                <span className="font-medium text-texte">{nomActuel ?? holding.ticker}</span> et tout son historique de
-                valorisation seront définitivement supprimés.
-              </p>
+                <span className="font-medium text-texte">{nomActuel ?? holding.ticker}</span>{' '}{t('ligneEpargne.etToutSonHistoriqueDe')}</p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmSuppression(false)}
                   disabled={suppression}
                   className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
-                >
-                  Annuler
-                </button>
+                >{t('ligneEpargne.annuler')}</button>
                 <button
                   onClick={handleSupprimer}
                   disabled={suppression}
                   className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
-                  {suppression ? 'Suppression...' : 'Supprimer'}
+                  {suppression ? t('ligneEpargne.suppression') : t('ligneEpargne.supprimer')}
                 </button>
               </div>
               {erreurSuppression && <p className="mt-2 text-sm text-negatif">{erreurSuppression}</p>}

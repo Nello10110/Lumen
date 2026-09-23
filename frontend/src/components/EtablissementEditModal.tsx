@@ -10,11 +10,15 @@ import EtatErreur from './EtatErreur'
 import EtablissementLogo from './EtablissementLogo'
 import { Field, Input } from './Field'
 import Modale from './Modale'
+import { t } from '../i18n'
 
-const LIBELLES_SOURCE: Record<string, string> = {
-  catalogue: 'récupéré sur le site officiel',
-  url: 'récupéré depuis une adresse',
-  upload: 'image téléversée',
+// Fonction : lue dans la langue active (§ BL). Une source inconnue reste affichée
+// telle quelle.
+function libelleSource(source: string): string {
+  if (source === 'catalogue') return t('etablissementEditModal.sourceCatalogue')
+  if (source === 'url') return t('etablissementEditModal.sourceUrl')
+  if (source === 'upload') return t('etablissementEditModal.sourceUpload')
+  return source
 }
 
 /** Vue d'édition d'un établissement (retour utilisateur, 05/09/2026 : « pouvoir
@@ -86,10 +90,9 @@ export default function EtablissementEditModal({
               </h2>
               <p className="text-xs text-texte-attenue">
                 {courant.a_un_logo && courant.logo_source
-                  ? `Logo ${LIBELLES_SOURCE[courant.logo_source] ?? courant.logo_source}${
-                      courant.logo_maj_le ? ` · ${formatDateHeure(courant.logo_maj_le)}` : ''
-                    }`
-                  : 'Aucun logo — un badge par défaut est affiché.'}
+                  ? t('etablissementEditModal.logoSource', { source: libelleSource(courant.logo_source) }) +
+                    (courant.logo_maj_le ? ` · ${formatDateHeure(courant.logo_maj_le)}` : '')
+                  : t('etablissementEditModal.aucunLogoUnBadgePar')}
               </p>
             </div>
           </div>
@@ -103,22 +106,18 @@ export default function EtablissementEditModal({
             }}
             className="flex flex-wrap items-end gap-3 border-t border-hairline pt-4"
           >
-            <Field label="Nom" className="w-56">
+            <Field label={t('etablissementEditModal.nom')} className="w-56">
               <Input value={nom} onChange={(e) => setNom(e.target.value)} />
             </Field>
             <PrimaryButton type="submit" disabled={occupe || !nom.trim() || nom.trim() === courant.nom}>
-              {enCours === 'nom' ? 'Enregistrement…' : 'Renommer'}
+              {enCours === 'nom' ? t('etablissementEditModal.enregistrement') : t('etablissementEditModal.renommer')}
             </PrimaryButton>
           </form>
 
           {!estDuCatalogue && (
             <div className="mt-4 space-y-2 border-t border-hairline pt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink3">Rattacher au catalogue</h3>
-              <p className="text-xs text-ink3">
-                Cet établissement a été créé sans être relié à un établissement connu — c'est ce qui l'empêche
-                d'avoir un badge coloré ou d'aller chercher un logo officiel. Choisissez-le ci-dessous s'il en
-                fait partie (le nom n'est pas modifié).
-              </p>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink3">{t('etablissementEditModal.rattacherAuCatalogue')}</h3>
+              <p className="text-xs text-ink3">{t('etablissementEditModal.cetEtablissementAEteCree')}</p>
               <CatalogueEtablissementPicker
                 selection={null}
                 onSelect={(cle) => {
@@ -130,7 +129,7 @@ export default function EtablissementEditModal({
           )}
 
           <div className="mt-4 space-y-3 border-t border-hairline pt-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink3">Logo</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink3">{t('etablissementEditModal.logo')}</h3>
 
             <div className="flex flex-wrap gap-2">
               <SecondaryButton
@@ -139,22 +138,20 @@ export default function EtablissementEditModal({
                 title={
                   estDuCatalogue
                     ? undefined
-                    : "Disponible uniquement pour un établissement choisi dans le catalogue — téléversez une image ou saisissez une adresse."
+                    : t('etablissementEditModal.disponibleUniquementPourUnEtablissement')
                 }
               >
-                {enCours === 'catalogue' ? 'Récupération…' : 'Récupérer le logo officiel'}
+                {enCours === 'catalogue' ? t('etablissementEditModal.recuperation') : t('etablissementEditModal.recupererLeLogoOfficiel')}
               </SecondaryButton>
               <SecondaryButton onClick={() => fichierRef.current?.click()} disabled={occupe}>
-                {enCours === 'fichier' ? 'Envoi…' : 'Téléverser une image'}
+                {enCours === 'fichier' ? t('etablissementEditModal.envoi') : t('etablissementEditModal.televerserUneImage')}
               </SecondaryButton>
               {courant.a_un_logo && (
                 <SecondaryButton
                   onClick={() => void executer('suppression', () => api.deleteEtablissementLogo(courant.id))}
                   disabled={occupe}
                   className="text-neg hover:bg-neg-bg"
-                >
-                  Retirer le logo
-                </SecondaryButton>
+                >{t('etablissementEditModal.retirerLeLogo')}</SecondaryButton>
               )}
             </div>
 
@@ -162,7 +159,7 @@ export default function EtablissementEditModal({
               ref={fichierRef}
               type="file"
               accept="image/png,image/jpeg,image/webp,image/x-icon"
-              aria-label="Image du logo"
+              aria-label={t('etablissementEditModal.imageDuLogo')}
               className="sr-only"
               onChange={(e) => {
                 const fichier = e.target.files?.[0]
@@ -179,25 +176,21 @@ export default function EtablissementEditModal({
               }}
               className="flex flex-wrap items-end gap-3"
             >
-              <Field label="Adresse d'une image (le serveur la télécharge et la met en cache)" className="flex-1">
-                <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://exemple.fr/logo.png" />
+              <Field label={t('etablissementEditModal.adresseDUneImageLe')} className="flex-1">
+                <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('etablissementEditModal.httpsExempleFrLogoPng')} />
               </Field>
               <PrimaryButton type="submit" disabled={occupe || !url.trim()}>
-                {enCours === 'url' ? 'Récupération…' : 'Utiliser cette adresse'}
+                {enCours === 'url' ? t('etablissementEditModal.recuperation') : t('etablissementEditModal.utiliserCetteAdresse')}
               </PrimaryButton>
             </form>
 
-            <p className="text-xs text-ink3">
-              Toute image est reconvertie en PNG (128 px) côté serveur. Une adresse saisie est re-téléchargée
-              chaque semaine par la tâche planifiée « Logos des établissements » ; une image téléversée n'est,
-              elle, jamais remplacée automatiquement.
-            </p>
+            <p className="text-xs text-ink3">{t('etablissementEditModal.touteImageEstReconvertieEn')}</p>
           </div>
 
           {error && <EtatErreur message={error} />}
 
           <div className="mt-4 flex justify-end border-t border-hairline pt-4">
-            <SecondaryButton onClick={onClose}>Fermer</SecondaryButton>
+            <SecondaryButton onClick={onClose}>{t('etablissementEditModal.fermer')}</SecondaryButton>
           </div>
         </>
       )}

@@ -1,0 +1,47 @@
+import type fr from '../fr/compteDetailContent'
+import type { Structure } from '../../types'
+
+/** Allemand — espace « compteDetailContent » (backlog § BL.2), traduit depuis le français. */
+const compteDetailContent: Structure<typeof fr> = {
+  nomDuCompte: "Kontoname",
+  etablissement: "Institut",
+  sansEtablissement: "— Ohne Institut —",
+  enregistrer: "Speichern",
+  empruntsRattaches: "Verknüpfte Kredite",
+  restant: "verbleibend",
+  repartitionEntreDetenteurs: "Aufteilung zwischen Inhabern",
+  totalActuel: "Aktuelle Summe:",
+  doitFaire100: "% (muss 100 % ergeben)",
+  repartitionAppliqueeAToutesLes: "Aufteilung auf alle Zeilen des Kontos angewendet.",
+  erreurInconnue: "Unbekannter Fehler",
+  detectionAutomatique: "Automatische Erkennung",
+  enregistrement: "Wird gespeichert...",
+  laZone: "die Region",
+  leSecteur: "den Sektor",
+  appliqueAToutesLesLignes: "Auf alle Zeilen des Kontos angewendet.",
+  classificationGeographiqueEtSectorielle: "Geografische und sektorale Einordnung",
+  zoneGeographique: "Geografische Zone",
+  secteur: "Sektor",
+  sansEtablissement2: "Ohne Institut",
+  informations: "Informationen",
+  solde: "Saldo",
+  lignesRattachees: "Verknüpfte Zeilen",
+  aucuneLigneRattacheeACe: "Keine Zeile ist diesem Konto zugeordnet.",
+  rattacheUnePositionDepuisPortefeuille: "Verknüpfe eine Position unter Vermögenswerte (Hinzufügen oder Bearbeiten einer Zeile) oder lege oben direkt eine Sparzeile an.",
+  pourMettreAJourLa: "Um den Wert dieser Zeile zu aktualisieren (Immobilie...), öffne oben ihre Detailansicht.",
+  supprimerCeCompte: "Dieses Konto löschen",
+  aucuneLigneNEstRattachee: "Diesem Konto ist keine Zeile zugeordnet; die noch zugehörigen importierten Transaktionen (etwa eine vollständig verkaufte Position) werden mit ihm gelöscht.",
+  unEmpruntRattacheEstConserve: "Ein verknüpfter Kredit bleibt erhalten, er wird nur gelöst. Endgültige Löschung: Exportieren Sie im Zweifel zuerst eine Sicherung (Einstellungen).",
+  suppression: "Wird gelöscht...",
+  annuler: "Abbrechen",
+  supprimerLeCompte: "Konto löschen",
+  erreurDetenteurs: "Inhaber können nicht geladen werden: {erreur}",
+  appliqueRepartition: "Gilt für ALLE Zeilen dieses Kontos ({portee}) — ersetzt die jeweils gespeicherte Aufteilung, statt sie Zeile für Zeile festzulegen.",
+  appliqueDeclaration: "Gilt für ALLE Zeilen dieses Kontos ({portee}) — ersetzt die jeweils gespeicherte Angabe, statt sie Zeile für Zeile festzulegen.",
+  nLignes: { one: "{n} Zeile", other: "{n} Zeilen" },
+  etNEmpruntsRattaches: { one: " und {n} verknüpfter Kredit", other: " und {n} verknüpfte Kredite" },
+  nLignesRattachees: { one: "{n} verknüpfte Zeile", other: "{n} verknüpfte Zeilen" },
+  suppressionLignes: { one: "Die Zeile dieses Kontos wird mit ihm gelöscht, ebenso die zugehörigen importierten Transaktionen.", other: "Die {n} Zeilen dieses Kontos werden mit ihm gelöscht, ebenso die zugehörigen importierten Transaktionen." },
+}
+
+export default compteDetailContent

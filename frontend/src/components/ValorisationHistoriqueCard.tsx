@@ -11,6 +11,7 @@ import { versementDepuisDecomposition } from '../utils/valorisationDecomposition
 import { formatDate, formatEuro } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
+import { t } from '../i18n'
 
 /** Historique daté des valorisations manuelles (backlog 2.M.3, généralisé en 2.S.1
  * à l'écran Épargne) — jamais écrasé, une nouvelle ligne à chaque point saisi.
@@ -111,10 +112,8 @@ export function ValorisationHistoriqueCard({
   const donneesGraphique = historiqueGraphique.map((p) => ({ date: p.date_valeur, Valeur: p.valeur }))
 
   return (
-    <Card title="Historique de valorisation">
-      <p className="mb-3 text-xs text-texte-attenue">
-        Chaque estimation est datée et conservée — l'ancienne n'est jamais écrasée.
-        {pointAcquisition.length > 0 && ' Le premier point (coût d\'acquisition) est ajouté au graphique, pas au tableau ci-dessous.'}
+    <Card title={t('valorisationHistoriqueCard.historiqueDeValorisation')}>
+      <p className="mb-3 text-xs text-texte-attenue">{t('valorisationHistoriqueCard.chaqueEstimationEstDateeEt')}{pointAcquisition.length > 0 && t('valorisationHistoriqueCard.lePremierPointCoutD')}
       </p>
       {historiqueGraphique.length > 1 && (
         <div className="mb-4">
@@ -146,10 +145,10 @@ export function ValorisationHistoriqueCard({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-            <th className="py-2 pr-4">Date</th>
-            <th className="py-2 pr-4 text-right">Valeur estimée</th>
+            <th className="py-2 pr-4">{t('valorisationHistoriqueCard.date')}</th>
+            <th className="py-2 pr-4 text-right">{t('valorisationHistoriqueCard.valeurEstimee')}</th>
             <th className="py-2 pr-4">
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">{t('valorisationHistoriqueCard.actions')}</span>
             </th>
           </tr>
         </thead>
@@ -161,25 +160,21 @@ export function ValorisationHistoriqueCard({
               <tr key={p.id}>
                 <td colSpan={3} className="py-2">
                   <div className="flex flex-wrap items-end gap-3">
-                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                      Valeur (€)
-                      <input
+                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('valorisationHistoriqueCard.valeur')}<input
                         value={editValeur}
                         onChange={(e) => setEditValeur(e.target.value)}
                         type="number"
                         step="any"
                         min={0}
-                        aria-label={`Valeur du ${formatDate(p.date_valeur)} (édition)`}
+                        aria-label={t('valorisationHistoriqueCard.ariaValeur', { date: formatDate(p.date_valeur) })}
                         className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                      Date
-                      <input
+                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('valorisationHistoriqueCard.date')}<input
                         value={editDate}
                         onChange={(e) => setEditDate(e.target.value)}
                         type="date"
-                        aria-label={`Date du ${formatDate(p.date_valeur)} (édition)`}
+                        aria-label={t('valorisationHistoriqueCard.ariaDate', { date: formatDate(p.date_valeur) })}
                         className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
@@ -191,24 +186,20 @@ export function ValorisationHistoriqueCard({
                       valeur={editValeur}
                       valeurPrecedente={valeurPrecedentePoint}
                       montantsMasques={montantsMasques}
-                      libelleVersement="Dont versement (€)"
-                      libellePlusValue="Dont plus-value (€)"
-                      ariaLabelVersement={`Versement du ${formatDate(p.date_valeur)} (édition)`}
-                      ariaLabelPlusValue={`Plus-value du ${formatDate(p.date_valeur)} (édition)`}
+                      libelleVersement={t('valorisationHistoriqueCard.dontVersement')}
+                      libellePlusValue={t('valorisationHistoriqueCard.dontPlusValue')}
+                      ariaLabelVersement={t('valorisationHistoriqueCard.ariaVersement', { date: formatDate(p.date_valeur) })}
+                      ariaLabelPlusValue={t('valorisationHistoriqueCard.ariaPlusValue', { date: formatDate(p.date_valeur) })}
                     />
                     <button
                       onClick={() => saveEdition(p.id)}
                       disabled={editionSaving}
                       className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-                    >
-                      Enregistrer
-                    </button>
+                    >{t('valorisationHistoriqueCard.enregistrer')}</button>
                     <button
                       onClick={() => setEditionId(null)}
                       className="rounded-control border border-bordure px-3 py-1.5 text-sm font-medium text-texte"
-                    >
-                      Annuler
-                    </button>
+                    >{t('valorisationHistoriqueCard.annuler')}</button>
                   </div>
                 </td>
               </tr>
@@ -218,19 +209,13 @@ export function ValorisationHistoriqueCard({
                 <td className="py-2 pr-4 text-right">
                   <span className="font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</span>
                   {p.versement !== null && (
-                    <span className="block text-xs text-texte-attenue">
-                      dont {formatEuro(p.versement, 2, montantsMasques)} versés
-                    </span>
+                    <span className="block text-xs text-texte-attenue">{t('valorisationHistoriqueCard.dont')}{' '}{formatEuro(p.versement, 2, montantsMasques)}{' '}{t('valorisationHistoriqueCard.verses')}</span>
                   )}
                 </td>
                 <td className="py-2 pr-4 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => startEdition(p)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
-                      Modifier
-                    </button>
-                    <button onClick={() => setConfirmSuppression(p)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
-                      Supprimer
-                    </button>
+                    <button onClick={() => startEdition(p)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">{t('valorisationHistoriqueCard.modifier')}</button>
+                    <button onClick={() => setConfirmSuppression(p)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">{t('valorisationHistoriqueCard.supprimer')}</button>
                   </div>
                 </td>
               </tr>
@@ -244,28 +229,22 @@ export function ValorisationHistoriqueCard({
         <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-texte">
-                Supprimer ce point d'historique ?
-              </h2>
-              <p className="mt-2 text-sm text-texte">
-                Le point du{' '}
+              <h2 id={titleId} className="text-lg font-semibold text-texte">{t('valorisationHistoriqueCard.supprimerCePointDHistorique')}</h2>
+              <p className="mt-2 text-sm text-texte">{t('valorisationHistoriqueCard.lePointDu')}{' '}
                 <span className="font-medium text-texte">{formatDate(confirmSuppression.date_valeur)}</span> (
-                {formatEuro(confirmSuppression.valeur, 2, montantsMasques)}) sera définitivement supprimé.
-              </p>
+                {formatEuro(confirmSuppression.valeur, 2, montantsMasques)}{t('valorisationHistoriqueCard.seraDefinitivementSupprime')}</p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
                   className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
-                >
-                  Annuler
-                </button>
+                >{t('valorisationHistoriqueCard.annuler')}</button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
                   className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
-                  {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
+                  {suppressionEnCours ? t('valorisationHistoriqueCard.suppression') : t('valorisationHistoriqueCard.supprimer')}
                 </button>
               </div>
             </>

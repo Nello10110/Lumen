@@ -13,6 +13,8 @@ import EtatVide from './EtatVide'
 import LigneEpargne from './LigneEpargne'
 import { SkeletonTexte } from './Skeleton'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 
 /** Nom + établissement, modifiables inline — même patron que `ModifierCompteForm`
@@ -45,12 +47,12 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-      <Field label="Nom du compte" className="w-48">
+      <Field label={t('compteDetailContent.nomDuCompte')} className="w-48">
         <Input value={nom} onChange={(e) => setNom(e.target.value)} />
       </Field>
-      <Field label="Établissement" className="w-48">
+      <Field label={t('compteDetailContent.etablissement')} className="w-48">
         <Select value={etablissementId} onChange={(e) => setEtablissementId(e.target.value)}>
-          <option value="">— Sans établissement —</option>
+          <option value="">{t('compteDetailContent.sansEtablissement')}</option>
           {etablissements.map((et) => (
             <option key={et.id} value={et.id}>
               {et.nom}
@@ -58,9 +60,7 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
           ))}
         </Select>
       </Field>
-      <PrimaryButton type="submit" disabled={saving || !nom.trim()}>
-        Enregistrer
-      </PrimaryButton>
+      <PrimaryButton type="submit" disabled={saving || !nom.trim()}>{t('compteDetailContent.enregistrer')}</PrimaryButton>
       {error && <span className="text-sm text-negatif">{error}</span>}
     </form>
   )
@@ -76,12 +76,12 @@ function EmpruntsRattaches({ emprunts, montantsMasques }: { emprunts: Loan[]; mo
   if (emprunts.length === 0) return null
 
   return (
-    <Card title="Emprunts rattachés">
+    <Card title={t('compteDetailContent.empruntsRattaches')}>
       <ul className="divide-y divide-bordure">
         {emprunts.map((e) => (
           <li key={e.id} className="flex items-center justify-between py-2 text-sm">
             <span className="font-medium text-texte">{e.libelle}</span>
-            <span className="text-texte">{formatEuro(e.capital_restant_du, 2, montantsMasques)} restant</span>
+            <span className="text-texte">{formatEuro(e.capital_restant_du, 2, montantsMasques)}{' '}{t('compteDetailContent.restant')}</span>
           </li>
         ))}
       </ul>
@@ -104,8 +104,8 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
   if (nombreLignes === 0) return null
   if (erreurChargement !== null) {
     return (
-      <Card title="Répartition entre détenteurs">
-        <EtatErreur message={`Impossible de charger les détenteurs : ${erreurChargement}`} onReessayer={rechargerDetenteurs} />
+      <Card title={t('compteDetailContent.repartitionEntreDetenteurs')}>
+        <EtatErreur message={t('compteDetailContent.erreurDetenteurs', { erreur: erreurChargement })} onReessayer={rechargerDetenteurs} />
       </Card>
     )
   }
@@ -113,11 +113,13 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
   if (detenteurs.length === 0) return null
 
   return (
-    <Card title="Répartition entre détenteurs">
+    <Card title={t('compteDetailContent.repartitionEntreDetenteurs')}>
       <p className="mb-4 text-sm text-texte">
-        S'applique à TOUTES les lignes de ce compte ({nombreLignes} ligne{nombreLignes > 1 ? 's' : ''}
-        {nombreEmprunts > 0 && <>, et {nombreEmprunts} emprunt{nombreEmprunts > 1 ? 's' : ''} rattaché{nombreEmprunts > 1 ? 's' : ''}</>}) —
-        remplace la répartition actuellement enregistrée sur chacune, plutôt que de la définir ligne par ligne.
+        {t('compteDetailContent.appliqueRepartition', {
+          portee:
+            t('compteDetailContent.nLignes', { n: nombreLignes }) +
+            (nombreEmprunts > 0 ? t('compteDetailContent.etNEmpruntsRattaches', { n: nombreEmprunts }) : ''),
+        })}
       </p>
       <div className="flex flex-wrap items-end gap-3">
         {detenteurs.map((d) => (
@@ -125,12 +127,10 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
             <Input type="number" min={0} max={100} step="any" value={saisie[d.id] ?? ''} onChange={(e) => setValeur(d.id, e.target.value)} />
           </Field>
         ))}
-        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>
-          Enregistrer
-        </PrimaryButton>
+        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>{t('compteDetailContent.enregistrer')}</PrimaryButton>
       </div>
-      {!totalValide && <p className="mt-2 text-sm text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</p>}
-      {enregistre && <p className="mt-2 text-sm text-positif">Répartition appliquée à toutes les lignes du compte.</p>}
+      {!totalValide && <p className="mt-2 text-sm text-negatif">{t('compteDetailContent.totalActuel')}{' '}{total.toFixed(2)}{' '}{t('compteDetailContent.doitFaire100')}</p>}
+      {enregistre && <p className="mt-2 text-sm text-positif">{t('compteDetailContent.repartitionAppliqueeAToutesLes')}</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
     </Card>
   )
@@ -168,7 +168,7 @@ function ClassificationCompteChamp({
       await onEnregistrer(valeur || null)
       setEnregistre(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+      setError(err instanceof Error ? err.message : t('compteDetailContent.erreurInconnue'))
     } finally {
       setSaving(false)
     }
@@ -179,19 +179,19 @@ function ClassificationCompteChamp({
       <div className="flex flex-wrap items-end gap-3">
         <Field label={label} className="w-56">
           <Select value={valeur} onChange={(e) => setValeur(e.target.value)}>
-            <option value="">Détection automatique</option>
+            <option value="">{t('compteDetailContent.detectionAutomatique')}</option>
             {options.map((o) => (
               <option key={o} value={o}>
-                {o}
+                {libelleDonnee(o)}
               </option>
             ))}
           </Select>
         </Field>
         <PrimaryButton onClick={handleSave} disabled={saving}>
-          {saving ? 'Enregistrement...' : `Enregistrer ${label === 'Zone géographique' ? 'la zone' : 'le secteur'}`}
+          {saving ? t('compteDetailContent.enregistrement') : `Enregistrer ${label === 'Zone géographique' ? t('compteDetailContent.laZone') : t('compteDetailContent.leSecteur')}`}
         </PrimaryButton>
       </div>
-      {enregistre && <p className="mt-2 text-sm text-positif">Appliqué à toutes les lignes du compte.</p>}
+      {enregistre && <p className="mt-2 text-sm text-positif">{t('compteDetailContent.appliqueAToutesLesLignes')}</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
     </div>
   )
@@ -206,14 +206,13 @@ function ClassificationCompte({ compteId, nombreLignes }: { compteId: number; no
   if (nombreLignes === 0) return null
 
   return (
-    <Card title="Classification géographique et sectorielle">
+    <Card title={t('compteDetailContent.classificationGeographiqueEtSectorielle')}>
       <p className="mb-4 text-sm text-texte">
-        S'applique à TOUTES les lignes de ce compte ({nombreLignes} ligne{nombreLignes > 1 ? 's' : ''}) — remplace la
-        déclaration actuellement enregistrée sur chacune, plutôt que de la définir ligne par ligne.
+        {t('compteDetailContent.appliqueDeclaration', { portee: t('compteDetailContent.nLignes', { n: nombreLignes }) })}
       </p>
       <div className="space-y-4">
-        <ClassificationCompteChamp label="Zone géographique" options={ZONES_GEO} onEnregistrer={(v) => api.setCompteZoneGeo(compteId, v)} />
-        <ClassificationCompteChamp label="Secteur" options={SECTEURS} onEnregistrer={(v) => api.setCompteSecteur(compteId, v)} />
+        <ClassificationCompteChamp label={t('compteDetailContent.zoneGeographique')} options={ZONES_GEO} onEnregistrer={(v) => api.setCompteZoneGeo(compteId, v)} />
+        <ClassificationCompteChamp label={t('compteDetailContent.secteur')} options={SECTEURS} onEnregistrer={(v) => api.setCompteSecteur(compteId, v)} />
       </div>
     </Card>
   )
@@ -252,25 +251,25 @@ export default function CompteDetailContent({
     <div className="space-y-6">
       <div>
         <h2 className="text-[22px] font-semibold tracking-title text-ink">{compte.nom}</h2>
-        <p className="text-sm text-texte-attenue">{compte.etablissement?.nom ?? 'Sans établissement'}</p>
+        <p className="text-sm text-texte-attenue">{compte.etablissement?.nom ?? t('compteDetailContent.sansEtablissement2')}</p>
       </div>
 
-      <Card title="Informations">
+      <Card title={t('compteDetailContent.informations')}>
         <CompteInfosForm compte={compte} onSaved={onChanged} />
       </Card>
 
-      <Card title="Solde">
+      <Card title={t('compteDetailContent.solde')}>
         <p className="text-2xl font-semibold text-texte">{formatEuro(solde, 2, montantsMasques)}</p>
         <p className="mt-1 text-xs text-texte-attenue">
-          {holdings.length} ligne{holdings.length > 1 ? 's' : ''} rattachée{holdings.length > 1 ? 's' : ''}
+          {t('compteDetailContent.nLignesRattachees', { n: holdings.length })}
         </p>
       </Card>
 
-      <Card title="Lignes rattachées">
+      <Card title={t('compteDetailContent.lignesRattachees')}>
         {holdings.length === 0 ? (
           <EtatVide
-            titre="Aucune ligne rattachée à ce compte."
-            description="Rattache une position depuis Portefeuille (formulaire d'ajout ou édition d'une ligne), ou crée-en une épargne directement ci-dessus."
+            titre={t('compteDetailContent.aucuneLigneRattacheeACe')}
+            description={t('compteDetailContent.rattacheUnePositionDepuisPortefeuille')}
           />
         ) : (
           <ul className="divide-y divide-bordure">
@@ -297,9 +296,7 @@ export default function CompteDetailContent({
           </ul>
         )}
         {holdings.length === 1 && !(holdings[0].type_actif !== null && TYPES_EPARGNE.has(holdings[0].type_actif)) && (
-          <p className="mt-3 text-xs text-texte-attenue">
-            Pour mettre à jour la valeur de cette ligne (immobilier...), ouvre sa fiche détaillée ci-dessus.
-          </p>
+          <p className="mt-3 text-xs text-texte-attenue">{t('compteDetailContent.pourMettreAJourLa')}</p>
         )}
       </Card>
 
@@ -359,14 +356,11 @@ function ZoneSuppression({
 
   return (
     <div className="rounded-card border border-negatif/25 p-4">
-      <p className="text-sm font-semibold text-negatif">Supprimer ce compte</p>
+      <p className="text-sm font-semibold text-negatif">{t('compteDetailContent.supprimerCeCompte')}</p>
       <p className="mt-1 text-xs text-texte-attenue">
         {nombreLignes > 0
-          ? `${nombreLignes > 1 ? `Les ${nombreLignes} lignes` : 'La ligne'} de ce compte ${nombreLignes > 1 ? 'seront supprimées' : 'sera supprimée'} avec lui, ainsi que les transactions importées qui s'y rattachent.`
-          : "Aucune ligne n'est rattachée à ce compte ; les transactions importées qui s'y rattachent encore (une position entièrement vendue, par exemple) seront supprimées avec lui."}{' '}
-        Un emprunt rattaché est conservé, seulement détaché. Suppression définitive : en cas de doute, exportez d'abord
-        une sauvegarde (Réglages).
-      </p>
+          ? t('compteDetailContent.suppressionLignes', { n: nombreLignes })
+          : t('compteDetailContent.aucuneLigneNEstRattachee')}{' '}{t('compteDetailContent.unEmpruntRattacheEstConserve')}</p>
       {erreur && (
         <div className="mt-3">
           <EtatErreur message={erreur} />
@@ -380,24 +374,20 @@ function ZoneSuppression({
             disabled={enCours}
             className="inline-flex min-h-11 items-center rounded-control bg-negatif px-4 text-sm font-semibold text-white disabled:opacity-40 md:min-h-0 md:py-2"
           >
-            {enCours ? 'Suppression...' : `Supprimer « ${compte.nom} »`}
+            {enCours ? t('compteDetailContent.suppression') : `Supprimer « ${compte.nom} »`}
           </button>
           <button
             type="button"
             onClick={() => setConfirme(false)}
             className="inline-flex min-h-11 items-center text-sm text-texte-attenue hover:underline md:min-h-0"
-          >
-            Annuler
-          </button>
+          >{t('compteDetailContent.annuler')}</button>
         </div>
       ) : (
         <button
           type="button"
           onClick={() => setConfirme(true)}
           className="mt-3 inline-flex min-h-11 items-center rounded-control border border-negatif/40 px-3.5 text-sm font-medium text-negatif transition-colors hover:bg-negatif/10 md:min-h-0 md:py-2"
-        >
-          Supprimer le compte
-        </button>
+        >{t('compteDetailContent.supprimerLeCompte')}</button>
       )}
     </div>
   )

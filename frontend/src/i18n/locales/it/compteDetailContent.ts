@@ -1,0 +1,47 @@
+import type fr from '../fr/compteDetailContent'
+import type { Structure } from '../../types'
+
+/** Italien — espace « compteDetailContent » (backlog § BL.2), traduit depuis le français. */
+const compteDetailContent: Structure<typeof fr> = {
+  nomDuCompte: "Nome del conto",
+  etablissement: "Istituto",
+  sansEtablissement: "— Senza istituto —",
+  enregistrer: "Salva",
+  empruntsRattaches: "Prestiti collegati",
+  restant: "residuo",
+  repartitionEntreDetenteurs: "Ripartizione tra titolari",
+  totalActuel: "Totale attuale:",
+  doitFaire100: "% (deve fare 100%)",
+  repartitionAppliqueeAToutesLes: "Ripartizione applicata a tutte le righe del conto.",
+  erreurInconnue: "Errore sconosciuto",
+  detectionAutomatique: "Rilevamento automatico",
+  enregistrement: "Salvataggio...",
+  laZone: "l'area",
+  leSecteur: "il settore",
+  appliqueAToutesLesLignes: "Applicato a tutte le righe del conto.",
+  classificationGeographiqueEtSectorielle: "Classificazione geografica e settoriale",
+  zoneGeographique: "Area geografica",
+  secteur: "Settore",
+  sansEtablissement2: "Senza istituto",
+  informations: "Informazioni",
+  solde: "Saldo",
+  lignesRattachees: "Righe collegate",
+  aucuneLigneRattacheeACe: "Nessuna riga collegata a questo conto.",
+  rattacheUnePositionDepuisPortefeuille: "Collega una posizione da Attività (modulo di aggiunta o modifica di una riga), oppure creane una di risparmio direttamente qui sopra.",
+  pourMettreAJourLa: "Per aggiornare il valore di questa riga (immobile...), apri la sua scheda dettagliata qui sopra.",
+  supprimerCeCompte: "Elimina questo conto",
+  aucuneLigneNEstRattachee: "Nessuna riga è collegata a questo conto; le operazioni importate ancora associate (una posizione interamente venduta, per esempio) saranno eliminate con esso.",
+  unEmpruntRattacheEstConserve: "Un prestito collegato viene conservato, solo scollegato. Eliminazione definitiva: in caso di dubbio, esporti prima un backup (Impostazioni).",
+  suppression: "Eliminazione...",
+  annuler: "Annulla",
+  supprimerLeCompte: "Elimina il conto",
+  erreurDetenteurs: "Impossibile caricare i titolari: {erreur}",
+  appliqueRepartition: "Si applica a TUTTE le righe di questo conto ({portee}): sostituisce la ripartizione salvata su ciascuna, invece di definirla riga per riga.",
+  appliqueDeclaration: "Si applica a TUTTE le righe di questo conto ({portee}): sostituisce la dichiarazione salvata su ciascuna, invece di definirla riga per riga.",
+  nLignes: { one: "{n} riga", other: "{n} righe" },
+  etNEmpruntsRattaches: { one: ", e {n} prestito collegato", other: ", e {n} prestiti collegati" },
+  nLignesRattachees: { one: "{n} riga collegata", other: "{n} righe collegate" },
+  suppressionLignes: { one: "La riga di questo conto sarà eliminata con esso, insieme alle operazioni importate associate.", other: "Le {n} righe di questo conto saranno eliminate con esso, insieme alle operazioni importate associate." },
+}
+
+export default compteDetailContent

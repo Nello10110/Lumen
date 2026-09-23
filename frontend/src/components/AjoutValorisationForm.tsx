@@ -8,6 +8,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { ModeDecomposition } from '../utils/valorisationDecomposition'
 import { versementDepuisDecomposition } from '../utils/valorisationDecomposition'
 import { dateVersISO } from '../utils/format'
+import { t } from '../i18n'
 
 /** Formulaire d'ajout rapide d'un point d'historique à une date choisie par
  * l'utilisateur (backlog 2.S.1) — jamais `datetime.now()` imposé côté serveur pour
@@ -58,10 +59,10 @@ export function AjoutValorisationForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-      <Field label="Valeur (€)" className="w-32">
+      <Field label={t('ajoutValorisationForm.valeur')} className="w-32">
         <Input type="number" step="any" min={0} required value={valeur} onChange={(e) => setValeur(e.target.value)} />
       </Field>
-      <Field label="Date" className="w-40">
+      <Field label={t('ajoutValorisationForm.date')} className="w-40">
         <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
       <ChampDecomposition
@@ -72,17 +73,14 @@ export function AjoutValorisationForm({
         valeur={valeur}
         valeurPrecedente={valeurPrecedente}
         montantsMasques={montantsMasques}
-        libelleVersement="Dont versement (€)"
-        libellePlusValue="Dont plus-value (€)"
+        libelleVersement={t('ajoutValorisationForm.dontVersement')}
+        libellePlusValue={t('ajoutValorisationForm.dontPlusValue')}
       />
       <PrimaryButton type="submit" disabled={saving}>
-        {saving ? 'Enregistrement...' : 'Ajouter une valorisation'}
+        {saving ? t('ajoutValorisationForm.enregistrement') : t('ajoutValorisationForm.ajouterUneValorisation')}
       </PrimaryButton>
       {error && <span className="text-sm text-negatif">{error}</span>}
-      <p className="w-full text-xs text-ink3">
-        Versement ou plus-value, au choix — l'autre se déduit automatiquement de l'évolution depuis le point précédent. Laisser
-        vide si vous ne savez pas : l'écran Rapport continuera d'estimer le gain via le taux déclaré.
-      </p>
+      <p className="w-full text-xs text-ink3">{t('ajoutValorisationForm.versementOuPlusValueAu')}</p>
     </form>
   )
 }

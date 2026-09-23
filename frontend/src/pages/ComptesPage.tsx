@@ -18,7 +18,9 @@ import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatDate, formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
+// Clé de regroupement INTERNE (jamais affichée telle quelle : le titre de la carte la traduit).
 const SANS_ETABLISSEMENT = 'Sans établissement'
 
 /** Écran Comptes (backlog X.1, fusionné avec l'ancien écran Épargne le 03/09/2026 —
@@ -93,28 +95,23 @@ export default function ComptesPage() {
   return (
     <div className="space-y-[14px]">
       <div className="flex flex-wrap items-center justify-end gap-3 md:justify-between">
-        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Comptes</h1>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('comptesPage.comptes')}</h1>
         <div className="flex flex-wrap items-center gap-3">
           {/* Le total du foyer à côté du titre, en 26 px (maquette de la refonte) :
               c'est le chiffre héros de cet écran, il n'a pas besoin d'une carte. */}
           <span className="text-[26px] font-semibold text-ink">{formatEuro(soldeTotal, 0, montantsMasques)}</span>
-          <SecondaryButton onClick={() => setFeuille('etablissement')}>Établissement</SecondaryButton>
-          <PrimaryButton onClick={() => setFeuille('compte')}>Ajouter un compte</PrimaryButton>
+          <SecondaryButton onClick={() => setFeuille('etablissement')}>{t('comptesPage.etablissement')}</SecondaryButton>
+          <PrimaryButton onClick={() => setFeuille('compte')}>{t('comptesPage.ajouterUnCompte')}</PrimaryButton>
         </div>
       </div>
-      <p className="text-sm text-texte-attenue">
-        Tous les comptes du foyer — compte courant, PEA, compte-titres, assurance-vie, immobilier, épargne — groupés par
-        établissement, avec leur solde. Clique sur un compte pour voir le détail, modifier une ligne d'épargne ou lui
-        ajouter une valorisation, et définir une répartition entre détenteurs pour tout le compte en une fois.{' '}
+      <p className="text-sm text-texte-attenue">{t('comptesPage.tousLesComptesDuFoyer')}{' '}
         {/* Un compte est un contenant, les lignes de patrimoine sont ce qu'il
             contient (recette du 02/09/2026 : première incompréhension d'un
             nouvel utilisateur) — levé ici plutôt que seulement dans le manuel. */}
         <span
           className="cursor-help underline decoration-dotted"
-          title="Un compte est un contenant (votre PEA, votre livret, le compte de votre appartement) ; les lignes de patrimoine sont ce qu'il contient. Clique sur un compte pour voir ses lignes."
-        >
-          Qu'est-ce qu'un compte ?
-        </span>
+          title={t('comptesPage.unCompteEstUnContenant')}
+        >{t('comptesPage.quEstCeQuUn')}</span>
       </p>
 
       <PlusValueParCompteCard holdings={holdings} montantsMasques={montantsMasques} />
@@ -122,13 +119,13 @@ export default function ComptesPage() {
       {lignesEpargne.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur épargne totale</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('comptesPage.valeurEpargneTotale')}</p>
             <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(valeurEpargneTotale, 2, montantsMasques)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Versement mensuel total</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('comptesPage.versementMensuelTotal')}</p>
             <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(versementEpargneTotal, 2, montantsMasques)}</p>
-            <p className="text-xs text-texte-attenue">additionné au préremplissage du Simulateur</p>
+            <p className="text-xs text-texte-attenue">{t('comptesPage.additionneAuPreremplissageDuSimulateur')}</p>
           </div>
         </div>
       )}
@@ -140,8 +137,8 @@ export default function ComptesPage() {
           ci-dessus) plutôt qu'un second `GET /etablissements` (patron Z.1). */}
       {lignes.length === 0 ? (
         <EtatVide
-          titre="Aucun compte déclaré."
-          description="Crée un compte ci-dessus (vide, ou une ligne d'épargne en choisissant un type), ou rattaches-en un directement depuis Portefeuille lors de l'ajout d'une position."
+          titre={t('comptesPage.aucunCompteDeclare')}
+          description={t('comptesPage.creeUnCompteCiDessus')}
         />
       ) : (
         nomsGroupes.map((nomGroupe) => {
@@ -149,14 +146,14 @@ export default function ComptesPage() {
           return (
           <Card
             key={nomGroupe}
-            title={nomGroupe}
+            title={nomGroupe === SANS_ETABLISSEMENT ? t('comptesPage.sansEtablissement') : nomGroupe}
             headerActions={
               etablissementDuGroupe && (
                 <button
                   type="button"
                   onClick={() => setEtablissementEnEdition(etablissementDuGroupe)}
-                  aria-label={`Modifier l'établissement ${nomGroupe}`}
-                  title="Renommer, changer le logo"
+                  aria-label={t('comptesPage.modifierEtablissementAria', { nom: nomGroupe })}
+                  title={t('comptesPage.renommerChangerLeLogo')}
                   className="flex h-11 w-11 items-center justify-center rounded-chip text-ink4 transition-colors hover:bg-hover hover:text-ink2 md:h-7 md:w-7"
                 >
                   <IconCrayon className="h-[15px] w-[15px]" />
@@ -195,16 +192,14 @@ export default function ComptesPage() {
                           // reliquat des lignes jamais rattachées. Sans cette
                           // explication, l'utilisateur cherche à le renommer ou à le
                           // supprimer (recette du 02/09/2026).
-                          <span title="Ce n'est pas un compte, mais le regroupement des lignes de votre patrimoine qui ne sont rattachées à aucun compte. Pour les ranger, ouvrez la ligne concernée depuis Patrimoine et choisissez-lui un compte.">
-                            Sans compte
-                          </span>
+                          <span title={t('comptesPage.ceNEstPasUn')}>{t('comptesPage.sansCompte')}</span>
                         )}
                         <span className="ml-2 text-xs text-texte-attenue">
-                          {ligne.nombre_lignes} ligne{ligne.nombre_lignes > 1 ? 's' : ''}
+                          {t('comptesPage.nLignes', { n: ligne.nombre_lignes })}
                           {/* Dernière activité utilisateur sur ce compte (demande
                               directe du 16/09/2026) — absente pour le bucket « Sans
                               compte » ou un compte tout juste créé sans aucune ligne. */}
-                          {ligne.derniere_maj && <> · mise à jour le {formatDate(ligne.derniere_maj)}</>}
+                          {ligne.derniere_maj && <>{' '}{t('comptesPage.miseAJourLe')}{' '}{formatDate(ligne.derniere_maj)}</>}
                         </span>
                         {/* Retour utilisateur du 09/09/2026 : une répartition entre
                             détenteurs commencée puis rompue (le plus souvent la
@@ -217,8 +212,8 @@ export default function ComptesPage() {
                           <span
                             className="ml-1.5 inline-flex shrink-0"
                             role="img"
-                            aria-label="Répartition entre détenteurs incomplète sur au moins une ligne de ce compte"
-                            title="Répartition entre détenteurs incomplète sur au moins une ligne de ce compte"
+                            aria-label={t('comptesPage.repartitionEntreDetenteursIncompleteSur')}
+                            title={t('comptesPage.repartitionEntreDetenteursIncompleteSur')}
                           >
                             <IconAvertissement className="h-4 w-4 text-warn" />
                           </span>
@@ -232,8 +227,8 @@ export default function ComptesPage() {
                           <span
                             className="ml-1.5 inline-flex shrink-0"
                             role="img"
-                            aria-label="Répartition entre détenteurs non renseignée pour ce compte — clique pour la définir"
-                            title="Répartition entre détenteurs non renseignée pour ce compte — clique pour la définir"
+                            aria-label={t('comptesPage.repartitionEntreDetenteursNonRenseignee')}
+                            title={t('comptesPage.repartitionEntreDetenteursNonRenseignee')}
                           >
                             <IconPersonne className="h-4 w-4 text-ink4" />
                           </span>
@@ -280,12 +275,12 @@ export default function ComptesPage() {
             <>
               <div className="mb-4 flex items-start justify-between gap-3">
                 <h2 id={titleId} className="text-[22px] font-semibold tracking-title text-ink">
-                  {feuille === 'compte' ? 'Ajouter un compte' : 'Établissements'}
+                  {feuille === 'compte' ? t('comptesPage.ajouterUnCompte') : t('comptesPage.etablissements')}
                 </h2>
                 <button
                   type="button"
                   onClick={() => setFeuille(null)}
-                  aria-label="Fermer"
+                  aria-label={t('comptesPage.fermer')}
                   className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-chip bg-track text-ink3 hover:text-ink"
                 >
                   <IconFermer className="h-4 w-4" />

@@ -1,0 +1,47 @@
+import type fr from '../fr/compteDetailContent'
+import type { Structure } from '../../types'
+
+/** Anglais — espace « compteDetailContent » (backlog § BL.2), traduit depuis le français. */
+const compteDetailContent: Structure<typeof fr> = {
+  nomDuCompte: "Account name",
+  etablissement: "Institution",
+  sansEtablissement: "— No institution —",
+  enregistrer: "Save",
+  empruntsRattaches: "Linked loans",
+  restant: "remaining",
+  repartitionEntreDetenteurs: "Split between holders",
+  totalActuel: "Current total:",
+  doitFaire100: "% (must equal 100%)",
+  repartitionAppliqueeAToutesLes: "Split applied to every line of the account.",
+  erreurInconnue: "Unknown error",
+  detectionAutomatique: "Automatic detection",
+  enregistrement: "Saving...",
+  laZone: "the region",
+  leSecteur: "the sector",
+  appliqueAToutesLesLignes: "Applied to every line of the account.",
+  classificationGeographiqueEtSectorielle: "Geographic and sector classification",
+  zoneGeographique: "Geographic area",
+  secteur: "Sector",
+  sansEtablissement2: "No institution",
+  informations: "Information",
+  solde: "Balance",
+  lignesRattachees: "Linked lines",
+  aucuneLigneRattacheeACe: "No line is linked to this account.",
+  rattacheUnePositionDepuisPortefeuille: "Link a position from Assets (add form or line editing), or create a savings line directly above.",
+  pourMettreAJourLa: "To update the value of this line (real estate...), open its detail sheet above.",
+  supprimerCeCompte: "Delete this account",
+  aucuneLigneNEstRattachee: "No line is linked to this account; the imported transactions still attached to it (a fully sold position, for example) will be deleted with it.",
+  unEmpruntRattacheEstConserve: "A linked loan is kept, only unlinked. Permanent deletion: if in doubt, export a backup first (Settings).",
+  suppression: "Deleting...",
+  annuler: "Cancel",
+  supprimerLeCompte: "Delete the account",
+  erreurDetenteurs: "Unable to load the holders: {erreur}",
+  appliqueRepartition: "Applies to ALL the lines of this account ({portee}) — replaces the split currently saved on each, rather than setting it line by line.",
+  appliqueDeclaration: "Applies to ALL the lines of this account ({portee}) — replaces the declaration currently saved on each, rather than setting it line by line.",
+  nLignes: { one: "{n} line", other: "{n} lines" },
+  etNEmpruntsRattaches: { one: ", and {n} linked loan", other: ", and {n} linked loans" },
+  nLignesRattachees: { one: "{n} linked line", other: "{n} linked lines" },
+  suppressionLignes: { one: "The line of this account will be deleted with it, along with the imported transactions attached to it.", other: "The {n} lines of this account will be deleted with it, along with the imported transactions attached to them." },
+}
+
+export default compteDetailContent

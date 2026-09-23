@@ -6,6 +6,7 @@ import { Label } from './Field'
 import { ValorisationHistoriqueCard } from './ValorisationHistoriqueCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Onglet *Aperçu* d'un compte Épargne (backlog 2.S.1) : historique daté + versement
  * mensuel déclaré + ajout rapide d'un point — remplace la courbe de cours (sans
@@ -37,16 +38,16 @@ export default function EpargneApercu({
       <Card>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div>
-            <Label>Valeur actuelle</Label>
+            <Label>{t('epargneApercu.valeurActuelle')}</Label>
             <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(valeurActuelle, 2, montantsMasques)}</p>
-            {dateValeurActuelle && <p className="mt-1 text-xs text-texte-attenue">à jour au {formatDate(dateValeurActuelle)}</p>}
+            {dateValeurActuelle && <p className="mt-1 text-xs text-texte-attenue">{t('epargneApercu.aJourAu')}{' '}{formatDate(dateValeurActuelle)}</p>}
           </div>
           <div>
-            <Label>Versement mensuel déclaré</Label>
+            <Label>{t('epargneApercu.versementMensuelDeclare')}</Label>
             <p className="mt-1 text-lg font-semibold text-texte">
               {detail.versement_mensuel !== null ? formatEuro(detail.versement_mensuel, 2, montantsMasques) : '—'}
             </p>
-            <p className="mt-1 text-xs text-texte-attenue">additionné au préremplissage du Simulateur</p>
+            <p className="mt-1 text-xs text-texte-attenue">{t('epargneApercu.additionneAuPreremplissageDuSimulateur')}</p>
           </div>
         </div>
       </Card>
@@ -59,11 +60,8 @@ export default function EpargneApercu({
         prixRevientMoyen={detail.prix_revient_moyen}
       />
 
-      <Card title="Ajouter une valorisation">
-        <p className="mb-3 text-xs text-texte-attenue">
-          Un point antidaté (rattrapage a posteriori) ne remplace jamais la valeur actuelle si une date plus récente est déjà
-          connue.
-        </p>
+      <Card title={t('epargneApercu.ajouterUneValorisation')}>
+        <p className="mb-3 text-xs text-texte-attenue">{t('epargneApercu.unPointAntidateRattrapageA')}</p>
         <AjoutValorisationForm holdingId={detail.id} historique={historique} onAdded={handleValorisationAjoutee} />
       </Card>
     </>
