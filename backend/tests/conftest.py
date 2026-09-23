@@ -39,9 +39,10 @@ from datetime import datetime
 import pytest
 import yfinance as yf
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from app import database
 from app.auth import get_current_user
 from app.database import Base, get_db
 from app.main import app
@@ -69,8 +70,39 @@ ID_UTILISATEUR_B = 2
 NOM_UTILISATEUR_B = "test-b"
 
 
+def _db_postgres():
+    """Mode Postgres (§ BI.4, cf. `conftest.py` racine) : une seule base, dont le
+    schéma a été posé par les migrations Alembic à l'import de l'application ; vidée
+    au début de chaque test (`RESTART IDENTITY` : les identifiants repartent de 1,
+    comme sur une base SQLite neuve)."""
+    tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+    with database.engine.begin() as connexion:
+        connexion.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+    session = database.SessionLocal()
+    session.add(User(id=ID_UTILISATEUR_TEST, username=NOM_UTILISATEUR_TEST, password_hash="inutilisé"))
+    session.commit()
+    _resynchroniser_sequence_users(session)
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+def _resynchroniser_sequence_users(session) -> None:
+    """Un `id` écrit explicitement n'avance PAS la séquence Postgres (SQLite, lui,
+    repart toujours du plus grand id) : sans ce recalage, le prochain utilisateur
+    créé sans id (inscription) reprendrait l'id 1, déjà pris."""
+    if database.EST_SQLITE:
+        return
+    session.execute(text("SELECT setval(pg_get_serial_sequence('users', 'id'), (SELECT MAX(id) FROM users))"))
+    session.commit()
+
+
 @pytest.fixture
 def db():
+    if not database.EST_SQLITE:
+        yield from _db_postgres()
+        return
     fd, chemin = tempfile.mkstemp(prefix="patrimoine_test_db_", suffix=".db")
     os.close(fd)
     engine_test = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
@@ -125,6 +157,7 @@ def basculer_utilisateur(db, user_id: int, username: str) -> User:
         utilisateur = User(id=user_id, username=username, password_hash="inutilisé")
         db.add(utilisateur)
         db.commit()
+        _resynchroniser_sequence_users(db)
     app.dependency_overrides[get_current_user] = lambda: utilisateur
     return utilisateur
 

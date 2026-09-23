@@ -103,6 +103,18 @@ def _run_sauvegarde_chiffree() -> None:
     clé configurée, le job apparaît simplement en statut "erreur" dans Réglages."""
     db = SessionLocal()
     try:
+        # Sauvegarde = copie du FICHIER SQLite (API `backup` de `sqlite3`). Une base
+        # serveur (§ BI.4) n'a pas de fichier à copier : elle se sauvegarde avec ses
+        # propres outils (`pg_dump`, instantanés de l'hébergeur). Dit clairement dans
+        # Réglages plutôt qu'une trace d'exception sur `None`.
+        if database.DB_PATH is None:
+            record_result(
+                db,
+                BACKUP_ENCRYPTED,
+                "erreur",
+                "Sauvegarde intégrée réservée à une base SQLite : une base serveur se sauvegarde avec ses propres outils (pg_dump).",
+            )
+            return
         # `database.DB_PATH`, pas `sauvegarde_module.chemin_base_source()` : c'est la
         # base que l'application OUVRE RÉELLEMENT. Les deux divergent dès que le repli
         # historique de `app/database.py` s'applique (`patrimoine.db` vide ou absent →

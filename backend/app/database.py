@@ -92,8 +92,19 @@ def _chemin_base_par_defaut() -> Path:
     return nouveau
 
 
-DB_PATH = Path(os.environ["PATRIMOINE_DB"]) if os.environ.get("PATRIMOINE_DB") else _chemin_base_par_defaut()
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+# Base serveur (backlog § BI.4, préparation d'une version hébergée) : une URL
+# SQLAlchemy complète dans `PATRIMOINE_DATABASE_URL` — `postgresql+psycopg://...` —
+# prend le pas sur tout ce qui suit. Sans elle, RIEN ne change pour une installation
+# auto-hébergée : fichier SQLite, choix de son emplacement, mode WAL, sauvegardes.
+# `DB_PATH` vaut alors `None` : il n'existe pas de fichier de base à désigner.
+_URL_EXPLICITE = os.environ.get("PATRIMOINE_DATABASE_URL")
+if _URL_EXPLICITE:
+    DATABASE_URL = _URL_EXPLICITE
+    DB_PATH: Path | None = None
+else:
+    DB_PATH = Path(os.environ["PATRIMOINE_DB"]) if os.environ.get("PATRIMOINE_DB") else _chemin_base_par_defaut()
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
+EST_SQLITE = DATABASE_URL.startswith("sqlite")
 
 # `timeout` (secondes) : passé tel quel à `sqlite3.connect`, il règle le
 # `busy_timeout` SQLite de la connexion — une écriture concurrente ATTEND ce délai
@@ -106,13 +117,20 @@ DATABASE_URL = f"sqlite:///{DB_PATH}"
 # les deux réglages sont complémentaires, ni l'un ni l'autre ne suffit seul face à
 # une transaction d'écriture tenue longtemps (cf. aussi le commit par ticker dans
 # `market_data_service.refresh_tickers`, qui borne cette durée à la source).
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
+#
+# Réglages propres à SQLite, donc réservés à SQLite. Une base serveur gère elle-même
+# la concurrence ; `pool_pre_ping` y écarte une connexion rompue par le serveur
+# (redémarrage, délai d'inactivité) avant qu'une requête ne tombe dessus.
+if EST_SQLITE:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
+
+    @event.listens_for(engine, "connect")
+    def _activer_mode_wal(dbapi_connection, _connection_record) -> None:
+        dbapi_connection.execute("PRAGMA journal_mode=WAL")
+
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@event.listens_for(engine, "connect")
-def _activer_mode_wal(dbapi_connection, _connection_record) -> None:
-    dbapi_connection.execute("PRAGMA journal_mode=WAL")
 
 
 class Base(DeclarativeBase):

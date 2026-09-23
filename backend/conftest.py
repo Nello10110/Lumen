@@ -18,7 +18,22 @@ import atexit
 import os
 import tempfile
 
-if "PATRIMOINE_DB" not in os.environ:
+# Mode Postgres (backlog § BI.4), à la demande : `PATRIMOINE_TEST_DATABASE_URL`
+# désigne une base serveur JETABLE, remise à vide ici (schéma `public` détruit puis
+# recréé) avant que l'import de l'application n'y rejoue toutes les migrations
+# Alembic — la suite vérifie ainsi l'application ET les migrations sur Postgres.
+# Sans cette variable, rien ne change : SQLite, fichier temporaire.
+_URL_TEST = os.environ.get("PATRIMOINE_TEST_DATABASE_URL")
+if _URL_TEST:
+    from sqlalchemy import create_engine, text
+
+    _moteur = create_engine(_URL_TEST)
+    with _moteur.begin() as _connexion:
+        _connexion.execute(text("DROP SCHEMA public CASCADE"))
+        _connexion.execute(text("CREATE SCHEMA public"))
+    _moteur.dispose()
+    os.environ["PATRIMOINE_DATABASE_URL"] = _URL_TEST
+elif "PATRIMOINE_DB" not in os.environ:
     _fd, _chemin_db_session = tempfile.mkstemp(prefix="patrimoine_tests_", suffix=".db")
     os.close(_fd)
     os.environ["PATRIMOINE_DB"] = _chemin_db_session
