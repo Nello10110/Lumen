@@ -11,6 +11,7 @@ Ni l'un ni l'autre n'a de sens pour un membre, encore moins pour un invité.
 """
 
 import json
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
@@ -22,6 +23,8 @@ from ..database import get_db
 from ..models import User
 from ..schemas import EffacerFoyerRequest
 from ..services import auth_service, donnees_service, historique_cache, preferences_service
+
+logger = logging.getLogger("patrimoine.import")
 
 router = APIRouter(prefix="/api/donnees", tags=["donnees"])
 
@@ -82,8 +85,19 @@ async def importer(
         contenu = donnees_service.importer_foyer(db, user_id, document)
     except donnees_service.FichierExportInvalideError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001 - remonté en 400 avec le motif réel
+    except ValueError as exc:
+        # Valeur hors de son ensemble autorisé, date illisible... : message écrit pour
+        # l'utilisateur.
         raise HTTPException(status_code=400, detail=f"Import impossible : {exc}") from exc
+    except Exception as exc:
+        # Erreur de base de données ou imprévue : son texte exposerait la requête SQL.
+        # Le service a déjà tout annulé ; le détail va au journal.
+        logger.exception("échec de l'import des données du foyer %s", user_id)
+        raise HTTPException(
+            status_code=400,
+            detail="Import impossible : le fichier n'a pas pu être importé, rien n'a été modifié. "
+            "Le journal du serveur donne le détail.",
+        ) from exc
     # Les historiques mis en cache décrivent un patrimoine qui n'existe plus.
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True, "contenu": contenu}

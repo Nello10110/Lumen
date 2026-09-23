@@ -6,8 +6,10 @@ purge des fichiers en attente au bout de 30 minutes (LOT 3.5), plafond de taille
 
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.exc import IntegrityError
+
 from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Etablissement, Holding
-from app.services import comptes_service, csv_import, transaction_import, upload_limits
+from app.services import comptes_service, csv_import, donnees_service, transaction_import, upload_limits
 from app.services.lecture_tableau import Ligne, Tableau
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
@@ -286,6 +288,66 @@ def test_import_transactions_fichier_trop_volumineux_refuse_en_413(client, monke
     )
     assert reponse.status_code == 413
 
+
+
+def _erreur_de_base():
+    """Ce que lève SQLAlchemy sur une contrainte violée : son texte contient la
+    requête et ses paramètres."""
+    return IntegrityError(
+        "INSERT INTO holdings (user_id, ticker, quantite) VALUES (?, ?, ?)",
+        (1, "AAA", None),
+        Exception("NOT NULL constraint failed: holdings.quantite"),
+    )
+
+
+def test_import_confirm_erreur_de_base_nexpose_jamais_la_requete(client, db, monkeypatch, caplog):
+    """Constat du § BI.2 : l'erreur brute remontait telle quelle à l'écran, requête
+    SQL et paramètres compris. Message générique à l'écran, détail au journal."""
+    preview = _uploader_preview(client)
+
+    def commit_defaillant():
+        raise _erreur_de_base()
+
+    monkeypatch.setattr(db, "commit", commit_defaillant)
+    reponse = client.post(
+        "/api/portfolio/import/confirm",
+        json={"file_token": preview["file_token"], "ticker_col": "ticker", "quantite_col": "quantite"},
+    )
+
+    assert reponse.status_code == 400
+    detail = reponse.json()["detail"]
+    assert "n'a pas été modifié" in detail
+    for fragment in ("INSERT", "holdings", "constraint", "quantite"):
+        assert fragment not in detail
+    assert "NOT NULL constraint failed" in caplog.text
+
+
+def test_import_des_donnees_erreur_de_base_nexpose_jamais_la_requete(client, monkeypatch, caplog):
+    def importer_defaillant(*_args, **_kwargs):
+        raise _erreur_de_base()
+
+    monkeypatch.setattr(donnees_service, "importer_foyer", importer_defaillant)
+    reponse = client.post("/api/donnees/import", files={"file": ("export.json", b"{}", "application/json")})
+
+    assert reponse.status_code == 400
+    detail = reponse.json()["detail"]
+    assert "rien n'a été modifié" in detail
+    for fragment in ("INSERT", "holdings", "constraint"):
+        assert fragment not in detail
+    assert "NOT NULL constraint failed" in caplog.text
+
+
+def test_import_des_donnees_erreur_metier_garde_son_message(client, monkeypatch):
+    """Une valeur invalide reste expliquée : ce message-là est écrit pour l'utilisateur."""
+
+    def importer_refuse(*_args, **_kwargs):
+        raise donnees_service.ValeurInvalideError("Valeur invalide pour holdings.type_actif : « XYZ ».")
+
+    monkeypatch.setattr(donnees_service, "importer_foyer", importer_refuse)
+    reponse = client.post("/api/donnees/import", files={"file": ("export.json", b"{}", "application/json")})
+
+    assert reponse.status_code == 400
+    assert "holdings.type_actif" in reponse.json()["detail"]
 
 # ---------------------------------------------------------------------------
 # 3.5 — expiration des fichiers en attente d'import (30 minutes)

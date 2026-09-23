@@ -1,6 +1,7 @@
 """Portefeuille : import de relevé (mapping manuel de colonnes), CRUD des positions,
 fiche détaillée et historique de prix d'une ligne."""
 
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
@@ -55,6 +56,8 @@ from ..services import (
 )
 
 _peut_ecrire = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
+
+logger = logging.getLogger("patrimoine.import")
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -198,11 +201,24 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
             imported += 1
 
         db.commit()
-    except Exception as exc:
+    except ValueError as exc:
+        # Erreur de contenu (valeur illisible, non finie...) : son message est écrit
+        # pour l'utilisateur, il lui dit quoi corriger dans son fichier.
         db.rollback()
         raise HTTPException(
             status_code=400,
             detail=f"Échec de l'import, le portefeuille n'a pas été modifié : {exc}",
+        ) from exc
+    except Exception as exc:
+        # Toute autre erreur — de base de données notamment — resterait illisible pour
+        # l'utilisateur et exposerait la requête SQL et ses paramètres (constaté au
+        # § BI.2). Message générique à l'écran, détail complet au journal.
+        db.rollback()
+        logger.exception("échec de l'import de positions (foyer %s)", user_id)
+        raise HTTPException(
+            status_code=400,
+            detail="Échec de l'import, le portefeuille n'a pas été modifié. Vérifiez le fichier ; "
+            "si l'erreur persiste, le journal du serveur en donne le détail.",
         ) from exc
 
     csv_import.clear_pending(mapping.file_token)

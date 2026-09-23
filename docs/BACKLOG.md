@@ -6618,6 +6618,11 @@ En outre, `to_float` refuse désormais `NaN` et l'infini à la source (le texte 
   `detail=f"… {exc}"`, `routers/portfolio.py`) : toute erreur de base y expose la requête SQL et
   ses paramètres. Le cas de la quantité vide est corrigé, mais le canal reste ouvert pour toute
   autre erreur. À remplacer par un message générique, l'exception allant au journal.
+  **Traité le 23/09/2026** (décision de l'utilisateur) : sur les deux imports qui attrapaient
+  toute exception (relevé de positions, import des données du foyer), une erreur de contenu
+  (`ValueError`, message écrit pour l'utilisateur) reste affichée telle quelle ; toute autre
+  erreur donne un message générique et part au journal avec sa trace. Tests dans
+  `tests/test_import_robustesse.py` — l'ancien code affichait `[SQL: INSERT INTO holdings …`.
 - **Les CSV non UTF-8 restent refusés**, comme avant — seul le message a changé (« enregistrez en
   CSV UTF-8 »). Or les banques françaises exportent souvent en Windows-1252. Un repli sur cet
   encodage serait sûr (UTF-8 essayé d'abord) et épargnerait une manipulation à l'utilisateur ;
@@ -6783,8 +6788,8 @@ désagrément ; sur un service hébergé, une fuite de données financières.
 | Plafond pratique | Quelques centaines de bases par serveur | Quelques milliers de schémas (catalogue qui gonfle) | Sans limite pratique à cette échelle |
 | Travail pour y arriver | Élevé : routage de connexion par requête, séparation des données de marché, orchestration des migrations | Moyen à élevé | **Faible** : c'est le modèle actuel, à durcir |
 
-*Recommandation : garder la colonne de rattachement, et la durcir par la sécurité au niveau des
-lignes (RLS) de Postgres.* Chaque table de foyer reçoit une politique
+*Recommandation — **retenue par l'utilisateur le 23/09/2026** : garder la colonne de rattachement,
+et la durcir par la sécurité au niveau des lignes (RLS) de Postgres.* Chaque table de foyer reçoit une politique
 `user_id = current_setting('app.foyer_id')::int`, posée par `SET LOCAL` au début de chaque
 requête authentifiée ; un filtre oublié ne renvoie alors plus rien au lieu de tout renvoyer. Ce
 qu'il faudrait faire :
@@ -6803,7 +6808,9 @@ La base par foyer ne se justifierait que sur une exigence contractuelle d'isolat
 code restant le même.
 
 *Hors stockage, trois sujets conditionnent un service hébergé plus que le choix ci-dessus* —
-signalés, pas traités :
+signalés, pas traités. Décision de l'utilisateur (23/09/2026) : données de marché sous licence
+et remplacement de `yfinance`, « plus tard, pas d'urgence » ; guides d'export (§ BF.5), pas
+maintenant.
 
 - **Les données de marché.** `yfinance` lit Yahoo Finance sans licence ; ses conditions
   réservent les données à un usage personnel. Un service commercial doit passer par un
