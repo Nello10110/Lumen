@@ -258,7 +258,7 @@ describe('WelcomeWizard', () => {
     fireEvent.change(screen.getByLabelText('Nom du nouvel établissement (Établissement)'), { target: { value: 'Trade Republic' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    await screen.findByText(/position\(s\) recalculée\(s\)/)
+    await screen.findByText(/positions? recalculées?/)
     expect(await screen.findByText(/compte déjà/)).toBeInTheDocument()
   })
 

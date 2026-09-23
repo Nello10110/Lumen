@@ -91,7 +91,7 @@ describe('ImportLedgerSection', () => {
     fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    await screen.findByText(/opération\(s\) importée\(s\)/)
+    await screen.findByText(/opérations? importées?/)
     const payload = vi.mocked(api.importLedgerConfirm).mock.calls[0][0] as LedgerImportConfirmInput
     expect(payload.devises_selectionnees).toEqual(['BTC'])
   })
@@ -119,7 +119,7 @@ describe('ImportLedgerSection', () => {
     fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    expect(await screen.findByText(/2 opération\(s\) importée\(s\), 1 mise\(s\) à jour/)).toBeInTheDocument()
-    expect(screen.getByText(/1 compte\(s\) créé\(s\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/2 opérations importées, 1 mise à jour/)).toBeInTheDocument()
+    expect(screen.getByText(/1 compte créé/)).toBeInTheDocument()
   })
 })

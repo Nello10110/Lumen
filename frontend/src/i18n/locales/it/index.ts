@@ -32,6 +32,7 @@ import etatErreur from './etatErreur'
 import evolutionFinanciereCard from './evolutionFinanciereCard'
 import expositionConsolideeCard from './expositionConsolideeCard'
 import field from './field'
+import guidesExport from './guidesExport'
 import holdingCategories from './holdingCategories'
 import holdingDetailContent from './holdingDetailContent'
 import holdingDetailModal from './holdingDetailModal'
@@ -39,6 +40,12 @@ import holdingDetailPage from './holdingDetailPage'
 import holdingPriceHistoryChart from './holdingPriceHistoryChart'
 import immobilierApercu from './immobilierApercu'
 import immobilierParametresForm from './immobilierParametresForm'
+import importBancaireSection from './importBancaireSection'
+import importBricksSection from './importBricksSection'
+import importLedgerSection from './importLedgerSection'
+import importPage from './importPage'
+import importRelevePositionsSection from './importRelevePositionsSection'
+import importTransactionsSection from './importTransactionsSection'
 import indicateursSituationCard from './indicateursSituationCard'
 import labelAdaptatif from './labelAdaptatif'
 import ligneEpargne from './ligneEpargne'
@@ -65,6 +72,7 @@ import rafraichissementCoursIndicateur from './rafraichissementCoursIndicateur'
 import rapportPage from './rapportPage'
 import recurrencesSection from './recurrencesSection'
 import repartitionSection from './repartitionSection'
+import resultatImport from './resultatImport'
 import revenusPassifsCard from './revenusPassifsCard'
 import revenusSection from './revenusSection'
 import salairePage from './salairePage'
@@ -73,6 +81,7 @@ import selecteurEtablissement from './selecteurEtablissement'
 import simulateurAchatLocationCard from './simulateurAchatLocationCard'
 import simulateurProjectionSection from './simulateurProjectionSection'
 import skeleton from './skeleton'
+import tuileSourceImport from './tuileSourceImport'
 import valorisationHistoriqueCard from './valorisationHistoriqueCard'
 
 const espaces = {
@@ -109,6 +118,7 @@ const espaces = {
   evolutionFinanciereCard,
   expositionConsolideeCard,
   field,
+  guidesExport,
   holdingCategories,
   holdingDetailContent,
   holdingDetailModal,
@@ -116,6 +126,12 @@ const espaces = {
   holdingPriceHistoryChart,
   immobilierApercu,
   immobilierParametresForm,
+  importBancaireSection,
+  importBricksSection,
+  importLedgerSection,
+  importPage,
+  importRelevePositionsSection,
+  importTransactionsSection,
   indicateursSituationCard,
   labelAdaptatif,
   ligneEpargne,
@@ -142,6 +158,7 @@ const espaces = {
   rapportPage,
   recurrencesSection,
   repartitionSection,
+  resultatImport,
   revenusPassifsCard,
   revenusSection,
   salairePage,
@@ -150,6 +167,7 @@ const espaces = {
   simulateurAchatLocationCard,
   simulateurProjectionSection,
   skeleton,
+  tuileSourceImport,
   valorisationHistoriqueCard,
 }
 

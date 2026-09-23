@@ -78,8 +78,8 @@ describe('ImportBricksSection', () => {
   it('affiche le résumé (biens détectés, montant investi, lignes hors suivi)', async () => {
     await ouvrirApercu(apercu())
 
-    expect(screen.getByText(/42 bien\(s\) détecté\(s\)/)).toBeInTheDocument()
-    expect(screen.getByText(/15 ligne\(s\) hors suivi d'investissement non importée\(s\)/)).toBeInTheDocument()
+    expect(screen.getByText(/42 biens détectés/)).toBeInTheDocument()
+    expect(screen.getByText(/15 lignes hors suivi d'investissement non importées/)).toBeInTheDocument()
   })
 
   it('le bouton de confirmation reste désactivé sans établissement choisi', async () => {
@@ -95,7 +95,7 @@ describe('ImportBricksSection', () => {
     fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    await screen.findByText(/opération\(s\) importée\(s\)/)
+    await screen.findByText(/opérations? importées?/)
     expect(api.importBricksConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ file_token: 'token-1', etablissement_id: 1, nom_compte: 'Bricks.co' }),
     )
@@ -108,7 +108,7 @@ describe('ImportBricksSection', () => {
     fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    expect(await screen.findByText(/180 opération\(s\) importée\(s\)/)).toBeInTheDocument()
-    expect(screen.getByText(/42 position\(s\) recalculée\(s\).*1 compte\(s\) créé\(s\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/180 opérations importées/)).toBeInTheDocument()
+    expect(screen.getByText(/42 positions recalculées.*1 compte créé/)).toBeInTheDocument()
   })
 })

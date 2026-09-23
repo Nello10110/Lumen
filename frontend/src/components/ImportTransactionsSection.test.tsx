@@ -73,21 +73,21 @@ async function importerJusquauResultat(resultatMocke: TransactionImportResult) {
   fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
   fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-  await screen.findByText(/transaction\(s\) importée\(s\)/)
+  await screen.findByText(/transactions? importées?/)
 }
 
 describe('ImportTransactionsSection — bandeau de résultat', () => {
   it('ne mentionne ni mise à jour ni doublon quand tout est nouveau', async () => {
     await importerJusquauResultat(resultat({ importees: 3, mises_a_jour: 0, doublons_ignores: 0 }))
 
-    expect(screen.getByText(/3 transaction\(s\) importée\(s\)/)).toBeInTheDocument()
-    expect(screen.queryByText(/mise\(s\) à jour/)).not.toBeInTheDocument()
+    expect(screen.getByText(/3 transactions importées/)).toBeInTheDocument()
+    expect(screen.queryByText(/mises? à jour/)).not.toBeInTheDocument()
     expect(screen.queryByText(/déjà présente/)).not.toBeInTheDocument()
   })
 
   it('signale les lignes mises à jour lors d’un ré-import corrigé (retour utilisateur du 10/09/2026)', async () => {
     await importerJusquauResultat(resultat({ importees: 1, mises_a_jour: 2, doublons_ignores: 1 }))
 
-    expect(screen.getByText(/1 transaction\(s\) importée\(s\), 2 mise\(s\) à jour, 1 déjà présente\(s\) et inchangée\(s\)/)).toBeInTheDocument()
+    expect(screen.getByText(/1 transaction importée, 2 mises à jour, 1 déjà présente et inchangée/)).toBeInTheDocument()
   })
 })

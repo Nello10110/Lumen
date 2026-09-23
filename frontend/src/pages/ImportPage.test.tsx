@@ -173,7 +173,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
 
     deposer('Mouvements bancaires', fichier('releve.ofx'))
 
-    await screen.findByText(/3 mouvement\(s\) importé\(s\)/)
+    await screen.findByText(/3 mouvements importés/)
     expect(api.importBudgetOfx).toHaveBeenCalledTimes(1)
     expect(api.importBudgetQif).not.toHaveBeenCalled()
   })
@@ -184,7 +184,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
 
     deposer('Mouvements bancaires', fichier('releve.qif'))
 
-    await screen.findByText(/2 mouvement\(s\) importé\(s\)/)
+    await screen.findByText(/2 mouvements importés/)
     expect(api.importBudgetQif).toHaveBeenCalledTimes(1)
     expect(api.importBudgetOfx).not.toHaveBeenCalled()
   })
@@ -206,7 +206,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
 
     deposer('Mouvements bancaires', fichier('r.ofx'))
 
-    await screen.findByText(/1 mouvement\(s\) importé\(s\), 2 déjà présent\(s\), 1 ligne\(s\) illisible\(s\) ignorée\(s\)\./)
+    await screen.findByText(/1 mouvement importé, 2 déjà présents, 1 ligne illisible ignorée\./)
   })
 
   it("affiche une erreur si l'import échoue", async () => {
@@ -231,7 +231,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     fireEvent.change(screen.getByLabelText('Colonne Montant *'), { target: { value: 'Montant' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    await screen.findByText(/5 mouvement\(s\) importé\(s\)/)
+    await screen.findByText(/5 mouvements importés/)
     expect(api.importBudgetCsvConfirm).toHaveBeenCalledWith({
       file_token: 'token-1',
       date_col: 'Date',
@@ -258,7 +258,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     fireEvent.change(screen.getByLabelText('Colonne Crédit'), { target: { value: 'Crédit' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    await screen.findByText(/mouvement\(s\) importé\(s\)/)
+    await screen.findByText(/mouvements? importés?/)
     expect(api.importBudgetCsvConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ montant_col: null, debit_col: 'Débit', credit_col: 'Crédit' }),
     )
@@ -290,7 +290,7 @@ describe('ImportPage — relevé de positions, établissement des comptes créé
     fireEvent.change(screen.getByLabelText('Colonne Quantité *'), { target: { value: 'Quantité' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    await screen.findByText(/1 ligne\(s\) importée\(s\)/)
+    await screen.findByText(/1 ligne importée/)
     expect(api.importConfirm).toHaveBeenCalledWith(expect.objectContaining({ etablissement_id: null, etablissement_nom: null }))
   })
 
@@ -325,7 +325,7 @@ describe('ImportPage — relevé de positions, établissement des comptes créé
     fireEvent.change(screen.getByLabelText('Établissement des comptes créés'), { target: { value: '7' } })
     fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 
-    await screen.findByText(/1 ligne\(s\) importée\(s\)/)
+    await screen.findByText(/1 ligne importée/)
     expect(api.importConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ compte_col: 'Compte', etablissement_id: 7, etablissement_nom: null }),
     )

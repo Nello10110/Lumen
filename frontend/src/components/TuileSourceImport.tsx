@@ -6,6 +6,7 @@ import Dropzone from './Dropzone'
 import EtablissementLogo from './EtablissementLogo'
 import Modale from './Modale'
 import { IconAide, IconFermer } from './icons'
+import { t } from '../i18n'
 
 /** Tuile d'une source importable (refonte de l'écran Import, 22/09/2026, retour
  * utilisateur : « un truc un peu plus léger avec le logo de l'entreprise, des cases
@@ -55,7 +56,7 @@ export default function TuileSourceImport({
         accept={source.accept}
         uploading={uploading}
         onFileSelected={handleFichier}
-        ariaLabel={`Importer depuis ${source.nom}`}
+        ariaLabel={t('tuileSourceImport.importerDepuis', { source: source.nom })}
         // Anneau plutôt que bordure pour l'état actif : la bordure est déjà pilotée
         // par l'état de glissement du `Dropzone`, deux utilitaires `border-*`
         // concurrents dans la même classe se départageraient par l'ordre du CSS
@@ -73,14 +74,14 @@ export default function TuileSourceImport({
         <p className="text-xs leading-tight text-texte-attenue">{source.sousTitre}</p>
         <p className="mt-auto pt-2 text-[11px] text-texte-attenue">
           {uploading ? (
-            'Lecture du fichier...'
+            t('tuileSourceImport.lectureDuFichier')
           ) : dernierImport ? (
             <>
               {formatDate(dernierImport.importe_le)}
-              {dernierImport.nb_lignes !== null && ` · ${dernierImport.nb_lignes} ligne${dernierImport.nb_lignes > 1 ? 's' : ''}`}
+              {dernierImport.nb_lignes !== null && ` · ${t('tuileSourceImport.nLignes', { n: dernierImport.nb_lignes })}`}
             </>
           ) : (
-            'Jamais importé'
+            t('tuileSourceImport.jamaisImporte')
           )}
         </p>
       </Dropzone>
@@ -88,7 +89,7 @@ export default function TuileSourceImport({
       <button
         type="button"
         onClick={() => setGuideOuvert(true)}
-        aria-label={`Comment exporter depuis ${source.nom} ?`}
+        aria-label={t('tuileSourceImport.commentExporterDepuis', { source: source.nom })}
         className="absolute right-1.5 top-1.5 rounded-chip p-1 text-texte-attenue transition-colors hover:bg-surface-elevee hover:text-texte"
       >
         <IconAide className="h-4 w-4" />
@@ -101,13 +102,11 @@ export default function TuileSourceImport({
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <EtablissementLogo logoKey={source.logoKey} nom={source.nom} taille="md" />
-                  <h3 id={titleId} className="text-lg font-semibold text-texte">
-                    Exporter depuis {source.nom}
-                  </h3>
+                  <h3 id={titleId} className="text-lg font-semibold text-texte">{t('tuileSourceImport.exporterDepuis', { source: source.nom })}</h3>
                 </div>
                 <button
                   onClick={() => setGuideOuvert(false)}
-                  aria-label="Fermer"
+                  aria-label={t('tuileSourceImport.fermer')}
                   className="shrink-0 text-texte-attenue hover:text-texte"
                 >
                   <IconFermer className="h-4 w-4" />

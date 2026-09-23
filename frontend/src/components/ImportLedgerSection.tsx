@@ -10,6 +10,7 @@ import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { useFichierPilote } from '../hooks/useFichierPilote'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Import d'un export de wallet matériel Ledger (retour utilisateur du 11/09/2026),
  * carte SÉPARÉE de l'historique de transactions Trade Republic
@@ -118,38 +119,32 @@ export default function ImportLedgerSection({
     <Card>
       {!pilotage && (
         <>
-          <h3 className="mb-1 text-sm font-semibold text-texte">Wallet crypto (export Ledger)</h3>
-          <p className="mb-3 text-sm text-texte">
-            Pour un export d'opérations Ledger (Bitcoin, Ethereum, Solana...). Chaque réception est traitée comme un achat au
-            prix du jour de réception — utile si vous achetez directement sur le wallet, à ajuster manuellement si vous avez
-            transféré des cryptos déjà achetées ailleurs. Les frais réseau ne sont pas comptés (pas de contrepartie en euros
-            fiable dans le fichier).
-          </p>
+          <h3 className="mb-1 text-sm font-semibold text-texte">{t('importLedgerSection.walletCryptoExportLedger')}</h3>
+          <p className="mb-3 text-sm text-texte">{t('importLedgerSection.pourUnExportDOperations')}</p>
           <Dropzone
             ref={inputRef}
             accept=".csv"
-            hint="Fichier CSV, export Ledger Live"
+            hint={t('importLedgerSection.fichierCsvExportLedgerLive')}
             uploading={uploading}
             onFileSelected={handleFileChange}
-            ariaLabel="Wallet crypto Ledger"
+            ariaLabel={t('importLedgerSection.walletCryptoLedger')}
           />
         </>
       )}
-      {pilotage && uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
+      {pilotage && uploading && <p className="text-sm text-texte-attenue">{t('importLedgerSection.lectureDuFichier')}</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {apercu && (
         <div className={`space-y-4 ${pilotage ? '' : 'mt-4 border-t border-bordure pt-4'}`}>
           <p className="text-sm text-texte">
-            {apercu.lignes_lues} ligne(s) lue(s)
-            {apercu.lignes_ignorees_statut > 0 && `, ${apercu.lignes_ignorees_statut} non confirmée(s) ignorée(s)`}
+            {t('resultatImport.lignesLues', { n: apercu.lignes_lues })}{apercu.lignes_ignorees_statut > 0 && `, ${t('resultatImport.nonConfirmeesIgnorees', { n: apercu.lignes_ignorees_statut })}`}
             {Object.values(apercu.lignes_ignorees_type_operation).reduce((a, b) => a + b, 0) > 0 &&
-              `, ${Object.values(apercu.lignes_ignorees_type_operation).reduce((a, b) => a + b, 0)} opération(s) hors achat/vente ignorée(s)`}
+              `, ${t('resultatImport.operationsHorsAchatVenteIgnorees', { n: Object.values(apercu.lignes_ignorees_type_operation).reduce((a, b) => a + b, 0) })}`}
             .
           </p>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Établissement *">
+            <Field label={t('importLedgerSection.etablissement')}>
               <SelecteurEtablissement
                 etablissements={apercu.etablissements}
                 value={etablissementId}
@@ -159,18 +154,16 @@ export default function ImportLedgerSection({
                 logoKeyNouveau={etablissementLogoKey}
                 onLogoKeyNouveauChange={setEtablissementLogoKey}
                 required
-                ariaLabel="Établissement"
+                ariaLabel={t('importLedgerSection.etablissement2')}
               />
             </Field>
-            <Field label="Nom du compte">
+            <Field label={t('importLedgerSection.nomDuCompte')}>
               <Input value={nomCompte} onChange={(e) => setNomCompte(e.target.value)} />
             </Field>
           </div>
 
           <fieldset>
-            <legend className="mb-2 text-xs font-medium uppercase tracking-wide text-texte-attenue">
-              Devises à importer ({apercu.devises.length})
-            </legend>
+            <legend className="mb-2 text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('importLedgerSection.devisesAImporter', { n: apercu.devises.length })}</legend>
             <div className="space-y-1.5">
               {apercu.devises.map((d) => (
                 <label key={d.ticker} className="flex items-center gap-2 text-sm text-texte">
@@ -181,7 +174,7 @@ export default function ImportLedgerSection({
                   />
                   <span className="font-medium">{d.ticker}</span>
                   <span className="text-texte-attenue">
-                    — {d.nb_operations} opération{d.nb_operations > 1 ? 's' : ''}, {formatEuro(d.montant_total_eur, 2, false)}
+                    — {t('resultatImport.nOperations', { n: d.nb_operations })}, {formatEuro(d.montant_total_eur, 2, false)}
                   </span>
                 </label>
               ))}
@@ -189,7 +182,7 @@ export default function ImportLedgerSection({
           </fieldset>
 
           <PrimaryButton onClick={handleConfirm} disabled={!confirmationValide || confirming}>
-            {confirming ? 'Import en cours...' : "Confirmer l'import"}
+            {confirming ? t('importLedgerSection.importEnCours') : t('importLedgerSection.confirmerLImport')}
           </PrimaryButton>
         </div>
       )}
@@ -197,23 +190,18 @@ export default function ImportLedgerSection({
       {result && (
         <div className="mt-3 rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
           <p>
-            {result.importees} opération(s) importée(s)
-            {result.mises_a_jour > 0 && `, ${result.mises_a_jour} mise(s) à jour`}
-            {result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présente(s) et inchangée(s)`}
-            {result.lignes_ignorees > 0 && `, ${result.lignes_ignorees} ligne(s) hors achat/vente ignorée(s)`}.
+            {t('resultatImport.operationsImportees', { n: result.importees })}{result.mises_a_jour > 0 && `, ${t('resultatImport.misesAJour', { n: result.mises_a_jour })}`}
+            {result.doublons_ignores > 0 && `, ${t('resultatImport.dejaPresentesInchangees', { n: result.doublons_ignores })}`}
+            {result.lignes_ignorees > 0 && `, ${t('resultatImport.lignesHorsAchatVenteIgnorees', { n: result.lignes_ignorees })}`}.
           </p>
           <p className="mt-1">
-            {result.positions_recalculees} position(s) recalculée(s) dans le portefeuille
-            {result.comptes_crees > 0 && `, ${result.comptes_crees} compte(s) créé(s)`}.
+            {t('resultatImport.positionsRecalculees', { n: result.positions_recalculees })}{result.comptes_crees > 0 && `, ${t('resultatImport.comptesCrees', { n: result.comptes_crees })}`}.
           </p>
           {result.anomalies_detectees > 0 && (
             <p className="mt-1 text-avertissement">
-              {result.anomalies_detectees} anomalie(s) détectée(s) (vente supérieure à la quantité détenue) —
-              position(s) bornée(s) à 0, voir les journaux serveur.
-            </p>
+              {t('resultatImport.anomaliesDetectees', { n: result.anomalies_detectees })}</p>
           )}
-          <button onClick={() => navigate('/')} className="mt-2 inline-flex items-center gap-1 font-medium underline">
-            Voir le tableau de bord <IconFlecheDroite className="h-3.5 w-3.5" />
+          <button onClick={() => navigate('/')} className="mt-2 inline-flex items-center gap-1 font-medium underline">{t('importLedgerSection.voirLeTableauDeBord')}{' '}<IconFlecheDroite className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

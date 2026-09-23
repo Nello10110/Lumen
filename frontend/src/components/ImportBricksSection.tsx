@@ -10,6 +10,7 @@ import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { useFichierPilote } from '../hooks/useFichierPilote'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Import d'un export Bricks.co (crowdfunding/crowdlending immobilier, retour
  * utilisateur du 13/09/2026), carte SÉPARÉE de Trade Republic
@@ -104,36 +105,31 @@ export default function ImportBricksSection({
     <Card>
       {!pilotage && (
         <>
-          <h3 className="mb-1 text-sm font-semibold text-texte">Crowdfunding immobilier (export Bricks.co)</h3>
-          <p className="mb-3 text-sm text-texte">
-            Pour un export de transactions Bricks.co (achats de briques, remboursements, revenus perçus). Chaque remboursement
-            reprend le prix de la brique du dernier achat connu pour le même bien. Les revenus perçus sont importés en montant
-            brut (hors prélèvement à la source, non repris ligne à ligne) et apparaissent dans le calendrier de dividendes.
-          </p>
+          <h3 className="mb-1 text-sm font-semibold text-texte">{t('importBricksSection.crowdfundingImmobilierExportBricksCo')}</h3>
+          <p className="mb-3 text-sm text-texte">{t('importBricksSection.pourUnExportDeTransactions')}</p>
           <Dropzone
             ref={inputRef}
             accept=".csv,.xlsx"
-            hint="Fichier CSV ou Excel, export Bricks.co"
+            hint={t('importBricksSection.fichierCsvOuExcelExport')}
             uploading={uploading}
             onFileSelected={handleFileChange}
-            ariaLabel="Crowdfunding immobilier Bricks.co"
+            ariaLabel={t('importBricksSection.crowdfundingImmobilierBricksCo')}
           />
         </>
       )}
-      {pilotage && uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
+      {pilotage && uploading && <p className="text-sm text-texte-attenue">{t('importBricksSection.lectureDuFichier')}</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {apercu && (
         <div className={`space-y-4 ${pilotage ? '' : 'mt-4 border-t border-bordure pt-4'}`}>
           <p className="text-sm text-texte">
-            {apercu.nb_biens} bien(s) détecté(s), {formatEuro(apercu.montant_total_investi, 2, false)} investi(s) au total
-            {lignesHorsInvestissement > 0 &&
-              ` — ${lignesHorsInvestissement} ligne(s) hors suivi d'investissement non importée(s) (crédit, prélèvement à la source, bonus...)`}
+            {t('resultatImport.biensDetectes', { n: apercu.nb_biens, montant: formatEuro(apercu.montant_total_investi, 2, false) })}{lignesHorsInvestissement > 0 &&
+              ` — ${t('resultatImport.lignesHorsInvestissementNonImportees', { n: lignesHorsInvestissement })}`}
             .
           </p>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Établissement *">
+            <Field label={t('importBricksSection.etablissement')}>
               <SelecteurEtablissement
                 etablissements={apercu.etablissements}
                 value={etablissementId}
@@ -143,16 +139,16 @@ export default function ImportBricksSection({
                 logoKeyNouveau={etablissementLogoKey}
                 onLogoKeyNouveauChange={setEtablissementLogoKey}
                 required
-                ariaLabel="Établissement"
+                ariaLabel={t('importBricksSection.etablissement2')}
               />
             </Field>
-            <Field label="Nom du compte">
+            <Field label={t('importBricksSection.nomDuCompte')}>
               <Input value={nomCompte} onChange={(e) => setNomCompte(e.target.value)} />
             </Field>
           </div>
 
           <PrimaryButton onClick={handleConfirm} disabled={!confirmationValide || confirming}>
-            {confirming ? 'Import en cours...' : "Confirmer l'import"}
+            {confirming ? t('importBricksSection.importEnCours') : t('importBricksSection.confirmerLImport')}
           </PrimaryButton>
         </div>
       )}
@@ -160,23 +156,18 @@ export default function ImportBricksSection({
       {result && (
         <div className="mt-3 rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
           <p>
-            {result.importees} opération(s) importée(s)
-            {result.mises_a_jour > 0 && `, ${result.mises_a_jour} mise(s) à jour`}
-            {result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présente(s) et inchangée(s)`}
-            {result.lignes_ignorees > 0 && `, ${result.lignes_ignorees} ligne(s) hors suivi d'investissement ignorée(s)`}.
+            {t('resultatImport.operationsImportees', { n: result.importees })}{result.mises_a_jour > 0 && `, ${t('resultatImport.misesAJour', { n: result.mises_a_jour })}`}
+            {result.doublons_ignores > 0 && `, ${t('resultatImport.dejaPresentesInchangees', { n: result.doublons_ignores })}`}
+            {result.lignes_ignorees > 0 && `, ${t('resultatImport.lignesHorsInvestissementIgnorees', { n: result.lignes_ignorees })}`}.
           </p>
           <p className="mt-1">
-            {result.positions_recalculees} position(s) recalculée(s) dans le portefeuille
-            {result.comptes_crees > 0 && `, ${result.comptes_crees} compte(s) créé(s)`}.
+            {t('resultatImport.positionsRecalculees', { n: result.positions_recalculees })}{result.comptes_crees > 0 && `, ${t('resultatImport.comptesCrees', { n: result.comptes_crees })}`}.
           </p>
           {result.anomalies_detectees > 0 && (
             <p className="mt-1 text-avertissement">
-              {result.anomalies_detectees} anomalie(s) détectée(s) (vente supérieure à la quantité détenue) —
-              position(s) bornée(s) à 0, voir les journaux serveur.
-            </p>
+              {t('resultatImport.anomaliesDetectees', { n: result.anomalies_detectees })}</p>
           )}
-          <button onClick={() => navigate('/')} className="mt-2 inline-flex items-center gap-1 font-medium underline">
-            Voir le tableau de bord <IconFlecheDroite className="h-3.5 w-3.5" />
+          <button onClick={() => navigate('/')} className="mt-2 inline-flex items-center gap-1 font-medium underline">{t('importBricksSection.voirLeTableauDeBord')}{' '}<IconFlecheDroite className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

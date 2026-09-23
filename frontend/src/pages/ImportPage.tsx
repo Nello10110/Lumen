@@ -9,6 +9,7 @@ import ImportRelevePositionsSection from '../components/ImportRelevePositionsSec
 import ImportTransactionsSection from '../components/ImportTransactionsSection'
 import TuileSourceImport from '../components/TuileSourceImport'
 import { SOURCES_IMPORT, type CleSourceImport } from '../utils/guidesExport'
+import { t } from '../i18n'
 
 /** Écran Import, refondu le 22/09/2026 (retour utilisateur : « je trouve ça très
  * chargé [...] un truc un peu plus léger avec le logo de l'entreprise, des cases
@@ -53,12 +54,10 @@ export default function ImportPage() {
 
   return (
     <div className="space-y-[14px]">
-      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Importer</h1>
+      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('importPage.importer')}</h1>
 
       <Card>
-        <p className="mb-3 text-sm text-texte-attenue">
-          Choisis la source de tes données, puis dépose son fichier d'export sur la tuile correspondante.
-        </p>
+        <p className="mb-3 text-sm text-texte-attenue">{t('importPage.choisisLaSourceDeTes')}</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {SOURCES_IMPORT.map((source) => (
             <TuileSourceImport

@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import { IconBudget, IconPatrimoine } from '../components/icons'
+import { t } from '../i18n'
 
 /** Catalogue des sources importables (refonte de l'écran Import, 22/09/2026) —
  * source unique pour la grille de tuiles, le guide d'export de chacune et la
@@ -38,94 +39,61 @@ export type SourceImport = {
   }
 }
 
+/** Textes de chaque tuile : getters plutôt que valeurs figées, pour que le
+ * catalogue — constante de module — suive la langue du foyer (§ BL.2). Les noms de
+ * marque (Trade Republic, Ledger, Bricks.co) ne se traduisent pas. */
+function guideTraduit(cle: CleSourceImport, avecColonnes: boolean): SourceImport['guide'] {
+  // Clés construites : `cle` est une union littérale, TypeScript vérifie donc que
+  // chaque combinaison existe bien dans le dictionnaire français.
+  const guide: SourceImport['guide'] = {
+    intro: t(`guidesExport.${cle}.intro`),
+    etapes: [t(`guidesExport.${cle}.etape1`), t(`guidesExport.${cle}.etape2`), t(`guidesExport.${cle}.etape3`)],
+  }
+  if (avecColonnes && cle !== 'bancaire') guide.colonnes = t(`guidesExport.${cle}.colonnes`)
+  return guide
+}
+
 export const SOURCES_IMPORT: SourceImport[] = [
   {
     cle: 'trade_republic',
     nom: 'Trade Republic',
-    sousTitre: 'Historique de transactions',
+    get sousTitre() { return t('guidesExport.trade_republic.sousTitre') },
     accept: '.csv',
     logoKey: 'trade_republic',
-    guide: {
-      intro:
-        "Un grand livre de transactions complet (achats, ventes, dividendes), à partir duquel l'application reconstruit tout le portefeuille. À distinguer d'un simple relevé de positions.",
-      etapes: [
-        "Récupère l'historique complet de ton compte au format CSV.",
-        "Vérifie qu'il couvre TOUTE la période depuis l'ouverture du compte : la reconstruction repart de zéro à chaque import.",
-        'Dépose le fichier sur cette tuile.',
-      ],
-      colonnes:
-        'Le fichier doit porter les colonnes datetime, date, category, type, asset_class, symbol, shares, price, amount et fee. Le format est reconnu automatiquement — aucune association de colonnes à faire.',
-    },
+    get guide() { return guideTraduit('trade_republic', true) },
   },
   {
     cle: 'ledger',
     nom: 'Ledger',
-    sousTitre: 'Wallet crypto',
+    get sousTitre() { return t('guidesExport.ledger.sousTitre') },
     accept: '.csv',
     logoKey: 'ledger',
-    guide: {
-      intro:
-        'Un export des opérations de ton wallet matériel. Chaque réception est traitée comme un achat au cours du jour de réception.',
-      etapes: [
-        'Ouvre Ledger Live sur ton ordinateur.',
-        "Demande l'export des opérations de tous tes comptes au format CSV.",
-        'Dépose le fichier sur cette tuile, puis décoche les jetons indésirables (spam, poussière) avant de confirmer.',
-      ],
-      colonnes:
-        'Le fichier doit porter les colonnes Operation Date, Status, Currency Ticker, Operation Type, Operation Amount et Countervalue at Operation Date.',
-    },
+    get guide() { return guideTraduit('ledger', true) },
   },
   {
     cle: 'bricks',
     nom: 'Bricks.co',
-    sousTitre: 'Crowdfunding immobilier',
+    get sousTitre() { return t('guidesExport.bricks.sousTitre') },
     accept: '.csv,.xlsx',
     logoKey: 'bricks_co',
-    guide: {
-      intro:
-        'Un export de tes transactions : achats de briques, remboursements et revenus perçus. Les revenus alimentent le calendrier de dividendes.',
-      etapes: [
-        'Connecte-toi à ton espace Bricks.co.',
-        "Demande l'export de l'historique de tes transactions (CSV ou Excel).",
-        'Dépose le fichier sur cette tuile.',
-      ],
-      colonnes:
-        'Le fichier doit porter les colonnes id, date, type, statut, propriété, type de contrat, montant (€) et prix de la brick (€). Seules les lignes au statut « Validée » sont importées.',
-    },
+    get guide() { return guideTraduit('bricks', true) },
   },
   {
     cle: 'releve',
-    nom: 'Relevé de positions',
-    sousTitre: 'Tout autre courtier',
+    get nom() { return t('guidesExport.releve.nom') },
+    get sousTitre() { return t('guidesExport.releve.sousTitre') },
     accept: '.csv,.xlsx',
     Icone: IconPatrimoine,
-    guide: {
-      intro:
-        "Pour un courtier dont le format n'est pas reconnu automatiquement (Boursorama, Degiro, Interactive Brokers...). Tu associes toi-même les colonnes du fichier aux champs attendus.",
-      etapes: [
-        'Exporte ton portefeuille depuis ton courtier au format CSV ou Excel.',
-        'Dépose le fichier sur cette tuile.',
-        "Associe au minimum une colonne Ticker et une colonne Quantité ; le prix de revient, le nom, le compte et la devise restent facultatifs.",
-      ],
-      colonnes:
-        "Aucun nom de colonne imposé : le fichier est lu tel quel et l'association se fait à l'étape suivante. Le séparateur (virgule, point-virgule, tabulation) est détecté automatiquement.",
-    },
+    get guide() { return guideTraduit('releve', true) },
   },
   {
     cle: 'bancaire',
-    nom: 'Mouvements bancaires',
-    sousTitre: "Pour l'écran Budget",
+    get nom() { return t('guidesExport.bancaire.nom') },
+    get sousTitre() { return t('guidesExport.bancaire.sousTitre') },
     accept: '.ofx,.qif,.csv',
     Icone: IconBudget,
-    guide: {
-      intro:
-        "Le relevé de ton compte courant, qui alimente l'écran Budget — indépendant du portefeuille boursier.",
-      etapes: [
-        'Depuis ton espace bancaire, exporte les mouvements du compte au format OFX, QIF ou CSV.',
-        'Dépose le fichier sur cette tuile.',
-        "Un OFX ou un QIF est importé directement. Un CSV demande d'associer au moins une colonne Date, une colonne Libellé et le ou les colonnes de montant.",
-      ],
-    },
+    // Pas de `colonnes` : un OFX/QIF a une structure normalisée, un CSV se mappe à la main.
+    get guide() { return guideTraduit('bancaire', false) },
   },
 ]
 

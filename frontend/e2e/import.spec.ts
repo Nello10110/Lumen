@@ -47,7 +47,7 @@ test('Import : relevé de positions (CSV, mapping des colonnes)', async ({ page 
   await page.getByLabel('Établissement des comptes créés').selectOption({ label: 'Banque E2E' })
   await page.getByRole('button', { name: "Confirmer l'import" }).click()
 
-  await expect(page.getByText(/1 ligne\(s\) importée/)).toBeVisible()
+  await expect(page.getByText(/1 ligne importée/)).toBeVisible()
 
   await page.goto('/patrimoine')
   // Scope au tableau des positions : le ticker apparaît aussi comme <option> dans
@@ -77,9 +77,9 @@ test('Import : grand livre multi-comptes (PEA/Compte-titres/Cryptomonnaie/Obliga
     .getByTestId('dropzone-input-Importer depuis Trade Republic')
     .setInputFiles(path.join(DIRNAME, 'fixtures', 'transactions.csv'))
 
-  await expect(page.getByText('4 ligne(s) lue(s)')).toBeVisible()
+  await expect(page.getByText('4 lignes lues')).toBeVisible()
   // Un champ de nom pré-rempli par bucket effectivement présent dans le fichier
-  // (association implicite `<label>{nom} ({n} ligne(s))<input/></label>`) — preuve
+  // (association implicite `<label>{nom} ({n} lignes)<input/></label>`) — preuve
   // que l'aperçu a bien dérivé les 4 catégories (`cle_compte`).
   await expect(page.getByLabel('PEA (1 ligne)')).toBeVisible()
   await expect(page.getByLabel('Compte-titres (1 ligne)')).toBeVisible()
@@ -102,8 +102,8 @@ test('Import : grand livre multi-comptes (PEA/Compte-titres/Cryptomonnaie/Obliga
   await page.getByLabel('Nom du nouvel établissement (Établissement)').fill(nomEtablissement)
   await page.getByRole('button', { name: "Confirmer l'import" }).click()
 
-  await expect(page.getByText(/4 transaction\(s\) importée/)).toBeVisible()
-  await expect(page.getByText(/4 compte\(s\) créé/)).toBeVisible()
+  await expect(page.getByText(/4 transactions importées/)).toBeVisible()
+  await expect(page.getByText(/4 comptes créés/)).toBeVisible()
 
   // Les 4 comptes créés apparaissent groupés sous l'établissement choisi, sous les
   // noms personnalisés saisis à l'aperçu.

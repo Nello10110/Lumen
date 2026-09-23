@@ -9,6 +9,7 @@ import { Field, Input } from './Field'
 import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { useFichierPilote } from '../hooks/useFichierPilote'
+import { t } from '../i18n'
 
 // Ordre d'affichage des clés de compte à l'écran d'aperçu — même ordre que
 // `transaction_import.CLES_COMPTE` côté backend.
@@ -112,37 +113,27 @@ export default function ImportTransactionsSection({
     <Card>
       {!pilotage && (
         <>
-          <h3 className="mb-1 text-sm font-semibold text-texte">
-            Historique de transactions (format détecté automatiquement)
-          </h3>
-          <p className="mb-3 text-sm text-texte">
-            Pour un export complet de type Trade Republic (achats, ventes, dividendes...). Le portefeuille réel est entièrement
-            recalculé à partir de cet historique (coût de revient inclus). Seule l'activité boursière est conservée : les
-            mouvements de carte bancaire et les virements avec la banque (dépôts/retraits) sont automatiquement exclus.
-            Chaque ligne est rattachée au compte adapté (PEA, Compte-titres, Cryptomonnaie, Obligations) sous
-            l'établissement que vous choisissez à l'étape suivante.
-          </p>
+          <h3 className="mb-1 text-sm font-semibold text-texte">{t('importTransactionsSection.historiqueDeTransactionsFormatDetecte')}</h3>
+          <p className="mb-3 text-sm text-texte">{t('importTransactionsSection.pourUnExportCompletDe')}</p>
           <Dropzone
             ref={txInputRef}
             accept=".csv"
-            hint="Fichier CSV, format Trade Republic"
+            hint={t('importTransactionsSection.fichierCsvFormatTradeRepublic')}
             uploading={uploading}
             onFileSelected={handleFileChange}
-            ariaLabel="Historique de transactions"
+            ariaLabel={t('importTransactionsSection.historiqueDeTransactions')}
           />
         </>
       )}
-      {pilotage && uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
+      {pilotage && uploading && <p className="text-sm text-texte-attenue">{t('importTransactionsSection.lectureDuFichier')}</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {apercu && (
         <div className={`space-y-4 ${pilotage ? '' : 'mt-4 border-t border-bordure pt-4'}`}>
           <p className="text-sm text-texte">
-            {apercu.lignes_lues} ligne(s) lue(s), {apercu.mouvements_hors_bourse_exclus} mouvement(s) hors suivi boursier
-            exclu(s).
-          </p>
+            {t('resultatImport.lignesLues', { n: apercu.lignes_lues })}, {t('resultatImport.mouvementsHorsBourseExclus', { n: apercu.mouvements_hors_bourse_exclus })}</p>
 
-          <Field label="Établissement *" className="sm:max-w-[280px]">
+          <Field label={t('importTransactionsSection.etablissement')} className="sm:max-w-[280px]">
             <SelecteurEtablissement
               etablissements={apercu.etablissements}
               value={etablissementId}
@@ -152,7 +143,7 @@ export default function ImportTransactionsSection({
               logoKeyNouveau={etablissementLogoKey}
               onLogoKeyNouveauChange={setEtablissementLogoKey}
               required
-              ariaLabel="Établissement"
+              ariaLabel={t('importTransactionsSection.etablissement2')}
             />
           </Field>
 
@@ -161,7 +152,7 @@ export default function ImportTransactionsSection({
               {clesPresentes.map((cle) => (
                 <Field
                   key={cle}
-                  label={`${apercu.noms_par_defaut[cle]} (${apercu.comptages[cle]} ligne${(apercu.comptages[cle] ?? 0) > 1 ? 's' : ''})`}
+                  label={`${apercu.noms_par_defaut[cle]} (${t('resultatImport.nLignes', { n: apercu.comptages[cle] ?? 0 })})`}
                 >
                   <Input
                     value={nomsComptes[cle] ?? apercu.noms_par_defaut[cle]}
@@ -173,7 +164,7 @@ export default function ImportTransactionsSection({
           )}
 
           <PrimaryButton onClick={handleConfirm} disabled={!etablissementValide || confirming}>
-            {confirming ? 'Import en cours...' : "Confirmer l'import"}
+            {confirming ? t('importTransactionsSection.importEnCours') : t('importTransactionsSection.confirmerLImport')}
           </PrimaryButton>
         </div>
       )}
@@ -183,29 +174,21 @@ export default function ImportTransactionsSection({
       {result && (
         <div className="mt-3 rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
           <p>
-            {result.importees} transaction(s) importée(s)
-            {result.mises_a_jour > 0 && `, ${result.mises_a_jour} mise(s) à jour`}
-            {result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présente(s) et inchangée(s)`}
-            , {result.mouvements_hors_bourse_exclus} mouvement(s) hors suivi boursier exclu(s).
-          </p>
+            {t('resultatImport.transactionsImportees', { n: result.importees })}{result.mises_a_jour > 0 && `, ${t('resultatImport.misesAJour', { n: result.mises_a_jour })}`}
+            {result.doublons_ignores > 0 && `, ${t('resultatImport.dejaPresentesInchangees', { n: result.doublons_ignores })}`}
+            , {t('resultatImport.mouvementsHorsBourseExclus', { n: result.mouvements_hors_bourse_exclus })}</p>
           <p className="mt-1">
-            {result.positions_recalculees} position(s) recalculée(s) dans le portefeuille
-            {result.comptes_crees > 0 && `, ${result.comptes_crees} compte(s) créé(s)`}.
+            {t('resultatImport.positionsRecalculees', { n: result.positions_recalculees })}{result.comptes_crees > 0 && `, ${t('resultatImport.comptesCrees', { n: result.comptes_crees })}`}.
           </p>
           {result.anomalies_detectees > 0 && (
             <p className="mt-1 text-avertissement">
-              {result.anomalies_detectees} anomalie(s) détectée(s) (vente supérieure à la quantité détenue) —
-              position(s) bornée(s) à 0, voir les journaux serveur.
-            </p>
+              {t('resultatImport.anomaliesDetectees', { n: result.anomalies_detectees })}</p>
           )}
           {result.lignes_manuelles_remplacees > 0 && (
             <p className="mt-1 text-avertissement">
-              {result.lignes_manuelles_remplacees} ligne(s) saisie(s) manuellement remplacée(s) par la position
-              recalculée depuis le grand livre (même ticker) — le grand livre fait foi.
-            </p>
+              {t('resultatImport.lignesManuellesRemplacees', { n: result.lignes_manuelles_remplacees })}</p>
           )}
-          <button onClick={() => navigate('/')} className="mt-2 inline-flex items-center gap-1 font-medium underline">
-            Voir le tableau de bord <IconFlecheDroite className="h-3.5 w-3.5" />
+          <button onClick={() => navigate('/')} className="mt-2 inline-flex items-center gap-1 font-medium underline">{t('importTransactionsSection.voirLeTableauDeBord')}{' '}<IconFlecheDroite className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

@@ -8,6 +8,7 @@ import { PrimaryButton } from './Controls'
 import CsvPreviewTable from './CsvPreviewTable'
 import { Field, Input, Select } from './Field'
 import { IconFlecheDroite } from './icons'
+import { t } from '../i18n'
 
 /** Import de mouvements bancaires (backlog 2.N.1), extrait de `ImportPage.tsx` lors
  * de la refonte de l'écran Import (22/09/2026).
@@ -111,7 +112,7 @@ export default function ImportBancaireSection({
 
   return (
     <Card>
-      {uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
+      {uploading && <p className="text-sm text-texte-attenue">{t('importBancaireSection.lectureDuFichier')}</p>}
       {error && <p className="text-sm text-negatif">{error}</p>}
 
       {preview && (
@@ -119,9 +120,9 @@ export default function ImportBancaireSection({
           <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Colonne Date *">
+            <Field label={t('importBancaireSection.colonneDate')}>
               <Select value={dateCol} onChange={(e) => setDateCol(e.target.value)}>
-                <option value="">— Choisir —</option>
+                <option value="">{t('importBancaireSection.choisir')}</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -129,9 +130,9 @@ export default function ImportBancaireSection({
                 ))}
               </Select>
             </Field>
-            <Field label="Colonne Libellé *">
+            <Field label={t('importBancaireSection.colonneLibelle')}>
               <Select value={libelleCol} onChange={(e) => setLibelleCol(e.target.value)}>
-                <option value="">— Choisir —</option>
+                <option value="">{t('importBancaireSection.choisir')}</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -139,33 +140,29 @@ export default function ImportBancaireSection({
                 ))}
               </Select>
             </Field>
-            <Field label="Compte (optionnel, annotation libre)">
-              <Input value={compte} onChange={(e) => setCompte(e.target.value)} placeholder="Compte courant" />
+            <Field label={t('importBancaireSection.compteOptionnelAnnotationLibre')}>
+              <Input value={compte} onChange={(e) => setCompte(e.target.value)} placeholder={t('importBancaireSection.compteCourant')} />
             </Field>
           </div>
 
           <fieldset className="space-y-2">
-            <legend className="text-xs font-medium text-texte-attenue">Le fichier exprime les montants comme :</legend>
+            <legend className="text-xs font-medium text-texte-attenue">{t('importBancaireSection.leFichierExprimeLesMontants')}</legend>
             <div className="flex flex-wrap gap-4 text-sm text-texte">
               <label className="flex items-center gap-1.5">
-                <input type="radio" checked={modeMontant === 'signe'} onChange={() => setModeMontant('signe')} />
-                Une seule colonne signée (+/-)
-              </label>
+                <input type="radio" checked={modeMontant === 'signe'} onChange={() => setModeMontant('signe')} />{t('importBancaireSection.uneSeuleColonneSignee')}</label>
               <label className="flex items-center gap-1.5">
                 <input
                   type="radio"
                   checked={modeMontant === 'debit_credit'}
                   onChange={() => setModeMontant('debit_credit')}
-                />
-                Deux colonnes débit/crédit séparées
-              </label>
+                />{t('importBancaireSection.deuxColonnesDebitCreditSeparees')}</label>
             </div>
           </fieldset>
 
           {modeMontant === 'signe' ? (
-            <Field label="Colonne Montant *" className="sm:w-1/2">
+            <Field label={t('importBancaireSection.colonneMontant')} className="sm:w-1/2">
               <Select value={montantCol} onChange={(e) => setMontantCol(e.target.value)}>
-                <option value="">— Choisir —</option>
+                <option value="">{t('importBancaireSection.choisir')}</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -175,9 +172,9 @@ export default function ImportBancaireSection({
             </Field>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Colonne Débit">
+              <Field label={t('importBancaireSection.colonneDebit')}>
                 <Select value={debitCol} onChange={(e) => setDebitCol(e.target.value)}>
-                  <option value="">— Aucune —</option>
+                  <option value="">{t('importBancaireSection.aucune')}</option>
                   {preview.columns.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -185,9 +182,9 @@ export default function ImportBancaireSection({
                   ))}
                 </Select>
               </Field>
-              <Field label="Colonne Crédit">
+              <Field label={t('importBancaireSection.colonneCredit')}>
                 <Select value={creditCol} onChange={(e) => setCreditCol(e.target.value)}>
-                  <option value="">— Aucune —</option>
+                  <option value="">{t('importBancaireSection.aucune')}</option>
                   {preview.columns.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -199,7 +196,7 @@ export default function ImportBancaireSection({
           )}
 
           <PrimaryButton onClick={handleCsvConfirm} disabled={!csvPret || confirming}>
-            {confirming ? 'Import en cours...' : "Confirmer l'import"}
+            {confirming ? t('importBancaireSection.importEnCours') : t('importBancaireSection.confirmerLImport')}
           </PrimaryButton>
         </div>
       )}
@@ -207,14 +204,13 @@ export default function ImportBancaireSection({
       {result && (
         <div className="rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
           <p>
-            {result.importees} mouvement(s) importé(s){result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présent(s)`}
-            {result.lignes_ignorees > 0 && `, ${result.lignes_ignorees} ligne(s) illisible(s) ignorée(s)`}.
+            {t('resultatImport.mouvementsImportes', { n: result.importees })}{result.doublons_ignores > 0 && `, ${t('resultatImport.dejaPresents', { n: result.doublons_ignores })}`}
+            {result.lignes_ignorees > 0 && `, ${t('resultatImport.lignesIllisiblesIgnorees', { n: result.lignes_ignorees })}`}.
           </p>
           {result.categorisees_automatiquement > 0 && (
-            <p className="mt-1">{result.categorisees_automatiquement} catégorisé(s) automatiquement par tes règles.</p>
+            <p className="mt-1">{t('resultatImport.categorisesAutomatiquement', { n: result.categorisees_automatiquement })}</p>
           )}
-          <button onClick={() => navigate('/budget')} className="mt-2 inline-flex items-center gap-1 font-medium underline">
-            Voir le budget <IconFlecheDroite className="h-3.5 w-3.5" />
+          <button onClick={() => navigate('/budget')} className="mt-2 inline-flex items-center gap-1 font-medium underline">{t('importBancaireSection.voirLeBudget')}{' '}<IconFlecheDroite className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

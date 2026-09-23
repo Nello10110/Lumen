@@ -9,11 +9,12 @@ import CsvPreviewTable from './CsvPreviewTable'
 import { Field, Select } from './Field'
 import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
+import { t } from '../i18n'
 
 const OPTIONAL_FIELDS: { key: 'nom_col' | 'compte_col' | 'devise_col'; label: string }[] = [
-  { key: 'nom_col', label: 'Nom (optionnel)' },
-  { key: 'compte_col', label: 'Compte (optionnel)' },
-  { key: 'devise_col', label: 'Devise (optionnel)' },
+  { key: 'nom_col', get label() { return t('importRelevePositionsSection.nomOptionnel') } },
+  { key: 'compte_col', get label() { return t('importRelevePositionsSection.compteOptionnel') } },
+  { key: 'devise_col', get label() { return t('importRelevePositionsSection.deviseOptionnel') } },
 ]
 
 /** Import d'un relevé de positions avec mapping manuel des colonnes, extrait de
@@ -125,7 +126,7 @@ export default function ImportRelevePositionsSection({
 
   return (
     <Card>
-      {uploading && <p className="text-sm text-texte-attenue">Lecture du fichier...</p>}
+      {uploading && <p className="text-sm text-texte-attenue">{t('importRelevePositionsSection.lectureDuFichier')}</p>}
       {error && <p className="text-sm text-negatif">{error}</p>}
 
       {result && (
@@ -135,8 +136,7 @@ export default function ImportRelevePositionsSection({
           }`}
         >
           <p className="text-sm font-medium text-texte">
-            {result.imported} ligne(s) importée(s), {result.skipped} ignorée(s).
-          </p>
+            {t('resultatImport.lignesImportees', { n: result.imported })}, {t('resultatImport.ignorees', { n: result.skipped })}.</p>
           {result.errors.length > 0 && (
             <ul className="mt-2 list-disc pl-5 text-xs text-avertissement">
               {result.errors.slice(0, 10).map((e, i) => (
@@ -147,23 +147,22 @@ export default function ImportRelevePositionsSection({
           <button
             onClick={() => navigate('/patrimoine')}
             className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
-          >
-            Voir le patrimoine <IconFlecheDroite className="h-3.5 w-3.5" />
+          >{t('importRelevePositionsSection.voirLePatrimoine')}{' '}<IconFlecheDroite className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
       {preview && (
         <>
-          <h3 className="mb-3 text-sm font-semibold text-texte">Aperçu ({preview.total_rows} lignes au total)</h3>
+          <h3 className="mb-3 text-sm font-semibold text-texte">{t('importRelevePositionsSection.apercu', { n: preview.total_rows })}</h3>
           <div className="mb-4">
             <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Colonne Ticker *">
+            <Field label={t('importRelevePositionsSection.colonneTicker')}>
               <Select value={tickerCol} onChange={(e) => setTickerCol(e.target.value)}>
-                <option value="">— Choisir —</option>
+                <option value="">{t('importRelevePositionsSection.choisir')}</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -172,9 +171,9 @@ export default function ImportRelevePositionsSection({
               </Select>
             </Field>
 
-            <Field label="Colonne Quantité *">
+            <Field label={t('importRelevePositionsSection.colonneQuantite')}>
               <Select value={quantiteCol} onChange={(e) => setQuantiteCol(e.target.value)}>
-                <option value="">— Choisir —</option>
+                <option value="">{t('importRelevePositionsSection.choisir')}</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -183,9 +182,9 @@ export default function ImportRelevePositionsSection({
               </Select>
             </Field>
 
-            <Field label="Colonne Prix de revient (optionnel)">
+            <Field label={t('importRelevePositionsSection.colonnePrixDeRevientOptionnel')}>
               <Select value={prixRevientCol} onChange={(e) => setPrixRevientCol(e.target.value)}>
-                <option value="">— Aucune —</option>
+                <option value="">{t('importRelevePositionsSection.aucune')}</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -200,7 +199,7 @@ export default function ImportRelevePositionsSection({
                   value={optionalCols[field.key] ?? ''}
                   onChange={(e) => setOptionalCols({ ...optionalCols, [field.key]: e.target.value })}
                 >
-                  <option value="">— Aucune —</option>
+                  <option value="">{t('importRelevePositionsSection.aucune')}</option>
                   {preview.columns.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -212,7 +211,7 @@ export default function ImportRelevePositionsSection({
           </div>
 
           {compteMappe && (
-            <Field label="Établissement des comptes créés *" className="mt-4 sm:max-w-[280px]">
+            <Field label={t('importRelevePositionsSection.etablissementDesComptesCrees')} className="mt-4 sm:max-w-[280px]">
               <SelecteurEtablissement
                 etablissements={etablissements}
                 value={etablissementId}
@@ -222,18 +221,16 @@ export default function ImportRelevePositionsSection({
                 logoKeyNouveau={etablissementLogoKey}
                 onLogoKeyNouveauChange={setEtablissementLogoKey}
                 required
-                ariaLabel="Établissement des comptes créés"
+                ariaLabel={t('importRelevePositionsSection.etablissementDesComptesCrees2')}
               />
             </Field>
           )}
 
           <label className="mt-4 flex items-center gap-2 text-sm text-texte">
-            <input type="checkbox" checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} />
-            Remplacer les lignes déjà saisies ou importées manuellement (les positions issues du grand livre de transactions ne sont pas touchées)
-          </label>
+            <input type="checkbox" checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} />{t('importRelevePositionsSection.remplacerLesLignesDejaSaisies')}</label>
 
           <PrimaryButton onClick={handleConfirm} disabled={!canConfirm || confirming} className="mt-4">
-            {confirming ? 'Import en cours...' : "Confirmer l'import"}
+            {confirming ? t('importRelevePositionsSection.importEnCours') : t('importRelevePositionsSection.confirmerLImport')}
           </PrimaryButton>
         </>
       )}
