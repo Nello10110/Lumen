@@ -25,14 +25,23 @@ import tempfile
 # Sans cette variable, rien ne change : SQLite, fichier temporaire.
 _URL_TEST = os.environ.get("PATRIMOINE_TEST_DATABASE_URL")
 if _URL_TEST:
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import create_engine, make_url, text
 
+    # L'application se connecte avec un rôle ORDINAIRE, créé ici, propriétaire du
+    # schéma : un superutilisateur (le rôle d'administration de la base de test, le
+    # plus souvent) échappe à la séparation des foyers (§ BI.5) — la suite passerait
+    # sans rien prouver.
     _moteur = create_engine(_URL_TEST)
     with _moteur.begin() as _connexion:
         _connexion.execute(text("DROP SCHEMA public CASCADE"))
         _connexion.execute(text("CREATE SCHEMA public"))
+        if _connexion.execute(text("SELECT 1 FROM pg_roles WHERE rolname = 'lumen_app'")).scalar() is None:
+            _connexion.execute(text("CREATE ROLE lumen_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'lumen_app'"))
+        _connexion.execute(text("ALTER SCHEMA public OWNER TO lumen_app"))
     _moteur.dispose()
-    os.environ["PATRIMOINE_DATABASE_URL"] = _URL_TEST
+    os.environ["PATRIMOINE_DATABASE_URL"] = (
+        make_url(_URL_TEST).set(username="lumen_app", password="lumen_app").render_as_string(hide_password=False)
+    )
 elif "PATRIMOINE_DB" not in os.environ:
     _fd, _chemin_db_session = tempfile.mkstemp(prefix="patrimoine_tests_", suffix=".db")
     os.close(_fd)

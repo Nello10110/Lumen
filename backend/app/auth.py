@@ -37,6 +37,7 @@ def get_current_user(token_row: AuthToken = Depends(get_current_token), db: Sess
     user = db.get(User, token_row.user_id)
     if user is None:
         raise HTTPException(status_code=401, detail=MESSAGE_NON_AUTHENTIFIE)
+    auth_service.ouvrir_perimetre(db, user)
     return user
 
 

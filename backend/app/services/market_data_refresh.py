@@ -26,7 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
-from ..database import SessionLocal
+from ..database import session_tous_foyers
 from . import market_data_service
 from .historique_cache import invalider_historiques_patrimoine, invalider_historiques_portefeuille
 
@@ -136,7 +136,7 @@ def _executer_rafraichissement(
     `202` renvoyée, bien avant que ce travail ne soit terminé. Toute exception est
     capturée et journalisée ici — elle ne doit jamais remonter et faire mourir le
     fil silencieusement sans que l'état ne le reflète."""
-    db = SessionLocal()
+    db = session_tous_foyers()
     total = len(items)
     try:
         def _sur_progression(traitees: int, total_: int) -> None:

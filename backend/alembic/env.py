@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 from alembic import context
 
@@ -58,6 +58,14 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Séparation des foyers (§ BI.5) : sous Postgres, les tables de foyer ne
+        # montrent rien à une connexion sans périmètre. Une migration de données porte
+        # sur tous les foyers ; sans ce réglage, elle ne toucherait aucune ligne, et
+        # en silence. Réglage de SESSION (`false`) : la connexion (`NullPool`) meurt
+        # avec la migration.
+        if connection.dialect.name == "postgresql":
+            connection.execute(text("SELECT set_config('app.tous_foyers', 'on', false)"))
+            connection.commit()
         context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=True)
 
         with context.begin_transaction():

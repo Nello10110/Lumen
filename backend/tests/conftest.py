@@ -78,7 +78,9 @@ def _db_postgres():
     tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
     with database.engine.begin() as connexion:
         connexion.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
-    session = database.SessionLocal()
+    # Le banc de test agit en administrateur : il crée et relit les données de
+    # plusieurs foyers. La séparation (§ BI.5) se vérifie dans ses tests dédiés.
+    session = database.session_tous_foyers()
     session.add(User(id=ID_UTILISATEUR_TEST, username=NOM_UTILISATEUR_TEST, password_hash="inutilisé"))
     session.commit()
     _resynchroniser_sequence_users(session)

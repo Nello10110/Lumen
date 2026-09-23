@@ -22,8 +22,8 @@ import os
 import sqlite3
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = logging.getLogger("patrimoine.database")
 
@@ -131,6 +131,98 @@ if EST_SQLITE:
 else:
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+# ── Séparation des foyers imposée par la base (backlog § BI.5) ──────────────────
+#
+# Sous Postgres, chaque table de foyer porte une politique de sécurité au niveau des
+# lignes (RLS, migration `c3a8e1f0b6d2`) : une requête ne voit et n'écrit que les
+# lignes du foyer désigné par le réglage de transaction `app.foyer_id`. Un filtre
+# `user_id == …` oublié dans une route future ne renvoie alors plus les données de
+# tous les foyers : il ne renvoie que celles du foyer connecté.
+#
+# Le PÉRIMÈTRE d'une session vit dans `session.info` et il est reposé au début de
+# chaque transaction (`set_config(..., true)` : local à la transaction, il disparaît
+# au commit — jamais de fuite d'une requête à la suivante par le pool de connexions).
+# Trois cas :
+#
+# - aucun périmètre (défaut) : la base ne montre AUCUNE ligne de foyer. C'est l'état
+#   d'une requête avant authentification ; un oubli se voit, il ne fuit pas ;
+# - `fixer_foyer` : posé par l'authentification (`auth.get_current_user`) ;
+# - `tous_les_foyers` : explicite, pour les tâches de fond qui parcourent tous les
+#   foyers (rafraîchissement des cours, démarrage, planificateur) — voir
+#   `session_tous_foyers`.
+#
+# Sous SQLite, rien de tout cela n'existe : le périmètre est noté, jamais appliqué.
+_SANS_PERIMETRE = ("", "", "off")
+
+
+def _appliquer_perimetre(session: Session, connexion) -> None:
+    foyer, utilisateur, tous = session.info.get("perimetre", _SANS_PERIMETRE)
+    connexion.execute(
+        text(
+            "SELECT set_config('app.foyer_id', :foyer, true), set_config('app.utilisateur_id', :utilisateur, true), "
+            "set_config('app.tous_foyers', :tous, true)"
+        ),
+        {"foyer": foyer, "utilisateur": utilisateur, "tous": tous},
+    )
+
+
+@event.listens_for(SessionLocal, "after_begin")
+def _poser_perimetre(session: Session, _transaction, connexion) -> None:
+    if connexion.dialect.name == "postgresql":
+        _appliquer_perimetre(session, connexion)
+
+
+def _changer_perimetre(session: Session, perimetre: tuple[str, str, str]) -> None:
+    session.info["perimetre"] = perimetre
+    # Transaction déjà ouverte (l'authentification vient de lire le jeton) : le
+    # nouveau périmètre doit valoir tout de suite, pas au prochain commit.
+    if session.in_transaction():
+        connexion = session.connection()
+        if connexion.dialect.name == "postgresql":
+            _appliquer_perimetre(session, connexion)
+
+
+def fixer_foyer(session: Session, foyer_id: int, utilisateur_id: int) -> None:
+    """Restreint la session au foyer `foyer_id`. `utilisateur_id` (le membre connecté,
+    qui peut différer du foyer) ne sert qu'à ses préférences personnelles."""
+    _changer_perimetre(session, (str(foyer_id), str(utilisateur_id), "off"))
+
+
+def tous_les_foyers(session: Session) -> Session:
+    """Lève la restriction, explicitement : réservé aux traitements qui portent par
+    nature sur tous les foyers."""
+    _changer_perimetre(session, ("", "", "on"))
+    return session
+
+
+def sans_perimetre(session: Session) -> None:
+    """Retour à l'état par défaut : aucune ligne de foyer visible."""
+    _changer_perimetre(session, _SANS_PERIMETRE)
+
+
+def session_tous_foyers() -> Session:
+    """Session d'une tâche de fond — cf. `tous_les_foyers`."""
+    return tous_les_foyers(SessionLocal())
+
+
+def avertir_si_separation_contournee() -> bool:
+    """Un superutilisateur ou un rôle `BYPASSRLS` échappe à toute politique RLS : la
+    séparation des foyers ne tiendrait plus qu'aux filtres du code, sans que rien ne
+    le montre. Dit au démarrage, en clair. Renvoie `True` si c'est le cas."""
+    if EST_SQLITE:
+        return False
+    with engine.connect() as connexion:
+        contournee = connexion.execute(
+            text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user")
+        ).scalar()
+    if contournee:
+        logger.warning(
+            "le rôle de connexion à la base est superutilisateur ou BYPASSRLS : la séparation des foyers "
+            "n'est PAS imposée par la base (§ BI.5). Connectez l'application avec un rôle ordinaire."
+        )
+    return bool(contournee)
 
 
 class Base(DeclarativeBase):

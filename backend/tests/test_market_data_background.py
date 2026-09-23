@@ -2,9 +2,9 @@
 `market_data_refresh.demarrer_rafraichissement`/`etat_rafraichissement`.
 
 Comme `test_scheduler_service.py`, ce module lit/écrit directement via
-`app.database.SessionLocal` (la base de test partagée par tout le process, cf.
+`app.database.session_tous_foyers` (la base de test partagée par tout le process, cf.
 `backend/conftest.py`) plutôt que via les fixtures `db`/`client` : c'est aussi la
-session qu'ouvre le fil de fond du rafraîchissement (`SessionLocal` importée dans
+session qu'ouvre le fil de fond du rafraîchissement (`session_tous_foyers` importée dans
 `market_data_refresh`), qui n'a aucun moyen de connaître la base jetable propre à
 un test HTTP particulier.
 
@@ -20,7 +20,7 @@ import threading
 import pytest
 
 from app import database
-from app.database import SessionLocal
+from app.database import session_tous_foyers
 from app.models import FundComposition, HistoriqueCache, MarketDataCache, ScheduledJobConfig, TickerResolution
 from app.services import historique_cache, market_data_refresh, market_data_service, scheduler_service
 
@@ -28,7 +28,7 @@ from .conftest import attendre_fin_rafraichissement_arriere_plan
 
 
 def _nettoyer_base_partagee():
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         db.query(MarketDataCache).delete()
         db.query(TickerResolution).delete()
@@ -139,7 +139,7 @@ def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(m
     être invalidé, pas seulement celui de qui l'a déclenché."""
     cle = historique_cache.cle_historique_portefeuille(1)
     cle_autre_utilisateur = historique_cache.cle_historique_portefeuille(2)
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         historique_cache.ecrire(db, cle, [{"date": "2024-01-01", "valeur_portefeuille": 100.0, "valeur_investie": 100.0}])
         historique_cache.ecrire(db, cle_autre_utilisateur, [{"date": "2024-01-01", "valeur_portefeuille": 50.0, "valeur_investie": 50.0}])
@@ -153,7 +153,7 @@ def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(m
     market_data_refresh.demarrer_rafraichissement([("AAA", "STOCK")])
     attendre_fin_rafraichissement_arriere_plan()
 
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         assert historique_cache.lire(db, cle) is None
         assert historique_cache.lire(db, cle_autre_utilisateur) is None
@@ -241,7 +241,7 @@ def test_une_resolution_echouee_est_reessayee_apres_expiration(monkeypatch):
 
     from app.services import market_data_service
 
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         db.query(TickerResolution).delete()
         maintenant = datetime.now(UTC).replace(tzinfo=None)
@@ -275,7 +275,7 @@ def test_une_resolution_reussie_recente_nest_pas_rejouee(monkeypatch):
     chaque rafraîchissement pour des résolutions parfaitement valides."""
     from app.services import market_data_service
 
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         db.query(TickerResolution).delete()
         db.add(TickerResolution(identifiant="ISIN_OK", ticker_resolu="OK.PA", quote_type="EQUITY"))
@@ -306,7 +306,7 @@ def test_derniere_actualisation_null_avant_tout_rafraichissement(client):
 
 def test_route_derniere_actualisation_reflete_une_config_deja_en_base(client, db):
     """Vérifie la lecture de la route elle-même, indépendamment du fil de fond
-    (dont l'écriture passe par `SessionLocal`, une base distincte de celle,
+    (dont l'écriture passe par `session_tous_foyers`, une base distincte de celle,
     jetable, que ce test utilise via les fixtures `client`/`db` — cf. la
     docstring de ce module)."""
     from datetime import UTC, datetime
@@ -329,7 +329,7 @@ def test_route_refresh_manuel_alimente_desormais_la_derniere_actualisation(clien
     Réglages (`scheduler_service.run_job_now`) alimentaient `ScheduledJobConfig` —
     ce bouton (`POST /api/market-data/refresh`, Portefeuille/Dashboard) n'y
     apparaissait jamais, laissant `derniere-actualisation` figée malgré un
-    rafraîchissement manuel réel. Vérifié via `SessionLocal` (la base RÉELLE que le
+    rafraîchissement manuel réel. Vérifié via `session_tous_foyers` (la base RÉELLE que le
     fil de fond écrit, cf. docstring de ce module), pas via `client`/`db`
     (isolées, invisibles au fil de fond)."""
     monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None, forcer_non_cotables=False: [])
@@ -338,7 +338,7 @@ def test_route_refresh_manuel_alimente_desormais_la_derniere_actualisation(clien
     assert reponse.status_code == 202
     attendre_fin_rafraichissement_arriere_plan()
 
-    db_directe = SessionLocal()
+    db_directe = session_tous_foyers()
     try:
         config = scheduler_service.get_or_create_config(db_directe, scheduler_service.MARKET_DATA_REFRESH)
         assert config.derniere_execution is not None
@@ -352,7 +352,7 @@ def _on_termine_enregistrer_resultat(etat) -> None:
     routeur (le test ci-dessous appelle `demarrer_rafraichissement` directement,
     pas la route HTTP) — même persistance dans `ScheduledJobConfig` via une
     session dédiée."""
-    db_statut = SessionLocal()
+    db_statut = session_tous_foyers()
     try:
         scheduler_service.record_result(
             db_statut, scheduler_service.MARKET_DATA_REFRESH, etat.statut or "erreur", etat.message or ""
@@ -382,7 +382,7 @@ def test_derniere_actualisation_ignore_les_positions_structurellement_non_cotabl
     )
     attendre_fin_rafraichissement_arriere_plan()
 
-    db_directe = SessionLocal()
+    db_directe = session_tous_foyers()
     try:
         config = scheduler_service.get_or_create_config(db_directe, scheduler_service.MARKET_DATA_REFRESH)
         assert config.derniere_execution is not None

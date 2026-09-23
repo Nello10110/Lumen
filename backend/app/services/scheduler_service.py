@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from scripts import sauvegarde as sauvegarde_module
 
 from .. import database
-from ..database import SessionLocal
+from ..database import session_tous_foyers
 from ..models import Holding, ScheduledJobConfig
 from . import backup_service, coingecko_service, cours_service, justetf_service, logo_service, market_data_refresh, market_data_service
 
@@ -45,7 +45,7 @@ def _run_market_data_refresh() -> None:
     seul appel car `market_data_service.refresh_tickers` fait déjà les trois).
     Ne laisse jamais une exception remonter : un échec ne doit pas arrêter le
     scheduler ni empêcher la prochaine exécution planifiée."""
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf.
         # docs/BACKLOG.md § 2.I.1) : le cache de marché reste global, partagé par
@@ -62,7 +62,7 @@ def _run_market_data_refresh() -> None:
         # le statut d'échec ne serait jamais persisté — l'utilisateur ne verrait
         # jamais l'échec dans les Réglages. Une session fraîche isole complètement
         # l'écriture du statut de la cause de l'échec.
-        db_statut = SessionLocal()
+        db_statut = session_tous_foyers()
         try:
             record_result(db_statut, MARKET_DATA_REFRESH, "erreur", str(exc))
         finally:
@@ -77,7 +77,7 @@ def _run_justetf_refresh() -> None:
     en cas d'échec — voir sa docstring pour le pourquoi) : ne laisse jamais une
     exception remonter, bien que `justetf_service.refresh_all` ne soit de toute
     façon pas censé en lever (chaque ISIN est traité défensivement)."""
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         resume = justetf_service.refresh_all(db)
         record_result(
@@ -86,7 +86,7 @@ def _run_justetf_refresh() -> None:
     except Exception as exc:
         db.rollback()
         logger.exception("échec du rafraîchissement justETF planifié")
-        db_statut = SessionLocal()
+        db_statut = session_tous_foyers()
         try:
             record_result(db_statut, JUSTETF_REFRESH, "erreur", str(exc))
         finally:
@@ -101,7 +101,7 @@ def _run_sauvegarde_chiffree() -> None:
     `PATRIMOINE_BACKUP_KEY` non définie) est incluse dans les erreurs jamais
     remontées : le scheduler et les autres jobs continuent de tourner même sans
     clé configurée, le job apparaît simplement en statut "erreur" dans Réglages."""
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         # Sauvegarde = copie du FICHIER SQLite (API `backup` de `sqlite3`). Une base
         # serveur (§ BI.4) n'a pas de fichier à copier : elle se sauvegarde avec ses
@@ -137,7 +137,7 @@ def _run_sauvegarde_chiffree() -> None:
     except Exception as exc:
         db.rollback()
         logger.exception("échec de la sauvegarde chiffrée planifiée")
-        db_statut = SessionLocal()
+        db_statut = session_tous_foyers()
         try:
             record_result(db_statut, BACKUP_ENCRYPTED, "erreur", str(exc))
         finally:
@@ -157,7 +157,7 @@ def _run_logos_refresh() -> None:
     09/09/2026, `rafraichir_logos_catalogue(..., forcer=True)`) — même job, même
     cadence : ce sont les mêmes ~12 sites, pas de raison de les démarcher deux fois
     par semaine à des horaires différents."""
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         resume = logo_service.rafraichir_logos(db)
         logo_service.rafraichir_logos_catalogue(db, forcer=True)
@@ -170,7 +170,7 @@ def _run_logos_refresh() -> None:
     except Exception as exc:
         db.rollback()
         logger.exception("échec du rafraîchissement des logos planifié")
-        db_statut = SessionLocal()
+        db_statut = session_tous_foyers()
         try:
             record_result(db_statut, LOGOS_REFRESH, "erreur", str(exc))
         finally:
@@ -200,7 +200,7 @@ def _run_cours_historiques() -> None:
     sauté pour cette classe). Boucle séparée, temporisée comme le fait déjà
     `market_data_service.refresh_tickers` pour le prix courant — deux ressources
     externes distinctes, chacune son propre rythme d'appel."""
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         tickers: set[str] = set()
         tickers_crypto: set[str] = set()
@@ -224,7 +224,7 @@ def _run_cours_historiques() -> None:
     except Exception as exc:
         db.rollback()
         logger.exception("échec du remplissage planifié des séries de cours")
-        db_statut = SessionLocal()
+        db_statut = session_tous_foyers()
         try:
             record_result(db_statut, COURS_HISTORIQUES, "erreur", str(exc))
         finally:
@@ -270,7 +270,7 @@ def init_scheduler() -> None:
     connu et programme son exécution périodique si activé."""
     global _scheduler
     _scheduler = BackgroundScheduler(timezone="UTC")
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         for job_key, func in JOBS.items():
             config = get_or_create_config(db, job_key)
@@ -367,7 +367,7 @@ def run_job_now(db: Session, job_key: str, forcer_non_cotables: bool = False) ->
             # Session dédiée : ce callback s'exécute dans le fil de fond, bien après
             # que la session `db` du thread de requête HTTP (celle passée à cette
             # fonction) a été refermée par `get_db`.
-            db_statut = SessionLocal()
+            db_statut = session_tous_foyers()
             try:
                 record_result(db_statut, MARKET_DATA_REFRESH, etat.statut or "erreur", etat.message or "")
             finally:

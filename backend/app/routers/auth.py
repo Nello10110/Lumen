@@ -43,6 +43,9 @@ def _user_out(db: Session, user: User) -> UserOut:
     `preferences_service` pour les trois routes qui renvoient un utilisateur complet
     (`register`/`login`/`me`), afin que le frontend connaisse l'état de l'assistant
     de configuration initiale dès la connexion, sans appel supplémentaire."""
+    # `login`/`register` arrivent ici sans être passées par `get_current_user` : le
+    # périmètre du foyer (§ BI.5) s'ouvre donc ici aussi, avant la moindre lecture.
+    auth_service.ouvrir_perimetre(db, user)
     sortie = UserOut.model_validate(user)
     sortie.onboarding_termine = preferences_service.onboarding_termine(db, user.id)
     # `id_foyer`, pas `user.id` : les lignes financières appartiennent au foyer

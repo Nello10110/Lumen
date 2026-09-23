@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from . import ENV_CHARGE
 from .auth import get_current_user, require_role
 from .config_env import CHEMIN_ENV, variables_chargees
-from .database import SessionLocal, upgrade_schema
+from .database import avertir_si_separation_contournee, session_tous_foyers, upgrade_schema
 from .logging_config import configure_logging
 from .models import ROLE_MEMBRE, ROLE_PROPRIETAIRE
 from .routers import (
@@ -59,12 +59,13 @@ if ENV_CHARGE:
 # une base existante — un seul appel remplace l'ancien duo `Base.metadata.create_all()`
 # + fonctions de migration maison (cf. docstring de `upgrade_schema`).
 upgrade_schema()
+avertir_si_separation_contournee()
 
 # Après les migrations de schéma et de contenu : remise à niveau du portefeuille
 # reconstruit si les règles de calcul ont changé depuis la dernière reconstruction
 # (cf. `services/startup_maintenance` pour le pourquoi — sans ça, les prix de revient
 # stockés restent ceux de l'ancienne version jusqu'au prochain import).
-_db_demarrage = SessionLocal()
+_db_demarrage = session_tous_foyers()
 try:
     startup_maintenance.reconstruire_si_regles_de_calcul_modifiees(_db_demarrage)
 finally:
@@ -80,7 +81,7 @@ def _rechauffer_logos_catalogue() -> None:
     nouvelle tentative (cf. `logo_service.DELAI_NOUVELLE_TENTATIVE_CATALOGUE`) : un
     redémarrage rapproché ne redémarche pas les sites qui viennent de répondre —
     ou de refuser."""
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         logo_service.rafraichir_logos_catalogue(db)
     except Exception:

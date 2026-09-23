@@ -4,7 +4,7 @@ LOT 4B) et lecture du cache."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..database import SessionLocal, get_db
+from ..database import get_db, session_tous_foyers
 from ..models import Holding, MarketDataCache
 from ..schemas import DerniereActualisationResponse, EtatRafraichissement, MarketDataOut
 from ..services import market_data_refresh, scheduler_service
@@ -22,7 +22,7 @@ def _enregistrer_resultat(etat) -> None:
     l'alimentaient, ce bouton-ci restait invisible de cette date. Session dédiée :
     ce callback s'exécute dans le fil de fond, bien après que la session de la
     requête HTTP qui a déclenché ce rafraîchissement a été refermée."""
-    db_statut = SessionLocal()
+    db_statut = session_tous_foyers()
     try:
         scheduler_service.record_result(
             db_statut, scheduler_service.MARKET_DATA_REFRESH, etat.statut or "erreur", etat.message or ""

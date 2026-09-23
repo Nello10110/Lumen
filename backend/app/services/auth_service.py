@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from .. import database
 from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, AuthToken, User
 
 PBKDF2_ITERATIONS = 260_000
@@ -64,6 +65,13 @@ def id_foyer(user: User) -> int:
     membre/invité — permet à tous les routeurs de continuer à filtrer par un seul
     `user_id`, sans dupliquer la logique de rattachement au foyer à chaque endroit."""
     return user.owner_user_id or user.id
+
+
+def ouvrir_perimetre(db: Session, user: User) -> None:
+    """Restreint la session au foyer de `user` (§ BI.5) : sous Postgres, la base ne
+    lui montre plus que les lignes de ce foyer, quels que soient les filtres écrits
+    dans le code. À appeler dès que l'utilisateur est authentifié."""
+    database.fixer_foyer(db, id_foyer(user), user.id)
 
 
 def creer_utilisateur(

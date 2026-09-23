@@ -5,9 +5,9 @@ provenait de la session elle-même, l'enregistrement du statut échouait à son 
 et l'utilisateur ne voyait jamais l'échec dans les Réglages. La correction utilise
 une session neuve et indépendante pour cet enregistrement.
 
-`_run_market_data_refresh` utilise directement `app.database.SessionLocal`, pas la
+`_run_market_data_refresh` utilise directement `app.database.session_tous_foyers`, pas la
 base jetable par test des fixtures `db`/`client` (qui pointent vers un fichier
-SQLite différent) : ce module lit donc et écrit directement via `SessionLocal`,
+SQLite différent) : ce module lit donc et écrit directement via `session_tous_foyers`,
 en nettoyant la ligne de config avant/après chaque test pour rester indépendant de
 l'ordre d'exécution."""
 
@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from app import database
-from app.database import SessionLocal
+from app.database import session_tous_foyers
 from app.models import Holding, ScheduledJobConfig
 from app.services import backup_service, justetf_service, market_data_refresh, market_data_service, scheduler_service
 
@@ -25,7 +25,7 @@ from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
 
 
 def _supprimer_config_job():
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         db.query(ScheduledJobConfig).filter(
             ScheduledJobConfig.job_key.in_(
@@ -50,7 +50,7 @@ def _config_job_isolee():
 
 
 def _lire_config_job(job_key: str = scheduler_service.MARKET_DATA_REFRESH) -> ScheduledJobConfig | None:
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         return db.get(ScheduledJobConfig, job_key)
     finally:
@@ -83,17 +83,17 @@ def test_cas_nominal_persiste_le_statut_ok(monkeypatch):
 
 def test_echec_utilise_une_session_dediee_pour_enregistrer_le_statut(monkeypatch):
     """Verrouille le mécanisme de la correction, pas seulement son résultat : en cas
-    d'échec, une session `SessionLocal()` supplémentaire (indépendante de celle du
+    d'échec, une session `session_tous_foyers()` supplémentaire (indépendante de celle du
     rafraîchissement) doit être ouverte pour l'enregistrement du statut."""
     sessions_creees = []
-    session_local_originale = scheduler_service.SessionLocal
+    session_local_originale = scheduler_service.session_tous_foyers
 
     def session_local_espionnee():
         session = session_local_originale()
         sessions_creees.append(session)
         return session
 
-    monkeypatch.setattr(scheduler_service, "SessionLocal", session_local_espionnee)
+    monkeypatch.setattr(scheduler_service, "session_tous_foyers", session_local_espionnee)
     monkeypatch.setattr(
         market_data_service, "refresh_tickers", lambda db, items: (_ for _ in ()).throw(RuntimeError("panne simulée"))
     )
@@ -468,7 +468,7 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
         cours_service, "rafraichir_crypto", lambda db, ticker, forcer=False: appels_crypto.append((ticker, forcer))
     )
 
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         db.query(Holding).delete()
         db.add(Holding(user_id=1, ticker="AAA", quantite=1.0, type_actif="STOCK"))
@@ -481,7 +481,7 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
     try:
         scheduler_service._run_cours_historiques()
     finally:
-        db = SessionLocal()
+        db = session_tous_foyers()
         try:
             db.query(Holding).delete()
             db.commit()
@@ -504,7 +504,7 @@ def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):
 
     monkeypatch.setattr(market_data_service, "resolve_ticker", _explose)
 
-    db = SessionLocal()
+    db = session_tous_foyers()
     try:
         db.query(Holding).delete()
         db.add(Holding(user_id=1, ticker="AAA", quantite=1.0, type_actif="STOCK"))
@@ -514,7 +514,7 @@ def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):
 
     try:
         scheduler_service._run_cours_historiques()  # ne doit pas lever
-        db = SessionLocal()
+        db = session_tous_foyers()
         try:
             config = db.get(ScheduledJobConfig, scheduler_service.COURS_HISTORIQUES)
             assert config is not None
@@ -522,7 +522,7 @@ def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):
         finally:
             db.close()
     finally:
-        db = SessionLocal()
+        db = session_tous_foyers()
         try:
             db.query(Holding).delete()
             db.query(ScheduledJobConfig).filter(

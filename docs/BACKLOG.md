@@ -6820,3 +6820,57 @@ maintenant.
   des réglages d'opérateur : à sortir de l'écran Réglages des clients.
 - **Les sauvegardes** : l'intégré (copie chiffrée du fichier SQLite) ne s'applique pas à
   Postgres, où la sauvegarde relève de l'hébergement (`pg_dump`, sauvegarde continue).
+
+#### BI.5 — `majeur` · `M` · `traité` (23/09/2026) · `P3` — Séparation des foyers imposée par Postgres
+
+**Décision de l'utilisateur** (23/09/2026) : la recommandation de § BI.4 est retenue — colonne de
+rattachement, durcie par la sécurité au niveau des lignes (RLS) de Postgres. Sous SQLite, rien ne
+change : une installation familiale n'a qu'un foyer.
+
+**Ce qui est en place.** La migration `c3a8e1f0b6d2` pose 21 politiques, sous Postgres seulement :
+
+- les 13 tables dont `user_id` désigne le foyer : une ligne n'est visible, et n'est écrite, que si
+  son `user_id` est le foyer de la requête ;
+- les 6 tables sans `user_id` (historique de valorisation, fiche immobilière, quotités, journal
+  d'accès des liens, périmètres d'invité) : par leur ligne parente, dont la politique filtre
+  déjà la sous-requête. Aucune colonne à ajouter, aucune reprise de données — contrairement à ce
+  qu'envisageait l'étude ; `perimetres_invites` en fait partie, son `user_id` étant l'invité et
+  non le foyer ;
+- `user_parametres` : préférences du foyer ET du membre connecté (l'assistant de première
+  connexion est propre à chaque membre) ;
+- `historique_cache` : par le préfixe de la clé — l'historique d'un titre est commun, le
+  patrimoine d'un foyer ne l'est pas.
+
+Restent hors périmètre, volontairement : `users`, `auth_tokens`, `access_log_entries` (il faut les
+lire avant de savoir qui se connecte), les données de marché, les réglages d'installation.
+
+`FORCE ROW LEVEL SECURITY` sur chaque table : sans lui, le propriétaire des tables — le rôle qui a
+joué les migrations, celui avec lequel l'application se connecte le plus souvent — échapperait à
+tout. Un superutilisateur ou un rôle `BYPASSRLS` y échappe encore : l'application le dit au
+démarrage, en clair (`database.avertir_si_separation_contournee`).
+
+**Le périmètre** (`app/database.py`) vit dans la session et il est reposé au début de chaque
+transaction par `set_config(..., true)`, local à la transaction : il ne survit ni au commit — il
+est reposé à la suivante — ni au retour de la connexion dans le pool. Trois états :
+
+- aucun (défaut) : aucune ligne de foyer visible. Une route qui oublierait l'authentification
+  ne renvoie rien ;
+- un foyer : posé par l'authentification (`get_current_user`, et `login`/`register` avant de lire
+  les préférences). La route publique d'un lien de partage cherche le jeton sur tous les foyers,
+  puis se restreint aussitôt au foyer du lien ;
+- tous les foyers, explicitement : tâches de fond (planificateur, rafraîchissement des cours,
+  démarrage) via `session_tous_foyers()`, et migrations Alembic (`alembic/env.py`) — sans quoi une
+  migration de données ne toucherait aucune ligne, sans erreur.
+
+**Vérifié.** La suite Postgres se connecte désormais avec un rôle ordinaire (`lumen_app`, créé
+par `conftest.py`) : sous le superutilisateur, la RLS aurait été contournée et la suite n'aurait
+rien prouvé. Son premier passage a désigné trois tests qui écrivaient avec une session sans
+périmètre — la protection à l'œuvre. `tests/test_separation_foyers.py` (9 tests, tous en échec
+sans la migration) vérifie ce qui tient QUAND UN FILTRE MANQUE, jusqu'au scénario de bout en bout :
+la route réelle de liste des positions, authentifiée pour de bon, dont le filtre par foyer est
+retiré, ne renvoie que les lignes du foyer connecté. Postgres 1 469 tests verts (5 ignorés,
+propres à SQLite) ; SQLite 1 465 (9 ignorés, propres à Postgres).
+
+**Pour une version hébergée** : connecter l'application avec un rôle ordinaire (ni
+superutilisateur, ni `BYPASSRLS`). Le rôle qui joue les migrations peut être le même : `FORCE`
+l'y soumet aussi.
