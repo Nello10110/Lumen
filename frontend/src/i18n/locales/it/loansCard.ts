@@ -1,0 +1,46 @@
+import type fr from '../fr/loansCard'
+import type { Structure } from '../../types'
+
+/** Italien — espace « loansCard » (backlog § BL.2), traduit depuis le français. */
+const loansCard: Structure<typeof fr> = {
+  detenteursDeCetEmprunt: "Titolari di questo prestito",
+  enregistrer: "Salva",
+  totalActuel: "Totale attuale:",
+  doitFaire100: "% (deve fare 100%)",
+  repartitionEnregistree: "Ripartizione salvata.",
+  annuler: "Annulla",
+  capitalInitial: "Capitale iniziale",
+  taux: "Tasso",
+  mensualite: "Rata mensile",
+  capitalRestantDu: "Capitale residuo",
+  ceQuIlResteA: "Quanto resta da rimborsare oggi su questo prestito: diminuisce a ogni rata, fino a zero alla fine del prestito.",
+  recaleLe: "riallineato il",
+  nouveauCapitalRestantDu: "Nuovo capitale residuo",
+  actifRattache: "Attività collegata",
+  listeDesActifsIndisponibleRattachement: "Elenco delle attività non disponibile: il collegamento non è modificabile per ora.",
+  actifRattacheListeIndisponible: "Attività collegata (elenco non disponibile)",
+  aucun: "Nessuno",
+  etablissementDuCredit: "Istituto del credito",
+  modifier: "Modifica",
+  recaler: "Riallinea",
+  fermer: "Chiudi",
+  detenteurs: "Titolari",
+  supprimer: "Elimina",
+  dettesEtEmprunts: "Debiti e prestiti",
+  aucunEmpruntEnregistre: "Nessun prestito registrato.",
+  renseigneUnCreditImmobilierOu: "Inserisci un mutuo o un prestito con «Aggiungi una riga» → «Un prestito».",
+  libelle: "Descrizione",
+  actions: "Azioni",
+  leCapitalRestantDuEst: "Il capitale residuo è calcolato automaticamente (ammortamento a tasso fisso); «Riallinea» permette di correggerlo a mano in base a un estratto conto reale: il riallineamento prevale allora sul calcolo teorico.",
+  supprimerCetEmprunt: "Eliminare questo prestito?",
+  lEmprunt: "Il prestito",
+  seraDefinitivementSupprime: "sarà eliminato definitivamente.",
+  suppression: "Eliminazione...",
+  erreurDetenteurs: "Impossibile caricare i titolari: {erreur}",
+  recalerAria: "Riallinea il capitale residuo di {emprunt}",
+  actifRattacheAria: "Attività collegata a {emprunt}",
+  etablissementCreditAria: "Istituto del credito di {emprunt}",
+  nEmprunts: { one: "{n} prestito", other: "{n} prestiti" },
+}
+
+export default loansCard

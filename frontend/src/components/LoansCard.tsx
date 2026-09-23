@@ -15,6 +15,7 @@ import { LOAN_FORM_VIDE, type LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
+import { t } from '../i18n'
 
 
 /** Répartition d'un emprunt entre détenteurs (backlog 2.L.1/X.1) — câble
@@ -30,7 +31,7 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
   if (erreurChargement !== null) {
     return (
       <div className="mt-3 border-t border-bordure pt-3">
-        <EtatErreur message={`Impossible de charger les détenteurs : ${erreurChargement}`} onReessayer={rechargerDetenteurs} />
+        <EtatErreur message={t('loansCard.erreurDetenteurs', { erreur: erreurChargement })} onReessayer={rechargerDetenteurs} />
       </div>
     )
   }
@@ -39,19 +40,17 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
 
   return (
     <div className="mt-3 border-t border-bordure pt-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">Détenteurs de cet emprunt</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">{t('loansCard.detenteursDeCetEmprunt')}</p>
       <div className="flex flex-wrap items-end gap-3">
         {detenteurs.map((d) => (
           <Field key={d.id} label={d.nom} className="w-20">
             <Input type="number" min={0} max={100} step="any" value={saisie[d.id] ?? ''} onChange={(e) => setValeur(d.id, e.target.value)} />
           </Field>
         ))}
-        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>
-          Enregistrer
-        </PrimaryButton>
+        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>{t('loansCard.enregistrer')}</PrimaryButton>
       </div>
-      {!totalValide && <p className="mt-1 text-xs text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</p>}
-      {enregistre && <p className="mt-1 text-xs text-positif">Répartition enregistrée.</p>}
+      {!totalValide && <p className="mt-1 text-xs text-negatif">{t('loansCard.totalActuel')}{' '}{total.toFixed(2)}{' '}{t('loansCard.doitFaire100')}</p>}
+      {enregistre && <p className="mt-1 text-xs text-positif">{t('loansCard.repartitionEnregistree')}</p>}
       {error && <p className="mt-1 text-xs text-negatif">{error}</p>}
     </div>
   )
@@ -125,7 +124,7 @@ function LoanCardMobile({
             form={editForm}
             onChange={setEditForm}
             variant="pleineLargeur"
-            libelleAriaSuffix={`de ${loan.libelle} (édition)`}
+            empruntEdite={loan.libelle}
           />
         </div>
 
@@ -135,12 +134,8 @@ function LoanCardMobile({
           écran sur un iPhone SE — et faisait défiler latéralement toute la zone de
           contenu (audit de design du 03/09/2026). */}
       <div className="mt-4 flex flex-wrap gap-2">
-          <PrimaryButton onClick={onSaveEdition} disabled={editionSaving} className="flex-1">
-            Enregistrer
-          </PrimaryButton>
-          <SecondaryButton onClick={onCancelEdition} className="flex-1">
-            Annuler
-          </SecondaryButton>
+          <PrimaryButton onClick={onSaveEdition} disabled={editionSaving} className="flex-1">{t('loansCard.enregistrer')}</PrimaryButton>
+          <SecondaryButton onClick={onCancelEdition} className="flex-1">{t('loansCard.annuler')}</SecondaryButton>
         </div>
       </div>
     )
@@ -152,50 +147,48 @@ function LoanCardMobile({
 
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
         <div>
-          <span className="block text-xs text-texte-attenue">Capital initial</span>
+          <span className="block text-xs text-texte-attenue">{t('loansCard.capitalInitial')}</span>
           {formatEuro(loan.capital_initial, 0, montantsMasques)}
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Taux</span>
+          <span className="block text-xs text-texte-attenue">{t('loansCard.taux')}</span>
           {loan.taux_annuel_pct.toFixed(2)}%
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Mensualité</span>
+          <span className="block text-xs text-texte-attenue">{t('loansCard.mensualite')}</span>
           {formatEuro(loan.mensualite, 0, montantsMasques)}
         </div>
         <div>
-          <span className="flex items-center gap-1 text-xs text-texte-attenue">
-            Capital restant dû
-            <InfoBulle texte="Ce qu'il reste à rembourser sur cet emprunt aujourd'hui — diminue à chaque mensualité, jusqu'à zéro en fin de prêt." />
+          <span className="flex items-center gap-1 text-xs text-texte-attenue">{t('loansCard.capitalRestantDu')}<InfoBulle texte={t('loansCard.ceQuIlResteA')} />
           </span>
           <span className="font-medium text-texte">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
         </div>
       </div>
       {loan.derniere_maj_manuelle && !enRecalage && (
-        <p className="mt-1 text-xs text-texte-attenue">recalé le {formatDateHeure(loan.derniere_maj_manuelle)}</p>
+        <p className="mt-1 text-xs text-texte-attenue">{t('loansCard.recaleLe')}{' '}{formatDateHeure(loan.derniere_maj_manuelle)}</p>
       )}
 
       {enRecalage && (
-        <Field label="Nouveau capital restant dû" className="mt-3">
+        <Field label={t('loansCard.nouveauCapitalRestantDu')} className="mt-3">
           <Input
             value={recalageValeur}
             onChange={(e) => setRecalageValeur(e.target.value)}
             type="number"
             step="any"
-            aria-label={`Recaler le capital restant dû de ${loan.libelle}`}
+            aria-label={t('loansCard.recalerAria', { emprunt: loan.libelle })}
           />
         </Field>
       )}
 
-      <Field label="Actif rattaché" className="mt-3">
+      <Field label={t('loansCard.actifRattache')} className="mt-3">
         <Select
           value={loan.holding_id ?? ''}
           disabled={rattachementSaving === loan.id || holdingsIndisponibles}
-          title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
+          title={holdingsIndisponibles ? t('loansCard.listeDesActifsIndisponibleRattachement') : undefined}
           onChange={(e) => onRattacher(e.target.value === '' ? null : Number(e.target.value))}
         >
-          {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>Actif rattaché (liste indisponible)</option>}
-          <option value="">Aucun</option>
+          {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>{t('loansCard.actifRattacheListeIndisponible')}</option>}
+          <option value="">{t('loansCard.aucun')}</option>
           {holdings.map((h) => (
             <option key={h.id} value={h.id}>
               {h.nom ?? h.ticker}
@@ -207,13 +200,13 @@ function LoanCardMobile({
       {/* Établissement du CRÉDIT (revue du 03/09/2026) — délibérément indépendant
           de l'actif rattaché ci-dessus : le crédit a sa banque, le bien financé
           n'appartient à aucun établissement. */}
-      <Field label="Établissement du crédit" className="mt-3">
+      <Field label={t('loansCard.etablissementDuCredit')} className="mt-3">
         <Select
           value={loan.etablissement_id ?? ''}
           disabled={etablissementSaving === loan.id}
           onChange={(e) => onRattacherEtablissement(e.target.value === '' ? null : Number(e.target.value))}
         >
-          <option value="">Aucun</option>
+          <option value="">{t('loansCard.aucun')}</option>
           {etablissements.map((et) => (
             <option key={et.id} value={et.id}>
               {et.nom}
@@ -232,27 +225,17 @@ function LoanCardMobile({
       <div className="mt-4 flex flex-wrap gap-2">
         {enRecalage ? (
           <>
-            <PrimaryButton onClick={onSaveRecalage} disabled={recalageSaving} className="flex-1">
-              Enregistrer
-            </PrimaryButton>
-            <SecondaryButton onClick={onCancelRecalage} className="flex-1">
-              Annuler
-            </SecondaryButton>
+            <PrimaryButton onClick={onSaveRecalage} disabled={recalageSaving} className="flex-1">{t('loansCard.enregistrer')}</PrimaryButton>
+            <SecondaryButton onClick={onCancelRecalage} className="flex-1">{t('loansCard.annuler')}</SecondaryButton>
           </>
         ) : (
           <>
-            <SecondaryButton onClick={onStartEdition} className="flex-1">
-              Modifier
-            </SecondaryButton>
-            <SecondaryButton onClick={onStartRecalage} className="flex-1">
-              Recaler
-            </SecondaryButton>
+            <SecondaryButton onClick={onStartEdition} className="flex-1">{t('loansCard.modifier')}</SecondaryButton>
+            <SecondaryButton onClick={onStartRecalage} className="flex-1">{t('loansCard.recaler')}</SecondaryButton>
             <SecondaryButton onClick={onToggleDetenteurs} className="flex-1">
-              {detenteursOuverts ? 'Fermer' : 'Détenteurs'}
+              {detenteursOuverts ? t('loansCard.fermer') : t('loansCard.detenteurs')}
             </SecondaryButton>
-            <SecondaryButton onClick={onRequestDelete} className="flex-1 border-negatif/40 text-negatif">
-              Supprimer
-            </SecondaryButton>
+            <SecondaryButton onClick={onRequestDelete} className="flex-1 border-negatif/40 text-negatif">{t('loansCard.supprimer')}</SecondaryButton>
           </>
         )}
       </div>
@@ -462,7 +445,7 @@ export default function LoansCard({
   const totalRestantDu = loans.reduce((somme, l) => somme + l.capital_restant_du, 0)
 
   return (
-    <Card title="Dettes et emprunts">
+    <Card title={t('loansCard.dettesEtEmprunts')}>
       {error && (
         <div className="mb-3">
           <EtatErreur message={error} onReessayer={load} />
@@ -472,7 +455,7 @@ export default function LoansCard({
       {loading ? (
         <SkeletonTexte />
       ) : loans.length === 0 ? (
-        <EtatVide titre="Aucun emprunt enregistré." description="Renseigne un crédit immobilier ou un prêt via « Ajouter une ligne » → « Un emprunt »." />
+        <EtatVide titre={t('loansCard.aucunEmpruntEnregistre')} description={t('loansCard.renseigneUnCreditImmobilierOu')} />
       ) : estMobile ? (
         <div className="mb-4 space-y-3">
           {loans.map((loan) => (
@@ -507,7 +490,7 @@ export default function LoansCard({
             />
           ))}
           <p className="pt-1 text-sm font-semibold text-texte">
-            {loans.length} emprunt{loans.length > 1 ? 's' : ''} · {formatEuro(totalRestantDu, 0, montantsMasques)}
+            {t('loansCard.nEmprunts', { n: loans.length })} · {formatEuro(totalRestantDu, 0, montantsMasques)}
           </p>
         </div>
       ) : (
@@ -515,20 +498,18 @@ export default function LoansCard({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-                <th className="py-2 pr-4">Libellé</th>
-                <th className="py-2 pr-4">Capital initial</th>
-                <th className="py-2 pr-4">Taux</th>
-                <th className="py-2 pr-4">Mensualité</th>
+                <th className="py-2 pr-4">{t('loansCard.libelle')}</th>
+                <th className="py-2 pr-4">{t('loansCard.capitalInitial')}</th>
+                <th className="py-2 pr-4">{t('loansCard.taux')}</th>
+                <th className="py-2 pr-4">{t('loansCard.mensualite')}</th>
                 <th className="py-2 pr-4">
-                  <span className="flex items-center gap-1">
-                    Capital restant dû
-                    <InfoBulle texte="Ce qu'il reste à rembourser sur cet emprunt aujourd'hui — diminue à chaque mensualité, jusqu'à zéro en fin de prêt." />
+                  <span className="flex items-center gap-1">{t('loansCard.capitalRestantDu')}<InfoBulle texte={t('loansCard.ceQuIlResteA')} />
                   </span>
                 </th>
-                <th className="py-2 pr-4">Actif rattaché</th>
-                <th className="py-2 pr-4">Établissement du crédit</th>
+                <th className="py-2 pr-4">{t('loansCard.actifRattache')}</th>
+                <th className="py-2 pr-4">{t('loansCard.etablissementDuCredit')}</th>
                 <th className="py-2 pr-4">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t('loansCard.actions')}</span>
                 </th>
               </tr>
             </thead>
@@ -548,26 +529,21 @@ export default function LoansCard({
                           onChange={(e) => setRecalageValeur(e.target.value)}
                           type="number"
                           step="any"
-                          aria-label={`Recaler le capital restant dû de ${loan.libelle}`}
+                          aria-label={t('loansCard.recalerAria', { emprunt: loan.libelle })}
                           className="w-28 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                         />
                         <button
                           onClick={() => saveRecalage(loan.id)}
                           disabled={recalageSaving}
                           className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-positif hover:underline disabled:opacity-40"
-                        >
-                          Enregistrer
-                        </button>
-                        <button onClick={() => setRecalageId(null)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
-                          Annuler
-                        </button>
+                        >{t('loansCard.enregistrer')}</button>
+                        <button onClick={() => setRecalageId(null)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">{t('loansCard.annuler')}</button>
                       </div>
                     ) : (
                       <div>
                         <span className="font-medium text-texte">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
                         {loan.derniere_maj_manuelle && (
-                          <span className="ml-2 text-xs text-texte-attenue">
-                            recalé le {formatDateHeure(loan.derniere_maj_manuelle)}
+                          <span className="ml-2 text-xs text-texte-attenue">{t('loansCard.recaleLe')}{' '}{formatDateHeure(loan.derniere_maj_manuelle)}
                           </span>
                         )}
                       </div>
@@ -577,15 +553,15 @@ export default function LoansCard({
                     <select
                       value={loan.holding_id ?? ''}
                       disabled={rattachementSaving === loan.id || holdingsIndisponibles}
-                      title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
+                      title={holdingsIndisponibles ? t('loansCard.listeDesActifsIndisponibleRattachement') : undefined}
                       onChange={(e) => handleRattacher(loan.id, e.target.value === '' ? null : Number(e.target.value))}
-                      aria-label={`Actif rattaché à ${loan.libelle}`}
+                      aria-label={t('loansCard.actifRattacheAria', { emprunt: loan.libelle })}
                       className="rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     >
                       {/* Sans cette option, un emprunt rattaché retombait sur
                           « Aucun » quand la liste n'avait pas pu être chargée. */}
-                      {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>Actif rattaché (liste indisponible)</option>}
-                      <option value="">Aucun</option>
+                      {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>{t('loansCard.actifRattacheListeIndisponible')}</option>}
+                      <option value="">{t('loansCard.aucun')}</option>
                       {holdings.map((h) => (
                         <option key={h.id} value={h.id}>
                           {h.nom ?? h.ticker}
@@ -598,10 +574,10 @@ export default function LoansCard({
                       value={loan.etablissement_id ?? ''}
                       disabled={etablissementSaving === loan.id}
                       onChange={(e) => handleRattacherEtablissement(loan.id, e.target.value === '' ? null : Number(e.target.value))}
-                      aria-label={`Établissement du crédit de ${loan.libelle}`}
+                      aria-label={t('loansCard.etablissementCreditAria', { emprunt: loan.libelle })}
                       className="rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     >
-                      <option value="">Aucun</option>
+                      <option value="">{t('loansCard.aucun')}</option>
                       {etablissements.map((et) => (
                         <option key={et.id} value={et.id}>
                           {et.nom}
@@ -612,24 +588,18 @@ export default function LoansCard({
                   <td className="py-2 pr-4 text-right">
                     {recalageId !== loan.id && editionId !== loan.id && (
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => startEdition(loan)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
-                          Modifier
-                        </button>
-                        <button onClick={() => startRecalage(loan)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
-                          Recaler
-                        </button>
+                        <button onClick={() => startEdition(loan)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">{t('loansCard.modifier')}</button>
+                        <button onClick={() => startRecalage(loan)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">{t('loansCard.recaler')}</button>
                         <button
                           onClick={() => setDetenteursOuvertId((id) => (id === loan.id ? null : loan.id))}
                           className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline"
                         >
-                          {detenteursOuvertId === loan.id ? 'Fermer' : 'Détenteurs'}
+                          {detenteursOuvertId === loan.id ? t('loansCard.fermer') : t('loansCard.detenteurs')}
                         </button>
                         <button
                           onClick={() => setConfirmSuppression({ id: loan.id, libelle: loan.libelle })}
                           className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline"
-                        >
-                          Supprimer
-                        </button>
+                        >{t('loansCard.supprimer')}</button>
                       </div>
                     )}
                   </td>
@@ -642,12 +612,10 @@ export default function LoansCard({
                           form={editForm}
                           onChange={setEditForm}
                           variant="compacte"
-                          libelleAriaSuffix={`de ${loan.libelle} (édition)`}
+                          empruntEdite={loan.libelle}
                         />
-                        <PrimaryButton onClick={() => saveEdition(loan.id)} disabled={editionSaving}>
-                          Enregistrer
-                        </PrimaryButton>
-                        <SecondaryButton onClick={cancelEdition}>Annuler</SecondaryButton>
+                        <PrimaryButton onClick={() => saveEdition(loan.id)} disabled={editionSaving}>{t('loansCard.enregistrer')}</PrimaryButton>
+                        <SecondaryButton onClick={cancelEdition}>{t('loansCard.annuler')}</SecondaryButton>
                       </div>
                     </td>
                   </tr>
@@ -665,7 +633,7 @@ export default function LoansCard({
             <tfoot>
               <tr className="border-t border-bordure text-sm font-semibold text-texte">
                 <td colSpan={4} className="py-2 pr-4">
-                  {loans.length} emprunt{loans.length > 1 ? 's' : ''}
+                  {t('loansCard.nEmprunts', { n: loans.length })}
                 </td>
                 <td className="py-2 pr-4">{formatEuro(totalRestantDu, 0, montantsMasques)}</td>
                 <td></td>
@@ -682,36 +650,26 @@ export default function LoansCard({
           toute nouvelle ligne du patrimoine, actif ou passif (retour utilisateur du
           09/09/2026). Cette carte ne garde que la consultation/édition des emprunts
           déjà déclarés. */}
-      <p className="border-t border-bordure pt-4 text-xs text-texte-attenue">
-        Le capital restant dû est calculé automatiquement (amortissement à taux fixe) ; « Recaler » permet de le corriger à la
-        main d'après un relevé bancaire réel — le recalage prime alors sur le calcul théorique.
-      </p>
+      <p className="border-t border-bordure pt-4 text-xs text-texte-attenue">{t('loansCard.leCapitalRestantDuEst')}</p>
 
       {confirmSuppression && (
         <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-texte">
-                Supprimer cet emprunt ?
-              </h2>
-              <p className="mt-2 text-sm text-texte">
-                L'emprunt <span className="font-medium text-texte">{confirmSuppression.libelle}</span> sera
-                définitivement supprimé.
-              </p>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">{t('loansCard.supprimerCetEmprunt')}</h2>
+              <p className="mt-2 text-sm text-texte">{t('loansCard.lEmprunt')}{' '}<span className="font-medium text-texte">{confirmSuppression.libelle}</span>{' '}{t('loansCard.seraDefinitivementSupprime')}</p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
                   className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
-                >
-                  Annuler
-                </button>
+                >{t('loansCard.annuler')}</button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
                   className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
-                  {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
+                  {suppressionEnCours ? t('loansCard.suppression') : t('loansCard.supprimer')}
                 </button>
               </div>
             </>

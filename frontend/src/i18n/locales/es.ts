@@ -1,8 +1,10 @@
 import type { Dictionnaire } from '../index'
+import espaces from './es/index'
 
 /** Espagnol (backlog § BL) — traduit depuis `fr.ts`, à faire relire par un natif.
  * Même registre que le français : « usted » là où il vouvoie, « tú » là où il tutoie. */
 const es: Dictionnaire = {
+  ...espaces,
   langue: {
     titre: 'Idioma',
     choixAria: 'Idioma de la interfaz',

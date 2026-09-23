@@ -1,7 +1,9 @@
 import type { Dictionnaire } from '../index'
+import espaces from './en/index'
 
 /** Anglais (backlog § BL) — traduit depuis `fr.ts`, à faire relire par un natif. */
 const en: Dictionnaire = {
+  ...espaces,
   langue: {
     titre: 'Language',
     choixAria: 'Interface language',

@@ -8,7 +8,11 @@
  * Registre : l'application tutoie dans l'assistant et l'accueil, vouvoie sur l'écran
  * de connexion et dans les aides — deux registres établis avant le multilingue,
  * conservés tels quels. */
+import espaces from './fr/index'
+
 const fr = {
+  // Textes des écrans, un fichier par écran ou composant (`fr/<espace>.ts`, § BL.2).
+  ...espaces,
   langue: {
     titre: 'Langue',
     choixAria: "Langue de l'interface",

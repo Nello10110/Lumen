@@ -1,0 +1,46 @@
+import type fr from '../fr/loansCard'
+import type { Structure } from '../../types'
+
+/** Anglais — espace « loansCard » (backlog § BL.2), traduit depuis le français. */
+const loansCard: Structure<typeof fr> = {
+  detenteursDeCetEmprunt: "Holders of this loan",
+  enregistrer: "Save",
+  totalActuel: "Current total:",
+  doitFaire100: "% (must equal 100%)",
+  repartitionEnregistree: "Split saved.",
+  annuler: "Cancel",
+  capitalInitial: "Initial principal",
+  taux: "Rate",
+  mensualite: "Monthly payment",
+  capitalRestantDu: "Outstanding principal",
+  ceQuIlResteA: "What remains to be repaid on this loan today — decreases with each payment, down to zero at the end of the loan.",
+  recaleLe: "adjusted on",
+  nouveauCapitalRestantDu: "New outstanding principal",
+  actifRattache: "Linked asset",
+  listeDesActifsIndisponibleRattachement: "Asset list unavailable — the link cannot be changed for now.",
+  actifRattacheListeIndisponible: "Linked asset (list unavailable)",
+  aucun: "None",
+  etablissementDuCredit: "Lending institution",
+  modifier: "Edit",
+  recaler: "Adjust",
+  fermer: "Close",
+  detenteurs: "Holders",
+  supprimer: "Delete",
+  dettesEtEmprunts: "Debts and loans",
+  aucunEmpruntEnregistre: "No loan recorded.",
+  renseigneUnCreditImmobilierOu: "Enter a mortgage or a loan via “Add a line” → “A loan”.",
+  libelle: "Label",
+  actions: "Actions",
+  leCapitalRestantDuEst: "The outstanding principal is calculated automatically (fixed-rate amortization); “Adjust” lets you correct it by hand from an actual bank statement — the adjustment then takes precedence over the theoretical calculation.",
+  supprimerCetEmprunt: "Delete this loan?",
+  lEmprunt: "The loan",
+  seraDefinitivementSupprime: "will be permanently deleted.",
+  suppression: "Deleting...",
+  erreurDetenteurs: "Unable to load the holders: {erreur}",
+  recalerAria: "Adjust the outstanding principal of {emprunt}",
+  actifRattacheAria: "Asset linked to {emprunt}",
+  etablissementCreditAria: "Lending institution of {emprunt}",
+  nEmprunts: { one: "{n} loan", other: "{n} loans" },
+}
+
+export default loansCard

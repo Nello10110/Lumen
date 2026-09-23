@@ -1,0 +1,46 @@
+import type fr from '../fr/loansCard'
+import type { Structure } from '../../types'
+
+/** Allemand — espace « loansCard » (backlog § BL.2), traduit depuis le français. */
+const loansCard: Structure<typeof fr> = {
+  detenteursDeCetEmprunt: "Inhaber dieses Kredits",
+  enregistrer: "Speichern",
+  totalActuel: "Aktuelle Summe:",
+  doitFaire100: "% (muss 100 % ergeben)",
+  repartitionEnregistree: "Aufteilung gespeichert.",
+  annuler: "Abbrechen",
+  capitalInitial: "Anfangskapital",
+  taux: "Zinssatz",
+  mensualite: "Monatsrate",
+  capitalRestantDu: "Restschuld",
+  ceQuIlResteA: "Was heute noch auf diesen Kredit zurückzuzahlen ist — sinkt mit jeder Rate, bis null am Laufzeitende.",
+  recaleLe: "angepasst am",
+  nouveauCapitalRestantDu: "Neue Restschuld",
+  actifRattache: "Verknüpfter Vermögenswert",
+  listeDesActifsIndisponibleRattachement: "Liste der Vermögenswerte nicht verfügbar — Verknüpfung vorübergehend nicht änderbar.",
+  actifRattacheListeIndisponible: "Verknüpfter Vermögenswert (Liste nicht verfügbar)",
+  aucun: "Keiner",
+  etablissementDuCredit: "Kreditinstitut",
+  modifier: "Bearbeiten",
+  recaler: "Anpassen",
+  fermer: "Schließen",
+  detenteurs: "Inhaber",
+  supprimer: "Löschen",
+  dettesEtEmprunts: "Schulden und Kredite",
+  aucunEmpruntEnregistre: "Kein Kredit erfasst.",
+  renseigneUnCreditImmobilierOu: "Erfasse einen Immobilienkredit oder ein Darlehen über „Zeile hinzufügen“ → „Ein Kredit“.",
+  libelle: "Bezeichnung",
+  actions: "Aktionen",
+  leCapitalRestantDuEst: "Die Restschuld wird automatisch berechnet (Tilgung zu festem Zinssatz); „Anpassen“ korrigiert sie von Hand anhand eines echten Kontoauszugs — die Anpassung hat dann Vorrang vor der theoretischen Berechnung.",
+  supprimerCetEmprunt: "Diesen Kredit löschen?",
+  lEmprunt: "Der Kredit",
+  seraDefinitivementSupprime: "wird endgültig gelöscht.",
+  suppression: "Wird gelöscht...",
+  erreurDetenteurs: "Inhaber können nicht geladen werden: {erreur}",
+  recalerAria: "Restschuld von {emprunt} anpassen",
+  actifRattacheAria: "Mit {emprunt} verknüpfter Vermögenswert",
+  etablissementCreditAria: "Kreditinstitut von {emprunt}",
+  nEmprunts: { one: "{n} Kredit", other: "{n} Kredite" },
+}
+
+export default loansCard

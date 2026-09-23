@@ -1,6 +1,7 @@
 import type { Etablissement } from '../api/types'
 import CatalogueEtablissementPicker from './CatalogueEtablissementPicker'
 import { Input, Select } from './Field'
+import { t } from '../i18n'
 
 // Sentinelle pour l'option "+ Nouvel établissement..." — même patron que
 // `NOUVEAU_COMPTE` dans `PositionsTable.tsx`/`AjoutHoldingForm.tsx`, distincte de
@@ -28,7 +29,7 @@ export default function SelecteurEtablissement({
   logoKeyNouveau = null,
   onLogoKeyNouveauChange,
   required = false,
-  ariaLabel = 'Établissement',
+  ariaLabel = t('selecteurEtablissement.etablissement'),
 }: {
   etablissements: Etablissement[]
   value: string
@@ -43,14 +44,14 @@ export default function SelecteurEtablissement({
   return (
     <>
       <Select value={value} onChange={(e) => onValueChange(e.target.value)} onClick={(e) => e.stopPropagation()} aria-label={ariaLabel}>
-        {!required && <option value="">— Sans établissement —</option>}
-        {required && value === '' && <option value="">— Choisir —</option>}
+        {!required && <option value="">{t('selecteurEtablissement.sansEtablissement')}</option>}
+        {required && value === '' && <option value="">{t('selecteurEtablissement.choisir')}</option>}
         {etablissements.map((et) => (
           <option key={et.id} value={et.id}>
             {et.nom}
           </option>
         ))}
-        <option value={NOUVEAU_ETABLISSEMENT}>+ Nouvel établissement...</option>
+        <option value={NOUVEAU_ETABLISSEMENT}>{t('selecteurEtablissement.nouvelEtablissement')}</option>
       </Select>
       {value === NOUVEAU_ETABLISSEMENT && (
         <div className="mt-1 flex flex-col gap-2">
@@ -70,8 +71,8 @@ export default function SelecteurEtablissement({
               onLogoKeyNouveauChange?.(null)
             }}
             onClick={(e) => e.stopPropagation()}
-            aria-label={`Nom du nouvel établissement (${ariaLabel})`}
-            placeholder="Boursorama, Caisse d'Épargne..."
+            aria-label={t('selecteurEtablissement.nomNouvelAria', { champ: ariaLabel })}
+            placeholder={t('selecteurEtablissement.boursoramaCaisseDEpargne')}
           />
         </div>
       )}

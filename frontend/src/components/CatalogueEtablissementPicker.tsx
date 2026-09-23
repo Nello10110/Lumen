@@ -1,5 +1,6 @@
 import { CATALOGUE_ETABLISSEMENTS } from '../utils/etablissementsConnus'
 import EtablissementLogo from './EtablissementLogo'
+import { t } from '../i18n'
 
 /** Grille de sélection d'un établissement connu (refonte import, 05/09/2026) —
  * choisir une entrée préremplit le nom (et le logo) ; « Personnalisé » retombe sur
@@ -15,7 +16,7 @@ export default function CatalogueEtablissementPicker({
 }) {
   return (
     <fieldset className="flex flex-wrap gap-2 border-0 p-0 m-0">
-      <legend className="sr-only">Établissement connu</legend>
+      <legend className="sr-only">{t('catalogueEtablissementPicker.etablissementConnu')}</legend>
       {CATALOGUE_ETABLISSEMENTS.map((e) => (
         <button
           key={e.cle}
@@ -35,9 +36,7 @@ export default function CatalogueEtablissementPicker({
         className={`min-h-11 rounded-chip border px-2 text-xs text-texte-attenue transition-colors md:min-h-0 md:py-1 ${
           selection === null ? 'border-accent bg-accent/10' : 'border-bordure bg-surface hover:border-accent/50'
         }`}
-      >
-        Personnalisé...
-      </button>
+      >{t('catalogueEtablissementPicker.personnalise')}</button>
     </fieldset>
   )
 }

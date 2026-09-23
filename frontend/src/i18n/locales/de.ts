@@ -1,8 +1,10 @@
 import type { Dictionnaire } from '../index'
+import espaces from './de/index'
 
 /** Allemand (backlog § BL) — traduit depuis `fr.ts`, à faire relire par un natif.
  * Même registre que le français : « Sie » là où il vouvoie, « du » là où il tutoie. */
 const de: Dictionnaire = {
+  ...espaces,
   langue: {
     titre: 'Sprache',
     choixAria: 'Sprache der Oberfläche',

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
+import { t } from '../i18n'
 
 // Le temps que l'utilisateur ait le loisir de lire le message avant qu'il ne
 // s'efface tout seul — ni trop court (illisible), ni permanent (obligerait à un
@@ -44,8 +45,8 @@ export default function RafraichissementCoursIndicateur() {
   if (enCours) {
     const libelle =
       etat && etat.positions_total > 0
-        ? `Rafraîchissement des cours en cours... (${etat.positions_traitees} / ${etat.positions_total})`
-        : 'Rafraîchissement des cours en cours...'
+        ? t('rafraichissementCoursIndicateur.enCours', { faites: etat.positions_traitees, total: etat.positions_total })
+        : t('rafraichissementCoursIndicateur.rafraichissementDesCoursEnCours')
     return createPortal(
       <output className="fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-panel border border-stroke bg-panel-hi px-4 py-3 text-sm text-ink shadow-glass-lg backdrop-blur-glass">
         <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent" aria-hidden="true" />
@@ -68,8 +69,8 @@ export default function RafraichissementCoursIndicateur() {
     >
       <span>
         {echec
-          ? `Échec du rafraîchissement des cours${etatFinal.message ? ` : ${etatFinal.message}` : '.'}`
-          : 'Cours à jour.'}
+          ? etatFinal.message ? t('rafraichissementCoursIndicateur.echecMotif', { motif: etatFinal.message }) : t('rafraichissementCoursIndicateur.echec')
+          : t('rafraichissementCoursIndicateur.coursAJour')}
       </span>
     </output>,
     document.body,

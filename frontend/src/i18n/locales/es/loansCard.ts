@@ -1,0 +1,46 @@
+import type fr from '../fr/loansCard'
+import type { Structure } from '../../types'
+
+/** Espagnol — espace « loansCard » (backlog § BL.2), traduit depuis le français. */
+const loansCard: Structure<typeof fr> = {
+  detenteursDeCetEmprunt: "Titulares de este préstamo",
+  enregistrer: "Guardar",
+  totalActuel: "Total actual:",
+  doitFaire100: "% (debe sumar 100 %)",
+  repartitionEnregistree: "Reparto guardado.",
+  annuler: "Cancelar",
+  capitalInitial: "Capital inicial",
+  taux: "Tipo",
+  mensualite: "Cuota mensual",
+  capitalRestantDu: "Capital pendiente",
+  ceQuIlResteA: "Lo que queda por devolver de este préstamo hoy: disminuye con cada cuota, hasta cero al final del préstamo.",
+  recaleLe: "ajustado el",
+  nouveauCapitalRestantDu: "Nuevo capital pendiente",
+  actifRattache: "Activo vinculado",
+  listeDesActifsIndisponibleRattachement: "Lista de activos no disponible: el vínculo no puede modificarse por ahora.",
+  actifRattacheListeIndisponible: "Activo vinculado (lista no disponible)",
+  aucun: "Ninguno",
+  etablissementDuCredit: "Entidad del crédito",
+  modifier: "Modificar",
+  recaler: "Ajustar",
+  fermer: "Cerrar",
+  detenteurs: "Titulares",
+  supprimer: "Eliminar",
+  dettesEtEmprunts: "Deudas y préstamos",
+  aucunEmpruntEnregistre: "Ningún préstamo registrado.",
+  renseigneUnCreditImmobilierOu: "Introduce un crédito hipotecario o un préstamo con «Añadir una línea» → «Un préstamo».",
+  libelle: "Nombre",
+  actions: "Acciones",
+  leCapitalRestantDuEst: "El capital pendiente se calcula automáticamente (amortización a tipo fijo); «Ajustar» permite corregirlo a mano según un extracto bancario real: el ajuste prevalece entonces sobre el cálculo teórico.",
+  supprimerCetEmprunt: "¿Eliminar este préstamo?",
+  lEmprunt: "El préstamo",
+  seraDefinitivementSupprime: "se eliminará definitivamente.",
+  suppression: "Eliminando...",
+  erreurDetenteurs: "No se pueden cargar los titulares: {erreur}",
+  recalerAria: "Ajustar el capital pendiente de {emprunt}",
+  actifRattacheAria: "Activo vinculado a {emprunt}",
+  etablissementCreditAria: "Entidad del crédito de {emprunt}",
+  nEmprunts: { one: "{n} préstamo", other: "{n} préstamos" },
+}
+
+export default loansCard

@@ -24,7 +24,7 @@ import InfoBulle from './InfoBulle'
 import { LOAN_FORM_VIDE, type LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 // Sentinelle pour l'option "+ Nouveau compte..." du sélecteur — distincte de toute
 // valeur réelle possible (un id de compte est toujours numérique).
@@ -309,12 +309,12 @@ export default function AjoutHoldingForm({
         <div className="mb-4 w-fit">
           <SegmentedControl
             options={[
-              { valeur: 'actif', libelle: 'Un actif' },
-              { valeur: 'emprunt', libelle: 'Un emprunt' },
+              { valeur: 'actif', libelle: t('ajoutHoldingForm.unActif') },
+              { valeur: 'emprunt', libelle: t('ajoutHoldingForm.unEmprunt') },
             ]}
             valeur={modeAjout}
             onChange={setModeAjout}
-            ariaLabel="Qu'ajoutez-vous ?"
+            ariaLabel={t('ajoutHoldingForm.quAjoutezVous')}
           />
         </div>
       )}
@@ -327,11 +327,9 @@ export default function AjoutHoldingForm({
           <PrimaryButton
             type="submit"
             disabled={savingLoan || !loanSaisieComplete}
-            title={loanSaisieComplete ? undefined : "Renseignez tous les champs de l'emprunt."}
+            title={loanSaisieComplete ? undefined : t('ajoutHoldingForm.renseignezTousLesChampsDe')}
             className="self-start"
-          >
-            Ajouter
-          </PrimaryButton>
+          >{t('ajoutHoldingForm.ajouter')}</PrimaryButton>
           {errorLoan && <EtatErreur message={errorLoan} />}
         </form>
       ) : (
@@ -341,7 +339,7 @@ export default function AjoutHoldingForm({
               `Input`/`Select` sont `w-full` — c'est le conteneur qui règle la
               largeur, plus le champ. */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Type d'actif" className="col-span-2">
+            <Field label={t('ajoutHoldingForm.typeDActif')} className="col-span-2">
               <Select value={form.type_actif} onChange={(e) => handleTypeChange(e.target.value)}>
                 {TYPE_ACTIF_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -358,11 +356,11 @@ export default function AjoutHoldingForm({
                     serveur exige quand même (obligatoire, unique) reste calculé à
                     partir de ce Nom, cf. `identifiant`/`identifiantDepuisNom` — sans
                     champ dédié tant qu'il n'a pas été refusé. */}
-                <Field label="Nom" className="col-span-2">
+                <Field label={t('ajoutHoldingForm.nom')} className="col-span-2">
                   <Input
                     value={form.nom}
                     onChange={(e) => setForm({ ...form, nom: e.target.value })}
-                    placeholder="Appartement Lyon, Peugeot 208..."
+                    placeholder={t('ajoutHoldingForm.appartementLyonPeugeot208')}
                   />
                 </Field>
                 {identifiantVisible && (
@@ -371,15 +369,15 @@ export default function AjoutHoldingForm({
                         `Field`) : `<label>` texte inclus dans le nom accessible du
                         champ, `getByLabelText('Identifiant')` cesserait de matcher
                         exactement une fois ce texte concaténé au libellé. */}
-                    <Field label="Identifiant">
+                    <Field label={t('ajoutHoldingForm.identifiant')}>
                       <Input value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })} />
                     </Field>
-                    <p className="mt-1 text-xs text-ink3">Calculé depuis le Nom, en majuscules — corrigez-le si besoin.</p>
+                    <p className="mt-1 text-xs text-ink3">{t('ajoutHoldingForm.calculeDepuisLeNomEn')}</p>
                   </div>
                 )}
               </>
             ) : (
-              <Field label="Ticker" className="col-span-2">
+              <Field label={t('ajoutHoldingForm.ticker')} className="col-span-2">
                 {/* Majuscules à la SAISIE, pas seulement à l'envoi (maquette de la
                     refonte) : le champ affichait « aapl » jusqu'au dernier moment, alors
                     que la ligne créée s'appellera « AAPL ». Voir ce qu'on obtient pendant
@@ -387,20 +385,18 @@ export default function AjoutHoldingForm({
                 <Input
                   value={form.ticker}
                   onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
-                  placeholder="AAPL"
+                  placeholder={t('ajoutHoldingForm.aapl')}
                 />
               </Field>
             )}
             {!estPatrimoine && (
-              <Field label="Quantité">
+              <Field label={t('ajoutHoldingForm.quantite')}>
                 <Input value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} type="number" step="any" />
               </Field>
             )}
             <Field
               label={
-                <span className="inline-flex items-center gap-1">
-                  Prix de revient
-                  <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+                <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.prixDeRevient')}<InfoBulle texte={TEXTE_PRIX_REVIENT} />
                 </span>
               }
             >
@@ -412,33 +408,33 @@ export default function AjoutHoldingForm({
               />
             </Field>
             {!sansEtablissement && (
-              <Field label="Compte" className={form.compte_id === NOUVEAU_COMPTE ? 'col-span-2' : undefined}>
-                <Select value={form.compte_id} onChange={(e) => setForm({ ...form, compte_id: e.target.value })} aria-label="Compte">
+              <Field label={t('ajoutHoldingForm.compte')} className={form.compte_id === NOUVEAU_COMPTE ? 'col-span-2' : undefined}>
+                <Select value={form.compte_id} onChange={(e) => setForm({ ...form, compte_id: e.target.value })} aria-label={t('ajoutHoldingForm.compte')}>
                   {/* Un placeholder « — Choisir — » reste indispensable tant qu'aucune
                       sélection n'est faite, sinon le navigateur présélectionne
                       silencieusement le premier compte de la liste sans que l'état React
                       (`form.compte_id`, resté `''`) ne le reflète — bug réel constaté en
                       recette du 03/09/2026, pas qu'un souci d'affichage. */}
-                  {form.compte_id === '' && <option value="">— Choisir —</option>}
+                  {form.compte_id === '' && <option value="">{t('ajoutHoldingForm.choisir')}</option>}
                   {comptes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nom}
                     </option>
                   ))}
-                  <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
+                  <option value={NOUVEAU_COMPTE}>{t('ajoutHoldingForm.nouveauCompte')}</option>
                 </Select>
               </Field>
             )}
             {form.compte_id === NOUVEAU_COMPTE && (
               <>
-                <Field label="Nom du nouveau compte">
+                <Field label={t('ajoutHoldingForm.nomDuNouveauCompte')}>
                   <Input
                     value={form.compte_nom}
                     onChange={(e) => setForm({ ...form, compte_nom: e.target.value })}
-                    placeholder="PEA, CTO..."
+                    placeholder={t('ajoutHoldingForm.peaCto')}
                   />
                 </Field>
-                <Field label="Établissement">
+                <Field label={t('ajoutHoldingForm.etablissement')}>
                   <SelecteurEtablissement
                     etablissements={etablissements}
                     value={form.etablissement_id}
@@ -447,16 +443,14 @@ export default function AjoutHoldingForm({
                     onNomNouveauChange={(v) => setForm({ ...form, etablissement_nom: v })}
                     logoKeyNouveau={form.etablissement_logo_key}
                     onLogoKeyNouveauChange={(v) => setForm({ ...form, etablissement_logo_key: v })}
-                    ariaLabel="Établissement du nouveau compte"
+                    ariaLabel={t('ajoutHoldingForm.etablissementDuNouveauCompte')}
                   />
                 </Field>
               </>
             )}
             <Field
               label={
-                <span className="inline-flex items-center gap-1">
-                  Valeur estimée
-                  <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+                <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.valeurEstimee')}<InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
                 </span>
               }
             >
@@ -465,7 +459,7 @@ export default function AjoutHoldingForm({
                 onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
                 type="number"
                 step="any"
-                placeholder="optionnel"
+                placeholder={t('ajoutHoldingForm.optionnel')}
               />
             </Field>
             {TYPES_AVEC_TAUX.has(form.type_actif) && (
@@ -480,21 +474,21 @@ export default function AjoutHoldingForm({
               </Field>
             )}
             {TYPES_EPARGNE.has(form.type_actif) && (
-              <Field label="Versement mensuel (€)">
+              <Field label={t('ajoutHoldingForm.versementMensuel')}>
                 <Input
                   value={form.versement_mensuel}
                   onChange={(e) => setForm({ ...form, versement_mensuel: e.target.value })}
                   type="number"
                   step="any"
                   min={0}
-                  placeholder="optionnel"
+                  placeholder={t('ajoutHoldingForm.optionnel')}
                 />
               </Field>
             )}
             {avecZoneGeo && (
-              <Field label="Zone géographique">
+              <Field label={t('ajoutHoldingForm.zoneGeographique')}>
                 <Select value={form.zone_geo} onChange={(e) => setForm({ ...form, zone_geo: e.target.value })}>
-                  <option value="">Europe (par défaut)</option>
+                  <option value="">{t('ajoutHoldingForm.europeParDefaut')}</option>
                   {ZONES_GEO.map((zone) => (
                     <option key={zone} value={zone}>
                       {zone}
@@ -504,7 +498,7 @@ export default function AjoutHoldingForm({
               </Field>
             )}
             {estPatrimoine && (
-              <Field label="Date d'acquisition">
+              <Field label={t('ajoutHoldingForm.dateDAcquisition')}>
                 <Input
                   value={form.date_acquisition}
                   onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
@@ -521,11 +515,9 @@ export default function AjoutHoldingForm({
           <PrimaryButton
             type="submit"
             disabled={saving || !saisieComplete}
-            title={saisieComplete ? undefined : 'Renseignez au minimum un ticker et une quantité.'}
+            title={saisieComplete ? undefined : t('ajoutHoldingForm.renseignezAuMinimumUnTicker')}
             className="self-start"
-          >
-            Ajouter
-          </PrimaryButton>
+          >{t('ajoutHoldingForm.ajouter')}</PrimaryButton>
         </form>
       )}
 
@@ -540,22 +532,17 @@ export default function AjoutHoldingForm({
                   nombres que l'utilisateur vient de taper, visibles juste au-dessus dans
                   leurs champs. Le masquer cacherait un calcul, pas une donnée. Et ce
                   formulaire est aussi monté par l'assistant de bienvenue, hors du
-                  fournisseur de préférences d'affichage. */}
-              Valeur d'acquisition : <span className="font-semibold">{formatEuro(valeurAcquisition, 2)}</span>{' '}
-              <span className="text-accent/80">({form.quantite} × {form.prix_revient_moyen})</span>
+                  fournisseur de préférences d'affichage. */}{t('ajoutHoldingForm.valeurDAcquisition')}{' '}<span className="font-semibold">{formatEuro(valeurAcquisition, 2)}</span>{' '}
+              <span className="text-accent/80">({form.quantite}{' '}{t('ajoutHoldingForm.texte')}{' '}{form.prix_revient_moyen})</span>
             </p>
           )}
           {estPatrimoine && (
-            <p className="mt-3 text-xs text-texte-attenue">
-              Immobilier, SCPI, assurance-vie, PER, compte courant/d'épargne, véhicule : valorisés par Valeur estimée
-              plutôt que par quantité × prix — elle remplace le calcul et se met à jour à la main, périodiquement.
-            </p>
+            <p className="mt-3 text-xs text-texte-attenue">{t('ajoutHoldingForm.immobilierScpiAssuranceViePer')}</p>
           )}
           {TYPES_AVEC_TAUX.has(form.type_actif) &&
             valeurProjeteeUnAn(form.valeur_estimee ? Number(form.valeur_estimee) : null, form.taux_pct ? Number(form.taux_pct) : null) !==
               null && (
-              <p className="mt-1 text-xs text-texte-attenue">
-                Valeur projetée dans 1 an (indicatif, jamais appliqué automatiquement) :{' '}
+              <p className="mt-1 text-xs text-texte-attenue">{t('ajoutHoldingForm.valeurProjeteeDans1An')}{' '}
                 {valeurProjeteeUnAn(Number(form.valeur_estimee), Number(form.taux_pct))?.toLocaleString(localeCourante(), {
                   style: 'currency',
                   currency: 'EUR',
@@ -569,5 +556,5 @@ export default function AjoutHoldingForm({
     </>
   )
 
-  return sansCarte ? contenu : <Card title="Ajouter une ligne manuellement">{contenu}</Card>
+  return sansCarte ? contenu : <Card title={t('ajoutHoldingForm.ajouterUneLigneManuellement')}>{contenu}</Card>
 }

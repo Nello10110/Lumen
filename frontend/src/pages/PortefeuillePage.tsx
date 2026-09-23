@@ -25,6 +25,7 @@ import {
   correspondAuFiltreCompte,
 } from '../utils/holdingCategories'
 import { formatDateHeure, parseDateApi } from '../utils/format'
+import { t } from '../i18n'
 
 // Position de défilement de la page (backlog 2.K.2), restituée au remontage
 // (ex. retour depuis la fiche détaillée en pleine page) — comme le tri de
@@ -49,7 +50,7 @@ function CategorieTabs({ categorie, setCategorie }: { categorie: Categorie; setC
       options={CATEGORY_TABS.map((tab) => ({ valeur: tab.key, libelle: tab.label }))}
       valeur={categorie}
       onChange={setCategorie}
-      ariaLabel="Filtrer par catégorie"
+      ariaLabel={t('portefeuillePage.filtrerParCategorie')}
     />
   )
 }
@@ -72,20 +73,18 @@ function CompteSelect({
   pleineLargeur?: boolean
 }) {
   return (
-    <label className={`flex items-center gap-2 text-xs font-medium text-texte-attenue ${pleineLargeur ? 'flex-col items-start' : ''}`}>
-      Filtrer par compte
-      <select
+    <label className={`flex items-center gap-2 text-xs font-medium text-texte-attenue ${pleineLargeur ? 'flex-col items-start' : ''}`}>{t('portefeuillePage.filtrerParCompte')}<select
         value={filtreCompte}
         onChange={(e) => setFiltreCompte(e.target.value)}
         className={`rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte ${pleineLargeur ? 'w-full' : ''}`}
       >
-        <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
+        <option value={FILTRE_TOUS_COMPTES}>{t('portefeuillePage.tousLesComptes')}</option>
         {comptesDisponibles(holdings).map((compte) => (
           <option key={compte.id} value={compte.id}>
             {compte.nom}
           </option>
         ))}
-        {holdings.some((h) => h.compte === null) && <option value={FILTRE_SANS_COMPTE}>Sans compte</option>}
+        {holdings.some((h) => h.compte === null) && <option value={FILTRE_SANS_COMPTE}>{t('portefeuillePage.sansCompte')}</option>}
       </select>
     </label>
   )
@@ -337,8 +336,8 @@ export default function PortefeuillePage() {
 
   const libelleRafraichissement =
     etatRafraichissement?.en_cours && etatRafraichissement.positions_total > 0
-      ? `Rafraîchissement... (${etatRafraichissement.positions_traitees} / ${etatRafraichissement.positions_total} positions)`
-      : 'Rafraîchissement...'
+      ? t('portefeuillePage.rafraichissementProgression', { faites: etatRafraichissement.positions_traitees, total: etatRafraichissement.positions_total })
+      : t('portefeuillePage.rafraichissement')
 
   const lignesFiltrees = holdings.filter(
     (h) => (categorie === 'TOUS' || categorieDe(h) === categorie) && correspondAuFiltreCompte(h, filtreCompte),
@@ -357,13 +356,13 @@ export default function PortefeuillePage() {
   )
   const performancePct = totaux.cout > 0 ? ((totaux.valeurAvecCout - totaux.cout) / totaux.cout) * 100 : null
 
-  const libelleCategorie = CATEGORY_TABS.find((t) => t.key === categorie)?.label ?? 'Tous'
+  const libelleCategorie = CATEGORY_TABS.find((t) => t.key === categorie)?.label ?? t('portefeuillePage.tous')
   const sousTitre =
-    `${lignesFiltrees.length} ligne${lignesFiltrees.length > 1 ? 's' : ''}` +
+    t('portefeuillePage.nLignes', { n: lignesFiltrees.length }) +
     (categorie === 'TOUS' ? '' : ` · ${libelleCategorie}`) +
     (filtreCompte === FILTRE_TOUS_COMPTES
       ? ''
-      : ` · ${filtreCompte === FILTRE_SANS_COMPTE ? 'Sans compte' : filtreCompte}`)
+      : ` · ${filtreCompte === FILTRE_SANS_COMPTE ? t('portefeuillePage.sansCompte') : filtreCompte}`)
 
   const coursPerimes = derniereActualisation
     ? Date.now() - parseDateApi(derniereActualisation).getTime() > SEUIL_PEREMPTION_HEURES * 60 * 60 * 1000
@@ -376,7 +375,7 @@ export default function PortefeuillePage() {
             dans un conteneur poussé à droite par `justify-end` — il doit rester calé
             à gauche, sous l'en-tête mobile qui porte le titre. */}
         <div className="mr-auto">
-          <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Portefeuille</h1>
+          <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('portefeuillePage.portefeuille')}</h1>
           {/* Sous-titre CALCULÉ (refonte, étape 4) : il décrit ce que le tableau
               montre RÉELLEMENT — il ne doit jamais annoncer « 7 lignes » quand un
               filtre n'en affiche que 2. */}
@@ -384,16 +383,16 @@ export default function PortefeuillePage() {
             {sousTitre}
             {derniereActualisation && (
               <span className={coursPerimes ? 'text-avertissement' : undefined}>
-                {' · '}cours à jour au {formatDateHeure(derniereActualisation)}
+                {' · '}{t('portefeuillePage.coursAJourAu')}{' '}{formatDateHeure(derniereActualisation)}
               </span>
             )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <SecondaryButton onClick={handleRefresh} disabled={refreshing || holdings.length === 0} title="Rallumer les cours.">
-            {refreshing ? libelleRafraichissement : 'Rafraîchir'}
+          <SecondaryButton onClick={handleRefresh} disabled={refreshing || holdings.length === 0} title={t('portefeuillePage.rallumerLesCours')}>
+            {refreshing ? libelleRafraichissement : t('portefeuillePage.rafraichir')}
           </SecondaryButton>
-          <PrimaryButton onClick={() => setAjoutOuvert(true)}>Ajouter une ligne</PrimaryButton>
+          <PrimaryButton onClick={() => setAjoutOuvert(true)}>{t('portefeuillePage.ajouterUneLigne')}</PrimaryButton>
         </div>
       </div>
 
@@ -412,17 +411,13 @@ export default function PortefeuillePage() {
             <>
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <h2 id={titleId} className="text-[22px] font-semibold tracking-title text-ink">
-                    Ajouter une ligne
-                  </h2>
-                  <p className="mt-0.5 text-[13px] text-ink3">
-                    Une position boursière, un bien valorisé à la main (immobilier, épargne, véhicule), ou un emprunt.
-                  </p>
+                  <h2 id={titleId} className="text-[22px] font-semibold tracking-title text-ink">{t('portefeuillePage.ajouterUneLigne')}</h2>
+                  <p className="mt-0.5 text-[13px] text-ink3">{t('portefeuillePage.unePositionBoursiereUnBien')}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAjoutOuvert(false)}
-                  aria-label="Fermer"
+                  aria-label={t('portefeuillePage.fermer')}
                   className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-chip bg-track text-ink3 hover:text-ink"
                 >
                   <IconFermer className="h-4 w-4" />
@@ -464,8 +459,7 @@ export default function PortefeuillePage() {
           onClick={() => setFiltresOuverts(true)}
           className="flex min-h-11 w-full items-center justify-between rounded-control border border-bordure bg-surface px-4 py-2.5 text-sm font-medium text-texte"
         >
-          <span>
-            Filtrer{filtreActif && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-chip bg-accent" aria-hidden="true" />}
+          <span>{t('portefeuillePage.filtrer')}{filtreActif && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-chip bg-accent" aria-hidden="true" />}
           </span>
           <span className="text-texte-attenue">{CATEGORY_TABS.find((t) => t.key === categorie)?.label}</span>
         </button>
@@ -480,9 +474,7 @@ export default function PortefeuillePage() {
           {({ titleId }) => (
             <div className="space-y-4">
               <div className="mx-auto h-1 w-10 rounded-chip bg-bordure" aria-hidden="true" />
-              <h2 id={titleId} className="text-sm font-semibold text-texte">
-                Filtrer le portefeuille
-              </h2>
+              <h2 id={titleId} className="text-sm font-semibold text-texte">{t('portefeuillePage.filtrerLePortefeuille')}</h2>
               <div className="flex flex-wrap gap-1.5">
                 <CategorieTabs categorie={categorie} setCategorie={setCategorie} />
               </div>
@@ -493,8 +485,7 @@ export default function PortefeuillePage() {
                 type="button"
                 onClick={() => setFiltresOuverts(false)}
                 className="min-h-11 w-full rounded-control bg-accent px-4 py-2.5 text-sm font-medium text-white"
-              >
-                Voir {lignesFiltrees.length} position{lignesFiltrees.length > 1 ? 's' : ''}
+              >{t('portefeuillePage.voirNPositions', { n: lignesFiltrees.length })}
               </button>
             </div>
           )}
@@ -505,14 +496,12 @@ export default function PortefeuillePage() {
         {loading ? (
           <SkeletonTexte lignes={5} />
         ) : holdings.length === 0 ? (
-          <EtatVide titre="Ajoutez votre première ligne pour allumer votre patrimoine." illustration />
+          <EtatVide titre={t('portefeuillePage.ajoutezVotrePremiereLignePour')} illustration />
         ) : lignesFiltrees.length === 0 ? (
           <EtatVide
-            titre="Aucune position ne correspond à ce filtre."
+            titre={t('portefeuillePage.aucunePositionNeCorrespondA')}
             description={
-              <button type="button" onClick={reinitialiserFiltres} className="font-medium text-accent hover:underline">
-                Réinitialiser les filtres
-              </button>
+              <button type="button" onClick={reinitialiserFiltres} className="font-medium text-accent hover:underline">{t('portefeuillePage.reinitialiserLesFiltres')}</button>
             }
           />
         ) : (
@@ -540,7 +529,7 @@ export default function PortefeuillePage() {
             qu'on ignore. */}
         {!loading && performancePct !== null && (
           <div className="mt-4 flex items-center justify-end gap-2 border-t border-hairline pt-4 text-sm">
-            <span className="text-ink3">Performance des lignes affichées</span>
+            <span className="text-ink3">{t('portefeuillePage.performanceDesLignesAffichees')}</span>
             <span className={`font-semibold ${performancePct >= 0 ? 'text-pos' : 'text-neg'}`}>
               {performancePct >= 0 ? '+' : ''}
               {performancePct.toFixed(1)} %
@@ -557,27 +546,20 @@ export default function PortefeuillePage() {
         <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-texte">
-                Supprimer cette ligne ?
-              </h2>
-              <p className="mt-2 text-sm text-texte">
-                La ligne <span className="font-medium text-texte">{confirmSuppression.ticker}</span> sera
-                définitivement supprimée du portefeuille.
-              </p>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">{t('portefeuillePage.supprimerCetteLigne')}</h2>
+              <p className="mt-2 text-sm text-texte">{t('portefeuillePage.laLigne')}{' '}<span className="font-medium text-texte">{confirmSuppression.ticker}</span>{' '}{t('portefeuillePage.seraDefinitivementSupprimeeDuPortefeuille')}</p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
                   className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
-                >
-                  Annuler
-                </button>
+                >{t('portefeuillePage.annuler')}</button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
                   className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
-                  {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
+                  {suppressionEnCours ? t('portefeuillePage.suppression') : t('portefeuillePage.supprimer')}
                 </button>
               </div>
             </>

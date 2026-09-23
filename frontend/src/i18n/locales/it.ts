@@ -1,8 +1,10 @@
 import type { Dictionnaire } from '../index'
+import espaces from './it/index'
 
 /** Italien (backlog § BL) — traduit depuis `fr.ts`, à faire relire par un natif.
  * Même registre que le français : « Lei » là où il vouvoie, « tu » là où il tutoie. */
 const it: Dictionnaire = {
+  ...espaces,
   langue: {
     titre: 'Lingua',
     choixAria: "Lingua dell'interfaccia",

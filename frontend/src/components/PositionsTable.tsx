@@ -17,7 +17,7 @@ import { formatDate, formatEuro, formatQuantite } from '../utils/format'
 import InfoBulle from './InfoBulle'
 import { Badge, Field, Input, Select } from './Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
@@ -57,13 +57,14 @@ interface ColonneTriable {
 // rendements (nombre) — secteur et pays restent non triables (peu d'intérêt, la
 // répartition géo/sectorielle est déjà visible sur le Tableau de bord).
 const COLONNES_TRIABLES: ColonneTriable[] = [
-  { cle: 'ticker', label: 'Ticker', valeur: (h) => h.ticker },
-  { cle: 'nom', label: 'Nom', valeur: (h) => h.market_data?.nom ?? h.nom ?? null },
-  { cle: 'quantite', label: 'Quantité', valeur: (h) => h.quantite },
-  { cle: 'prix_actuel', label: 'Prix actuel', valeur: (h) => h.market_data?.prix_actuel ?? null },
-  { cle: 'valeur', label: 'Valeur', valeur: (h) => h.valeur },
-  { cle: 'depuis_achat', label: 'Depuis achat', valeur: (h) => h.rendement_depuis_achat_pct },
-  { cle: 'annualise', label: 'Annualisé', valeur: (h) => h.rendement_annualise_pct },
+  // Libellés en accesseurs : lus à l'affichage, dans la langue active (§ BL).
+  { cle: 'ticker', get label() { return t('positionsTable.ticker') }, valeur: (h) => h.ticker },
+  { cle: 'nom', get label() { return t('positionsTable.nom') }, valeur: (h) => h.market_data?.nom ?? h.nom ?? null },
+  { cle: 'quantite', get label() { return t('positionsTable.quantite') }, valeur: (h) => h.quantite },
+  { cle: 'prix_actuel', get label() { return t('positionsTable.prixActuel') }, valeur: (h) => h.market_data?.prix_actuel ?? null },
+  { cle: 'valeur', get label() { return t('positionsTable.valeur') }, valeur: (h) => h.valeur },
+  { cle: 'depuis_achat', get label() { return t('positionsTable.depuisAchat') }, valeur: (h) => h.rendement_depuis_achat_pct },
+  { cle: 'annualise', get label() { return t('positionsTable.annualise') }, valeur: (h) => h.rendement_annualise_pct },
 ]
 
 // Une valeur nulle ("—" à l'écran) se trie toujours en fin de liste, quel que soit
@@ -127,13 +128,13 @@ function CompteEditSelect({
         onClick={(e) => e.stopPropagation()}
         aria-label={ariaLabel}
       >
-        {TYPES_ACTIF_SANS_ETABLISSEMENT.has(editForm.type_actif) && <option value="">— Aucun —</option>}
+        {TYPES_ACTIF_SANS_ETABLISSEMENT.has(editForm.type_actif) && <option value="">{t('positionsTable.aucun')}</option>}
         {comptes.map((c) => (
           <option key={c.id} value={c.id}>
             {c.nom}
           </option>
         ))}
-        <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
+        <option value={NOUVEAU_COMPTE}>{t('positionsTable.nouveauCompte')}</option>
       </Select>
       {editForm.compte_id === NOUVEAU_COMPTE && (
         <>
@@ -141,8 +142,8 @@ function CompteEditSelect({
             value={editForm.compte_nom}
             onChange={(e) => setEditForm({ ...editForm, compte_nom: e.target.value })}
             onClick={(e) => e.stopPropagation()}
-            aria-label={`Nom du nouveau compte (${ariaLabel})`}
-            placeholder="PEA, CTO..."
+            aria-label={t('positionsTable.nomNouveauCompte', { champ: ariaLabel })}
+            placeholder={t('positionsTable.peaCto')}
             className="mt-1.5"
           />
           <div className="mt-1.5">
@@ -154,7 +155,7 @@ function CompteEditSelect({
               onNomNouveauChange={(v) => setEditForm({ ...editForm, etablissement_nom: v })}
               logoKeyNouveau={editForm.etablissement_logo_key}
               onLogoKeyNouveauChange={(v) => setEditForm({ ...editForm, etablissement_logo_key: v })}
-              ariaLabel={`Établissement du nouveau compte (${ariaLabel})`}
+              ariaLabel={t('positionsTable.etablissementNouveauCompte', { champ: ariaLabel })}
             />
           </div>
         </>
@@ -207,29 +208,27 @@ function PositionCard({
         <p className="mb-3 font-medium text-texte">{h.ticker}</p>
         <div className="space-y-3">
           {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-            <Field label="Nom">
+            <Field label={t('positionsTable.nom')}>
               <Input
                 value={editForm.nom}
                 onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
-                aria-label="Nom (édition)"
-                placeholder="Appartement Lyon, Peugeot 208..."
+                aria-label={t('positionsTable.nomEdition')}
+                placeholder={t('positionsTable.appartementLyonPeugeot208')}
               />
             </Field>
           )}
-          <Field label="Quantité">
+          <Field label={t('positionsTable.quantite')}>
             <Input
               value={editForm.quantite}
               onChange={(e) => setEditForm({ ...editForm, quantite: e.target.value })}
               type="number"
               step="any"
-              aria-label="Quantité (édition)"
+              aria-label={t('positionsTable.quantiteEdition')}
             />
           </Field>
           <Field
             label={
-              <span className="inline-flex items-center gap-1">
-                Prix de revient
-                <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+              <span className="inline-flex items-center gap-1">{t('positionsTable.prixDeRevient')}<InfoBulle texte={TEXTE_PRIX_REVIENT} />
               </span>
             }
           >
@@ -238,23 +237,23 @@ function PositionCard({
               onChange={(e) => setEditForm({ ...editForm, prix_revient_moyen: e.target.value })}
               type="number"
               step="any"
-              aria-label="Prix de revient (édition)"
+              aria-label={t('positionsTable.prixDeRevientEdition')}
             />
           </Field>
-          <Field label="Compte">
+          <Field label={t('positionsTable.compte')}>
             <CompteEditSelect
               comptes={comptes}
               etablissements={etablissements}
               editForm={editForm}
               setEditForm={setEditForm}
-              ariaLabel="Compte (édition)"
+              ariaLabel={t('positionsTable.compteEdition')}
             />
           </Field>
-          <Field label="Type d'actif">
+          <Field label={t('positionsTable.typeDActif')}>
             <Select
               value={editForm.type_actif}
               onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
-              aria-label="Type d'actif (édition)"
+              aria-label={t('positionsTable.typeDActifEdition')}
             >
               {TYPE_ACTIF_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -265,9 +264,7 @@ function PositionCard({
           </Field>
           <Field
             label={
-              <span className="inline-flex items-center gap-1">
-                Valeur estimée
-                <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+              <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
               </span>
             }
           >
@@ -276,8 +273,8 @@ function PositionCard({
               onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
               type="number"
               step="any"
-              aria-label="Valeur estimée (édition)"
-              placeholder="optionnel"
+              aria-label={t('positionsTable.valeurEstimeeEdition')}
+              placeholder={t('positionsTable.optionnel')}
             />
           </Field>
           {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
@@ -287,18 +284,18 @@ function PositionCard({
                 onChange={(e) => setEditForm({ ...editForm, taux_pct: e.target.value })}
                 type="number"
                 step="any"
-                aria-label="Taux annuel (édition)"
+                aria-label={t('positionsTable.tauxAnnuelEdition')}
                 placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
               />
             </Field>
           )}
           {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-            <Field label="Date d'acquisition">
+            <Field label={t('positionsTable.dateDAcquisition')}>
               <Input
                 value={editForm.date_acquisition}
                 onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
                 type="date"
-                aria-label="Date d'acquisition (édition)"
+                aria-label={t('positionsTable.dateDAcquisitionEdition')}
               />
             </Field>
           )}
@@ -309,8 +306,7 @@ function PositionCard({
             editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
             editForm.taux_pct ? Number(editForm.taux_pct) : null,
           ) !== null && (
-            <p className="mt-2 text-xs text-texte-attenue">
-              Valeur projetée dans 1 an (indicatif) :{' '}
+            <p className="mt-2 text-xs text-texte-attenue">{t('positionsTable.valeurProjeteeDans1An')}{' '}
               {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString(localeCourante(), {
                 style: 'currency',
                 currency: 'EUR',
@@ -325,12 +321,8 @@ function PositionCard({
             onClick={onSaveEdit}
             disabled={editSaving}
             className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-white disabled:opacity-40"
-          >
-            Enregistrer
-          </button>
-          <button onClick={onCancelEdit} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
-            Annuler
-          </button>
+          >{t('positionsTable.enregistrer')}</button>
+          <button onClick={onCancelEdit} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">{t('positionsTable.annuler')}</button>
         </div>
       </div>
     )
@@ -344,7 +336,7 @@ function PositionCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Voir le détail de ${h.ticker}`}
+      aria-label={t('positionsTable.voirDetail', { ticker: h.ticker })}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -359,40 +351,38 @@ function PositionCard({
           <p className="truncate font-medium text-texte">
             {h.ticker}
             {h.origine === 'manuel' && (
-              <Badge title="Ligne saisie manuellement : non recalculée par un import de transactions" className="ml-2">
-                saisie manuelle
-              </Badge>
+              <Badge title={t('positionsTable.ligneSaisieManuellementNonRecalculee')} className="ml-2">{t('positionsTable.saisieManuelle')}</Badge>
             )}
           </p>
           <p className="truncate text-sm text-texte-attenue">{md?.nom ?? h.nom ?? '—'}</p>
-          {h.date_acquisition && <p className="text-xs text-texte-attenue">Acquis le {formatDate(h.date_acquisition)}</p>}
+          {h.date_acquisition && <p className="text-xs text-texte-attenue">{t('positionsTable.acquisLe')}{' '}{formatDate(h.date_acquisition)}</p>}
         </div>
         <span className="shrink-0 font-medium text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
         <div>
-          <span className="block text-xs text-texte-attenue">Quantité</span>
+          <span className="block text-xs text-texte-attenue">{t('positionsTable.quantite')}</span>
           {formatQuantite(h.quantite)}
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Prix actuel</span>
+          <span className="block text-xs text-texte-attenue">{t('positionsTable.prixActuel')}</span>
           {formatEuro(md?.prix_actuel ?? null, 2, montantsMasques)}
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Depuis achat</span>
+          <span className="block text-xs text-texte-attenue">{t('positionsTable.depuisAchat')}</span>
           <RendementCell value={h.rendement_depuis_achat_pct} />
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Annualisé</span>
+          <span className="block text-xs text-texte-attenue">{t('positionsTable.annualise')}</span>
           <RendementCell value={h.rendement_annualise_pct} />
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Secteur</span>
+          <span className="block text-xs text-texte-attenue">{t('positionsTable.secteur')}</span>
           {md?.secteur ?? '—'}
         </div>
         <div>
-          <span className="block text-xs text-texte-attenue">Pays</span>
+          <span className="block text-xs text-texte-attenue">{t('positionsTable.pays')}</span>
           {md?.erreur ? <span className="text-avertissement">{md.erreur}</span> : (md?.pays ?? '—')}
         </div>
       </div>
@@ -404,18 +394,14 @@ function PositionCard({
             onStartEdit(e)
           }}
           className="min-h-11 flex-1 rounded-control border border-bordure text-sm font-medium text-texte"
-        >
-          Modifier
-        </button>
+        >{t('positionsTable.modifier')}</button>
         <button
           onClick={(e) => {
             e.stopPropagation()
             onDelete(e)
           }}
           className="min-h-11 flex-1 rounded-control border border-negatif/40 text-sm font-medium text-negatif"
-        >
-          Supprimer
-        </button>
+        >{t('positionsTable.supprimer')}</button>
       </div>
     </div>
   )
@@ -602,7 +588,7 @@ export default function PositionsTable({
     return (
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <Field label="Trier par" className="flex-1">
+          <Field label={t('positionsTable.trierPar')} className="flex-1">
             <Select
               value={tri?.cle ?? ''}
               onChange={(e) => {
@@ -610,9 +596,7 @@ export default function PositionsTable({
                 setTri((prev) => ({ cle, direction: prev?.cle === cle ? prev.direction : 'asc' }))
               }}
             >
-              <option value="" disabled>
-                Choisir...
-              </option>
+              <option value="" disabled>{t('positionsTable.choisir')}</option>
               {COLONNES_TRIABLES.map((col) => (
                 <option key={col.cle} value={col.cle}>
                   {col.label}
@@ -624,7 +608,7 @@ export default function PositionsTable({
             type="button"
             onClick={() => tri && setTri((prev) => ({ cle: prev!.cle, direction: prev!.direction === 'asc' ? 'desc' : 'asc' }))}
             disabled={!tri}
-            aria-label={tri?.direction === 'asc' ? 'Tri croissant' : 'Tri décroissant'}
+            aria-label={tri?.direction === 'asc' ? t('positionsTable.triCroissant') : t('positionsTable.triDecroissant')}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-bordure text-texte disabled:opacity-40"
           >
             {tri?.direction === 'desc' ? '▼' : '▲'}
@@ -652,7 +636,7 @@ export default function PositionsTable({
         ))}
 
         <p className="pt-1 text-sm font-semibold text-texte">
-          {rows.length} position{rows.length > 1 ? 's' : ''} · {formatEuro(valeurTotaleAffichee, 2, montantsMasques)}
+          {t('positionsTable.nPositions', { n: rows.length })} · {formatEuro(valeurTotaleAffichee, 2, montantsMasques)}
         </p>
       </div>
     )
@@ -688,10 +672,10 @@ export default function PositionsTable({
                 </th>
               )
             })}
-            <th className="py-2 pr-4">Secteur</th>
-            <th className="py-2 pr-4">Pays</th>
+            <th className="py-2 pr-4">{t('positionsTable.secteur')}</th>
+            <th className="py-2 pr-4">{t('positionsTable.pays')}</th>
             <th className="py-2 pr-4">
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">{t('positionsTable.actions')}</span>
             </th>
           </tr>
         </thead>
@@ -729,21 +713,19 @@ export default function PositionsTable({
                         e.stopPropagation()
                         onSelectHolding(h.id)
                       }}
-                      aria-label={`Voir le détail de ${h.ticker}`}
+                      aria-label={t('positionsTable.voirDetail', { ticker: h.ticker })}
                       className="cursor-pointer font-medium hover:underline"
                     >
                       {h.ticker}
                     </button>
                   )}
                   {h.origine === 'manuel' && (
-                    <Badge title="Ligne saisie manuellement : non recalculée par un import de transactions" className="ml-2">
-                      saisie manuelle
-                    </Badge>
+                    <Badge title={t('positionsTable.ligneSaisieManuellementNonRecalculee')} className="ml-2">{t('positionsTable.saisieManuelle')}</Badge>
                   )}
                 </td>
                 <td className="py-2 pr-4 text-texte">
                   {md?.nom ?? h.nom ?? '—'}
-                  {h.date_acquisition && <span className="block text-xs text-texte-attenue">Acquis le {formatDate(h.date_acquisition)}</span>}
+                  {h.date_acquisition && <span className="block text-xs text-texte-attenue">{t('positionsTable.acquisLe')}{' '}{formatDate(h.date_acquisition)}</span>}
                 </td>
                 <td className="py-2 pr-4">
                   {enEdition ? (
@@ -753,7 +735,7 @@ export default function PositionsTable({
                       onClick={(e) => e.stopPropagation()}
                       type="number"
                       step="any"
-                      aria-label="Quantité (édition)"
+                      aria-label={t('positionsTable.quantiteEdition')}
                       className="w-24 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     />
                   ) : (
@@ -779,21 +761,13 @@ export default function PositionsTable({
                         onClick={(e) => saveEdit(e, h.id)}
                         disabled={editSaving}
                         className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-positif hover:underline disabled:opacity-40"
-                      >
-                        Enregistrer
-                      </button>
-                      <button onClick={(e) => cancelEdit(e)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
-                        Annuler
-                      </button>
+                      >{t('positionsTable.enregistrer')}</button>
+                      <button onClick={(e) => cancelEdit(e)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">{t('positionsTable.annuler')}</button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={(e) => startEdit(e, h)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
-                        Modifier
-                      </button>
-                      <button onClick={(e) => handleDelete(e, h)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
-                        Supprimer
-                      </button>
+                      <button onClick={(e) => startEdit(e, h)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">{t('positionsTable.modifier')}</button>
+                      <button onClick={(e) => handleDelete(e, h)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">{t('positionsTable.supprimer')}</button>
                     </div>
                   )}
                 </td>
@@ -805,21 +779,19 @@ export default function PositionsTable({
               <td colSpan={10} className="bg-surface-elevee py-3 pr-4">
                 <div className="flex flex-wrap items-end gap-3">
                   {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-                    <Field label="Nom" className="w-48">
+                    <Field label={t('positionsTable.nom')} className="w-48">
                       <Input
                         value={editForm.nom}
                         onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
                         onClick={(e) => e.stopPropagation()}
-                        aria-label="Nom (édition)"
-                        placeholder="Appartement Lyon, Peugeot 208..."
+                        aria-label={t('positionsTable.nomEdition')}
+                        placeholder={t('positionsTable.appartementLyonPeugeot208')}
                       />
                     </Field>
                   )}
                   <Field
                     label={
-                      <span className="inline-flex items-center gap-1">
-                        Prix de revient
-                        <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+                      <span className="inline-flex items-center gap-1">{t('positionsTable.prixDeRevient')}<InfoBulle texte={TEXTE_PRIX_REVIENT} />
                       </span>
                     }
                     className="w-32"
@@ -830,24 +802,24 @@ export default function PositionsTable({
                       onClick={(e) => e.stopPropagation()}
                       type="number"
                       step="any"
-                      aria-label="Prix de revient (édition)"
+                      aria-label={t('positionsTable.prixDeRevientEdition')}
                     />
                   </Field>
-                  <Field label="Compte" className="w-36">
+                  <Field label={t('positionsTable.compte')} className="w-36">
                     <CompteEditSelect
                       comptes={comptes}
                       etablissements={etablissements}
                       editForm={editForm}
                       setEditForm={setEditForm}
-                      ariaLabel="Compte (édition)"
+                      ariaLabel={t('positionsTable.compteEdition')}
                     />
                   </Field>
-                  <Field label="Type d'actif" className="w-36">
+                  <Field label={t('positionsTable.typeDActif')} className="w-36">
                     <Select
                       value={editForm.type_actif}
                       onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
-                      aria-label="Type d'actif (édition)"
+                      aria-label={t('positionsTable.typeDActifEdition')}
                     >
                       {TYPE_ACTIF_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -858,9 +830,7 @@ export default function PositionsTable({
                   </Field>
                   <Field
                     label={
-                      <span className="inline-flex items-center gap-1">
-                        Valeur estimée
-                        <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+                      <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
                       </span>
                     }
                     className="w-32"
@@ -871,8 +841,8 @@ export default function PositionsTable({
                       onClick={(e) => e.stopPropagation()}
                       type="number"
                       step="any"
-                      aria-label="Valeur estimée (édition)"
-                      placeholder="optionnel"
+                      aria-label={t('positionsTable.valeurEstimeeEdition')}
+                      placeholder={t('positionsTable.optionnel')}
                     />
                   </Field>
                   {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
@@ -883,19 +853,19 @@ export default function PositionsTable({
                         onClick={(e) => e.stopPropagation()}
                         type="number"
                         step="any"
-                        aria-label="Taux annuel (édition)"
+                        aria-label={t('positionsTable.tauxAnnuelEdition')}
                         placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
                       />
                     </Field>
                   )}
                   {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-                    <Field label="Date d'acquisition" className="w-36">
+                    <Field label={t('positionsTable.dateDAcquisition')} className="w-36">
                       <Input
                         value={editForm.date_acquisition}
                         onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
                         onClick={(e) => e.stopPropagation()}
                         type="date"
-                        aria-label="Date d'acquisition (édition)"
+                        aria-label={t('positionsTable.dateDAcquisitionEdition')}
                       />
                     </Field>
                   )}
@@ -905,8 +875,7 @@ export default function PositionsTable({
                     editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
                     editForm.taux_pct ? Number(editForm.taux_pct) : null,
                   ) !== null && (
-                    <p className="mt-2 text-xs text-texte-attenue">
-                      Valeur projetée dans 1 an (indicatif) :{' '}
+                    <p className="mt-2 text-xs text-texte-attenue">{t('positionsTable.valeurProjeteeDans1An')}{' '}
                       {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString(localeCourante(), {
                         style: 'currency',
                         currency: 'EUR',
@@ -922,7 +891,7 @@ export default function PositionsTable({
         <tfoot>
           <tr className="border-t border-bordure text-sm font-semibold text-texte">
             <td colSpan={4} className="py-2 pr-4">
-              {rows.length} position{rows.length > 1 ? 's' : ''}
+              {t('positionsTable.nPositions', { n: rows.length })}
             </td>
             <td className="py-2 pr-4">{formatEuro(valeurTotaleAffichee, 2, montantsMasques)}</td>
             <td colSpan={5}></td>
