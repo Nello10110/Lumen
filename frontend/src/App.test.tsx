@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './api/client'
 import App from './App'
 
@@ -372,5 +372,48 @@ describe('App — assistant de configuration initiale (welcome board)', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Navigation principale' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Configuration initiale' })).not.toBeInTheDocument()
+  })
+})
+
+// Backlog § BL : une fois connecté, c'est la langue du FOYER qui s'applique —
+// celle de l'appareil ne valait que pour l'écran de connexion.
+describe('App — langue du foyer', () => {
+  afterEach(async () => {
+    const { activerLangue } = await import('./i18n')
+    await activerLangue('fr')
+    localStorage.removeItem('lumen.langue')
+  })
+
+  it("passe l'interface dans la langue du foyer dès la connexion, et la retient pour cet appareil", async () => {
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1,
+      username: 'testeur',
+      role: 'proprietaire',
+      onboarding_termine: true,
+      holdings_sans_compte: 0,
+      langue: 'de',
+    })
+
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    const navigation = await screen.findByRole('navigation', { name: 'Hauptnavigation' })
+    expect(within(navigation).getByRole('link', { name: 'Übersicht' })).toBeInTheDocument()
+    expect(document.documentElement.lang).toBe('de')
+    expect(localStorage.getItem('lumen.langue')).toBe('de')
+  })
+
+  it('un foyer sans langue enregistrée reste en français', async () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    const navigation = await screen.findByRole('navigation', { name: 'Navigation principale' })
+    expect(within(navigation).getByRole('link', { name: 'Synthèse' })).toBeInTheDocument()
   })
 })

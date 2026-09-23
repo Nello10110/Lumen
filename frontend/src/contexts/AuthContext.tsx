@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { langueActive } from '../i18n'
 import { api } from '../api/client'
 import type { AuthUser } from '../api/types'
 import { clearToken, getToken, setToken, setUnauthorizedHandler } from '../auth/tokenStorage'
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(connecte)
       },
       register: async (username, password) => {
-        const { token, user: cree } = await api.register(username, password)
+        const { token, user: cree } = await api.register(username, password, langueActive())
         setToken(token)
         setUser(cree)
       },

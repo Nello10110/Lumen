@@ -7,6 +7,7 @@ import EtablissementsCard from '../EtablissementsCard'
 import EtatErreur from '../EtatErreur'
 import EtatVide from '../EtatVide'
 import { SkeletonTexte } from '../Skeleton'
+import { t } from '../../i18n'
 
 /** Étape "Comptes" de `steps.ts` (backlog X.3, demande directe de l'utilisateur en
  * suite de X.1/X.2 : « une jolie interface invitant l'utilisateur à renseigner ses
@@ -45,12 +46,8 @@ export default function EtapeComptes() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-texte">
-        Si le patrimoine est réparti sur plusieurs banques ou courtiers (compte courant, PEA, compte-titres,
-        assurance-vie, immobilier...), déclare-les ici pour tout regrouper par établissement sur l'écran{' '}
-        <span className="font-medium text-texte">Comptes</span> et définir une répartition entre détenteurs pour un
-        compte entier en une fois. Sans objet, ou pas encore prêt ? Cette étape se passe sans rien saisir — un compte se
-        crée de toute façon à la volée depuis le formulaire d'ajout d'une position (l'établissement sera alors demandé
-        aussi, un compte ne pouvant plus en être dépourvu).
+        {t('assistant.comptes.avantEcran')} <span className="font-medium text-texte">{t('assistant.comptes.ecran')}</span>{' '}
+        {t('assistant.comptes.apresEcran')}
       </p>
 
       <EtablissementsCard etablissements={etablissements} onModifies={charger} />
@@ -58,20 +55,20 @@ export default function EtapeComptes() {
       {/* Titre distinct de celui de l'étape (`WelcomeWizard.tsx` affiche déjà
           "Comptes" comme titre de la carte englobante) — éviter deux titres
           identiques dans la même vue. */}
-      <Card title="Comptes créés">
+      <Card title={t('assistant.comptes.comptesCrees')}>
         {comptes === null ? (
           <SkeletonTexte />
         ) : comptes.length === 0 ? (
-          <EtatVide titre="Aucun compte déclaré." />
+          <EtatVide titre={t('assistant.comptes.aucunCompte')} />
         ) : (
           <ul className="mb-4 divide-y divide-bordure">
             {comptes.map((c) => (
               <li key={c.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="text-texte">
-                  {c.nom} <span className="text-xs text-texte-attenue">({c.etablissement?.nom ?? 'Sans établissement'})</span>
+                  {c.nom} <span className="text-xs text-texte-attenue">({c.etablissement?.nom ?? t('assistant.comptes.sansEtablissement')})</span>
                 </span>
                 <button onClick={() => handleDelete(c.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
-                  Supprimer
+                  {t('assistant.comptes.supprimer')}
                 </button>
               </li>
             ))}

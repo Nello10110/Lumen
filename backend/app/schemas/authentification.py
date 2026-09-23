@@ -5,14 +5,31 @@ from datetime import datetime  # noqa: F401
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
 from ..models import ROLES_ASSIGNABLES
+from ..services.preferences_service import LANGUES_DISPONIBLES
 
 MESSAGE_MOT_DE_PASSE_TROP_COURT = "Le mot de passe doit contenir au moins 8 caractères"
 MESSAGE_NOM_UTILISATEUR_INVALIDE = "Le nom d'utilisateur doit contenir entre 2 et 32 caractères"
+MESSAGE_LANGUE_INCONNUE = "Langue non proposée : " + ", ".join(LANGUES_DISPONIBLES)
+
+
+def _valider_langue(v: str) -> str:
+    if v not in LANGUES_DISPONIBLES:
+        raise ValueError(MESSAGE_LANGUE_INCONNUE)
+    return v
 
 
 class RegisterRequest(BaseModel):
     username: str
     password: str
+    # Langue dans laquelle le premier compte crée son foyer (backlog § BL) : celle que
+    # l'écran de connexion affichait déjà (dernier choix sur cet appareil, ou langue
+    # du navigateur). Facultative — absente, le foyer reste au défaut, le français.
+    langue: str | None = None
+
+    @field_validator("langue")
+    @classmethod
+    def _valider_langue(cls, v: str | None) -> str | None:
+        return None if v is None else _valider_langue(v)
 
     @field_validator("username")
     @classmethod
@@ -64,6 +81,10 @@ class UserOut(BaseModel):
     # `routers/auth.py` — même patron que `onboarding_termine` ci-dessus. `None`
     # tant qu'aucun nom n'a été renseigné.
     foyer_nom: str | None = None
+    # Langue d'affichage du foyer (backlog § BL) : `preferences_service.lire_langue_foyer`,
+    # posée par `routers/auth.py` comme `foyer_nom` — l'interface s'y aligne dès la
+    # connexion, sans appel supplémentaire.
+    langue: str = "fr"
 
 
 class AuthResponse(BaseModel):
@@ -204,3 +225,12 @@ class FoyerNomUpdate(BaseModel):
         if not (1 <= len(v) <= 60):
             raise ValueError(MESSAGE_NOM_FOYER_INVALIDE)
         return v
+
+
+class LangueFoyerUpdate(BaseModel):
+    langue: str
+
+    @field_validator("langue")
+    @classmethod
+    def _valider(cls, v: str) -> str:
+        return _valider_langue(v)

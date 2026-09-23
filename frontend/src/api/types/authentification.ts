@@ -24,6 +24,10 @@ export interface AuthUser {
   // (propriétaire, membres, invités voient tous le même), éditable par le
   // propriétaire seul (`PATCH /auth/foyer`).
   foyer_nom?: string | null
+  // Langue d'affichage du foyer (backlog § BL) — code d'une langue de
+  // `i18n/langues.ts`, « fr » tant que le foyer n'en a jamais choisi. Éditable par
+  // le propriétaire seul (`PATCH /auth/foyer/langue`).
+  langue?: string
 }
 
 export interface AuthResponse {

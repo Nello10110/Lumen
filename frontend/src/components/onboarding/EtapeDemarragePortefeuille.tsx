@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import AjoutHoldingForm from '../AjoutHoldingForm'
 import ImportTransactionsSection from '../ImportTransactionsSection'
 import { SkeletonTexte } from '../Skeleton'
+import { t } from '../../i18n'
 
 /** Étape "Démarrer le portefeuille" de `steps.ts` — contrairement aux autres étapes,
  * n'était au départ qu'une description textuelle des deux façons de peupler le
@@ -35,14 +36,12 @@ export default function EtapeDemarragePortefeuille() {
       <p className="text-sm text-texte">
         {nombrePositions > 0 ? (
           <>
-            Le portefeuille compte déjà{' '}
-            <span className="font-medium text-texte">
-              {nombrePositions} position{nombrePositions > 1 ? 's' : ''}
-            </span>
-            . Ajoute-en d'autres à la main, ou importe un historique complet :
+            {t('assistant.demarrage.dejaAvant')}{' '}
+            <span className="font-medium text-texte">{t('assistant.demarrage.positions', { n: nombrePositions })}</span>
+            {t('assistant.demarrage.dejaApres')}
           </>
         ) : (
-          "Ajoute une première position à la main, ou importe directement un historique complet de transactions :"
+          t('assistant.demarrage.premiere')
         )}
       </p>
 
@@ -50,7 +49,7 @@ export default function EtapeDemarragePortefeuille() {
 
       <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
         <div className="h-px flex-1 bg-bordure" />
-        ou
+        {t('assistant.demarrage.ou')}
         <div className="h-px flex-1 bg-bordure" />
       </div>
 

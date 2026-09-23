@@ -70,3 +70,11 @@ trouve : c'est exactement par là qu'une régression est déjà passée (cf. `do
 - **Toute décision structurante se consigne dans `docs/BACKLOG.md`**, avec son contexte et ses
   alternatives écartées. Le dépôt se lit autant qu'il s'écrit.
 - **Un changement de comportement s'accompagne d'un test** qui échouerait sans lui.
+- **Aucun texte affiché écrit en dur dans un composant** (backlog § BL) : il passe par
+  `t('ecran.cle')` (`frontend/src/i18n/`). Un nouveau texte s'ajoute d'abord à `locales/fr.ts`,
+  puis à chaque autre langue — TypeScript refuse de compiler tant qu'il en manque une, et
+  `i18n.test.ts` vérifie que les valeurs insérées (`{n}`, `{nom}`…) sont les mêmes partout. Les
+  écrans pas encore migrés gardent leurs textes en dur jusqu'à leur lot (§ BL.2).
+- **Ajouter une langue** : une ligne dans `frontend/src/i18n/langues.ts`, un fichier
+  `locales/<code>.ts`, son chargeur dans `i18n/index.ts`, et le code dans `LANGUES_DISPONIBLES`
+  (`backend/app/services/preferences_service.py`).

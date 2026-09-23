@@ -17,6 +17,7 @@ import { formatDate, formatEuro, formatQuantite } from '../utils/format'
 import InfoBulle from './InfoBulle'
 import { Badge, Field, Input, Select } from './Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
+import { localeCourante } from '../i18n'
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
@@ -310,7 +311,7 @@ function PositionCard({
           ) !== null && (
             <p className="mt-2 text-xs text-texte-attenue">
               Valeur projetée dans 1 an (indicatif) :{' '}
-              {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString('fr-FR', {
+              {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString(localeCourante(), {
                 style: 'currency',
                 currency: 'EUR',
                 maximumFractionDigits: 0,
@@ -906,7 +907,7 @@ export default function PositionsTable({
                   ) !== null && (
                     <p className="mt-2 text-xs text-texte-attenue">
                       Valeur projetée dans 1 an (indicatif) :{' '}
-                      {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString('fr-FR', {
+                      {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString(localeCourante(), {
                         style: 'currency',
                         currency: 'EUR',
                         maximumFractionDigits: 0,

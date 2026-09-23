@@ -1,9 +1,10 @@
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { AuthUser } from '../api/types'
 import { clearToken, getToken } from '../auth/tokenStorage'
 import { useAuth } from '../hooks/useAuth'
+import { activerLangue } from '../i18n'
 import { AuthProvider } from './AuthContext'
 
 vi.mock('../api/client', () => ({
@@ -70,5 +71,34 @@ describe('AuthProvider — retour de connexion Authentik (backlog SSO Authentik)
     )
 
     await screen.findByText('Connecté : bob')
+  })
+})
+
+// Backlog § BL : le premier compte crée son foyer dans la langue de l'écran de
+// création — sinon un anglophone verrait l'application repasser en français
+// juste après s'être inscrit.
+describe('AuthProvider — langue du foyer à la création du premier compte', () => {
+  afterEach(async () => {
+    await activerLangue('fr')
+  })
+
+  it("transmet la langue active à l'inscription", async () => {
+    clearToken()
+    vi.mocked(api.register).mockResolvedValue({ token: 'jeton', user: utilisateur({ langue: 'es' }) })
+    await activerLangue('es')
+    let inscrire: (u: string, p: string) => Promise<void> = async () => {}
+    function Inscription() {
+      inscrire = useAuth().register
+      return null
+    }
+    render(
+      <AuthProvider>
+        <Inscription />
+      </AuthProvider>,
+    )
+
+    await inscrire('alice', 'mot-de-passe-solide')
+
+    expect(api.register).toHaveBeenCalledWith('alice', 'mot-de-passe-solide', 'es')
   })
 })

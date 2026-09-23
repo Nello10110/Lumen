@@ -1,5 +1,6 @@
 import { useTheme, type Theme } from '../hooks/useTheme'
 import { IconEcran, IconLune, IconSoleil } from './icons'
+import { t } from '../i18n'
 
 // Bascule discrète du thème (LOT 5.12) : un clic fait cycler clair → sombre →
 // système → clair, plutôt que trois boutons séparés. Extrait de `App.tsx` lors du
@@ -15,7 +16,11 @@ const THEME_ICONES: Record<Theme, (props: { className?: string }) => React.JSX.E
 // explicite sur la clarté) — le clin d'œil reste accompagné de l'icône lune
 // (`IconLune`, universellement reconnue), qui porte la clarté que le mot seul
 // pourrait perdre.
-const THEME_LABELS: Record<Theme, string> = { clair: 'Clair', sombre: 'Éclipse', systeme: 'Système' }
+function libelleTheme(theme: Theme): string {
+  if (theme === 'clair') return t('controles.themeCourtClair')
+  if (theme === 'sombre') return t('controles.themeCourtSombre')
+  return t('controles.themeCourtSysteme')
+}
 
 export default function BasculeTheme({ className = '' }: { className?: string }) {
   const { theme, setTheme } = useTheme()
@@ -24,8 +29,8 @@ export default function BasculeTheme({ className = '' }: { className?: string })
     <button
       type="button"
       onClick={() => setTheme(THEME_SUIVANT[theme])}
-      title={`Thème : ${THEME_LABELS[theme]} (cliquer pour changer)`}
-      aria-label={`Thème : ${THEME_LABELS[theme]}. Cliquer pour changer.`}
+      title={t('controles.themeActuelAide', { theme: libelleTheme(theme) })}
+      aria-label={t('controles.themeActuelAria', { theme: libelleTheme(theme) })}
       className={`flex w-full items-center gap-2.5 rounded-control px-3 py-2 text-sm text-texte-attenue hover:bg-surface-elevee ${className}`}
     >
       {/* Micro-interaction (backlog § AF.2, 15/09/2026) : `key={theme}` force React à
@@ -33,7 +38,7 @@ export default function BasculeTheme({ className = '' }: { className?: string })
           (`animate-lumen-bascule-theme`, `index.css`) — pas d'état ni de minuteur à
           gérer côté composant. */}
       <Icone key={theme} className="h-4 w-4 animate-lumen-bascule-theme" />
-      <span>Thème : {THEME_LABELS[theme]}</span>
+      <span>{t('controles.themeActuel', { theme: libelleTheme(theme) })}</span>
     </button>
   )
 }

@@ -19,6 +19,7 @@ import {
   STYLE_INFOBULLE,
 } from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
+import { localeCourante } from '../i18n'
 
 // Nombre de mois affichés par défaut dans « Détail des dividendes » (retour
 // utilisateur du 21/09/2026) — un historique de plusieurs années y affichait
@@ -28,7 +29,7 @@ const NOMBRE_MOIS_VISIBLES_PAR_DEFAUT = 5
 function libelleMois(mois: string): string {
   const [annee, m] = mois.split('-')
   const date = new Date(Number(annee), Number(m) - 1, 1)
-  const libelle = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  const libelle = date.toLocaleDateString(localeCourante(), { month: 'long', year: 'numeric' })
   return libelle.charAt(0).toUpperCase() + libelle.slice(1)
 }
 
@@ -37,7 +38,7 @@ function libelleMois(mois: string): string {
 function libelleMoisCourt(mois: string): string {
   const [annee, m] = mois.split('-')
   const date = new Date(Number(annee), Number(m) - 1, 1)
-  const libelle = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+  const libelle = date.toLocaleDateString(localeCourante(), { month: 'short', year: '2-digit' })
   return libelle.charAt(0).toUpperCase() + libelle.slice(1)
 }
 

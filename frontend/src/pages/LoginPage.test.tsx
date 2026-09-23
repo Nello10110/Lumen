@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, ErreurPortailAuthentification } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
+import { activerLangue } from '../i18n'
+import { LangueProvider } from '../i18n/LangueProvider'
 import LoginPage from './LoginPage'
 
 vi.mock('../api/client', () => ({
@@ -219,5 +221,35 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
 
     expect(screen.getByText('Connexion SSO refusée')).toBeInTheDocument()
     await vi.waitFor(() => expect(window.location.search).toBe(''))
+  })
+})
+
+// Backlog § BL : avant connexion, la langue est celle de l'appareil — choisie ici,
+// elle est mémorisée pour la prochaine visite.
+describe('LoginPage — langue de l\'appareil', () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login: vi.fn(), register: vi.fn(), logout: vi.fn(), completeOnboarding: vi.fn(), refetchUser: vi.fn() })
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO', logo: null })
+  })
+
+  afterEach(async () => {
+    await activerLangue('fr')
+    localStorage.removeItem('lumen.langue')
+  })
+
+  it("choisir « English » passe l'écran en anglais et s'en souvient sur cet appareil", async () => {
+    render(
+      <LangueProvider>
+        <LoginPage />
+      </LangueProvider>,
+    )
+    expect(screen.getByRole('heading', { name: 'Bon retour' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox', { name: "Langue de l'interface" }), { target: { value: 'en' } })
+
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument()
+    expect(localStorage.getItem('lumen.langue')).toBe('en')
+    expect(document.documentElement.lang).toBe('en')
   })
 })

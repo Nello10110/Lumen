@@ -17,6 +17,7 @@ from ..schemas import (
     HouseholdMemberCreate,
     HouseholdMemberOut,
     HouseholdMemberUpdate,
+    LangueFoyerUpdate,
     LoginRequest,
     OidcStatus,
     RegisterRequest,
@@ -54,6 +55,7 @@ def _user_out(db: Session, user: User) -> UserOut:
     # rattrapage, cf. `comptes_service.compter_holdings_sans_compte`).
     sortie.holdings_sans_compte = comptes_service.compter_holdings_sans_compte(db, auth_service.id_foyer(user))
     sortie.foyer_nom = preferences_service.lire_nom_foyer(db, auth_service.id_foyer(user))
+    sortie.langue = preferences_service.lire_langue_foyer(db, auth_service.id_foyer(user))
     return sortie
 
 
@@ -69,6 +71,10 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
     user = auth_service.creer_utilisateur(db, payload.username, payload.password)
     token = auth_service.creer_token(db, user)
+    if payload.langue is not None:
+        # Le premier compte est son propre foyer : sa langue est celle du foyer.
+        auth_service.ouvrir_perimetre(db, user)
+        preferences_service.enregistrer_langue_foyer(db, user.id, payload.langue)
     return AuthResponse(token=token.token, user=_user_out(db, user))
 
 
@@ -194,6 +200,19 @@ def renommer_foyer(
     réservé au propriétaire comme les autres actions d'administration du foyer
     (comptes du foyer, export/import/remise à zéro des données)."""
     preferences_service.enregistrer_nom_foyer(db, auth_service.id_foyer(current_user), payload.nom)
+    return _user_out(db, current_user)
+
+
+@router.patch("/foyer/langue", response_model=UserOut)
+def changer_langue_foyer(
+    payload: LangueFoyerUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
+):
+    """Langue d'affichage du foyer (backlog § BL) — réglage du foyer entier, réservé
+    au propriétaire comme son nom : un membre ou un invité la suit, il ne la choisit
+    pas pour les autres."""
+    preferences_service.enregistrer_langue_foyer(db, auth_service.id_foyer(current_user), payload.langue)
     return _user_out(db, current_user)
 
 

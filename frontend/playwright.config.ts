@@ -36,6 +36,10 @@ export default defineConfig({
   globalSetup: path.join(DIRNAME, 'e2e', 'global-setup.ts'),
   use: {
     baseURL: `http://127.0.0.1:${FRONTEND_PORT}`,
+    // Chromium se présente en anglais par défaut : sans ceci, l'écran de connexion
+    // s'ouvrirait en anglais (langue de l'appareil, backlog § BL) alors que les
+    // scénarios lisent les libellés français de référence.
+    locale: 'fr-FR',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

@@ -7,7 +7,7 @@ contenu utile est repris ici (§ 4 et annexe A).
 
 **Mode d'emploi.** Pour savoir où en est le produit : § 1. Pour savoir ce qui reste à faire : § 2 —
 c'est la seule liste à tenir à jour, tout le reste est de la trace. Le détail de chaque point, avec
-le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BK), dans
+le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BL), dans
 l'ordre où les sujets sont apparus.
 
 **Conventions d'un point** : `#### X.n — sévérité · effort · statut · priorité — titre`.
@@ -81,6 +81,7 @@ file et reçoit son détail au § 5.
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.1** — déploiement Postgres (compose, image, sauvegardes) | Du travail, pas une décision : aujourd'hui Postgres ne tourne qu'en CI | À faire le jour où une version hébergée est lancée, ou pour un essai (détail § BK) |
 | **BK.2** — gestion des foyers sur une installation partagée | La conception : une installation ne sait créer qu'un foyer | **Atelier avec l'utilisateur** sur les questions du § BK.2, avant tout code |
+| **BL.2 à BL.4** — application multilingue, suite du socle | Du travail : traduire écran par écran, puis les libellés-données et le serveur | En cours (§ BL) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
@@ -246,6 +247,7 @@ l'usage réel a fait remonter.
 | BI | Suites de l'étude « réécrire en Rust ? » : décimal, pandas, profilage, Postgres, séparation des foyers | 22-23/09 |
 | BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine, avertissement de suppression d'un compte | 23/09 |
 | BK | Version hébergée : déploiement Postgres et gestion des foyers (ouverts) | 23/09 |
+| BL | Application multilingue (FR, EN, ES, DE, IT) — cadrage et lots | 23/09 |
 
 ---
 
@@ -7046,6 +7048,103 @@ le repenser, et ces choix touchent le produit, pas seulement le code.
 **Démarche proposée** : un atelier sur ces sept questions, une fiche de conception validée
 (ajoutée ici), puis seulement le code — probablement un vrai objet `Foyer` en base, auquel
 `user_id` renverrait, plutôt que l'identifiant du propriétaire.
+
+
+### BL. Application multilingue (cadrée le 23/09/2026)
+
+**Demande** : « de la sélection de langues, anglais, espagnol… et prévoir l'application pour en
+ajouter au besoin. Prévoir dans l'assistant, à la première page, de choisir sa langue et pouvoir la
+changer ultérieurement dans les réglages. La langue devra être liée au foyer (en multi-foyer, chaque
+foyer choisira sa langue). »
+
+**Décisions de l'utilisateur (23/09/2026)** :
+
+- **Langues au lancement** : français (langue source), anglais, espagnol, allemand, italien ;
+- **traductions** produites par Claude, relecture par des natifs possible plus tard — les fichiers
+  de traduction doivent rester faciles à confier à un relecteur ;
+- **périmètre** : tout ce que voit l'utilisateur — écrans, aide et glossaire, messages d'erreur du
+  serveur, PDF (relevé, déclaration, bilan), en-têtes des exports CSV. Les manuels, le backlog et
+  les commentaires du code restent en français ;
+- **formats** : nombres et dates suivent la langue (en anglais `1,234.56 €`… `09/23/2026`) ; la
+  devise reste l'euro (les devises sont un autre sujet, § Q.3).
+
+**Choix techniques (Claude, sans enjeu produit)** :
+
+- **la langue est un réglage du foyer**, stocké côté serveur comme son nom (`user_parametres`,
+  clé `langue`), modifiable par le propriétaire ; les membres et invités suivent le foyer. Défaut
+  `fr` : une installation existante ne change pas ;
+- **avant connexion** (écran de connexion, création du premier compte), la langue vient du dernier
+  choix fait sur cet appareil, sinon de la langue du navigateur si elle est proposée, sinon le
+  français ; le premier compte crée son foyer dans cette langue ;
+- **un fichier par langue** côté interface (`frontend/src/i18n/locales/<code>.ts`), le français
+  servant de référence : TypeScript refuse la compilation si une clé manque dans une autre langue.
+  Ajouter une langue = ajouter un fichier et une ligne dans la liste des langues. Les langues autres
+  que le français sont chargées à la demande, pour ne pas alourdir le premier chargement ;
+- **côté serveur**, les messages et les PDF passent par un catalogue équivalent, choisi d'après la
+  langue du foyer.
+
+**Points de conception relevés en cadrant** (à traiter dans les lots concernés) :
+
+- **des libellés sont des données** : zones géographiques (« Europe », « Marchés émergents »),
+  secteurs, classes d'actif sont renvoyés en français par le serveur et servent aussi de clés. Ils
+  doivent devenir des codes stables, traduits à l'affichage ;
+- **catégories de budget** : l'arbre par défaut est créé en français, et le taux d'épargne et le
+  reste à vivre retrouvent les catégories « Épargne » et « Logement » **par leur nom**
+  (`budget_service._categorie_racine_par_nom`). Dans une autre langue, ces indicateurs
+  disparaîtraient : il faut un repère stable (un code sur la catégorie), plus un nom ;
+- **contenus propres à la France** : PEA, Livret A, LEP, PER, calculateur de salaire (cotisations
+  françaises), comparaison INSEE. Ils sont traduits mot à mot, pas adaptés à un autre pays — un
+  utilisateur non français verra un produit pensé pour la France, en sa langue ;
+- `formatPct` écrit toujours `+12.3%` (point décimal), quelle que soit la langue — à aligner sur
+  la langue avec les autres formats, dans le lot qui traduit les écrans concernés.
+
+**Découpage en lots** :
+
+| Lot | Contenu | État |
+|---|---|---|
+| BL.1 | Socle : langue du foyer (serveur), module de traduction et formats (interface), choix de la langue en tête de la première page de l'assistant, carte « Langue » dans Réglages, coquille traduite (navigation, barre de contrôles, menus, recherche, connexion, assistant) | **traité** (23/09/2026) |
+| BL.2 | Écrans, un par un : Synthèse, Actifs et fiche détaillée, Comptes, Analyse, Budget, Rapport, Salaire, Import, Réglages, Aide, partage public | à faire |
+| BL.3 | Libellés-données en codes (zones, secteurs, classes, catégories de budget par défaut et leur repérage) | à faire |
+| BL.4 | Serveur : messages d'erreur, PDF, en-têtes CSV | à faire |
+
+Tant que BL.2 à BL.4 ne sont pas livrés, une langue autre que le français donne une application
+**en partie traduite** : la coquille dans la langue choisie, le reste en français.
+
+#### BL.1 — `majeur` · `M` · `traité` (23/09/2026) — Socle multilingue et coquille traduite
+
+**Serveur** : `preferences_service.lire_langue_foyer`/`enregistrer_langue_foyer` (clé `langue` du
+foyer, défaut `fr`, une valeur retirée de la liste retombe sur `fr`) ; `UserOut.langue` ;
+`PATCH /api/auth/foyer/langue` (propriétaire seul) ; `POST /api/auth/register` accepte `langue`,
+pour que le premier compte crée son foyer dans la langue de l'écran de création. Une langue non
+proposée est refusée (400).
+
+**Interface** (`frontend/src/i18n/`) :
+
+- `t(cle, parametres)` est une fonction de module, pas un hook : elle sert aussi dans les
+  utilitaires et les libellés de navigation (`routes.ts`, titres de l'assistant), devenus des
+  accesseurs lus à l'affichage. Le changement de langue remonte le contenu sous une nouvelle
+  `key`, posée SOUS `AuthProvider` (`App.tsx`) pour ne pas recharger l'utilisateur ;
+- le français est embarqué, les quatre autres langues sont des fichiers de 5 à 6 Ko chargés à la
+  demande ; rien ne s'affiche tant que la langue de l'appareil n'est pas chargée, pour ne pas
+  montrer l'écran de connexion en français à un anglophone ;
+- la langue du foyer, reçue par `/auth/me`, prime dès la connexion et est retenue sur l'appareil
+  (l'écran de connexion suivant s'ouvre dans cette langue) ; `document.documentElement.lang` suit ;
+- les formats (`utils/format.ts`) sont mis en cache par locale ; les `'fr-FR'` écrits en dur dans
+  huit composants passent par `localeCourante()`. `formatDate` construit désormais la date en
+  heure locale et la formate par `Intl` — identique en français (`07/03/2024`).
+
+**Choix de la langue dans l'assistant** : en tête de sa **première page** (« Bienvenue »), comme
+demandé — plutôt qu'une étape de plus : le nombre d'étapes et leur ordre ne changent pas.
+
+**Tests** : serveur 7 (défaut, inscription dans une langue, langue refusée, membre qui suit le
+foyer, réservé au propriétaire) ; interface 24 — `t()`, pluriels et nombres selon la langue,
+détection de la langue de l'appareil, formats anglais et allemand, cohérence des cinq
+dictionnaires (mêmes valeurs insérées, aucun texte vide — ce que TypeScript ne voit pas), écran
+de connexion, inscription, assistant, carte Réglages, bascule de l'application entière dans la
+langue du foyer (en échec sans la synchronisation). E2E 81/81 (navigateur de test fixé en
+français, Chromium se présentant en anglais par défaut). Vérifié en navigateur réel réglé en
+anglais : connexion en anglais, foyer créé en anglais, passage en espagnol depuis l'assistant, en
+allemand depuis Réglages, langue conservée après rechargement.
 
 ---
 

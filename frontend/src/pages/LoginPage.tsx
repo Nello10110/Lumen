@@ -11,6 +11,9 @@ import { Field, Input } from '../components/Field'
 import { GlassPanel } from '../components/GlassPanel'
 import LumenMark from '../components/LumenMark'
 import { armerFlashConnexion } from '../utils/flashConnexion'
+import { t } from '../i18n'
+import { useLangue } from '../i18n/useLangue'
+import SelecteurLangue from '../components/SelecteurLangue'
 
 type Mode = 'connexion' | 'creation'
 
@@ -23,6 +26,7 @@ function erreurOidcDepuisUrl(): string | null {
 
 export default function LoginPage() {
   const { login, register } = useAuth()
+  const { langue, changerLangue } = useLangue()
   const [mode, setMode] = useState<Mode>('connexion')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -119,14 +123,14 @@ export default function LoginPage() {
           <LumenMark className="h-11 w-11 shrink-0" />
           <div>
             <h1 className="text-[26px] font-semibold tracking-title text-ink">
-              {mode === 'connexion' ? 'Bon retour' : 'Créer un compte'}
+              {mode === 'connexion' ? t('connexion.bonRetour') : t('connexion.creerUnCompte')}
             </h1>
-            <p className="text-sm text-ink3">Faites la lumière sur vos finances.</p>
+            <p className="text-sm text-ink3">{t('connexion.accroche')}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-          <Field label="Nom d'utilisateur">
+          <Field label={t('connexion.nomUtilisateur')}>
             <Input
               type="text"
               value={username}
@@ -135,7 +139,7 @@ export default function LoginPage() {
               autoComplete="username"
             />
           </Field>
-          <Field label="Mot de passe" aide={mode === 'creation' ? '8 caractères minimum' : undefined}>
+          <Field label={t('connexion.motDePasse')} aide={mode === 'creation' ? t('connexion.huitCaracteres') : undefined}>
             <Input
               type="password"
               value={password}
@@ -149,7 +153,7 @@ export default function LoginPage() {
           {error && <p className="text-sm text-neg">{error}</p>}
 
           <PrimaryButton type="submit" disabled={saving} className="w-full">
-            {saving ? 'Un instant...' : mode === 'connexion' ? 'Se connecter' : 'Créer mon compte'}
+            {saving ? t('connexion.unInstant') : mode === 'connexion' ? t('connexion.seConnecter') : t('connexion.creerMonCompte')}
           </PrimaryButton>
         </form>
 
@@ -157,7 +161,7 @@ export default function LoginPage() {
           <>
             <div className="my-4 flex items-center gap-3 text-xs text-ink4">
               <span className="h-px flex-1 bg-hairline" />
-              ou
+              {t('connexion.ou')}
               <span className="h-px flex-1 bg-hairline" />
             </div>
             <a
@@ -170,7 +174,7 @@ export default function LoginPage() {
                   par lui) pour que le bouton reste lisible si l'image ne charge
                   pas. */}
               {oidcLogo && <img src={oidcLogo} alt="" aria-hidden className="h-5 w-5 shrink-0 object-contain" />}
-              Se connecter avec {oidcDisplayName}
+              {t('connexion.seConnecterAvec', { fournisseur: oidcDisplayName })}
             </a>
           </>
         )}
@@ -181,20 +185,18 @@ export default function LoginPage() {
         {statutOidc === 'indisponible' && (
           <div className="mt-4 rounded-control border border-hairline bg-chip p-3 text-[13px] text-ink2">
             <p>
-              {portailExpire
-                ? "La session avec le portail d’authentification a expiré : l’application est affichée depuis le cache, mais elle ne parle plus au serveur. « Se reconnecter » la recharge depuis le réseau pour t’y reconnecter."
-                : "Impossible de joindre le serveur : si ce foyer utilise une connexion SSO, son bouton ne peut pas être affiché pour l’instant."}
+              {portailExpire ? t('connexion.portailExpire') : t('connexion.serveurInjoignable')}
             </p>
             <div className="mt-2.5 flex flex-wrap gap-2">
               {/* Deux actions, pas trois : un simple « Recharger la page » serait
                   trompeur — le service worker resservirait la même coquille depuis
                   son cache sans jamais contacter le serveur. */}
-              <SecondaryButton onClick={() => void chargerStatutOidc()}>Réessayer</SecondaryButton>
+              <SecondaryButton onClick={() => void chargerStatutOidc()}>{t('connexion.reessayer')}</SecondaryButton>
               {/* La sortie de secours, enfin dans l'application : c'est exactement ce
                   que l'utilisateur devait aller faire à la main dans les réglages de
                   son téléphone (retour du 14/09/2026). */}
               <SecondaryButton onClick={() => void reinitialiserApplication()}>
-                {portailExpire ? 'Se reconnecter' : "Vider le cache de l'application"}
+                {portailExpire ? t('connexion.seReconnecter') : t('connexion.viderCache')}
               </SecondaryButton>
             </div>
           </div>
@@ -207,20 +209,27 @@ export default function LoginPage() {
         <p className="mt-5 text-center text-[13px] text-ink3">
           {mode === 'connexion' ? (
             <>
-              Pas encore de compte ?{' '}
+              {t('connexion.pasEncoreDeCompte')}{' '}
               <button type="button" onClick={() => setMode('creation')} className="font-medium text-accent hover:underline">
-                Créer un compte
+                {t('connexion.creerUnCompte')}
               </button>
             </>
           ) : (
             <>
-              Déjà un compte ?{' '}
+              {t('connexion.dejaUnCompte')}{' '}
               <button type="button" onClick={() => setMode('connexion')} className="font-medium text-accent hover:underline">
-                Se connecter
+                {t('connexion.seConnecter')}
               </button>
             </>
           )}
         </p>
+
+        {/* Langue de CET appareil (backlog § BL) : avant connexion, on ne connaît pas
+            encore le foyer. Le premier compte crée son foyer dans cette langue ; un
+            foyer existant impose ensuite la sienne dès la connexion. */}
+        <div className="mt-4 flex justify-center">
+          <SelecteurLangue valeur={langue} onChange={(l) => void changerLangue(l)} className="max-w-[180px] text-[13px]" />
+        </div>
       </GlassPanel>
     </div>
   )

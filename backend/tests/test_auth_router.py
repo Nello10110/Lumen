@@ -895,3 +895,70 @@ def test_le_nom_du_foyer_est_visible_par_un_membre_du_foyer(client_reel):
     reponse = client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {token_membre}"})
 
     assert reponse.json()["foyer_nom"] == "Famille Dupont"
+
+
+# --- Langue du foyer (backlog § BL, 23/09/2026) ------------------------------------
+
+
+def _membre(client, token_proprietaire: str) -> str:
+    client.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_proprietaire}"},
+    )
+    return client.post("/api/auth/login", json={"username": "conjoint", "password": "mot-de-passe-solide"}).json()["token"]
+
+
+def test_un_foyer_sans_langue_enregistree_est_en_francais(client_reel):
+    # Une installation antérieure au multilingue n'a jamais enregistré de langue :
+    # elle doit rester en français, sans migration.
+    reponse = _inscrire(client_reel)
+
+    assert reponse.json()["user"]["langue"] == "fr"
+
+
+def test_le_premier_compte_cree_son_foyer_dans_la_langue_de_lecran(client_reel):
+    reponse = client_reel.post(
+        "/api/auth/register", json={"username": "paul", "password": "mot-de-passe-solide", "langue": "es"}
+    )
+
+    assert reponse.status_code == 200
+    assert reponse.json()["user"]["langue"] == "es"
+    token = reponse.json()["token"]
+    assert client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()["langue"] == "es"
+
+
+def test_une_langue_non_proposee_est_refusee_a_linscription(client_reel):
+    reponse = client_reel.post(
+        "/api/auth/register", json={"username": "paul", "password": "mot-de-passe-solide", "langue": "klingon"}
+    )
+
+    assert reponse.status_code == 400
+
+
+def test_changer_la_langue_du_foyer_vaut_pour_ses_membres(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    token_membre = _membre(client_reel, token_paul)
+
+    reponse = client_reel.patch("/api/auth/foyer/langue", json={"langue": "de"}, headers={"Authorization": f"Bearer {token_paul}"})
+
+    assert reponse.status_code == 200
+    assert reponse.json()["langue"] == "de"
+    assert client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {token_membre}"}).json()["langue"] == "de"
+
+
+def test_changer_la_langue_du_foyer_est_reserve_au_proprietaire(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    token_membre = _membre(client_reel, token_paul)
+
+    reponse = client_reel.patch("/api/auth/foyer/langue", json={"langue": "it"}, headers={"Authorization": f"Bearer {token_membre}"})
+
+    assert reponse.status_code == 403
+
+
+def test_changer_pour_une_langue_non_proposee_est_refuse(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+
+    reponse = client_reel.patch("/api/auth/foyer/langue", json={"langue": "xx"}, headers={"Authorization": f"Bearer {token_paul}"})
+
+    assert reponse.status_code == 400

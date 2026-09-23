@@ -5,6 +5,7 @@ import EtapeDemarragePortefeuille from './EtapeDemarragePortefeuille'
 import EtapeDetenteurs from './EtapeDetenteurs'
 import EtapePreferences from './EtapePreferences'
 import EtapeTermine from './EtapeTermine'
+import { t } from '../../i18n'
 
 export interface EtapeAssistant {
   key: string
@@ -38,10 +39,11 @@ export interface EtapeAssistant {
  * cohérents.
  */
 export const ETAPES_ONBOARDING: EtapeAssistant[] = [
-  { key: 'bienvenue', titre: 'Bienvenue', Contenu: EtapeBienvenue },
-  { key: 'preferences', titre: 'Préférences', Contenu: EtapePreferences },
-  { key: 'detenteurs', titre: 'Détenteurs du foyer', Contenu: EtapeDetenteurs },
-  { key: 'comptes', titre: 'Comptes', Contenu: EtapeComptes },
-  { key: 'demarrage', titre: 'Démarrer le portefeuille', Contenu: EtapeDemarragePortefeuille },
-  { key: 'termine', titre: 'Terminé', Contenu: EtapeTermine },
+  // Titres en accesseurs : lus à l'affichage, dans la langue active (backlog § BL).
+  { key: 'bienvenue', get titre() { return t('assistant.etapes.bienvenue') }, Contenu: EtapeBienvenue },
+  { key: 'preferences', get titre() { return t('assistant.etapes.preferences') }, Contenu: EtapePreferences },
+  { key: 'detenteurs', get titre() { return t('assistant.etapes.detenteurs') }, Contenu: EtapeDetenteurs },
+  { key: 'comptes', get titre() { return t('assistant.etapes.comptes') }, Contenu: EtapeComptes },
+  { key: 'demarrage', get titre() { return t('assistant.etapes.demarrage') }, Contenu: EtapeDemarragePortefeuille },
+  { key: 'termine', get titre() { return t('assistant.etapes.termine') }, Contenu: EtapeTermine },
 ]

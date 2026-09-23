@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { Role } from '../api/types'
+import { t } from '../i18n'
 import {
   IconAide,
   IconBudget,
@@ -20,6 +21,9 @@ export type RouteMeta = {
   /** Suffixe du titre d'onglet (`document.title`), et libellé par défaut du fil
    * d'Ariane — source unique pour ne plus jamais désynchroniser URL, libellé de
    * navigation et titre d'onglet (backlog 2.K.2). */
+  // Libellés en accesseurs (`get titre()`) depuis le multilingue (backlog § BL) : lus
+  // à l'affichage, donc toujours dans la langue active, sans changer le type ni
+  // aucun des endroits qui les lisent.
   titre: string
   /** Libellé affiché dans la barre latérale, la barre inférieure ou le menu du
    * compte. Absent pour les routes qui n'apparaissent dans aucun menu (ex. la
@@ -54,75 +58,75 @@ export type RouteMeta = {
  * structurellement impossible plutôt que dépendant de la discipline du
  * développeur. */
 export const ROUTES: RouteMeta[] = [
-  { path: '/', titre: 'Synthèse', navLabel: 'Synthèse', icone: IconSynthese, rang: 'consultation' },
+  { path: '/', get titre() { return t('nav.synthese') }, get navLabel() { return t('nav.synthese') }, icone: IconSynthese, rang: 'consultation' },
   // `titre`/`navLabel` renommés « Actifs » le 16/09/2026 (demande directe) — l'URL
   // `/patrimoine` reste inchangée, seul le libellé affiché change (« patrimoine
   // net » ailleurs dans l'app désigne un concept distinct, non renommé).
-  { path: '/patrimoine', titre: 'Actifs', navLabel: 'Actifs', icone: IconPatrimoine, rang: 'consultation' },
+  { path: '/patrimoine', get titre() { return t('nav.actifs') }, get navLabel() { return t('nav.actifs') }, icone: IconPatrimoine, rang: 'consultation' },
   // `:holdingId` (revu le 14/09/2026, pas `:ticker`) : deux lignes peuvent
   // désormais partager un ticker (une par compte) — un ticker seul ne peut plus
   // désambiguïser laquelle afficher, cf. `App.tsx::RedirectionTicker`.
-  { path: '/patrimoine/:holdingId', titre: 'Détail de la position' },
+  { path: '/patrimoine/:holdingId', get titre() { return t('nav.detailPosition') } },
   // `BottomNav` ne montre en direct que les 4 premières routes de consultation
   // (`MAX_ENTREES_DIRECTES`) : Synthèse/Patrimoine/Comptes/Analyse, le reste
   // rejoint "Plus" (backlog 2.S.1). L'écran Épargne a fusionné dans Comptes le
   // 03/09/2026 (demande directe de l'utilisateur) — ses lignes vivent désormais
   // dans la fiche détaillée d'un compte (`CompteDetailContent`/`LigneEpargne`).
-  { path: '/comptes', titre: 'Comptes', navLabel: 'Comptes', icone: IconComptes, rang: 'consultation' },
-  { path: '/comptes/:id', titre: 'Détail du compte' },
+  { path: '/comptes', get titre() { return t('nav.comptes') }, get navLabel() { return t('nav.comptes') }, icone: IconComptes, rang: 'consultation' },
+  { path: '/comptes/:id', get titre() { return t('nav.detailCompte') } },
   // « Analyse » remplace l'ancien écran « Dividendes » (07/09/2026) : il en garde
   // tout le contenu dans son onglet Revenus, et reprend le repli « Détail » du
   // tableau de bord dans son onglet Portefeuille. `/dividendes` redirige vers lui
   // (`App.tsx`), les marque-pages survivent.
   {
     path: '/analyse',
-    titre: 'Analyse',
-    navLabel: 'Analyse',
+    get titre() { return t('nav.analyse') },
+    get navLabel() { return t('nav.analyse') },
     icone: IconDividendes,
     rang: 'consultation',
     rolesAutorises: ['proprietaire', 'membre'],
   },
   {
     path: '/budget',
-    titre: 'Budget',
-    navLabel: 'Budget',
+    get titre() { return t('nav.budget') },
+    get navLabel() { return t('nav.budget') },
     icone: IconBudget,
     rang: 'consultation',
     rolesAutorises: ['proprietaire', 'membre'],
   },
   {
     path: '/rapport',
-    titre: 'Rapport',
-    navLabel: 'Rapport',
+    get titre() { return t('nav.rapport') },
+    get navLabel() { return t('nav.rapport') },
     icone: IconRapport,
     rang: 'consultation',
     rolesAutorises: ['proprietaire', 'membre'],
   },
   {
     path: '/salaire',
-    titre: 'Salaire',
-    navLabel: 'Salaire',
+    get titre() { return t('nav.salaire') },
+    get navLabel() { return t('nav.salaire') },
     icone: IconSalaire,
     rang: 'consultation',
     rolesAutorises: ['proprietaire'],
   },
   {
     path: '/import',
-    titre: 'Import',
-    navLabel: 'Import',
+    get titre() { return t('nav.import') },
+    get navLabel() { return t('nav.import') },
     icone: IconImport,
     rang: 'administration',
     rolesAutorises: ['proprietaire', 'membre'],
   },
   {
     path: '/reglages',
-    titre: 'Réglages',
-    navLabel: 'Réglages',
+    get titre() { return t('nav.reglages') },
+    get navLabel() { return t('nav.reglages') },
     icone: IconReglages,
     rang: 'administration',
     rolesAutorises: ['proprietaire'],
   },
-  { path: '/aide', titre: 'Aide', navLabel: 'Aide', icone: IconAide, rang: 'administration' },
+  { path: '/aide', get titre() { return t('nav.aide') }, get navLabel() { return t('nav.aide') }, icone: IconAide, rang: 'administration' },
 ]
 
 export function routesDuRang(rang: Rang, role?: Role): RouteMeta[] {

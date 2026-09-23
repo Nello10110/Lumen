@@ -29,6 +29,7 @@ from .authentification import (  # noqa: F401
     HouseholdMemberCreate,
     HouseholdMemberOut,
     HouseholdMemberUpdate,
+    LangueFoyerUpdate,
     LoginRequest,
     OidcStatus,
     RegisterRequest,

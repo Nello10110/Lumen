@@ -7,6 +7,7 @@ import LumenFaitAmusant from './LumenFaitAmusant'
 import LumenMark from './LumenMark'
 import MenuCompte from './MenuCompte'
 import PaletteRecherche from './PaletteRecherche'
+import { t } from '../i18n'
 
 // Easter egg (backlog § AD.5, 15/09/2026) : 5 clics sur le logo dans cette fenêtre
 // glissante déclenchent `LumenFaitAmusant`. Volontairement un seul niveau, pas de
@@ -69,7 +70,7 @@ export default function Sidebar() {
         <PaletteRecherche />
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label="Navigation principale">
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto" aria-label={t('nav.principale')}>
         {routesDuRang('consultation', user?.role).map((r) => {
           const Icone = r.icone
           return (

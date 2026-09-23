@@ -44,6 +44,9 @@ l'API » ci-dessous.
   et correspondance route → écran (`pageComponents.ts`).
 - `e2e/` — tests de bout en bout Playwright, et leur jeu de données (`backend/scripts/seed_e2e.py`).
 - `src/utils/` — fonctions pures partagées (formatage de nombres, dates...).
+- `src/i18n/` — traduction de l'interface (backlog § BL) : `t('cle.du.texte')`, un dictionnaire
+  par langue dans `locales/` (`fr.ts` fait référence, les autres sont typés d'après lui et chargés
+  à la demande), liste des langues dans `langues.ts`.
 
 ## Proxy vers l'API en développement
 

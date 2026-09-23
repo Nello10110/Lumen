@@ -11,6 +11,7 @@ import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { dateVersISO, formatDate, formatEuro, formatPct } from '../utils/format'
 import { bornesPeriode } from '../utils/periode'
+import { localeCourante } from '../i18n'
 
 type Mode = 'mensuel' | 'annuel' | 'personnalise'
 
@@ -31,7 +32,7 @@ function moisCourant(): string {
 
 function libelleMois(moisSelectionne: string): string {
   const [annee, mois] = moisSelectionne.split('-').map(Number)
-  const libelle = new Date(annee, mois - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  const libelle = new Date(annee, mois - 1, 1).toLocaleDateString(localeCourante(), { month: 'long', year: 'numeric' })
   return libelle.charAt(0).toUpperCase() + libelle.slice(1)
 }
 

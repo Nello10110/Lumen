@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { Label } from './Field'
 import { routesDuRang } from '../layout/routes'
 import { IconDeconnexion } from './icons'
+import { t } from '../i18n'
 
 // Avatar généré (initiale + couleur dérivée du nom d'utilisateur — déterministe,
 // stable d'une connexion à l'autre, pas d'upload d'image).
@@ -68,7 +69,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
       {ouvert && (
         <div
           role="menu"
-          aria-label="Menu du compte"
+          aria-label={t('nav.menuCompte')}
           className="absolute bottom-full left-0 z-10 mb-2 w-56 rounded-card border border-stroke bg-panel-hi p-1.5 shadow-glass-lg backdrop-blur-glass backdrop-saturate-[1.8]"
         >
           <p className="px-2.5 py-1.5">
@@ -106,7 +107,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
             className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-negatif hover:bg-surface-elevee"
           >
             <IconDeconnexion className="h-4 w-4" />
-            Se déconnecter
+            {t('nav.deconnexion')}
           </button>
         </div>
       )}

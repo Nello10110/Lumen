@@ -11,6 +11,7 @@ import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { Select } from '../components/Field'
 import FoyerCard from '../components/FoyerCard'
+import LangueFoyerCard from '../components/LangueFoyerCard'
 import GestionFoyerCard from '../components/GestionFoyerCard'
 import { IconBadge, IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
 import JobCard from '../components/JobCard'
@@ -145,6 +146,7 @@ export default function ReglagesPage() {
             </Card>
           )}
           <FoyerCard />
+          <LangueFoyerCard />
           <PreferencesCard />
           {/* Backlog § AG.1 (16/09/2026) — mode « langage simple » : préférence
               purement d'affichage, jamais backend (`usePreferencesAffichage`, même

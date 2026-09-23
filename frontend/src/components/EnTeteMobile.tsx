@@ -9,22 +9,23 @@ import { ROUTES } from '../layout/routes'
 import { SegmentedControl } from './Controls'
 import { IconOeil, IconOeilBarre } from './icons'
 import Modale from './Modale'
+import { t } from '../i18n'
 
-const LIBELLE_LENTILLE: Record<Lentille, string> = {
-  net: 'vue nette',
-  brut: 'vue brute',
-  financier: 'vue financière',
+// Fonctions, pas constantes de module : lues à l'affichage, dans la langue active
+// (backlog § BL).
+function libelleLentille(lentille: Lentille): string {
+  if (lentille === 'net') return t('controles.vueNette')
+  if (lentille === 'brut') return t('controles.vueBrute')
+  return t('controles.vueFinanciere')
 }
 
-const OPTIONS_LENTILLE: { valeur: Lentille; libelle: string; aide: string }[] = [
-  {
-    valeur: 'net',
-    libelle: 'Net',
-    aide: "Tout ce que vous possédez, MOINS ce que vous devez (emprunts en cours).",
-  },
-  { valeur: 'brut', libelle: 'Brut', aide: 'Tout ce que vous possédez, sans déduire les emprunts.' },
-  { valeur: 'financier', libelle: 'Financier', aide: 'Portefeuille financier seul : actions, ETF, crypto, obligations.' },
-]
+function optionsLentille(): { valeur: Lentille; libelle: string; aide: string }[] {
+  return [
+    { valeur: 'net', libelle: t('controles.net'), aide: t('controles.aideNetCourte') },
+    { valeur: 'brut', libelle: t('controles.brut'), aide: t('controles.aideBrutCourte') },
+    { valeur: 'financier', libelle: t('controles.financier'), aide: t('controles.aideFinancierCourte') },
+  ]
+}
 
 /** En-tête de l'application sous 768 px (maquette « Refonte mobile ») — remplace
  * `BarreControles`, désormais `hidden md:flex`.
@@ -54,8 +55,9 @@ export default function EnTeteMobile() {
 
   // `matchPath` et non une égalité stricte : la fiche d'une position (`/patrimoine/:holdingId`)
   // doit afficher son titre d'écran comme les autres.
-  const titreEcran = ROUTES.find((r) => matchPath({ path: r.path, end: true }, pathname))?.titre ?? 'Actifs'
-  const nomDetenteur = detenteurId === null ? 'Foyer' : (detenteurs.find((d) => d.id === detenteurId)?.nom ?? 'Foyer')
+  const titreEcran = ROUTES.find((r) => matchPath({ path: r.path, end: true }, pathname))?.titre ?? t('nav.actifs')
+  const nomDetenteur =
+    detenteurId === null ? t('controles.foyer') : (detenteurs.find((d) => d.id === detenteurId)?.nom ?? t('controles.foyer'))
   const initiale = (user?.nom || user?.username || '?').trim().charAt(0).toUpperCase()
 
   return (
@@ -68,7 +70,7 @@ export default function EnTeteMobile() {
       >
         <h1 className="truncate text-[20px] font-semibold tracking-hero text-ink">{titreEcran}</h1>
         <span className="truncate text-[12px] text-ink3">
-          {nomDetenteur} · {LIBELLE_LENTILLE[lentille]}
+          {nomDetenteur} · {libelleLentille(lentille)}
         </span>
       </button>
 
@@ -76,7 +78,7 @@ export default function EnTeteMobile() {
         type="button"
         onClick={toggleMontantsMasques}
         aria-pressed={montantsMasques}
-        aria-label={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants`}
+        aria-label={montantsMasques ? t('controles.afficherMontants') : t('controles.masquerMontants')}
         className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-chip border border-hairline bg-chip text-ink2"
       >
         {montantsMasques ? <IconOeilBarre className="h-[18px] w-[18px]" /> : <IconOeil className="h-[18px] w-[18px]" />}
@@ -86,7 +88,7 @@ export default function EnTeteMobile() {
         type="button"
         onClick={() => setReglagesOuverts(true)}
         aria-haspopup="dialog"
-        aria-label="Réglages d'affichage"
+        aria-label={t('controles.reglagesAffichage')}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-chip bg-[image:var(--accent-grad)] text-[15px] font-semibold text-white shadow-accent"
       >
         {initiale}
@@ -102,16 +104,16 @@ export default function EnTeteMobile() {
             <div className="space-y-4">
               <div className="mx-auto h-1 w-10 rounded-chip bg-track" aria-hidden="true" />
               <h2 id={titleId} className="text-[15px] font-semibold text-ink">
-                Réglages d'affichage
+                {t('controles.reglagesAffichage')}
               </h2>
 
               <div className="space-y-1.5">
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink3">Vue</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink3">{t('controles.vue')}</span>
                 <SegmentedControl
-                  options={OPTIONS_LENTILLE}
+                  options={optionsLentille()}
                   valeur={lentille}
                   onChange={setLentille}
-                  ariaLabel="Vue"
+                  ariaLabel={t('controles.vue')}
                   className="w-full [&>button]:flex-1"
                 />
               </div>
@@ -119,7 +121,7 @@ export default function EnTeteMobile() {
               {detenteurs.length > 0 && (
                 <div className="space-y-1.5">
                   <label htmlFor="detenteur-mobile" className="block text-xs font-semibold uppercase tracking-wide text-ink3">
-                    Détenteur
+                    {t('controles.detenteur')}
                   </label>
                   <select
                     id="detenteur-mobile"
@@ -127,7 +129,7 @@ export default function EnTeteMobile() {
                     onChange={(e) => setDetenteurId(e.target.value === '' ? null : Number(e.target.value))}
                     className="min-h-11 w-full rounded-control border border-hairline bg-chip px-3 text-[15px] text-ink2"
                   >
-                    <option value="">Foyer</option>
+                    <option value="">{t('controles.foyer')}</option>
                     {detenteurs.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.nom}

@@ -7,6 +7,7 @@ import { Label } from './Field'
 import { routesDuRang } from '../layout/routes'
 import { IconChevron, IconRecherche } from './icons'
 import Modale from './Modale'
+import { t } from '../i18n'
 
 type Resultat = { type: 'route' | 'holding' | 'loan'; label: string; sousLabel?: string; to: string }
 
@@ -100,19 +101,23 @@ export default function PaletteRecherche({ compact = false }: { compact?: boolea
     }
   }
 
-  const LABEL_TYPE: Record<Resultat['type'], string> = { route: 'Écrans', holding: 'Positions', loan: 'Emprunts' }
+  const LABEL_TYPE: Record<Resultat['type'], string> = {
+    route: t('recherche.ecrans'),
+    holding: t('recherche.positions'),
+    loan: t('recherche.emprunts'),
+  }
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOuvert(true)}
-        title="Recherche (Ctrl/⌘ + K)"
-        aria-label="Recherche"
+        title={t('recherche.titre')}
+        aria-label={t('recherche.aria')}
         className="flex items-center gap-2 rounded-control px-2.5 py-2 text-sm text-texte-attenue hover:bg-surface-elevee"
       >
         <IconRecherche className="h-4 w-4 shrink-0" />
-        {!compact && <span className="truncate">Rechercher…</span>}
+        {!compact && <span className="truncate">{t('recherche.bouton')}</span>}
       </button>
 
       {ouvert && (
@@ -132,13 +137,13 @@ export default function PaletteRecherche({ compact = false }: { compact?: boolea
                     setActiveIndex(0)
                   }}
                   onKeyDown={onKeyDownRecherche}
-                  placeholder="Un écran, une position, un emprunt…"
+                  placeholder={t('recherche.placeholder')}
                   className="w-full bg-transparent text-sm text-texte outline-none placeholder:text-texte-attenue"
                 />
               </div>
               <div className="overflow-y-auto py-2">
                 {resultats.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-texte-attenue">Aucun résultat.</p>
+                  <p className="px-4 py-6 text-center text-sm text-texte-attenue">{t('recherche.aucunResultat')}</p>
                 ) : (
                   (['route', 'holding', 'loan'] as const).map((type) => {
                     const items = resultats.filter((r) => r.type === type)

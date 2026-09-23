@@ -24,6 +24,9 @@ import LoginPage from './pages/LoginPage'
 import PageIntrouvablePage from './pages/PageIntrouvablePage'
 import { useTendancePatrimoine } from './hooks/useTendancePatrimoine'
 import { consommerFlashConnexion } from './utils/flashConnexion'
+import { estLangue } from './i18n'
+import { LangueProvider } from './i18n/LangueProvider'
+import { useLangue } from './i18n/useLangue'
 
 // `/partage/:token` (backlog 2.Q.1) est une page publique, jamais dans `ROUTES`
 // (réservé aux écrans de l'application authentifiée) : lazy-chargée séparément de
@@ -55,7 +58,25 @@ function useTitreDocument() {
 // (`loading`), ou pas établie, seul l'écran de connexion est affiché — pas de route
 // dédiée `/login`, l'état de connexion décide seul ce qui est rendu (plus simple
 // qu'une redirection React Router pour un gate qui couvre TOUTE l'application).
+/** Langue du foyer (backlog § BL) : dès que l'utilisateur est connu, l'interface
+ * passe dans la langue de son foyer — celle de l'appareil ne valait que pour
+ * l'écran de connexion. Le contenu est remonté sous `key={langue}` pour que tout se
+ * réaffiche dans la nouvelle langue ; la `key` est posée ICI, sous `AuthProvider`,
+ * pour qu'un changement de langue ne recharge pas l'utilisateur connecté. */
 function AppAuthentifiee() {
+  const { user } = useAuth()
+  const { langue, changerLangue } = useLangue()
+  const langueFoyer = user?.langue
+  useEffect(() => {
+    if (!estLangue(langueFoyer) || langueFoyer === langue) return
+    // Fichier de langue injoignable : l'interface reste dans la langue courante.
+    changerLangue(langueFoyer).catch(() => {})
+  }, [langueFoyer, langue, changerLangue])
+
+  return <ContenuAuthentifie key={langue} />
+}
+
+function ContenuAuthentifie() {
   const { user, loading } = useAuth()
   useTitreDocument()
 
@@ -251,7 +272,7 @@ function App() {
   useAppliquerTheme()
 
   return (
-    <>
+    <LangueProvider>
       {/* Montée une seule fois, hors des routes : un déploiement peut survenir
           pendant que l'utilisateur est sur l'écran de connexion aussi bien que
           dans l'application authentifiée. */}
@@ -269,7 +290,7 @@ function App() {
           />
         </Routes>
       </Suspense>
-    </>
+    </LangueProvider>
   )
 }
 

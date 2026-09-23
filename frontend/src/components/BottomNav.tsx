@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang } from '../layout/routes'
 import MenuPlusSheet from './MenuPlusSheet'
+import { t } from '../i18n'
 
 // Jusqu'à 4 écrans de consultation en accès direct + toujours une entrée "Plus"
 // (backlog 2.K.4) : 5 entrées au total pour un rôle complet (propriétaire), moins
@@ -28,7 +29,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      aria-label="Navigation principale (mobile)"
+      aria-label={t('nav.principaleMobile')}
       className="fixed inset-x-0 bottom-0 z-30 flex h-16 border-t border-stroke bg-panel-hi shadow-[0_-8px_30px_rgba(20,26,40,0.12)] backdrop-blur-glass backdrop-saturate-[1.8] pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {directes.map((r) => {

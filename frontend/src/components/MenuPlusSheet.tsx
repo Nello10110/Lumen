@@ -5,6 +5,7 @@ import { routesDuRang, type RouteMeta } from '../layout/routes'
 import BasculeTheme from './BasculeTheme'
 import { IconDeconnexion, IconPlusOptions } from './icons'
 import Modale from './Modale'
+import { t } from '../i18n'
 
 /** Entrée "Plus" de la barre de navigation inférieure (backlog 2.K.4, mobile) —
  * feuille glissante regroupant les écrans de consultation qui ne tiennent pas dans
@@ -31,7 +32,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
         className="flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-texte-attenue"
       >
         <IconPlusOptions className="h-5 w-5" />
-        Plus
+        {t('nav.plus')}
       </button>
 
       {ouvert && (
@@ -91,7 +92,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
                 className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-negatif hover:bg-surface-elevee"
               >
                 <IconDeconnexion className="h-5 w-5" />
-                Se déconnecter
+                {t('nav.deconnexion')}
               </button>
             </div>
           )}

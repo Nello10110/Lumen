@@ -23,6 +23,7 @@ _CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
 _CLE_ANNEE_NAISSANCE_FOYER = "annee_naissance_foyer"
 _CLE_ONBOARDING_TERMINE = "onboarding_termine"
 _CLE_FOYER_NOM = "foyer_nom"
+_CLE_LANGUE_FOYER = "langue"
 
 # Méthode de calcul du coût de revient (LOT 5.6) : coût moyen pondéré (défaut
 # historique, comportement inchangé) ou FIFO (premier entré, premier sorti), cf.
@@ -30,6 +31,13 @@ _CLE_FOYER_NOM = "foyer_nom"
 METHODE_COUT_MOYEN_PONDERE = "cout_moyen_pondere"
 METHODE_FIFO = "fifo"
 METHODES_VALIDES = (METHODE_COUT_MOYEN_PONDERE, METHODE_FIFO)
+
+# Langues de l'interface (backlog § BL, décision de l'utilisateur du 23/09/2026).
+# Ajouter une langue : son code ici, et son fichier de traduction côté interface
+# (`frontend/src/i18n/`). Le français reste le défaut : une installation antérieure
+# au multilingue, qui n'a jamais enregistré de langue, ne change pas.
+LANGUES_DISPONIBLES = ("fr", "en", "es", "de", "it")
+LANGUE_PAR_DEFAUT = "fr"
 
 
 def _lire_valeur_brute(db: Session, cle: str, user_id: int) -> str | None:
@@ -124,6 +132,23 @@ def lire_nom_foyer(db: Session, user_id: int) -> str | None:
 
 def enregistrer_nom_foyer(db: Session, user_id: int, nom: str) -> None:
     _ecrire_valeur_brute(db, _CLE_FOYER_NOM, user_id, nom)
+    db.commit()
+
+
+def lire_langue_foyer(db: Session, user_id: int) -> str:
+    """Langue d'affichage du foyer (backlog § BL) — réglage PARTAGÉ du foyer
+    (`id_foyer(current_user)`), comme son nom : chaque foyer choisit la sienne, et
+    ses membres et invités la suivent. Une valeur qui ne serait plus proposée (langue
+    retirée de `LANGUES_DISPONIBLES`) retombe sur le défaut plutôt que de laisser
+    l'interface sans traduction."""
+    valeur = _lire_valeur_brute(db, _CLE_LANGUE_FOYER, user_id)
+    return valeur if valeur in LANGUES_DISPONIBLES else LANGUE_PAR_DEFAUT
+
+
+def enregistrer_langue_foyer(db: Session, user_id: int, langue: str) -> None:
+    """La validation (`langue` dans `LANGUES_DISPONIBLES`) est faite en amont par le
+    schéma d'entrée ; ce module ne fait que persister."""
+    _ecrire_valeur_brute(db, _CLE_LANGUE_FOYER, user_id, langue)
     db.commit()
 
 

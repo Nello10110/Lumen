@@ -1,4 +1,7 @@
-/** Formatteurs partagés par toute l'application (locale française). */
+/** Formatteurs partagés par toute l'application, dans le format de la langue
+ * active (backlog § BL, décision du 23/09/2026 : nombres et dates suivent la
+ * langue ; la devise reste l'euro). */
+import { localeCourante, t } from '../i18n'
 
 // Masquer les montants (backlog 2.K.3) : espace réservé fixe, indépendant du signe
 // et de l'ordre de grandeur — rien ne doit filtrer de la valeur réelle.
@@ -9,15 +12,34 @@ const MONTANT_MASQUE = '••••••'
 // `formatEuro` est appelé depuis 155 endroits : la vue mensuelle du simulateur en
 // déclenchait à elle seule plus de 2 000 constructions par rendu, refaites à chaque
 // frappe dans les champs d'hypothèses (revue du 03/09/2026).
-const FORMATTEURS_EURO: Record<0 | 2, Intl.NumberFormat> = {
-  0: new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }),
-  2: new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }),
+// Mis en cache PAR LOCALE depuis le multilingue : un seul jeu tant que la langue ne
+// change pas, comme avant.
+const cacheFormatteurs = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>()
+
+function formatteurNombre(nom: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const cle = `${localeCourante()}|${nom}`
+  let formatteur = cacheFormatteurs.get(cle) as Intl.NumberFormat | undefined
+  if (!formatteur) {
+    formatteur = new Intl.NumberFormat(localeCourante(), options)
+    cacheFormatteurs.set(cle, formatteur)
+  }
+  return formatteur
+}
+
+function formatteurDate(nom: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const cle = `${localeCourante()}|${nom}`
+  let formatteur = cacheFormatteurs.get(cle) as Intl.DateTimeFormat | undefined
+  if (!formatteur) {
+    formatteur = new Intl.DateTimeFormat(localeCourante(), options)
+    cacheFormatteurs.set(cle, formatteur)
+  }
+  return formatteur
 }
 
 export function formatEuro(value: number | null, decimales: 0 | 2 = 2, masque = false): string {
   if (masque) return MONTANT_MASQUE
   if (value === null) return '—'
-  return FORMATTEURS_EURO[decimales].format(value)
+  return formatteurNombre(`euro${decimales}`, { style: 'currency', currency: 'EUR', maximumFractionDigits: decimales }).format(value)
 }
 
 // Échelle verticale en euros d'un graphique (§ AX, onglet Évolution d'Analyse,
@@ -27,9 +49,9 @@ export function formatEuro(value: number | null, decimales: 0 | 2 = 2, masque = 
 export function formatEuroAxe(value: number, masque = false): string {
   if (masque) return '••'
   const abs = Math.abs(value)
-  if (abs >= 1_000_000) return `${(value / 1_000_000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} M€`
-  if (abs >= 1_000) return `${(value / 1_000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} k€`
-  return `${value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toLocaleString(localeCourante(), { maximumFractionDigits: 1 })} M€`
+  if (abs >= 1_000) return `${(value / 1_000).toLocaleString(localeCourante(), { maximumFractionDigits: 0 })} k€`
+  return `${value.toLocaleString(localeCourante(), { maximumFractionDigits: 0 })} €`
 }
 
 /** Quantité détenue d'une position. Les positions reconstruites depuis l'historique
@@ -37,10 +59,8 @@ export function formatEuroAxe(value: number, masque = false): string {
  * au lieu de 0.168355) : arrondi à 8 décimales (précision suffisante même pour une
  * position crypto fractionnaire) avant formatage, zéros inutiles supprimés par
  * `toLocaleString`. */
-const FORMATTEUR_QUANTITE = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 8 })
-
 export function formatQuantite(value: number): string {
-  return FORMATTEUR_QUANTITE.format(Number(value.toFixed(8)))
+  return formatteurNombre('quantite', { maximumFractionDigits: 8 }).format(Number(value.toFixed(8)))
 }
 
 export function formatPct(value: number | null): string {
@@ -63,9 +83,13 @@ export function dateVersISO(d: Date): string {
 export function formatDate(isoDate: string): string {
   // Accepte aussi bien une date pure ("2026-01-01") qu'un horodatage complet
   // ("2026-01-01T00:00:00", ex. `Holding.date_valeur_estimee`) — sans ce découpage,
-  // le "T..." final se retrouvait concaténé au jour ("01T00:00:00/01/2026").
-  const [annee, mois, jour] = isoDate.split('T')[0].split('-')
-  return `${jour}/${mois}/${annee}`
+  // le "T..." final se retrouvait concaténé au jour ("01T00:00:00/01/2026"). La date
+  // est construite en heure LOCALE à partir de ses composantes, jamais via l'UTC :
+  // même raison que `dateVersISO` ci-dessus, un fuseau en avance la décalerait d'un
+  // jour. Format court de la langue : « 01/01/2026 » en français, « 1/1/2026 » en
+  // anglais américain.
+  const [annee, mois, jour] = isoDate.split('T')[0].split('-').map(Number)
+  return formatteurDate('date', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(annee, mois - 1, jour))
 }
 
 /** Les horodatages renvoyés par l'API sont en UTC mais sans indication de fuseau
@@ -75,9 +99,7 @@ export function parseDateApi(iso: string): Date {
   return new Date(iso.endsWith('Z') ? iso : `${iso}Z`)
 }
 
-const FORMATTEUR_DATE_HEURE = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-
 export function formatDateHeure(iso: string | null): string {
-  if (!iso) return 'Jamais exécuté'
-  return FORMATTEUR_DATE_HEURE.format(parseDateApi(iso))
+  if (!iso) return t('format.jamaisExecute')
+  return formatteurDate('dateHeure', { dateStyle: 'short', timeStyle: 'short' }).format(parseDateApi(iso))
 }

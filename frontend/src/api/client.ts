@@ -205,14 +205,17 @@ export const api = {
   // Authentification (Milestone 1, multi-utilisateur)
   login: (username: string, password: string) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
-  register: (username: string, password: string) =>
-    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  // `langue` : celle de l'écran de création du compte, qui devient celle du foyer.
+  register: (username: string, password: string, langue?: string) =>
+    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ username, password, langue }) }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getMe: () => request<AuthUser>('/auth/me'),
   completeOnboarding: () => request<AuthUser>('/auth/onboarding/terminer', { method: 'POST' }),
   getOidcStatus: () => request<OidcStatus>('/auth/oidc/status'),
   // Nom du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité).
   updateFoyerNom: (nom: string) => request<AuthUser>('/auth/foyer', { method: 'PATCH', body: JSON.stringify({ nom }) }),
+  updateLangueFoyer: (langue: string) =>
+    request<AuthUser>('/auth/foyer/langue', { method: 'PATCH', body: JSON.stringify({ langue }) }),
 
   // Sessions et journal d'accès (backlog 2.L.2).
   listSessions: () => request<Session[]>('/auth/sessions'),

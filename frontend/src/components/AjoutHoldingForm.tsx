@@ -24,6 +24,7 @@ import InfoBulle from './InfoBulle'
 import { LOAN_FORM_VIDE, type LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
+import { localeCourante } from '../i18n'
 
 // Sentinelle pour l'option "+ Nouveau compte..." du sélecteur — distincte de toute
 // valeur réelle possible (un id de compte est toujours numérique).
@@ -555,7 +556,7 @@ export default function AjoutHoldingForm({
               null && (
               <p className="mt-1 text-xs text-texte-attenue">
                 Valeur projetée dans 1 an (indicatif, jamais appliqué automatiquement) :{' '}
-                {valeurProjeteeUnAn(Number(form.valeur_estimee), Number(form.taux_pct))?.toLocaleString('fr-FR', {
+                {valeurProjeteeUnAn(Number(form.valeur_estimee), Number(form.taux_pct))?.toLocaleString(localeCourante(), {
                   style: 'currency',
                   currency: 'EUR',
                   maximumFractionDigits: 0,

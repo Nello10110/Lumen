@@ -39,6 +39,13 @@ function matchMediaDesktopParDefaut(query: string): MediaQueryList {
 }
 window.matchMedia ??= matchMediaDesktopParDefaut
 
+// jsdom annonce un navigateur en anglais (`navigator.language === 'en-US'`) : sans
+// ceci, `LangueProvider` (backlog § BL) passerait toute application rendue en test
+// en anglais, alors que les tests vérifient les textes français de référence. Un
+// test qui veut une autre langue la choisit explicitement.
+Object.defineProperty(window.navigator, 'language', { value: 'fr-FR', configurable: true })
+Object.defineProperty(window.navigator, 'languages', { value: ['fr-FR', 'fr'], configurable: true })
+
 afterEach(() => {
   cleanup()
   // Remet le viewport simulé à "desktop" après chaque test — sans ça, un test qui

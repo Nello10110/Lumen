@@ -13,6 +13,11 @@ Parcours type conseillé :
 2. Rafraîchir les cours (bouton sur l'écran **Actifs**, ou automatiquement via **Réglages**, onglet Automatisations).
 3. Consulter l'écran **Analyse** (onglet Répartition) pour voir la répartition géographique/sectorielle du portefeuille.
 
+**Langue** : avant de se connecter, l'écran de connexion s'affiche dans la langue du navigateur
+(si l'application la propose, sinon en français) ; la liste en bas de cet écran permet d'en changer,
+et le choix est retenu sur cet appareil. Une fois connecté, c'est la langue du foyer qui s'applique
+(Réglages → Général) ; le tout premier compte crée son foyer dans la langue de l'écran de création.
+
 Un bouton en haut à droite de chaque écran bascule l'apparence entre thème clair, thème sombre et suivi automatique du système (un clic fait passer de l'un à l'autre) ; le choix est mémorisé d'une visite à l'autre.
 
 **Installer l'application** : depuis un navigateur compatible (Chrome, Edge, ou Safari via « Ajouter à l'écran d'accueil » sur iPhone/iPad), l'icône d'installation dans la barre d'adresse (ou le menu du navigateur) ajoute l'application comme une icône dédiée, ouverte en plein écran — pas de store, pas d'installation à maintenir, juste le navigateur qui la sert comme une application native.
@@ -462,7 +467,8 @@ conduire directement, et le retour du navigateur restitue l'onglet précédent.
 #### Assistant de bienvenue
 
 À la création du tout premier compte (propriétaire) d'une instance neuve, un assistant de
-configuration initiale s'affiche à la place de l'application : bienvenue, méthode de calcul du
+configuration initiale s'affiche à la place de l'application : bienvenue — avec, en tête de cette
+toute première page, le **choix de la langue** du foyer —, méthode de calcul du
 coût de revient, détenteurs du foyer, établissements et comptes, puis les deux façons de démarrer
 le portefeuille (import de transactions ou saisie manuelle). Chaque étape peut être passée ;
 "Passer l'assistant" comme "Terminer" marquent le parcours comme fait — il ne réapparaît plus aux
@@ -474,6 +480,12 @@ Général — utile pour redécouvrir les réglages de départ, sans effet sur l
 
 - **Nom du foyer** : partagé par tous les comptes du foyer, modifiable par le propriétaire. Il sert
   aussi de phrase de confirmation pour réinitialiser le foyer (voir « Sauvegarde » ci-dessous).
+- **Langue** : français, English, Español, Deutsch ou Italiano, pour **tout le foyer** — chaque
+  membre voit l'application dans cette langue, avec les nombres et les dates dans le format
+  correspondant (en anglais : 1,234.56 € et 09/23/2026). La devise reste l'euro. L'application
+  se réaffiche aussitôt dans la langue choisie. La traduction est en cours : pour l'instant, la
+  navigation, la barre de contrôles, l'écran de connexion et l'assistant sont traduits, les autres
+  écrans restent en français.
 - **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
 - **Déclaration de patrimoine — taux d'imposition** : une valeur saisie ici, jamais calculée par l'application — reprise telle quelle dans la déclaration de patrimoine (ci-dessous) quand son profil emprunteur est inclus. Laisser vide si non pertinent.
 - **Comparaison patrimoniale — année de naissance** : sert uniquement à choisir la tranche d'âge de la comparaison au patrimoine médian français (écran Analyse, onglet Diagnostic). Sans elle, cette carte ne s'affiche pas.

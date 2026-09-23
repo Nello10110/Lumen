@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../../api/client'
@@ -35,6 +35,7 @@ vi.mock('../../api/client', () => ({
     deleteEtablissement: vi.fn(),
     createCompte: vi.fn(),
     deleteCompte: vi.fn(),
+    updateLangueFoyer: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -266,5 +267,33 @@ describe('WelcomeWizard', () => {
 
     expect(screen.getByText(/Retour sur le parcours/)).toBeInTheDocument()
     expect(screen.queryByText(/ça prend deux minutes/)).not.toBeInTheDocument()
+  })
+})
+
+// Backlog § BL (demande du 23/09/2026) : « prévoir dans l'assistant, à la première
+// page, de choisir sa langue ».
+describe('WelcomeWizard — choix de la langue en première page', () => {
+  it('la toute première page propose les langues, chacune écrite dans sa langue', () => {
+    renderWizard(utilisateurFactice())
+
+    expect(screen.getByRole('heading', { name: 'Bienvenue' })).toBeInTheDocument()
+    const choix = screen.getByRole('combobox', { name: "Langue de l'interface" })
+    expect(within(choix).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Français',
+      'English',
+      'Español',
+      'Deutsch',
+      'Italiano',
+    ])
+  })
+
+  it("choisir une langue l'enregistre pour le foyer, puis recharge l'utilisateur", async () => {
+    const refetchUser = vi.fn().mockResolvedValue(undefined)
+    renderWizard(utilisateurFactice({ refetchUser }))
+
+    fireEvent.change(screen.getByRole('combobox', { name: "Langue de l'interface" }), { target: { value: 'es' } })
+
+    await vi.waitFor(() => expect(api.updateLangueFoyer).toHaveBeenCalledWith('es'))
+    await vi.waitFor(() => expect(refetchUser).toHaveBeenCalled())
   })
 })

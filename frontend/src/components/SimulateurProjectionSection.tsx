@@ -12,6 +12,7 @@ import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT
 import { dateVersISO, formatEuro, formatPct } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel, type ResultatFire } from '../utils/interetsComposes'
 import { SegmentedControl } from './Controls'
+import { localeCourante } from '../i18n'
 
 const DUREES = [5, 10, 20, 30] as const
 type Vue = 'annuelle' | 'mensuelle'
@@ -45,7 +46,7 @@ function libelleMoisAnnee(offset: number): string {
   const totalMois = maintenant.getMonth() + offset
   const annee = maintenant.getFullYear() + Math.floor(totalMois / 12)
   const mois = ((totalMois % 12) + 12) % 12
-  const nomMois = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long' })
+  const nomMois = new Date(annee, mois, 1).toLocaleDateString(localeCourante(), { month: 'long' })
   return `${annee} ${nomMois.charAt(0).toUpperCase()}${nomMois.slice(1)}`
 }
 

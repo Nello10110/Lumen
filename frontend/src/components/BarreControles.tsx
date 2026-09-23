@@ -7,33 +7,22 @@ import { GlassPanel } from './GlassPanel'
 import { Pill, SegmentedControl } from './Controls'
 import { IconEcran, IconLune, IconOeil, IconOeilBarre, IconSoleil } from './icons'
 import { useTheme, type Theme } from '../hooks/useTheme'
+import { t } from '../i18n'
 
 // `aide` : infobulle par option plutôt qu'une seule sur le groupe — c'est la
 // DIFFÉRENCE entre les trois qui est obscure pour un nouvel utilisateur, pas la
 // notion de « vue » (recette du 02/09/2026).
-const OPTIONS_LENTILLE: { valeur: Lentille; label: string; aide: string }[] = [
-  {
-    valeur: 'net',
-    label: 'Net',
-    aide: 'Patrimoine net : tout ce que vous possédez, MOINS ce que vous devez (emprunts en cours). C\'est votre valeur nette réelle.',
-  },
-  {
-    valeur: 'brut',
-    label: 'Brut',
-    aide: "Patrimoine brut : tout ce que vous possédez, SANS déduire les emprunts. Un bien à crédit y compte pour sa valeur entière.",
-  },
-  {
-    valeur: 'financier',
-    label: 'Financier',
-    aide: 'Portefeuille financier seul : actions, ETF, crypto, obligations. Exclut immobilier, épargne et véhicules.',
-  },
-]
+// Fonction, pas constante de module : les libellés sont lus à l'affichage, dans la
+// langue active (backlog § BL).
+function optionsLentille(): { valeur: Lentille; label: string; aide: string }[] {
+  return [
+    { valeur: 'net', label: t('controles.net'), aide: t('controles.aideNet') },
+    { valeur: 'brut', label: t('controles.brut'), aide: t('controles.aideBrut') },
+    { valeur: 'financier', label: t('controles.financier'), aide: t('controles.aideFinancier') },
+  ]
+}
 
-const AIDE_DETENTEUR =
-  "Filtre tout l'écran sur la part d'une seule personne du foyer, selon les répartitions (quotités) que vous avez saisies. « Foyer » = tout le patrimoine, sans filtre."
 
-const AIDE_MONTANTS_MASQUES =
-  'Remplace tous les montants par des points — pratique pour une démonstration, une capture d\'écran ou une consultation en public. Les pourcentages restent visibles.'
 
 // Icônes seules : trois positions doivent tenir dans une barre qui reste sur une
 // seule ligne. Le libellé complet reste accessible par l'infobulle et le nom ARIA.
@@ -42,7 +31,11 @@ const ICONES_THEME: Record<Theme, (props: { className?: string }) => React.JSX.E
   sombre: IconLune,
   systeme: IconEcran,
 }
-const AIDE_THEME: Record<Theme, string> = { clair: 'Thème clair', sombre: 'Éclipse (thème sombre)', systeme: 'Suivre le système' }
+function aideTheme(theme: Theme): string {
+  if (theme === 'clair') return t('controles.themeClair')
+  if (theme === 'sombre') return t('controles.themeSombre')
+  return t('controles.themeSysteme')
+}
 
 // Construite à chaque rendu (plutôt qu'une constante au niveau module, comme
 // avant le correctif du 16/09/2026) : la micro-interaction § AF.2 a besoin de
@@ -61,7 +54,7 @@ function optionsTheme(themeActif: Theme): { valeur: Theme; libelle: React.ReactN
       libelle: (
         <Icone key={actif ? `actif-${themeActif}` : valeur} className={`h-4 w-4 ${actif ? 'animate-lumen-bascule-theme' : ''}`} />
       ),
-      aide: AIDE_THEME[valeur],
+      aide: aideTheme(valeur),
     }
   })
 }
@@ -95,24 +88,24 @@ export default function BarreControles() {
 
   return (
     <GlassPanel className="hidden shrink-0 items-center gap-3 overflow-x-auto px-4 py-2.5 md:flex">
-      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink3">Vue</span>
+      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink3">{t('controles.vue')}</span>
       <SegmentedControl
-        options={OPTIONS_LENTILLE.map((o) => ({ valeur: o.valeur, libelle: o.label, aide: o.aide }))}
+        options={optionsLentille().map((o) => ({ valeur: o.valeur, libelle: o.label, aide: o.aide }))}
         valeur={lentille}
         onChange={setLentille}
-        ariaLabel="Vue"
+        ariaLabel={t('controles.vue')}
       />
 
       {detenteurs.length > 0 && (
         <>
-          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink3">Détenteur</span>
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink3">{t('controles.detenteur')}</span>
           <select
             value={detenteurId ?? ''}
             onChange={(e) => setDetenteurId(e.target.value === '' ? null : Number(e.target.value))}
-            title={AIDE_DETENTEUR}
+            title={t('controles.aideDetenteur')}
             className="shrink-0 rounded-control border border-hairline bg-chip px-2 py-[5px] text-[13px] text-ink2"
           >
-            <option value="">Foyer</option>
+            <option value="">{t('controles.foyer')}</option>
             {detenteurs.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.nom}
@@ -138,12 +131,12 @@ export default function BarreControles() {
         // Libellé visible court (« Visibles » / « Masqués ») pour tenir sur une
         // ligne, mais nom accessible complet : seul, « Visibles » ne dit pas de
         // quoi il parle à un lecteur d'écran.
-        ariaLabel={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants`}
-        title={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants (Ctrl/⌘ + Maj + M). ${AIDE_MONTANTS_MASQUES}`}
+        ariaLabel={montantsMasques ? t('controles.afficherMontants') : t('controles.masquerMontants')}
+        title={`${montantsMasques ? t('controles.afficherMontants') : t('controles.masquerMontants')} ${t('controles.raccourciMontants')} ${t('controles.aideMontantsMasques')}`}
         className="ml-auto shrink-0"
       >
         {/* Libellés courts (README étape 3) : la barre doit tenir sur une ligne jusqu'à 1000 px. */}
-        <span className="hidden sm:inline">{montantsMasques ? 'Masqués' : 'Visibles'}</span>
+        <span className="hidden sm:inline">{montantsMasques ? t('controles.montantsMasques') : t('controles.montantsVisibles')}</span>
       </Pill>
 
       {/* Thème à droite de la barre (README étape 3). Trois positions et non deux :
@@ -154,7 +147,7 @@ export default function BarreControles() {
         valeur={theme}
         onChange={setTheme}
         taille="sm"
-        ariaLabel="Thème"
+        ariaLabel={t('controles.theme')}
         className="shrink-0"
       />
     </GlassPanel>

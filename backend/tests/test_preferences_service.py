@@ -125,3 +125,17 @@ def test_enregistrer_le_nom_du_foyer_ecrase_une_valeur_deja_presente(db):
 
     assert preferences_service.lire_nom_foyer(db, ID_UTILISATEUR_TEST) == "Nouveau nom"
     assert db.query(UserParametre).filter(UserParametre.user_id == ID_UTILISATEUR_TEST, UserParametre.cle == "foyer_nom").count() == 1
+
+
+def test_langue_du_foyer_par_defaut_et_valeur_retiree(db):
+    # Défaut français ; une langue qui ne serait plus proposée retombe sur le défaut
+    # plutôt que de laisser l'interface sans traduction (backlog § BL).
+    from app.models import UserParametre
+    from app.services import preferences_service
+
+    assert preferences_service.lire_langue_foyer(db, 1) == "fr"
+    preferences_service.enregistrer_langue_foyer(db, 1, "it")
+    assert preferences_service.lire_langue_foyer(db, 1) == "it"
+    db.get(UserParametre, ("langue", 1)).valeur = "retiree"
+    db.commit()
+    assert preferences_service.lire_langue_foyer(db, 1) == "fr"

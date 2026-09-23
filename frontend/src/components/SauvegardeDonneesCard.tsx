@@ -6,6 +6,7 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import Modale from './Modale'
 import { SecondaryButton } from './Controls'
+import { localeCourante } from '../i18n'
 
 /** Libellés lisibles des tables du fichier d'export — le décompte brut
  * (`holding_valuation_history: 12`) ne dit rien à un utilisateur. Une table absente
@@ -205,7 +206,7 @@ export default function SauvegardeDonneesCard() {
               </h2>
               <p className="mt-2 text-sm text-texte">
                 Le fichier <span className="font-medium text-texte">{fichier.name}</span>
-                {apercu.exporte_le && <> (exporté le {new Date(apercu.exporte_le).toLocaleDateString('fr-FR')})</>} contient :
+                {apercu.exporte_le && <> (exporté le {new Date(apercu.exporte_le).toLocaleDateString(localeCourante())})</>} contient :
               </p>
               <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-texte">
                 {Object.entries(apercu.contenu).map(([table, nombre]) => (

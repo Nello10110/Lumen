@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { activerLangue } from '../i18n'
 import { formatDate, formatDateHeure, formatEuro, formatEuroAxe, formatPct, formatQuantite } from './format'
 
 describe('formatEuro', () => {
@@ -109,5 +110,37 @@ describe('formatDateHeure', () => {
 
   it('accepte une date déjà suffixée par Z', () => {
     expect(formatDateHeure('2026-08-18T14:32:00Z')).toBe('18/08/2026 14:32')
+  })
+})
+
+// Décision du 23/09/2026 (backlog § BL) : nombres et dates suivent la langue de
+// l'interface ; la devise reste l'euro.
+describe('formats selon la langue', () => {
+  afterEach(async () => {
+    await activerLangue('fr')
+  })
+
+  it('anglais : montants, quantités, dates au format américain', async () => {
+    await activerLangue('en')
+
+    expect(formatEuro(1234.5)).toBe('€1,234.50')
+    expect(formatQuantite(0.5)).toBe('0.5')
+    expect(formatDate('2024-03-07')).toBe('03/07/2024')
+    expect(formatDateHeure(null)).toBe('Never run')
+  })
+
+  it('allemand : séparateurs allemands, euro après le montant', async () => {
+    await activerLangue('de')
+
+    expect(formatEuro(1234.5).replace(/\s/g, ' ')).toBe('1.234,50 €')
+    expect(formatDate('2024-03-07')).toBe('07.03.2024')
+  })
+
+  it("revenir au français redonne exactement le format d'origine", async () => {
+    await activerLangue('en')
+    await activerLangue('fr')
+
+    expect(formatDate('2024-03-07')).toBe('07/03/2024')
+    expect(formatEuro(1234.5).replace(/\s/g, ' ')).toBe('1 234,50 €')
   })
 })

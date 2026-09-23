@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import Card from '../Card'
 import { ETAPES_ONBOARDING } from './steps'
+import { t } from '../../i18n'
 
 /** Assistant de configuration initiale (« welcome board »), affiché plein cadre à la
  * place de l'application (cf. `App.tsx` : propriétaire non encore `onboarding_termine`)
@@ -30,9 +31,9 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-elevee px-6 py-10">
       <div className="w-full max-w-lg">
-        <h1 className="mb-2 text-center text-xl font-semibold text-texte">Configuration initiale</h1>
+        <h1 className="mb-2 text-center text-xl font-semibold text-texte">{t('assistant.titre')}</h1>
         <p className="mb-6 text-center text-xs text-texte-attenue">
-          Étape {index + 1} sur {ETAPES_ONBOARDING.length}
+          {t('assistant.etapeSur', { n: index + 1, total: ETAPES_ONBOARDING.length })}
         </p>
 
         <div className="mb-6 flex justify-center gap-1.5" aria-hidden="true">
@@ -56,7 +57,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
               disabled={index === 0}
               className="rounded-control px-3 py-1.5 text-sm font-medium text-texte-attenue hover:text-texte disabled:opacity-0"
             >
-              Précédent
+              {t('assistant.precedent')}
             </button>
 
             <div className="flex items-center gap-3">
@@ -66,7 +67,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                   onClick={terminer}
                   className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:text-texte hover:underline"
                 >
-                  Passer l'assistant
+                  {t('assistant.passer')}
                 </button>
               )}
               {estDerniereEtape ? (
@@ -75,7 +76,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                   onClick={terminer}
                   className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white"
                 >
-                  Terminer
+                  {t('assistant.terminer')}
                 </button>
               ) : (
                 <button
@@ -83,7 +84,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                   onClick={() => setIndex((i) => i + 1)}
                   className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white"
                 >
-                  Suivant
+                  {t('assistant.suivant')}
                 </button>
               )}
             </div>

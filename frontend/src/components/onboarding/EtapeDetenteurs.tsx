@@ -1,4 +1,5 @@
 import DetenteursCard from '../DetenteursCard'
+import { t } from '../../i18n'
 
 /** Étape "Détenteurs du foyer" de `steps.ts` — même raison qu'`EtapePreferences` :
  * réutilise `DetenteursCard` tel quel, liste réellement les détenteurs déjà déclarés
@@ -6,10 +7,7 @@ import DetenteursCard from '../DetenteursCard'
 export default function EtapeDetenteurs() {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-texte">
-        Si le patrimoine est partagé (conjoint, enfant...), déclare ici les personnes concernées — utile pour répartir
-        la propriété des actifs plus tard. Sans objet ? Cette étape se passe sans rien saisir.
-      </p>
+      <p className="text-sm text-texte">{t('assistant.detenteurs')}</p>
       <DetenteursCard />
     </div>
   )
