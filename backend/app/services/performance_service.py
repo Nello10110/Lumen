@@ -171,7 +171,7 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
             # lot, n'était comptabilisé nulle part.
             cout_total_investi += -(tx.amount + tx.fee + tx.tax)
 
-    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
+    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/BACKLOG.md` § 4.2) exclus : cette
     # carte reste volontairement scopée à l'activité BOURSIÈRE pure (increment 5) —
     # `holdings_financiers` les exclut en amont, jamais comptés dans `valeur_positions`
     # ni dans `cout_base_ouvert` ci-dessous ; y inclure un bien immobilier sans coût de
@@ -357,7 +357,7 @@ def _rendement_pour_ligne(
     si ce flux plus riche produit `None` (ex. tous les versements déclarés à la même
     date que "maintenant"), le repli `date_acquisition` reste tenté ensuite."""
     h = v.holding
-    # `valeur_estimee` (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/PER)
+    # `valeur_estimee` (Phase 1 de `docs/BACKLOG.md` § 4.2, immobilier/SCPI/assurance-vie/PER)
     # joue le rôle du prix actuel pour ces lignes : c'est un montant absolu, mais
     # `quantite` vaut 1 par convention pour elles (cf. `models.Holding.valeur_estimee`),
     # donc la comparer directement à `prix_revient_moyen` (le montant investi à

@@ -12,7 +12,7 @@ de suivi de patrimoine et de portefeuille boursier. Elle permet de :
 5. annoter chaque ligne d'un compte (PEA, CTO...) à titre purement indicatif, pour lire la répartition de la valeur actuelle par enveloppe ;
 6. exporter positions, transactions et synthèse de rentabilité en CSV compatible Excel français ;
 7. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface ;
-8. suivre le **patrimoine net global** (roadmap Phase 1, `docs/ROADMAP.md`) : au-delà du seul portefeuille financier, immobilier/SCPI/assurance-vie/PER/autres actifs valorisés manuellement et emprunts (passifs), avec une répartition par grande classe d'actif ;
+8. suivre le **patrimoine net global** (roadmap Phase 1, `docs/BACKLOG.md` § 4.2) : au-delà du seul portefeuille financier, immobilier/SCPI/assurance-vie/PER/autres actifs valorisés manuellement et emprunts (passifs), avec une répartition par grande classe d'actif ;
 9. **projeter** ce patrimoine net à horizon réglable et estimer une **indépendance financière** (roadmap Phase 2) à partir d'hypothèses de rendement, d'épargne et de dépense cible — présenté explicitement comme une hypothèse, jamais une promesse ;
 10. consulter un **calendrier des dividendes perçus**, mois par mois, avec le détail des lignes (roadmap Phase 3) ;
 11. exporter un **relevé de patrimoine en PDF** mis en forme, au-delà des exports CSV (roadmap Phase 3) ;

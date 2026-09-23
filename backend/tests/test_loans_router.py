@@ -1,5 +1,5 @@
 """Verrouille le CRUD `GET`/`POST`/`PATCH`/`DELETE /api/loans` (Phase 1 de
-`docs/ROADMAP.md`, patrimoine net) — validation des saisies, `capital_restant_du`
+`docs/BACKLOG.md` § 4.2, patrimoine net) — validation des saisies, `capital_restant_du`
 toujours calculé côté serveur, jamais fourni par le client."""
 
 from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, NOM_UTILISATEUR_TEST, basculer_utilisateur, make_holding

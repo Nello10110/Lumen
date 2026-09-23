@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # 
 
 
 class LoanBase(BaseModel):
-    """Emprunt (Phase 1 de `docs/ROADMAP.md`, patrimoine net) — cf. `models.Loan`."""
+    """Emprunt (Phase 1 de `docs/BACKLOG.md` § 4.2, patrimoine net) — cf. `models.Loan`."""
 
     libelle: str
     capital_initial: float

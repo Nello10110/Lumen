@@ -36,7 +36,7 @@ def get_category_composition(type: str, categorie: str, db: Session = Depends(ge
     if type not in ("geo", "sector"):
         raise HTTPException(status_code=400, detail="type doit être 'geo' ou 'sector'")
 
-    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
+    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/BACKLOG.md` § 4.2) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
     holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))
@@ -58,7 +58,7 @@ def get_cout_gestion_consolide(db: Session = Depends(get_db), current_user: User
 
 @router.get("", response_model=AnalysisResponse)
 def get_analysis(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
+    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/BACKLOG.md` § 4.2) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
     holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))

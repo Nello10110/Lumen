@@ -1,5 +1,5 @@
 """Verrouille le calcul du capital restant dû d'un emprunt (Phase 1 de
-`docs/ROADMAP.md`, patrimoine net) — `services/loan_service.py`."""
+`docs/BACKLOG.md` § 4.2, patrimoine net) — `services/loan_service.py`."""
 
 from datetime import datetime
 

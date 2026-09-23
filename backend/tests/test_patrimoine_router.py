@@ -1,4 +1,4 @@
-"""Verrouille `GET /api/patrimoine/net` (roadmap Phase 1, `docs/ROADMAP.md`).
+"""Verrouille `GET /api/patrimoine/net` (roadmap Phase 1, `docs/BACKLOG.md` § 4.2).
 
 `/simulation` et `/fire` (roadmap Phase 2) ont été retirés lors de la fusion des
 pages Simulateur et Outils côté frontend : la projection, le tableau de détail et

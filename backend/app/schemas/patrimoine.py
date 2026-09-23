@@ -8,7 +8,7 @@ from .commun import RepartitionParClasseItem
 
 
 class PatrimoineNetResponse(BaseModel):
-    """Patrimoine net global (Phase 1 de `docs/ROADMAP.md`) — `services/patrimoine_service.py`.
+    """Patrimoine net global (Phase 1 de `docs/BACKLOG.md` § 4.2) — `services/patrimoine_service.py`.
     Distinct de `AnalysisResponse.valeur_totale` (scopé au seul portefeuille financier,
     cf. `analysis_service.holdings_financiers`) : `actifs_totaux` ici couvre en plus
     l'immobilier/SCPI/assurance-vie/PER, et `patrimoine_net` en retranche les emprunts.

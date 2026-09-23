@@ -42,7 +42,7 @@ SOURCE_JUSTETF = "justetf"  # composition pays/secteurs réelle scrapée sur jus
 ORIGINE_MANUEL = "manuel"
 ORIGINE_RECONSTRUIT = "reconstruit"
 
-# Types d'actifs valorisés manuellement (Phase 1 de `docs/ROADMAP.md`, patrimoine net
+# Types d'actifs valorisés manuellement (Phase 1 de `docs/BACKLOG.md` § 4.2, patrimoine net
 # complet) : aucune tentative de cotation automatique n'a de sens pour eux — un
 # bien immobilier ou un contrat d'assurance-vie n'a pas de ticker coté sur un marché.
 # Leur valeur vient de `Holding.valeur_estimee`, saisie et mise à jour manuellement par
@@ -235,7 +235,7 @@ class Holding(Base):
 
 
 class Loan(Base):
-    """Emprunt (Phase 1 de `docs/ROADMAP.md`, patrimoine net complet) — premier
+    """Emprunt (Phase 1 de `docs/BACKLOG.md` § 4.2, patrimoine net complet) — premier
     vrai PASSIF de l'application, jusqu'ici entièrement composée d'actifs. Le capital
     restant dû (`services/loan_service.compute_capital_restant_du`) est calculé par
     amortissement standard à taux fixe à partir de `capital_initial`/`taux_annuel_pct`/

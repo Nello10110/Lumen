@@ -1,5 +1,5 @@
 """Verrouille `Holding.valeur_estimee`/`date_valeur_estimee` (Phase 1 de
-`docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/PER) : `date_valeur_estimee` n'est
+`docs/BACKLOG.md` § 4.2, immobilier/SCPI/assurance-vie/PER) : `date_valeur_estimee` n'est
 jamais fournie par le client, elle est posée côté serveur uniquement quand
 `valeur_estimee` change réellement dans l'appel — cf. `routers/portfolio.py`."""
 

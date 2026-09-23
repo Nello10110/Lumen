@@ -1,4 +1,4 @@
-"""Verrouille le patrimoine net global (Phase 1 de `docs/ROADMAP.md`) :
+"""Verrouille le patrimoine net global (Phase 1 de `docs/BACKLOG.md` § 4.2) :
 `services/patrimoine_service.compute_patrimoine_net` — actifs (portefeuille financier
 + immobilier/SCPI/assurance-vie/PER) moins passifs (emprunts)."""
 

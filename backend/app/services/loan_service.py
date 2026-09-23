@@ -1,4 +1,4 @@
-"""Calcul du capital restant dû d'un emprunt (Phase 1 de `docs/ROADMAP.md`, patrimoine
+"""Calcul du capital restant dû d'un emprunt (Phase 1 de `docs/BACKLOG.md` § 4.2, patrimoine
 net) — amortissement standard à taux fixe, mensualités constantes. Formule classique :
 après `n` mensualités payées sur un capital `P` au taux mensuel `r` avec mensualité `M`,
 

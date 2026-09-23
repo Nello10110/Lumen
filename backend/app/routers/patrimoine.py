@@ -1,4 +1,4 @@
-"""Patrimoine net global (Phase 1 de `docs/ROADMAP.md`) — actifs moins passifs sur
+"""Patrimoine net global (Phase 1 de `docs/BACKLOG.md` § 4.2) — actifs moins passifs sur
 *tout* le patrimoine (portefeuille financier + immobilier/SCPI/assurance-vie/PER),
 distinct des écrans d'analyse existants qui restent scopés au seul portefeuille
 financier (`services/patrimoine_service.py`).

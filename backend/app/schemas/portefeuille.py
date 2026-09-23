@@ -26,7 +26,7 @@ class HoldingBase(BaseModel):
     prix_revient_moyen: float | None = None
     devise: str | None = None
     type_actif: str | None = None
-    # Valorisation manuelle (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/
+    # Valorisation manuelle (Phase 1 de `docs/BACKLOG.md` § 4.2, immobilier/SCPI/assurance-vie/
     # PER — cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) : montant ABSOLU en euros, pas
     # un prix par part. `date_valeur_estimee` n'est jamais saisie par le client — posée
     # côté serveur au moment où `valeur_estimee` change (cf. `routers/portfolio.py`).

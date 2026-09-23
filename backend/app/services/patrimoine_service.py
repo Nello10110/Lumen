@@ -1,4 +1,4 @@
-"""Patrimoine net global (Phase 1 de `docs/ROADMAP.md`) : actifs − passifs, sur
+"""Patrimoine net global (Phase 1 de `docs/BACKLOG.md` § 4.2) : actifs − passifs, sur
 *toutes* les lignes du portefeuille (financier + immobilier/épargne, cf.
 `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) moins les emprunts (`Loan`). Distinct
 d'`analysis_service`/`performance_service`, qui restent volontairement scopés au seul
@@ -29,7 +29,7 @@ from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
 TYPES_LIQUIDES = {TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS}
 
 # Libellés affichés pour la répartition par classe d'actif (nouvelle dimension, cf.
-# ROADMAP § Phase 1 — ne remplace pas le look-through géo/sectoriel existant, qui n'a
+# Phase 1 (`docs/BACKLOG.md` § 4.2) — ne remplace pas le look-through géo/sectoriel existant, qui n'a
 # pas de sens pour un bien immobilier ou un contrat d'assurance-vie).
 LABEL_TYPE_ACTIF: dict[str | None, str] = {
     "STOCK": "Actions",

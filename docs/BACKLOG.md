@@ -1,139 +1,243 @@
-# Backlog — Lumen
+# Backlog et feuille de route — Lumen
 
-## 0. Où on en était, où on va
+Document unique de pilotage du projet, depuis le 23/09/2026. Il réunit ce qui vivait dans trois
+fichiers qui se recouvraient : le backlog (quoi faire, et les arbitrages), la roadmap (dans quel
+ordre, et pourquoi) et le bilan du premier chantier d'audit. Les deux derniers n'existent plus ; leur
+contenu utile est repris ici (§ 4 et annexe A).
 
-L'ancien backlog (audit technique et fonctionnel du 18-19/08/2026, 55 points) est **entièrement
-clos** : 53 points traités et vérifiés dans le code actuel, 2 assumés hors périmètre (fiscalité
-PEA, authentification). Il est archivé tel quel dans
-[`docs/archives/AUDIT_2026-08-18.md`](archives/AUDIT_2026-08-18.md) — c'est la trace de *pourquoi*
-chaque décision a été prise, elle garde sa valeur, mais elle ne décrit plus l'état courant du
-produit. Vérification de clôture faite le 19/08/2026 avant réécriture de ce document : suite de
-tests complète au vert (333 backend, 84 frontend), `tsc`/`oxlint`/`vite build` propres, et un
-sondage ciblé sur les points les plus à risque de régression silencieuse (chargement `selectin`
-toujours en place, recherche dichotomique de l'historique toujours en place, script de sauvegarde
-présent, rafraîchissement toujours asynchrone en 202) — voir le détail de la méthode en fin de
-document (§ 5).
+**Mode d'emploi.** Pour savoir où en est le produit : § 1. Pour savoir ce qui reste à faire : § 2 —
+c'est la seule liste à tenir à jour, tout le reste est de la trace. Le détail de chaque point, avec
+le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BJ), dans
+l'ordre où les sujets sont apparus.
 
-Ce document est désormais **tourné vers la suite**. Contexte du changement de cap (échange du
-19/08/2026) : l'utilisateur souhaite faire évoluer l'application vers un **suivi patrimonial
-complet**, au niveau de ce que proposent les agrégateurs commerciaux du marché (cf. § 1) — mais
-gratuit et à code ouvert. Le § 1 pose la comparaison factuelle, le § 2 en tire un backlog priorisé, le § 3 fixe ce qui reste explicitement hors
-périmètre et pourquoi. Le plan d'exécution détaillé et l'ordre des lots proposé sont dans
-[`docs/ROADMAP.md`](ROADMAP.md).
-
-**Mise à jour du 21/08/2026.** Nouvelle campagne d'observation, cette fois sur une **solution
-commerciale de référence en usage réel**, écran par écran, doublée d'un **audit UX/UI du
-frontend actuel** et de trois décisions de cadrage prises le même jour :
-
-1. la cible d'usage devient le **foyer, avec exposition depuis le serveur personnel** — ce qui fait
-   sortir l'authentification du hors-périmètre (§ 3) pour en faire un préalable bloquant ;
-2. le **budget entre dans le périmètre**, en lot dédié (§ 2.N) — l'ancien § F.1 est tranché ;
-3. l'**UX/UI devient un lot à part entière** (§ 2.K), placé en tête de la file d'exécution.
-
-Les sections **K à Q** du § 2 sont nouvelles, la comparaison du § 1 a été refondue à partir de
-l'observation directe, et la priorisation d'ensemble (§ 4) a été réécrite en cinq lots. Le document
-d'entrée pour les équipes de développement est désormais
-[`docs/EXPRESSION_DE_BESOIN.md`](EXPRESSION_DE_BESOIN.md) ; ce backlog reste la trace des arbitrages.
-
-**Mise à jour du 31/08/2026.** Les cinq lots planifiés (4 à 8) sont livrés — Lot 8 pour sa seule
-partie développable, deux points (Q.3, E.1) restant hors développement faute d'arbitrage/de donnée
-externe (§ 4). Une fois l'usage réel commencé sur les lots livrés, une quinzaine de retours directs
-de l'utilisateur (sections **R à W** du § 2) ont affiné le produit sans ouvrir de nouveau chantier
-planifié — regroupés a posteriori sous un **Lot 9 « Retours terrain »** (§ 4) pour rester traçables
-au même titre que les lots précédents plutôt que de s'accumuler en « hors lot » dispersé. Le backlog
-issu de l'audit du 21/08/2026 est donc, pour l'essentiel, épuisé.
-
-**Mise à jour du 01/09/2026.** Un dernier retour direct, plus structurant que les précédents (demande
-d'une vue façon Actual Budget), ouvre un chantier autonome — section **X** du § 2, regroupé sous un
-**Lot 10 « Comptes structurels »** (§ 4).
+**Conventions d'un point** : `#### X.n — sévérité · effort · statut · priorité — titre`.
+Sévérité `majeur` (structurant) ou `mineur` (confort) ; effort `XS` (quelques minutes), `S`
+(moins d'une heure), `M` (quelques heures) ou `L` (un chantier) ; statut
+`non traité`, `traité (date)`, `retiré`, `différé` ou `en attente d'arbitrage` ; priorité `P0`
+(fondation) à `P3` (confort). Un point n'est `traité` que vérifié — tests, et contrôle en conditions
+réelles quand c'est possible.
 
 ---
 
-## 1. Étude d'opportunité — comparaison avec l'offre du marché
+## 1. Où en est Lumen (23/09/2026)
 
-Deux campagnes d'observation portant sur une **solution commerciale de référence** du suivi
-patrimonial, volontairement non nommée ici. La première (19/08/2026) était **documentaire** : site
-officiel et avis indépendants. La seconde (**21/08/2026**) est une **observation directe du produit
-en usage réel**, formule gratuite — écran par écran, y compris les fiches de détail, les réglages
-et les modales de partage. Cette seconde
-campagne a fait apparaître des fonctionnalités que la documentation commerciale ne montre pas, et
-c'est elle qui alimente les nouveaux lots K à Q du § 2.
+**Ce que fait l'application.** Un suivi de patrimoine complet pour un foyer, auto-hébergé :
 
-### 1.1 Ce que l'outil observé expose réellement (relevé du 21/08/2026)
+- **portefeuille boursier** reconstruit depuis les exports du courtier (Trade Republic, Ledger Live,
+  Bricks.co, ou tout CSV/Excel par correspondance de colonnes), rentabilité (XIRR, TWR),
+  répartitions géographique et sectorielle par transparence des fonds, cours via Yahoo Finance,
+  justETF et CoinGecko ;
+- **patrimoine hors bourse** : immobilier (fiche détaillée, rentabilité locative), épargne
+  réglementée, assurance-vie, PER, comptes courants, emprunts (capital restant dû calculé) ;
+- **foyer** : détenteurs et quotités (qui possède quoi, part nette de chacun), comptes et
+  établissements, comptes utilisateurs propriétaire/membre/invité, liens de partage révocables ;
+- **budget** : import CSV/OFX/QIF, catégorisation par règles explicites, récurrences, taux
+  d'épargne ;
+- **analyse et projection** : historique du patrimoine, métriques avancées, simulateur et
+  indépendance financière, rapports périodiques, relevé PDF ;
+- **exploitation** : sauvegarde chiffrée planifiée, export/import complet des données du foyer,
+  connexion SSO (OIDC), application installable (PWA).
 
-**Navigation** : `Synthèse` · `Patrimoine` · `Objectifs` (badge « NOUVEAU ») · `Analyse` · `Budget` ·
-`Investir` · `Outils` · `Communauté` · `Premium offert`, dans une **barre latérale verticale
-repliable**. L'en-tête porte cinq actions transverses : *Partager mon patrimoine*, *Déclaration de
-patrimoine*, *Cacher les montants*, *Notifications*, *Action requise*, plus un bouton d'appel à
-l'action *Compléter mon patrimoine*.
+**Technique.** Backend Python (FastAPI, SQLAlchemy 2, Alembic), montants en `Decimal` exacts au
+centime (§ BI.1). Base **SQLite** par défaut — un fichier, une installation par foyer ; **Postgres**
+possible pour une future version hébergée, avec la séparation des foyers imposée par la base elle-même
+(sécurité au niveau des lignes, § BI.4-BI.5). Frontend React + TypeScript + Vite. Déploiement par un
+`compose.yaml` unique et des images publiées sur GHCR à chaque livraison.
 
-| Bloc observé | Ce que fait l'outil observé | Ce que nous faisons aujourd'hui |
-|---|---|---|
-| **Trois lentilles de patrimoine** | Sélecteur global : *Patrimoine brut* (actifs hors passifs), *Patrimoine net* (actifs − passifs), *Patrimoine financier* (actifs liquides hors comptes bancaires). S'applique au chiffre-clé, au graphique et aux répartitions | Patrimoine net seul, calculé mais non commutable |
-| **Période globale** | `1J 7J 1M 3M 6M YTD 1A TOUT`, persistante d'un écran à l'autre | Sélecteur d'année par écran, non transverse |
-| **Détenteurs (quotités)** | Chaque actif **et chaque passif** porte des détenteurs avec un pourcentage. Réglages → *Famille et entreprises* gère les personnes **et les sociétés** (SCI, holding). Filtre et regroupement par détenteur dans les tableaux | Absent. Le champ « compte » est une simple annotation |
-| **Part détenue / part nette** | Sur un bien : une *part détenue* en pourcentage donne une valeur, dont est déduit l'emprunt rattaché pour obtenir la *part nette* — nettement plus faible | Absent. Actifs et passifs sont additionnés globalement, jamais rapprochés |
-| **Emprunt rattaché à un actif** | Un passif se lie à un bien (`Emprunts liés`), ce qui rend la part nette calculable | Les emprunts existent mais flottent, sans rattachement |
-| **Immobilier** | Valorisation automatique via un **service d'estimation tiers payant** : valeur estimée, prix/m², *niveau de confiance*, positionnement sur une échelle de marché (« au-dessus du marché »). Fiche structurée en 8 sections : Description, Caractéristiques, Location, Détails, Pièces, Emprunts liés, Détention, Supprimer. Le bloc *Location* porte type (Pinel, …), périodicité, loyer mensuel, charges mensuelles, frais annuels → **cashflow** et **rentabilité** calculés | Valeur estimée saisie à la main, sans loyer, sans charges, sans cashflow ni rentabilité |
-| **Fiche d'actif** | Trois onglets systématiques : *Aperçu* (valeur, courbe, indicateurs), *Analyse* (marché, détention), *Paramètres* (formulaire sectionné avec sommaire latéral) | Fiche détaillée pour les seules positions boursières, sans onglets ni édition structurée |
-| **Objectifs** | Frise 2026 → 2076. Objectifs typés (*Indépendance financière*, *Épargne de précaution*) avec valeur cible, trajectoire projetée en deux courbes (valeur cible / valeur des versements), **statut en langage naturel** (« En bonne voie — votre objectif progresse comme prévu »), rendement requis, contribution cible €/mois, taux de progression, contributeurs, et **actifs liés** | Le simulateur calcule une projection et un FIRE, mais rien n'est *persisté* comme objectif suivi dans le temps |
-| **Analyse** | Sept modules : *Scanner de frais* (€/an), *Revenus passifs* (rendement % + projeté 12 mois), *Scanner de diversification sectorielle* (note /10), *Scanner de diversification géographique* (note /10), *Scanner d'abonnements*, *Simulateur de patrimoine*, *Investissements populaires*, plus *Classement* (percentile vs autres utilisateurs et population française) et *Profil de l'investisseur* (profil de risque, matelas de sécurité, ratio d'endettement) | Coût de gestion consolidé et qualité des données présents ; scores de diversification, revenus passifs projetés, profil de risque et ratios absents |
-| **Budget** | Période (1M/3M/1A/personnalisé), *Entrées / Sorties / Disponible / Dépenses récurrentes*, filtres par catégorie et par compte, distribution des sorties, création de catégories et de règles | Hors périmètre à ce jour (§ 2.N rouvre la décision) |
-| **Partage** | Lien **anonyme, révocable**, par profil, avec sélection des catégories partagées et quatre interrupteurs : partager le budget, partager les objectifs, *masquer les valeurs et les quantités*, *exiger un code de sécurité* | Absent |
-| **Déclaration de patrimoine** | PDF par profil, avec **sélection fine des actifs** à inclure (« Immobilier 2/2 », « Emprunts 3/3 »), alimentée par le *Profil investisseur* (salaire net, dépenses mensuelles, taux d'imposition) | Relevé PDF existant, mais monolithique : ni sélection, ni profil, ni détenteur |
-| **Taxonomie d'ajout** | 18 catégories : Immobilier, Actions & Fonds, PEA, Assurance Vie, Exchange Crypto, Crypto, Wallets Crypto, SCPI, Comptes courants, Comptes titres, Épargne salariale, Comptes d'épargne, Emprunts, Startups & PME, Crowdlending, Montres, Métaux précieux, Autres actifs | 9 environ, dont une catégorie « autre actif » fourre-tout |
-| **Réglages** | Mon compte (langue, **devise**, thème), Sécurité, Profil investisseur, Famille et entreprises, Comptes synchronisés, *Nettoyer graphique* (correction des accidents de série historique) | Préférences de calcul, seuil d'alerte, rafraîchissement, exports. Ni devise, ni profil, ni outil de correction d'historique |
+**Qualité.** 1 474 tests backend (SQLite ; la même suite tourne sous Postgres en CI, rôle ordinaire,
+séparation des foyers active), 853 tests frontend (Vitest), 81 tests de bout en bout (Playwright).
+Lint `ruff` et `oxlint`, typage `tsc`. Tout est rejoué à chaque push (`.github/workflows/ci.yml`).
 
-### 1.2 Ce que l'outil observé fait mal — et qui devient notre terrain
-
-L'observation directe est plus instructive que les avis en ligne. Six défauts sont **structurels**,
-pas conjoncturels, et chacun est une occasion :
-
-1. **Le chiffre-clé par défaut est le patrimoine *brut*.** L'écran d'accueil annonce le total des
-   actifs sans déduire les passifs. Sur un patrimoine fortement financé par l'emprunt, l'écart
-   observé atteint un facteur six entre le chiffre mis en avant et ce qui est réellement détenu.
-   Il faut ouvrir un menu déroulant discret pour voir le second. Un outil de suivi patrimonial dont l'indicateur principal flatte de 500 % est un problème
-   de conception, pas un réglage.
-2. **Le mur payant abîme l'écran d'analyse.** La moitié de la page *Analyse* est floutée. Les deux
-   scores de diversification s'affichent « Insuffisante 1/10 » avec l'explication masquée : le
-   diagnostic anxiogène est offert, le remède est vendu. Nous affichons déjà ces scores
-   gratuitement — c'est un argument, à condition de livrer aussi l'explication.
-3. **États vides non traités.** La carte *Performance* de la Synthèse est un grand rectangle blanc :
-   le graphique ne se dessine pas faute de données éligibles, et rien ne le dit. Le *Scanner de
-   frais* affiche « PAS DE DONNÉES / 0.00 % / — €/an ».
-4. **Libellés tronqués** dans la barre latérale (« Déclaration… », « Calculateur de… ») : le menu
-   n'a pas été conçu pour la longueur réelle des intitulés français.
-5. **Vocabulaire incohérent** : l'entrée de menu dit « Patrimoine », le titre de l'onglet dit
-   « Portefeuille », l'URL dit `/portfolio`. Trois mots pour un même écran.
-6. **Bruit commercial permanent** : une bannière d'incitation, deux boutons d'achat dans l'en-tête,
-   un encart dans la barre latérale, des badges `PLUS` sur chaque carte. Sur les 1 568 pixels de
-   large de l'écran d'analyse, une part notable ne parle pas du patrimoine de l'utilisateur.
-
-### 1.3 Positionnement retenu
-
-| Axe | Offre commerciale observée | Cible Lumen |
-|---|---|---|
-| Modèle économique | 0 € limité à 2-3 synchronisations, Lite ≈ 55 €/an, Plus ≈ 150 €/an, Pro ≈ 350 €/an | Gratuit, à code ouvert (FSL-1.1-ALv2), auto-hébergé |
-| Donnée | Cloud, agrégation via prestataire régulé | 100 % local, hors requêtes de cotation |
-| Automatisation | Synchronisation de 20 000+ établissements | Import de fichiers + saisie ; agrégation à instruire (§ 2.E.2) |
-| Transparence du calcul | Boîte noire, scores sans explication en gratuit | Qualité des données affichée, méthode documentée, tout gratuit |
-| Profondeur d'analyse | Pas de TWR, ni volatilité, ni Sharpe, ni bêta | Terrain libre — § 2.P |
-| Fiabilité | Bugs de synchronisation bancaire récurrents, première cause d'avis négatifs | Pas de synchronisation ⇒ pas cette classe de panne |
-| Ergonomie | Barre latérale claire, fiches structurées, chiffre-clé lisible — mais brut par défaut et écran d'analyse mité | À rattraper (§ 2.K), c'est aujourd'hui notre principal retard |
-
-Sources : observation directe du produit le 21/08/2026, complétée par plusieurs analyses et retours
-d'expérience publiés en ligne. Les références détaillées sont conservées hors dépôt.
+**Licence.** FSL-1.1-ALv2 (§ BE) : code ouvert, usage libre hors concurrence commerciale, bascule
+automatique en Apache 2.0 au bout de deux ans.
 
 ---
 
-## 2. Backlog priorisé
+## 2. Ce qui reste à faire
 
-Même convention que l'ancien backlog (archivé) : **sévérité** (`majeur` fonctionnalité structurante
-· `mineur` confort) · **effort** (`S` < 1 h · `M` quelques heures · `L` chantier) · **état**
-(`non traité` partout ici, c'est un backlog neuf) · **priorité** `P0`-`P3` (`P0` = fondation à faire
-en premier, `P3` = confort différable). Le détail de séquencement (quel lot avant quel lot, et
-pourquoi) est dans [`docs/ROADMAP.md`](ROADMAP.md) ; cette section liste et arbitre le contenu,
-la roadmap l'ordonnance dans le temps.
+Aucun point n'est bloqué par manque de temps : chacun attend une décision, une donnée externe ou
+une action hors code. C'est la liste à tenir à jour — un point qui se débloque passe en tête de la
+file et reçoit son détail au § 5.
+
+### 2.1 Points ouverts
+
+| Point | Ce qui manque | Pour débloquer |
+|---|---|---|
+| **AA.1** — trois demandes de la maquette sur l'écran Actifs | Arbitrage utilisateur, mis de côté le 07/09/2026 | Reprendre le sujet écran par écran (détail § AA) |
+| **E.1** — autres formats de courtier reconnus automatiquement (Boursorama, Degiro, IBKR…) | Un export réel : écrire un parseur sans en avoir vu un reviendrait à deviner | Fournir un export réel, anonymisé si besoin |
+| **E.2** — agrégation bancaire gratuite | Réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Cette réponse, **avant tout code** |
+| **Q.3** — devise et internationalisation légère | Le besoin : tout est en euros aujourd'hui | Arbitrage utilisateur, le jour où un actif en devise apparaît |
+| **AG.7** — mode découverte avec données fictives | Utile seulement si l'application s'ouvre à d'autres utilisateurs | Différé ; à reprendre avec la version hébergée |
+| **BF.1b** — relecture juridique de la licence avant monétisation | Un avocat (droit moral inaliénable en droit français) | Action de l'utilisateur |
+| **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
+| **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
+
+### 2.2 Version hébergée (SaaS) — ce qui resterait
+
+La préparation technique est faite (§ BI.4, BI.5) : l'application tourne sous Postgres et la base y
+sépare elle-même les foyers. Avant un lancement, il resterait :
+
+- **les données de marché** : `yfinance` lit Yahoo Finance sans licence, réservé à un usage personnel ;
+  JustETF est lu par extraction de page ; l'offre gratuite de CoinGecko a ses propres conditions. Un
+  service commercial doit passer par un fournisseur sous licence — **reporté par l'utilisateur** le
+  23/09/2026 (« plus tard, pas d'urgence ») ;
+- **remplacer `yfinance`**, indépendamment de la licence : environ 200 Mo de l'image (§ BI.2) —
+  **reporté par l'utilisateur** le 23/09/2026 ;
+- **les réglages d'installation** (`parametres`, `scheduled_job_config`, logo SSO) deviennent des
+  réglages d'opérateur, à sortir de l'écran Réglages des clients ;
+- **les sauvegardes** : l'intégrée copie le fichier SQLite ; sous Postgres, elles relèvent de
+  l'hébergement (`pg_dump`, sauvegarde continue) ;
+- **un chemin de migration** SQLite → Postgres pour les installations existantes, s'il y a lieu :
+  aujourd'hui, changer de base veut dire repartir d'une base vide ou passer par l'export/import des
+  données du foyer.
+
+### 2.3 Côté installation de l'utilisateur (hors code)
+
+- Sauvegarder la base avant de déployer une version qui contient les migrations `47651f844317`
+  (montants en décimal) et `ebc3df676cf9` (références orphelines) ;
+- ajouter `LUMEN_BIND=0.0.0.0` au `.env` du homelab pour garder l'accès depuis le réseau local
+  (le `compose.yaml` unique n'expose plus que la machine elle-même par défaut) ;
+- facultatif : supprimer les tags `archive/2026-08-*` et la branche de travail — le proxy git des
+  sessions de développement ne peut pas supprimer de référence.
+
+---
+
+## 3. Hors périmètre (assumé)
+
+Révisé le 21/08/2026, relu le 23/09/2026.
+
+**Sortis du hors-périmètre :**
+
+- ~~**Authentification**~~ : devenue un préalable bloquant du lot L quand la cible d'usage est
+  devenue le **foyer, avec exposition depuis le serveur personnel** (21/08/2026) — livrée (§ L.2 ;
+  connexion SSO, § L.3).
+- ~~**Budget / catégorisation des dépenses**~~ : entré dans le périmètre (§ N). La catégorisation
+  reste **par règles explicites**, jamais par IA : lisible, corrigeable, déterministe.
+
+**Restent hors périmètre :**
+
+- **Fiscalité** (PEA, plus-values, IFI, revenus fonciers) : l'application suit la performance et le
+  patrimoine, elle ne simule aucun impôt. Seule exception admise : le **taux d'imposition saisi**
+  par l'utilisateur, repris tel quel dans la déclaration de patrimoine (§ Q.2) — une donnée
+  reprise, pas un calcul fiscal.
+- **Agrégation bancaire automatique commerciale** (prestataires régulés) : contrats B2B avec coût
+  par compte connecté, incompatibles avec l'objectif « gratuit ». La piste gratuite (Enable
+  Banking) reste à instruire (§ E.2). C'est aussi la principale source de panne des agrégateurs.
+- **Trading et produits de rendement intégrés** (achat/vente dans l'application, rendement crypto,
+  assurance-vie maison) : hors philosophie du produit.
+- **Fonctionnalités communautaires** (classements, percentile face à la population) : sans base
+  d'utilisateurs, rien n'est calculable. L'équivalent honnête est la comparaison à un **indice de
+  référence** (§ P.2).
+- **Valorisation immobilière automatique** : aucune source gratuite ne donne une estimation par bien
+  avec un niveau de confiance exploitable. La réponse retenue est la **valeur estimée saisie et
+  datée** (§ M.3). Les données DVF de la DGFiP restent une piste pour un simple ordre de grandeur
+  au m².
+
+---
+
+## 4. Historique : comment on en est arrivé là
+
+### 4.1 Les grandes étapes
+
+1. **Audit du 18-19/08/2026** — 55 points relevés sur l'application d'origine (un suivi de
+   portefeuille boursier), traités en six lots : socle de tests, exactitude des calculs,
+   répartitions, robustesse, performance, fonctionnalités. Clos : 53 traités, 2 assumés hors
+   périmètre. Archivé dans [`archives/AUDIT_2026-08-18.md`](archives/AUDIT_2026-08-18.md) ; son
+   bilan et les décisions produit qui en sont sorties sont en annexe A.
+2. **Changement de cap du 19/08/2026** — viser un **suivi patrimonial complet**, au niveau des
+   agrégateurs commerciaux, mais gratuit, local et à code ouvert. L'étude d'opportunité du § 6 pose
+   la comparaison ; les phases 1 à 4 ci-dessous en sont la première exécution.
+3. **Cadrage du 21/08/2026** — trois décisions : la cible devient le **foyer exposé depuis le
+   serveur personnel** (l'authentification devient un préalable), le **budget** entre dans le
+   périmètre, l'**UX/UI** devient un lot à part entière. Le vocabulaire passe de « phase » à
+   « lot » ; le document d'entrée pour une équipe de développement devient
+   [`EXPRESSION_DE_BESOIN.md`](EXPRESSION_DE_BESOIN.md).
+4. **Lots 4 à 16 (21/08 - 15/09/2026)** — refonte, foyer, modèle d'actifs, budget, pilotage,
+   différenciation, puis lots nés de l'usage réel (tableau § 4.3).
+5. **Depuis le 15/09/2026** — plus de lots planifiés : chaque retour de l'utilisateur ouvre une
+   section du § 5, traitée au fil de l'eau (§ 4.4). Ouverture publique du dépôt le 22/09/2026
+   (licence, revue des données personnelles, § BE-BG).
+
+### 4.2 Phases 1 à 4 (19-21/08/2026) — l'ancienne roadmap
+
+Le code y renvoie encore (« Phase 1 de la roadmap ») ; voici ce que chaque phase recouvre.
+
+**Phase 1 — Patrimoine net complet, livrée le 19/08/2026** (§ A.1-A.3). Tout voir au même endroit
+est la promesse centrale d'un agrégateur : sans elle, les phases suivantes auraient calculé plus
+joliment un chiffre partiel. Livré : types d'actifs valorisés manuellement (`REAL_ESTATE`, `SCPI`,
+`LIFE_INSURANCE`, `PENSION`, sur le modèle déjà rodé de `PRIVATE_FUND`), modèle `Loan` — premier
+**passif** de l'application —, patrimoine net Actifs − Passifs, répartition par classe d'actif.
+Écarts avec le plan, assumés : immobilier et épargne réunis dans un seul onglet (même mode de
+valorisation) ; les dettes en carte séparée plutôt qu'en onglet (un emprunt n'a ni quantité ni
+prix) ; ces actifs n'entrent pas dans le look-through géographique et sectoriel, qui n'a pas de
+sens pour eux. Deux périmètres de calcul distincts en découlent : le **portefeuille financier**
+(`analysis_service.holdings_financiers`) et le **patrimoine net** (`patrimoine_service`)
+(`SPECIFICATIONS_FONCTIONNELLES.md` § 3.11).
+
+**Phase 2 — Projections, livrée le 20/08/2026** (§ B.1, B.2, A.4). Projeter un patrimoine
+incomplet aurait donné une trajectoire fausse : d'où l'ordre. Moteur d'intérêts composés avec
+apports, indépendance financière (taux de retrait réglable, présenté comme un choix
+méthodologique), catégorie libre. Chaque formule verrouillée par comparaison à une formule fermée
+indépendante. Le moteur a depuis migré côté client (`utils/interetsComposes.ts`), puis vers l'écran
+Analyse (§ AI).
+
+**Phase 3 — Confort au quotidien, livrée le 20/08/2026** (§ C.1, D.1, E.3, H.1, plus D.2).
+Calendrier des dividendes, relevé PDF, coût de gestion consolidé, application installable, rapport
+périodique. **E.1 non livré, volontairement** : aucun export réel d'un autre courtier n'était
+disponible, et deviner un format pour des données financières aurait risqué des erreurs
+silencieuses — il reste ouvert (§ 2.1).
+
+**Phase 4 — Décisions, tranchée le 21/08/2026.** Une liste de décisions plutôt qu'un chantier :
+budget → Lot 6 (§ N) ; partage → lien révocable (§ Q.1) ; projection des dividendes → absorbée
+par § P.3 ; agrégation bancaire → toujours en attente (§ E.2).
+
+### 4.3 Lots 4 à 16
+
+L'ordre des lots 4 à 7 était contraint par les dépendances : la refonte de l'enveloppe (K) avant
+tout nouvel écran, sinon chaque lot en reproduit les défauts ; le modèle de détention (L) et le
+rattachement des emprunts (M.2) avant la part nette, la rentabilité immobilière et la déclaration
+de patrimoine. À partir du Lot 9, les lots ne sont plus planifiés : ils regroupent après coup ce que
+l'usage réel a fait remonter.
+
+| Lot | Contenu | État |
+|---|---|---|
+| **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | **Livré** 21-24/08/2026 |
+| **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | **Livré** 24/08/2026 |
+| **Lot 6 — Flux** | N.1 à N.4 (budget) | **Livré** 24/08/2026 |
+| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | **Livré** 21-25/08/2026 ; O.1 retiré le 16/09 (§ AJ) |
+| **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | **Livré** 25/08/2026 ; Q.3 et E.1 restent ouverts (§ 2.1) |
+| **Lot 9 — Retours terrain** | R.1-R.3 · S.1-S.3 · T.1-T.3 · U.1-U.4 · V.1 · W.1 | **Livré** 25-31/08/2026 |
+| **Lot 10 — Comptes structurels** | X.1 à X.5 | **Livré** 01-02/09/2026 |
+| **Lot 11 — Sauvegarde et portabilité** | Y.1 à Y.3 | **Livré** 02/09/2026 |
+| **Lot 12 — Revue de qualité** | Z.0 à Z.5 | **Livré** 03/09/2026 |
+| **Lot 13 — Séries de cours** | AB.1 à AB.6 | **Livré** 14/09/2026 |
+| **Lot 14 — Provenance par compte du grand livre** | AC.1 à AC.3 | **Livré** 14/09/2026 |
+| **Lot 15 — Cryptomonnaies via CoinGecko** | AE.1 à AE.3 | **Livré** 15/09/2026 |
+| **Lot 16 — Identité « Lumen »** | AD.1 à AD.5 | **Livré** 15/09/2026 ; AD.2 retiré le 16/09 |
+
+### 4.4 Depuis le 15/09/2026 : au fil des retours
+
+| Section | Sujet | Date |
+|---|---|---|
+| AF, AG, AH | Identité Lumen, finance accessible, animations | 15/09 |
+| AI, AJ | Simulateur déplacé dans Analyse ; suivi d'objectifs retiré | 16/09 |
+| AK, AL, AM | Retours terrain ; versement mensuel sur 12 mois glissants ; trois bugs d'un PER | 16/09 |
+| AN à AS | Custody Trade Republic, Bricks.co, géographie et secteur éditables, PER, crypto, E2E | 17/09 |
+| AT à AY | Rafraîchissement des cours, détenteurs, mode étagé, simulateur FIRE, focus | 17-20/09 |
+| AZ, BA | Pistes issues de veilles concurrentielles | 20-21/09 |
+| BB, BC | Analyse éclatée ; écran Import en grille de sources | 21-22/09 |
+| BD à BH | Logo SSO, licence, ouverture publique du dépôt, données personnelles, ménage git | 22/09 |
+| BI | Suites de l'étude « réécrire en Rust ? » : décimal, pandas, profilage, Postgres, séparation des foyers | 22-23/09 |
+| BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine | 23/09 |
+
+---
+
+## 5. Détail des points
+
+Chaque section correspond à un thème ou à un retour, dans l'ordre d'apparition ; chaque point y
+garde son raisonnement, ses choix et sa vérification. Les sections A à J datent du changement de cap
+du 19-20/08/2026 ; K à Q du cadrage du 21/08/2026 ; à partir de R, elles naissent de l'usage réel.
+Un point ouvert figure aussi au § 2, seule liste à tenir à jour.
 
 ### A. Nouveaux types d'actifs (fondation du reste)
 
@@ -264,11 +368,11 @@ la même session, ce point a été délibérément écarté — la fiabilité in
 pour les ETF (déjà signalée ci-dessus) entre en tension directe avec l'exigence de l'application de
 ne jamais afficher un chiffre financier dont la fiabilité n'est pas établie.
 
-**Résolu le 25/08/2026 par § 2.P.3** : le blocage (fiabilité de `dividendRate`) est contourné plutôt
+**Résolu le 25/08/2026 par § P.3** : le blocage (fiabilité de `dividendRate`) est contourné plutôt
 que cadré — la projection des dividendes n'utilise plus aucune donnée `yfinance` théorique, elle
 extrapole les dividendes RÉELLEMENT perçus sur les 12 derniers mois glissants (grand livre de CE
 portefeuille), toujours étiquetée « estimé », jamais confondue avec la part certaine (loyers,
-intérêts de livrets) — cf. § 2.P.3 pour le détail livré.
+intérêts de livrets) — cf. § P.3 pour le détail livré.
 
 ### D. Rapports et exports
 
@@ -327,6 +431,12 @@ reviendrait à deviner un schéma pour une donnée financière personnelle — r
 silencieusement de vraies transactions d'un futur utilisateur. À reprendre dès qu'un export réel
 (Boursorama, Degiro ou IBKR) est disponible pour servir de référence.
 
+**Relu le 23/09/2026** : la reconstruction depuis un grand livre n'est plus réservée au format
+Trade Republic — les exports **Ledger Live** (`ledger_import.py`, 11/09/2026, cryptomonnaies) et
+**Bricks.co** (`bricks_import.py`, 13/09/2026, immobilier fractionné) ont chacun leur parseur,
+écrits à partir de fichiers réels fournis par l'utilisateur, ce qui confirme la méthode. Ces deux
+imports n'ont pas eu de fiche ici : leur raisonnement est dans l'en-tête de chaque module. Le point reste ouvert pour les courtiers classiques, faute d'export.
+
 #### E.2 — `mineur` · `L` · `P3` · `non traité` — Explorer une agrégation bancaire gratuite (à valider, non engagé)
 
 Recherché le 19/08/2026 : l'API gratuite historique du secteur (GoCardless Bank Account Data, ex
@@ -364,7 +474,7 @@ tests frontend (`CoutGestionCard.test.tsx`).
 
 ### F. Budget (décision de scope, pas juste une fonctionnalité)
 
-#### F.1 — `majeur` · `L` · `P3` · `traité (tranché et absorbé par § 2.N)` — Suivi des dépenses du quotidien (optionnel)
+#### F.1 — `majeur` · `L` · `P3` · `traité (tranché et absorbé par § N)` — Suivi des dépenses du quotidien (optionnel)
 
 L'application exclut aujourd'hui **volontairement** les mouvements hors bourse (increment 5 :
 virements bancaires, carte) — décision prise pour recentrer l'app sur le suivi boursier pur. Un
@@ -375,7 +485,7 @@ PEA) si le suivi boursier doit rester le seul périmètre.
 
 **Tranché le 21/08/2026** : le budget entre dans le périmètre, exactement dans la lecture « écran
 strictement séparé et optionnel » envisagée ci-dessus — jamais mélangé aux calculs de performance
-boursière. Livré en lot dédié, cf. § 2.N (« Budget et flux »), qui référence explicitement ce point
+boursière. Livré en lot dédié, cf. § N (« Budget et flux »), qui référence explicitement ce point
 en introduction. Cette entrée n'a été mise à jour que le 25/08/2026 (en marge de R.1) — le statut
 `non traité` était resté affiché par erreur après la livraison réelle de N.1-N.4.
 
@@ -385,8 +495,8 @@ en introduction. Cette entrée n'a été mise à jour que le 25/08/2026 (en marg
 
 Tranché le 21/08/2026 en même temps que F.1 (§ 4, note originale), mais jamais mis à jour ici — le
 besoin décrit (« un conjoint/la famille peut consulter en lecture seule ») est couvert par deux lots
-livrés depuis : le multi-utilisateur du foyer (§ 2.L.1/L.2, quotités + rôles propriétaire/membre/
-invité) pour un accès de l'intérieur du foyer, et surtout le **lien de partage révocable** (§ 2.Q.1,
+livrés depuis : le multi-utilisateur du foyer (§ L.1/L.2, quotités + rôles propriétaire/membre/
+invité) pour un accès de l'intérieur du foyer, et surtout le **lien de partage révocable** (§ Q.1,
 livré 25/08/2026) pour un tiers hors foyer — plus simple que ce qu'envisageait G.1 à l'origine
 (pas besoin de créer un compte au destinataire). Rien à développer de plus sous ce point.
 
@@ -441,7 +551,7 @@ un seul :
   chaque service devrait être revu pour filtrer par utilisateur courant.
 - **Connexion base de données** (`database.py`) : `engine`/`SessionLocal` sont calculés une seule
   fois au chargement du module, contre un unique fichier SQLite (`patrimoine.db`, ou son
-  prédécesseur `portfolio.db` — cf. l'incident de sélection de base couvert en § 2.A.3). Aucune
+  prédécesseur `portfolio.db` — cf. l'incident de sélection de base couvert en § A.3). Aucune
   notion de connexion par utilisateur.
 - **Authentification** : totalement absente — pas de session, pas de JWT, pas d'écran de connexion,
   nulle part dans `main.py` ou les routers. Le CORS est verrouillé sur `localhost:5173`/
@@ -657,7 +767,7 @@ suppression (ouverte puis annulée) tous fonctionnels sans régression.
 (`ALTER TABLE ... ADD COLUMN`), mais ne savait ni renommer une colonne, ni changer un type, ni
 exécuter une migration de données complexe — ce qui avait déjà nécessité des scripts one-off manuels
 par le passé (ex. `migrate_rename_categorie_autres`). Ce point notait que ce serait « un vrai
-risque » si le multi-utilisateur (§ 2.I.1) imposait un jour une migration de données par utilisateur
+risque » si le multi-utilisateur (§ I.1) imposait un jour une migration de données par utilisateur
 existant — c'est exactement ce qui s'est produit au Milestone 2a : `migrate_isolation_utilisateur`
 a dû reconstruire `allocation_targets` à la main (renommer/recréer/recopier/supprimer) et un bug de
 détection a fait planter le démarrage sur la vraie base avant d'être corrigé. Le risque prédit ici
@@ -840,7 +950,7 @@ vrai besoin, ex. `Sheet` pour K.4 mobile).
   (*Synthèse, Patrimoine, Analyse, Objectifs, Budget*) et, séparés, les écrans d'administration
   (*Import, Réglages, Aide*) déplacés dans le **menu du compte**.
 - **Vocabulaire unique** : un écran, un mot. « Patrimoine » partout, y compris dans l'URL et le
-  titre de l'onglet — la triple dénomination relevée à l'étude d'opportunité (§ 1.2) est exactement ce qu'il ne faut pas
+  titre de l'onglet — la triple dénomination relevée à l'étude d'opportunité (§ 6.2) est exactement ce qu'il ne faut pas
   reproduire.
 - **Fil d'Ariane** sur les pages de détail, et **retour** qui ramène à l'état précédent (filtres et
   défilement compris), pas au haut de la liste.
@@ -930,7 +1040,7 @@ Un traitement uniforme, appliqué à chaque écran et à chaque carte :
 - **Chargement** : squelette de la forme finale, jamais un texte, jamais un saut de mise en page.
 - **Vide** : dire *pourquoi* c'est vide et *quoi faire* — « Aucun dividende perçu sur la période.
   Élargir la période ou importer un relevé. » Le rectangle blanc de la carte *Performance* de
-  L'outil observé (§ 1.2) est le contre-exemple à garder en tête.
+  L'outil observé (§ 6.2) est le contre-exemple à garder en tête.
 - **Erreur** : cause en français, action de reprise, et jamais la disparition silencieuse d'une
   carte.
 
@@ -1500,7 +1610,7 @@ L'outil observé les vend dans le module « Profil de l'investisseur » ; ils ti
 
 **Livré et vérifié le 24/08/2026.** « Épargne disponible » = holdings `CASH_ACCOUNT`/
 `REGULATED_SAVINGS` (les deux seuls types immédiatement disponibles sans délai ni pénalité parmi
-`TYPES_ACTIF_PATRIMOINE_MANUEL`, backlog § 2.M.1) ; « dépenses mensuelles »/« revenus nets » moyennés
+`TYPES_ACTIF_PATRIMOINE_MANUEL`, backlog § M.1) ; « dépenses mensuelles »/« revenus nets » moyennés
 sur les 3 derniers mois de mouvements bancaires (même fenêtre que N.2/N.4) ; « actifs non liquides »
 = le reste de `TYPES_ACTIF_PATRIMOINE_MANUEL` ; « patrimoine brut » = `actifs_totaux` déjà calculé
 par `patrimoine_service`. Chaque ratio affiche « — » plutôt qu'un chiffre trompeur quand une donnée
@@ -1604,7 +1714,7 @@ au lieu d'être abandonnée entièrement à cause de sa partie la moins fiable.
 `GET /api/performance/revenus-passifs` — aucun appel `yfinance`, contrairement à ce qu'exigeait C.2
 (justement ce qui l'avait fait écarter). **Certain** : loyers nets annuels (`HoldingImmobilierDetail.loyer_mensuel`
 − charges − frais, sans retrancher la mensualité d'emprunt — un revenu locatif, pas un cashflow après
-emprunt) + intérêts de livrets (taux déclaré § 2.M.1 × `valeur_estimee`). **Estimé** : dividendes et
+emprunt) + intérêts de livrets (taux déclaré § M.1 × `valeur_estimee`). **Estimé** : dividendes et
 intérêts de courtage réellement perçus sur les 12 DERNIERS mois glissants (`Transaction`), extrapolés
 tels quels sur les 12 prochains — jamais un `dividendRate` théorique par titre (le problème de
 fiabilité originel de C.2), toujours une observation directe du grand livre de CE portefeuille.
@@ -1724,7 +1834,7 @@ Demande directe de l'utilisateur (25/08/2026) : un écran pour saisir son salair
 mensuel ou annuel, cadre ou non-cadre, avec le nombre de versements dans l'année — 12/13/14…) et en
 déduire le reste façon calculatrice brut-net grand public. Deuxième besoin, lié mais distinct : une
 vue du **taux d'épargne réel** — quelle part du revenu part effectivement à l'investissement chaque
-année — clairement séparée du `rendement` déjà affiché ailleurs (carte Performance, § 2.P.2), qui
+année — clairement séparée du `rendement` déjà affiché ailleurs (carte Performance, § P.2), qui
 mesure la performance de MARCHÉ sur ce qui est déjà investi, pas le comportement d'épargne.
 
 **Livré le 25/08/2026, révisé le même jour suite au retour de l'utilisateur.** Nouvel écran
@@ -1733,7 +1843,7 @@ mesure la performance de MARCHÉ sur ce qui est déjà investi, pas le comportem
 un moteur de paie certifié — aucune API gratuite fiable pour ça).
 
 **v1** (première livraison) : une ligne de salaire par année, foyer entier, net après impôt réutilisant
-`Preferences.taux_imposition_pct` (§ 2.Q.2). **v2** (même jour, sur retour utilisateur) : l'utilisateur
+`Preferences.taux_imposition_pct` (§ Q.2). **v2** (même jour, sur retour utilisateur) : l'utilisateur
 a demandé de pouvoir saisir **plusieurs salaires** par année (un par revenu du foyer) **avec des taux
 d'imposition différents**, directement éditables dans l'onglet Salaire plutôt que dépendants d'un
 réglage global. Contrainte d'unicité `(user_id, annee)` retirée de la table `salaires`, ajout de
@@ -1786,7 +1896,7 @@ référence.
 **Deux volumes nommés distincts**, pas un seul : `patrimoine_data` (`/app/data`, la base) et
 `patrimoine_sauvegardes` (`/app/sauvegardes`) — nécessaire car `scripts/sauvegarde.py` dépose
 toujours les sauvegardes à la racine du code backend (`DOSSIER_SAUVEGARDES_PAR_DEFAUT`), jamais sous
-le chemin de `PATRIMOINE_DB` ; sans ce second volume, le job planifié `sauvegarde_chiffree` (§ 2.L.2)
+le chemin de `PATRIMOINE_DB` ; sans ce second volume, le job planifié `sauvegarde_chiffree` (§ L.2)
 écrirait dans une couche de conteneur perdue à la prochaine reconstruction de l'image.
 
 **Pas exposé au public** : les deux ports publiés sont liés à `127.0.0.1` sur l'hôte
@@ -1804,7 +1914,7 @@ connexion réussie après redémarrage sur les mêmes volumes). 786 tests backen
 le changement CORS (aucune régression sur le comportement de dev par défaut).
 
 **Hors périmètre de cet incrément, assumé** : reverse proxy/HTTPS et exposition publique
-(explicitement refusés par l'utilisateur pour l'instant — cf. § 2.L.2 pour la connexion SSO déjà
+(explicitement refusés par l'utilisateur pour l'instant — cf. § L.2 pour la connexion SSO déjà
 prête pour ce jour-là), pas de `.env`/`env_file` séparé (un seul fichier auto-porteur avec
 placeholders commentés, conforme à la demande d'un exemple simple). Le point « pas de CI/registry
 d'images » a depuis été rouvert et livré, cf. ci-dessous.
@@ -1835,8 +1945,8 @@ séparément.
 
 **Livré et vérifié le 25/08/2026.** Nouvelle carte « D'où vient l'évolution ? » sur `/rapport` :
 `montant_investi_periode` (réutilise `performance_service.montant_investi_periode`, déjà écrite pour
-le taux d'épargne § 2.R.1) et `gain_genere_periode`, calculé avec la même identité algébrique que la
-réconciliation du graphique d'accueil (§ 2.J.1) — `valeur_portefeuille + valeur_realisee_cumulee -
+le taux d'épargne § R.1) et `gain_genere_periode`, calculé avec la même identité algébrique que la
+réconciliation du graphique d'accueil (§ J.1) — `valeur_portefeuille + valeur_realisee_cumulee -
 valeur_investie` — appliquée en delta sur la période plutôt qu'en cumulé depuis l'origine.
 
 **Bug trouvé et corrigé en vérification réelle, avant toute mise en production** : la fonction
@@ -1872,7 +1982,7 @@ explicitement à construire le besoin ensemble plutôt qu'une exécution silenci
 - Le modèle sait déjà presque tout faire côté base : 9 types valorisés manuellement
   (`models.TYPES_ACTIF_PATRIMOINE_MANUEL` — `REAL_ESTATE`/`SCPI`/`LIFE_INSURANCE`/`PENSION`/
   `OTHER_ASSET`/`CASH_ACCOUNT`/`REGULATED_SAVINGS`/`EMPLOYEE_SAVINGS`/`VEHICLE`), une vraie table
-  d'historique daté (`HoldingValuationHistory`, backlog § 2.M.3, jamais purgée), un taux annuel
+  d'historique daté (`HoldingValuationHistory`, backlog § M.3, jamais purgée), un taux annuel
   informatif (`Holding.taux_pct` — intérêt épargne ou décote véhicule, jamais appliqué
   automatiquement).
 - **Deux limites concrètes identifiées, précises** :
@@ -1894,7 +2004,7 @@ explicitement à construire le besoin ensemble plutôt qu'une exécution silenci
    « biens » aux côtés de l'immobilier (une valeur qui décote, pas qui épargne). L'écran Épargne se
    limite à Compte courant / Épargne réglementée / Épargne salariale / Assurance-vie / PER.
 2. **Le « versement mensuel » par actif entre dans le calcul du Simulateur/FIRE**, en s'ADDITIONNANT
-   au `versement_mensuel_suggere` déjà prérempli depuis le Budget (§ 2.N.4) — jamais en le
+   au `versement_mensuel_suggere` déjà prérempli depuis le Budget (§ N.4) — jamais en le
    remplaçant. Vérifié par lecture directe de `budget_service.compute_summary`/
    `compute_jonction_patrimoine` avant de trancher : `disponible = entrées − TOUTES les sorties`
    (chaque mouvement négatif, quelle que soit sa catégorie) — un virement réel vers une assurance-vie
@@ -1997,7 +2107,7 @@ transmet toutes les deux à `PatrimoineNetCard` (variation + camembert/liste) et
 utilisateur) :
 1. **Données manuelles clairsemées** : un bien avec un seul point d'historique donne une ligne plate
    tant qu'un second point n'est pas saisi — assumé plutôt que d'inventer une interpolation, cohérent
-   avec la philosophie de transparence déjà appliquée ailleurs (repli `None` du TWR, § 2.P.2).
+   avec la philosophie de transparence déjà appliquée ailleurs (repli `None` du TWR, § P.2).
 2. **Scoping par détenteur de la poche financière** : les quotités ne sont pas historisées, seule la
    répartition d'aujourd'hui existe. Les lignes manuelles et les emprunts qui leur sont rattachés sont
    scindés de façon exacte (pourcentage d'aujourd'hui appliqué à la série propre de chaque ligne) ; la
@@ -2053,7 +2163,7 @@ emprunt non rattaché réduit `valeur_totale` sans être imputable à une catég
 consommateur de `compute_patrimoine_net`/`compute_exposition_consolidee`/`repartition_par_classe` côté
 backend ET frontend. Trois autres endroits identifiés, examinés et volontairement **non modifiés**,
 chacun pour une raison différente :
-- `services/partage_service.py` (liens de partage, § 2.Q.1) : sa section "exposition" transmet
+- `services/partage_service.py` (liens de partage, § Q.1) : sa section "exposition" transmet
   directement `compute_exposition_consolidee`, donc hérite automatiquement du nettage sans code
   supplémentaire ; sa section "patrimoine_net" expose en revanche toujours l'ancien
   `repartition_par_classe` (brut), jamais le nouveau `repartition_par_classe_nette` — écart non corrigé
@@ -2061,7 +2171,7 @@ chacun pour une raison différente :
 - `services/pdf_export_service.py` (export PDF, écran Rapport) : affiche `repartition_par_classe`
   (brut) à côté des totaux actifs/passifs/patrimoine net déjà présents séparément — cohérent avec la
   lentille Brut, non modifié.
-- `services/declaration_patrimoine_service.py` (Déclaration de patrimoine, § 2.Q.2, document
+- `services/declaration_patrimoine_service.py` (Déclaration de patrimoine, § Q.2, document
   administratif) : liste volontairement actifs et emprunts SÉPARÉMENT (format attendu d'une
   déclaration officielle, ex. IFI) — un nettage par ligne y serait un contresens, non modifié
   délibérément.
@@ -2430,7 +2540,7 @@ actualisations plutôt qu'un saut brutal.
 options recommandées retenues) :
 - Le versement se déclare via un champ optionnel **à chaque valorisation** (« dont versement »), pas
   un total cumulé modifiable séparément — cohérent avec le mécanisme déjà existant (« Ajouter une
-  valorisation », § 2.S.1), rétrocompatible (`None` par défaut, rien à ressaisir sur l'historique
+  valorisation », § S.1), rétrocompatible (`None` par défaut, rien à ressaisir sur l'historique
   existant).
 - Le lissage s'applique **partout où l'historique épargne apparaît**.
 
@@ -2506,7 +2616,7 @@ tests frontend), `tsc -b`/`oxlint`/`vite build` propres.
 
 Demande directe de l'utilisateur : le mode étagé (investi + gains) de la courbe d'évolution du Tableau
 de bord n'était disponible qu'en lentille Financier — case décochable désactivée, avec l'explication
-« pas de suivi investi/gains pour l'immobilier et l'épargne » (§ 2.K.6/S.2). Le versement déclaré tout
+« pas de suivi investi/gains pour l'immobilier et l'épargne » (§ K.6/S.2). Le versement déclaré tout
 juste livré (§ U.2) fournit désormais exactement la donnée qui manquait pour lever cette limite.
 
 **Audit avant implémentation** : `PortfolioHistoryChart.tsx` calcule déjà, en Financier,
@@ -2796,7 +2906,7 @@ liste + ajout personnalisé, et retour visuel insuffisant du glisser-déposer, �
   n'est pas construite dans ce lot — seul Trade Republic est aujourd'hui reconnu automatiquement
   (`transaction_import.REQUIRED_COLUMNS`), et rien dans la demande n'exigeait de généraliser ce
   parsing immédiatement ; le catalogue d'établissements, lui, est indépendant du format de fichier et
-  vaut dès aujourd'hui. Cf. **E.1** (§ 4, toujours ouvert, bloqué faute d'un export réel d'un autre
+  vaut dès aujourd'hui. Cf. **E.1** (§ 2.1, toujours ouvert, bloqué faute d'un export réel d'un autre
   courtier). L'import de mouvements bancaires (budget) garde son `compte` en texte libre (domaine
   différent, pas un `Compte`/`Etablissement`) — profite quand même de la nouvelle zone de dépôt.
 - **Tests** : backend (`test_comptes_service.py` — `logo_key` posé à la création, jamais écrasé ;
@@ -3080,7 +3190,7 @@ le nommer/éditer/supprimer, la suppression revenant à effacer toutes les donn�
   « repartir à zéro »).
 
   **Écarté après investigation**, à la demande initiale de l'utilisateur — transfert de propriété
-  (désigner un nouveau propriétaire depuis le sélecteur de rôle de sa propre ligne, cf. § 2.L.2) : rôle
+  (désigner un nouveau propriétaire depuis le sélecteur de rôle de sa propre ligne, cf. § L.2) : rôle
   et `owner_user_id` ne sont pas les seules choses à basculer, 16 tables ancrent les données au foyer via
   un `user_id` qui pointe en dur vers l'id du propriétaire d'origine, jamais recalculé. Un vrai transfert
   exigerait de ré-ancrer ces 16 tables en une transaction atomique — projet à part entière, pas un effet
@@ -3177,6 +3287,8 @@ d'octets) et le **déterminisme**, verrouillé jusqu'à la valeur exacte produit
 référence : toute modification du sel, de l'algorithme ou du nombre d'itérations rendrait illisibles
 les données déjà chiffrées et doit échouer ici, jamais passer inaperçue jusqu'à la prochaine
 restauration. `test_backup_service.py` mis à jour (les phrases usuelles sont désormais acceptées).
+
+### Z. Revue de qualité (Lot 12, 03/09/2026)
 
 #### Z.0 — `majeur` · `L` · `P1` · `traité` (03/09/2026) — Revue complète : qualité, base de données, sécurité, documentation
 
@@ -3468,6 +3580,28 @@ Les deux vérifiés en réintroduisant le défaut correspondant.
 `IE00B4ND3602` (or physique) et `LU1681048630` (S&P Global Luxury) resteront
 « Non catégorisés » en géographie — aucun repli n'a de sens pour l'un (matière
 première, pas un pays), et l'autre ne correspond à aucun indice reconnu.
+
+---
+
+### AA. Écarts avec le paquet de design (07/09/2026)
+
+#### AA.1 — `mineur` · `M` · `P3` · `en attente d'arbitrage` (07/09/2026) — Trois demandes de la maquette sur l'écran Actifs
+
+Relevées lors de la revue des écarts entre l'application et le paquet de design, et mises de côté
+par l'utilisateur le 07/09/2026 (« on voit ça plus tard, on repassera dessus »). Jusqu'au
+23/09/2026, ce point n'existait que dans le tableau de priorisation ; il reçoit ici sa fiche. Trois
+demandes distinctes, qui n'ont pas le même coût :
+
+- **(a) un jeton carré de 32 px** portant le sigle du ticker sur chaque ligne — purement visuel,
+  sans perte ;
+- **(b) retirer le filtre « Immobilier & Épargne »** — la maquette le supprime au motif que la puce
+  renvoyait un tableau vide, ce qui est faux ici : l'immobilier et l'épargne SONT dans ce tableau.
+  Le retirer obligerait à passer par l'écran Comptes pour les isoler ;
+- **(c) remplacer le tableau par la grille de lignes cliquables** de la maquette — on y perdrait le
+  tri par colonne, l'édition en ligne et les colonnes Secteur et Pays.
+
+Toujours d'actualité au 23/09/2026 : `PositionsTable.tsx` est un `<table>`, et le filtre existe
+(`holdingCategories.ts`, clé `PATRIMOINE`). À reprendre écran par écran avec l'utilisateur.
 
 ---
 
@@ -4493,6 +4627,11 @@ Aucun changement de code applicatif : uniquement les tests, qui n'avaient pas su
 d'interface distinctes du même jour. Suite E2E complète (81 tests) relancée localement et vérifiée au
 vert avant de pousser.
 
+### AT à AY. Retours terrain (17-20/09/2026)
+
+Six retours courts, chacun traité dans la journée ; regroupés sous un même titre au 23/09/2026, ils
+n'en avaient pas.
+
 #### AT.1 — `mineur` · `M` · `traité` (17/09/2026) — Le suivi du rafraîchissement des cours survit à la navigation
 
 Retour utilisateur direct, trois points sur le bouton « Rafraîchir les cours » — premier point :
@@ -4751,8 +4890,8 @@ portefeuille financier : `score_diversification` (`analysis_service.compute_risk
 HHI sur `breakdown_with_lookthrough`), la qualité des données géographiques
 (`analysis_service.compute_data_quality`), et implicitement le ratio d'endettement (déductible de
 `patrimoine_service.compute_patrimoine_net`, jamais affiché comme tel). Les outils du marché
-affichent une note synthétique ; le backlog note déjà (§ 1.1, ligne « Analyse ») que Lumen n'a pas
-d'équivalent consolidé. **Principe fondateur** (§ 1.2, point 2 : un diagnostic anxiogène offert
+affichent une note synthétique ; le backlog note déjà (§ 6.1, ligne « Analyse ») que Lumen n'a pas
+d'équivalent consolidé. **Principe fondateur** (§ 6.2, point 2 : un diagnostic anxiogène offert
 dont le remède est vendu) : la méthode de calcul doit toujours être visible, jamais une boîte
 noire.
 
@@ -5699,153 +5838,6 @@ situation) ; nouveaux tests vérifiant qu'un onglet n'affiche jamais le contenu 
 complète (820 tests frontend) + `tsc`/`oxlint` au vert.
 
 ---
-## 3. Hors périmètre (assumé)
-
-Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
-
-**Sortis du hors-périmètre :**
-
-- ~~**Authentification**~~ : devient un **préalable bloquant** du lot L, comme annoncé. La cible
-  d'usage retenue le 21/08/2026 est le **foyer, avec exposition depuis le serveur personnel** — ce
-  qui change la nature du risque et impose HTTPS, second facteur, limitation des tentatives,
-  gestion des sessions et journal d'accès (§ 2.L.2).
-- ~~**Budget / catégorisation des dépenses**~~ : **entre dans le périmètre** (§ 2.N), en lot dédié.
-  La catégorisation reste **par règles explicites**, jamais par IA : lisible, corrigeable,
-  déterministe.
-
-**Restent hors périmètre :**
-
-- **Fiscalité** (PEA, plus-values, IFI, revenus fonciers) : inchangé, l'application suit la
-  performance et le patrimoine, elle ne simule aucun impôt. Seule exception admise : le **taux
-  d'imposition saisi** par l'utilisateur comme paramètre du profil, utilisé tel quel dans la
-  déclaration de patrimoine (§ 2.Q.2) — une donnée reprise, pas un calcul fiscal.
-- **Agrégation bancaire automatique commerciale** (prestataires régulés) : contrats B2B avec
-  coût par compte connecté, incompatibles avec l'objectif « gratuit ». La piste gratuite (Enable
-  Banking) reste à instruire, pas engagée (§ 2.E.2). Note : c'est aussi la principale source de
-  panne des agrégateurs — les bugs de synchronisation représentent l'essentiel de leurs avis négatifs.
-- **Trading et produits de rendement intégrés** (achat/vente in-app, APY crypto, assurance-vie
-  maison) : hors philosophie du produit. Certains acteurs du marché ont fait le chemin inverse en
-  lançant leurs propres offres de placement ; c'est cohérent pour un modèle commercial, pas pour le nôtre.
-- **Fonctionnalités communautaires** (classement des investissements, percentile face à la
-  population française, forum) : sans base d'utilisateurs, un classement n'est pas calculable.
-  L'équivalent honnête, et suffisant, est la comparaison à un **indice de référence** (§ 2.P.2).
-
-**Nouvel ajout :**
-
-- **Valorisation immobilière automatique** : les solutions du marché s'appuient sur des services d'estimation payants.
-  Aucune source gratuite ne donne aujourd'hui une estimation par bien avec un niveau de confiance
-  exploitable. La réponse retenue est la **valeur estimée saisie et datée** (§ 2.M.3), plus honnête
-  qu'une estimation opaque. Les données DVF de la DGFiP (prix de mutation réels) sont une piste à
-  instruire pour un simple *ordre de grandeur au m²*, pas pour une valorisation.
-
----
-
-## 4. Priorisation d'ensemble
-
-**Mise à jour du 03/09/2026** : douze lots sont désormais clos (Phases 1-3 + Lots 4-12). Il ne reste
-que **trois points isolés, hors lot** — aucun n'est bloqué par manque de temps ou de priorité, tous
-les trois attendent quelque chose qui n'est pas du développement (§ « Ce qui reste, et pourquoi »
-ci-dessous). Le backlog fonctionnel issu de l'audit du 21/08/2026 est donc, pour l'essentiel,
-**épuisé** — ce document continue de servir de trace pour tout nouveau retour utilisateur, comme il
-l'a fait pour les Lots 9 et 10.
-
-Un ordre est resté contraint par les dépendances pour les lots 4 à 7 : la refonte de l'enveloppe (K)
-précède tout ajout d'écran, sinon chaque nouveau lot reproduit les défauts mesurés ; le modèle de
-détention (L) et le rattachement des emprunts (M.2) précèdent la part nette, la rentabilité
-immobilière, les objectifs par contributeur et la déclaration de patrimoine. Le Lot 9, lui, n'a pas
-été planifié à l'avance : c'est la trace, groupée après coup, de tout ce que l'usage réel de
-l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwins, demandes directes.
-
-| Lot | Contenu | Prérequis | Effort | État |
-|---|---|---|---|---|
-| **Phase 1** | A.1, A.2, A.3 — patrimoine net (immobilier, SCPI/AV/PER, dettes) | — | — | **Livré** 19/08/2026 |
-| **Phase 2** | B.1, B.2, A.4 — simulateur, FIRE, catégorie libre | Phase 1 | — | **Livré** 19-20/08/2026 |
-| **Phase 3** | C.1, D.1, D.2, E.3, H.1 — dividendes, PDF, rapport, coût consolidé, PWA | Phase 2 | — | **Livré** 20/08/2026 |
-| **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
-| **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
-| **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
-| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
-| **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
-| **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
-| **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
-| **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
-| **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3, Z.4, Z.5 | — | `L` | **Livré** 03/09/2026 (6/6) |
-| **Lot 13 — Modèle des séries de cours** | AB.1, AB.2, AB.3, AB.4, AB.5, AB.6 | — | `L` | **Livré** 14/09/2026 (6/6) |
-| **Lot 14 — Provenance par compte du grand livre** | AC.1, AC.2, AC.3 | — | `L` | **Livré** 14/09/2026 (3/3) |
-| **Lot 15 — Cours des cryptomonnaies via CoinGecko** | AE.1, AE.2, AE.3 | — | `M` | **Livré** 15/09/2026 (3/3) |
-| **Lot 16 — Identité « Lumen »** | AD.1, AD.2, AD.3, AD.4, AD.5 | Logo intégré | `M` | **Livré** 15/09/2026 (5/5), AD.2 retiré le 16/09 |
-
-**Pourquoi cet ordre.**
-
-1. **Lot 4 avant tout le reste.** Les mesures du § 2.K ne sont pas des remarques de goût : 24
-   classes responsives sur 8 481 lignes, aucun jeton de couleur, aucun squelette de chargement. Ce
-   sont des dettes qui se paient à chaque écran ajouté. Y greffer le modèle de détention (L.1) et
-   le rattachement des emprunts (M.2) dans le même lot est délibéré : ce sont des changements de
-   **modèle de données**, et il est moins coûteux de les faire avant les écrans qui s'appuieront
-   dessus qu'après. L.2 (exposition sécurisée) est dans ce lot parce que la décision d'exposer sur
-   le serveur personnel a été prise : tant qu'elle n'est pas outillée, l'application ne doit pas
-   sortir de `localhost`.
-2. **Lot 5 ensuite**, parce que la profondeur du modèle d'actifs est ce qui manque le plus au foyer
-   réel (comptes courants, épargne réglementée, épargne salariale, véhicule) et parce que la fiche
-   immobilier complète est le premier poste du patrimoine — mais elle a besoin du rattachement des
-   emprunts livré au lot 4.
-3. **Lot 6 en parallèle possible du lot 5** : le budget ne dépend que du socle. Deux personnes ou
-   deux itérations peuvent avancer côte à côte sans conflit, les deux lots ne touchant pas les
-   mêmes écrans.
-4. **Lot 7** consolide : les objectifs ont besoin des actifs (lot 5) et des contributeurs (lot 4) ;
-   la déclaration de patrimoine a besoin des quotités ; le partage a besoin de l'authentification.
-5. **Lot 8** est la différenciation pure — TWR, volatilité, comparaison à un indice, revenus
-   passifs. Rien ne le bloque, mais rien ne le rend urgent tant que les lots précédents ne sont pas
-   livrés : c'est ce qui fait la supériorité de l'outil, pas ce qui le rend utilisable. Sa seule
-   partie non développable (Q.3 : décision d'arbitrage utilisateur ; E.1 : fichier externe manquant)
-   reste ouverte, mais tout ce qui pouvait être codé l'a été.
-6. **Lot 9 n'a jamais été planifié comme les précédents** : c'est la trace, groupée après coup pour
-   ne pas laisser une quinzaine de demandes éparpillées en « hors lot » sans structure, de ce que
-   l'usage réel de l'application — une fois les fondations (lots 4-7) posées, une fois l'immobilier
-   et l'épargne réellement saisis, une fois le premier relevé de cours vraiment rafraîchi — a fait
-   remonter : deux bugs (T.2, verrou SQLite ; le correctif Net du 31/08 documenté en § U.4), trois
-   quickwins (T.1, T.3), et dix demandes directes affinant des lots déjà livrés plutôt qu'ouvrant un
-   nouveau chantier (R, S, U, V, W). Aucune dépendance interne autre que U.2 → U.3/U.4 (le versement
-   déclaré doit exister avant qu'on puisse le décomposer ou l'utiliser dans le mode étagé).
-7. **Lot 10, comme le Lot 9, n'a pas été planifié à l'avance** : un unique retour direct, mais plus
-   structurant que ceux du Lot 9 (un vrai changement de modèle de données, `compte` texte libre →
-   table `Compte`/`Etablissement`), d'où un lot séparé plutôt qu'un ajout à la trace du Lot 9. Dépend
-   du modèle de détention (L.1, Lot 4) : les quotités par compte s'appuient sur le mécanisme de
-   quotités par détenteur déjà en place, sans le modifier.
-
-**Ce qui reste, et pourquoi.**
-
-Quatre points. Aucun n'est un chantier de développement en attente de priorité : chacun attend une
-décision ou une donnée que ce document ne peut pas produire lui-même. **Z.1**, le dernier reste de
-développement, a été traité le 03/09/2026.
-
-| Point | Bloqué par | Action pour débloquer |
-|---|---|---|
-| **AA.1** — les trois demandes de la maquette sur l'écran Patrimoine | Arbitrage explicite de l'utilisateur, mis de côté le 07/09/2026 (« on voit ça plus tard, on repassera dessus ») lors de la revue des écarts avec le paquet de design. Trois demandes distinctes : (a) un **jeton carré de 32 px** portant le sigle du ticker sur chaque ligne — purement visuel, sans perte ; (b) **retirer le filtre « Immobilier & Épargne »** — la maquette le supprime au motif que la puce renvoyait un tableau vide, ce qui est faux ici (l'immobilier et l'épargne SONT dans ce tableau), donc le retirer obligerait à passer par Comptes pour les isoler ; (c) **remplacer le `<table>` par la grille de lignes cliquables** de la maquette — on y perdrait le tri par colonne, l'édition en ligne et les colonnes Secteur et Pays | Reprendre le sujet écran par écran avec l'utilisateur |
-| **E.1** — élargir les formats de courtier reconnus | Aucun fichier d'export réel d'un autre courtier (Boursorama, Degiro, IBKR…) disponible pour écrire le parseur sans deviner | Fournir un export réel (anonymisé si besoin) d'un autre courtier |
-| **E.2** — explorer une agrégation bancaire gratuite | Aucune réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Réponse d'Enable Banking, **avant tout code** |
-| **Q.3** — devise et internationalisation légère | Décision produit non tranchée par l'utilisateur (l'app n'a aujourd'hui qu'un seul foyer, en euros — utile seulement si un actif en devise étrangère apparaît) | Arbitrage explicite de l'utilisateur : le besoin existe-t-il réellement aujourd'hui ? |
-
-Deux points historiquement « hors lot » sont désormais résolus par renvoi plutôt que par
-développement propre : **C.2** (projection des dividendes) absorbé par **P.3**, qui traite le même
-besoin en séparant ce qui est certain (loyers, intérêts de livrets) de ce qui est estimé (dividendes
-d'ETF) ; **F.1** et **G.1** tranchés le 21/08/2026, devenus respectivement **§ N** (budget) et
-**§ Q.1** (partage révocable, plus simple que ce qu'envisageait G.1 à l'origine).
-
----
-
-## 5. Méthode de vérification de clôture de l'ancien audit (19/08/2026)
-
-Avant d'archiver l'ancien backlog et d'écrire celui-ci, vérification par sondage plutôt que relecture
-exhaustive des 55 points (la majorité a été traitée directement au fil de cette session, avec preuve
-à l'écran à chaque fois) : contrôle du code source pour les points les plus susceptibles d'une
-régression silencieuse — `lazy="selectin"` toujours présent (`models.py`, § 4.1 archivé),
-recherche dichotomique (`bisect.bisect_right`) toujours en place dans `historical_performance_service.py`
-(§ 4.6 archivé), rafraîchissement toujours renvoyé en 202/asynchrone (`routers/market_data.py`, § 3.7
-archivé), script `backend/scripts/sauvegarde.py` toujours présent (§ 7.6 archivé), dépôt git avec
-historique de commits (§ 7.2 archivé). Suite de tests complète relancée et vérifiée au vert (333
-backend, 84 frontend) juste avant cette réécriture — le filet de test posé par l'ancien § 7.1 est
-lui-même la meilleure garantie que les 53 points ne se sont pas silencieusement rouverts.
 
 ### BC. Refonte de l'écran Import en grille de sources (retour utilisateur, 22/09/2026)
 
@@ -6122,7 +6114,7 @@ Python comme côté npm, aucune copyleft. Rien n'aurait contaminé une relicence
 ultérieure ; ce contrôle conditionnait la faisabilité de toute l'option.
 
 **Conséquences appliquées.** « Gratuit et open source » remplacé par « gratuit et à code ouvert »
-dans le README, la roadmap et le tableau de positionnement § 1.3 — l'affirmation serait sinon
+dans le README, la roadmap et le tableau de positionnement § 6.3 — l'affirmation serait sinon
 inexacte. `docs/EXPRESSION_DE_BESOIN.md` reste inchangé : c'est un instantané daté du 21/08/2026,
 explicitement figé. Champ `license` posé dans `frontend/package.json`.
 
@@ -6165,7 +6157,7 @@ son coût, en particulier sur l'articulation entre la cession de droits de `CONT
 droit français : le droit moral y est inaliénable, contrairement aux droits patrimoniaux
 effectivement cédés. Point volontairement séparé de BF.1, qui est clos.
 
-#### BF.2 — `mineur` · `XS` · `non traité` · `P1` — Encart « About » du dépôt GitHub vide
+#### BF.2 — `mineur` · `XS` · `traité en partie` (23/09/2026) · `P1` — Encart « About » du dépôt GitHub vide
 
 Le dépôt n'a ni description ni topics : l'encart de droite de la page d'accueil est vide, et le
 projet est introuvable par la recherche GitHub. Réglages du dépôt, deux minutes. Texte proposé :
@@ -6177,6 +6169,10 @@ Topics : `personal-finance` `wealth-management` `self-hosted` `portfolio-tracker
 `investment-tracking` `budget` `dividends` `etf` `privacy` `homelab` `pwa` `fastapi` `react`
 `typescript` `python` `sqlite` `docker` `french`. Cocher aussi **Releases** et **Packages** dans le
 même encart, pour que les images GHCR soient visibles au premier coup d'œil.
+
+**Vérifié le 23/09/2026** : la description est posée, mot pour mot. Les topics et les deux cases ne
+sont pas lisibles par l'API dont disposent les sessions de développement — à contrôler dans les
+réglages du dépôt.
 
 #### BF.3 — `majeur` · `S` · `traité` (22/09/2026) — La suite E2E ne démarrait pas hors Windows
 
@@ -6208,7 +6204,7 @@ d'un jeton classique `read:packages`. La procédure d'authentification y est con
 reléguée à une note conditionnelle : elle redeviendra nécessaire si les packages repassent un jour
 en privé.
 
-#### BF.5 — `mineur` · `S` · `non traité` · `P2` — Libellés des guides d'export à confirmer
+#### BF.5 — `mineur` · `S` · `différé` (23/09/2026) · `P2` — Libellés des guides d'export à confirmer
 
 `frontend/src/utils/guidesExport.ts` décrit, pour chaque source, le chemin à suivre **dans l'outil
 d'origine**. La partie « colonnes attendues » est tirée des parseurs, donc vérifiable et stable. Les
@@ -6216,6 +6212,8 @@ d'origine**. La partie « colonnes attendues » est tirée des parseurs, donc v�
 Bricks.co et Trade Republic (cf. § BC.1, où ce point était déjà signalé comme laissé à
 l'utilisateur). À relire et corriger par quelqu'un qui fait ces exports en vrai — les données sont
 en clair dans le fichier, aucune modification de composant n'est nécessaire.
+
+**Reporté par l'utilisateur le 23/09/2026** (« pas maintenant »).
 
 #### BF.6 — `mineur` · `S` · `traité` (22/09/2026) — Retrait des deux paquets de handoff de design
 
@@ -6328,7 +6326,7 @@ puisqu'elles voyagent avec le produit.
 
 Le § 1 du backlog, entièrement bâti sur une comparaison nominative, a été réécrit en « étude
 d'opportunité » portant sur « une solution commerciale de référence » : la substance, les tableaux
-et les arbitrages sont intacts, et les dizaines de renvois internes « cf. § 1.2 » restent valides.
+et les arbitrages sont intacts, et les dizaines de renvois internes « cf. § 6.2 » restent valides.
 Les liens vers des articles d'avis tiers ont été retirés, la mention de la source étant conservée
 sans URL. Les titres des §§ AZ et BA passent de « revue concurrentielle <produit> » à « veille
 concurrentielle ».
@@ -6690,7 +6688,7 @@ fichier de sauvegarde exact.
 date, ce que l'API ne permet jamais (vérifié par l'API : la création comme la modification
 posent la date). Corrigé dans le générateur, pas dans l'application.
 
-#### BI.4 — `majeur` · `L` · `traité` (23/09/2026, volet 2 : décision à prendre) · `P3` — Préparer une version hébergée : Postgres et multi-foyer
+#### BI.4 — `majeur` · `L` · `traité` (23/09/2026 ; volet 2 tranché, cf. § BI.5) · `P3` — Préparer une version hébergée : Postgres et multi-foyer
 
 **Le vrai sujet d'un SaaS n'est pas le langage** mais la base et l'isolation des clients. Deux
 volets :
@@ -6880,3 +6878,180 @@ propres à SQLite) ; SQLite 1 465 (9 ignorés, propres à Postgres).
 **Pour une version hébergée** : connecter l'application avec un rôle ordinaire (ni
 superutilisateur, ni `BYPASSRLS`). Le rôle qui joue les migrations peut être le même : `FORCE`
 l'y soumet aussi.
+
+### BJ. Retours du 23/09/2026
+
+#### BJ.1 — `mineur` · `S` · `traité` (23/09/2026) — Icône Ledger remplacée, et logos robustes à un site injoignable
+
+**Demande** : « icône Ledger pas beau, à remplacer par » l'icône de l'application Ledger Live
+(fournie par l'utilisateur, hébergée sur un CDN tiers).
+
+**Choix** : l'image est **livrée avec l'application** (`backend/app/assets/logos/ledger.png`),
+jamais téléchargée depuis ce CDN au fonctionnement — le catalogue de logos a été conçu pour ne
+signaler à aucun tiers les établissements du foyer (`etablissements_connus.py`), et un CDN inconnu
+le ferait. `etablissements_connus.LOGOS_EMBARQUES` déclare les logos embarqués : ils prennent le pas
+sur le site officiel, dans le cache du catalogue comme sur les établissements dont le logo vient du
+catalogue. Posés dès le démarrage, sans réseau : une installation existante voit le nouveau logo au
+redémarrage. Un logo téléversé ou saisi par URL n'est jamais touché.
+
+**Défaut trouvé en le vérifiant** : `logo_service._telecharger` laissait passer les exceptions de
+`requests` (délai dépassé, site injoignable). Un seul site lent faisait échouer le rafraîchissement
+de TOUT le catalogue — aucun logo enregistré, pas même ceux des autres —, et une URL de logo
+injoignable saisie par l'utilisateur donnait une erreur 500. Converties en `TelechargementError`,
+comme tout échec de téléchargement.
+
+**Tests** : 6 dans `test_logo_service.py`, tous en échec sur l'ancien code.
+
+#### BJ.2 — `mineur` · `S` · `traité` (23/09/2026) — L'accueil sans patrimoine n'est plus une page blanche
+
+**Demande** : « quand on n'a pas encore saisi de patrimoine, ou qu'on sélectionne une personne du
+foyer n'en ayant pas, la page d'accueil est vide, ça fait pas propre ».
+
+**Cause** : `PatrimoineNetCard` ne rendait RIEN sans actif ni emprunt (vérifié en navigateur : un
+foyer neuf ne voyait qu'un bandeau orange, une personne sans actif une page vide, sans un mot).
+
+**Correctif** : `PatrimoineVide` prend la place du bloc héros, avec deux messages parce que les deux
+situations n'appellent pas la même action. Foyer vide : « Ton patrimoine commence ici », importer un
+relevé ou saisir une ligne à la main (`/patrimoine?ajout=1` ouvre directement le formulaire, puis
+retire le paramètre de l'URL). Personne sans actif : « Rien n'est encore attribué à Alice »,
+répartir un compte ou revenir à la vue du foyer. Un invité ne se voit proposer aucune action qu'on
+lui refuserait. Le bandeau « aucune position » et le renvoi vers l'analyse se retirent (doublon).
+
+**Défaut trouvé en le vérifiant** : sur mobile, le logo Lumen de l'état vide ne s'affichait qu'à
+moitié. `LumenMark` utilisait des identifiants de dégradé fixes : `url(#…)` désignait le logo de la
+barre latérale, masqué sur mobile, que Chrome ne peint pas — tout autre logo de l'écran
+(chargement de la courbe, états vides) n'affichait qu'un arc de couleur unie. Identifiants propres
+à chaque exemplaire (`useId`).
+
+**Vérifié** en navigateur (bureau, mobile, thème sombre, clic réel sur « Saisir une ligne ») ;
+9 tests, dont 4 en échec sur l'ancien code.
+
+---
+
+## 6. Étude d'opportunité — comparaison avec l'offre du marché
+
+Deux campagnes d'observation portant sur une **solution commerciale de référence** du suivi
+patrimonial, volontairement non nommée ici. La première (19/08/2026) était **documentaire** : site
+officiel et avis indépendants. La seconde (**21/08/2026**) est une **observation directe du produit
+en usage réel**, formule gratuite — écran par écran, y compris les fiches de détail, les réglages
+et les modales de partage. Cette seconde
+campagne a fait apparaître des fonctionnalités que la documentation commerciale ne montre pas, et
+c'est elle qui alimente les nouveaux lots K à Q du § 2.
+
+### 6.1 Ce que l'outil observé expose réellement (relevé du 21/08/2026)
+
+**Navigation** : `Synthèse` · `Patrimoine` · `Objectifs` (badge « NOUVEAU ») · `Analyse` · `Budget` ·
+`Investir` · `Outils` · `Communauté` · `Premium offert`, dans une **barre latérale verticale
+repliable**. L'en-tête porte cinq actions transverses : *Partager mon patrimoine*, *Déclaration de
+patrimoine*, *Cacher les montants*, *Notifications*, *Action requise*, plus un bouton d'appel à
+l'action *Compléter mon patrimoine*.
+
+| Bloc observé | Ce que fait l'outil observé | Ce que nous faisons aujourd'hui |
+|---|---|---|
+| **Trois lentilles de patrimoine** | Sélecteur global : *Patrimoine brut* (actifs hors passifs), *Patrimoine net* (actifs − passifs), *Patrimoine financier* (actifs liquides hors comptes bancaires). S'applique au chiffre-clé, au graphique et aux répartitions | Patrimoine net seul, calculé mais non commutable |
+| **Période globale** | `1J 7J 1M 3M 6M YTD 1A TOUT`, persistante d'un écran à l'autre | Sélecteur d'année par écran, non transverse |
+| **Détenteurs (quotités)** | Chaque actif **et chaque passif** porte des détenteurs avec un pourcentage. Réglages → *Famille et entreprises* gère les personnes **et les sociétés** (SCI, holding). Filtre et regroupement par détenteur dans les tableaux | Absent. Le champ « compte » est une simple annotation |
+| **Part détenue / part nette** | Sur un bien : une *part détenue* en pourcentage donne une valeur, dont est déduit l'emprunt rattaché pour obtenir la *part nette* — nettement plus faible | Absent. Actifs et passifs sont additionnés globalement, jamais rapprochés |
+| **Emprunt rattaché à un actif** | Un passif se lie à un bien (`Emprunts liés`), ce qui rend la part nette calculable | Les emprunts existent mais flottent, sans rattachement |
+| **Immobilier** | Valorisation automatique via un **service d'estimation tiers payant** : valeur estimée, prix/m², *niveau de confiance*, positionnement sur une échelle de marché (« au-dessus du marché »). Fiche structurée en 8 sections : Description, Caractéristiques, Location, Détails, Pièces, Emprunts liés, Détention, Supprimer. Le bloc *Location* porte type (Pinel, …), périodicité, loyer mensuel, charges mensuelles, frais annuels → **cashflow** et **rentabilité** calculés | Valeur estimée saisie à la main, sans loyer, sans charges, sans cashflow ni rentabilité |
+| **Fiche d'actif** | Trois onglets systématiques : *Aperçu* (valeur, courbe, indicateurs), *Analyse* (marché, détention), *Paramètres* (formulaire sectionné avec sommaire latéral) | Fiche détaillée pour les seules positions boursières, sans onglets ni édition structurée |
+| **Objectifs** | Frise 2026 → 2076. Objectifs typés (*Indépendance financière*, *Épargne de précaution*) avec valeur cible, trajectoire projetée en deux courbes (valeur cible / valeur des versements), **statut en langage naturel** (« En bonne voie — votre objectif progresse comme prévu »), rendement requis, contribution cible €/mois, taux de progression, contributeurs, et **actifs liés** | Le simulateur calcule une projection et un FIRE, mais rien n'est *persisté* comme objectif suivi dans le temps |
+| **Analyse** | Sept modules : *Scanner de frais* (€/an), *Revenus passifs* (rendement % + projeté 12 mois), *Scanner de diversification sectorielle* (note /10), *Scanner de diversification géographique* (note /10), *Scanner d'abonnements*, *Simulateur de patrimoine*, *Investissements populaires*, plus *Classement* (percentile vs autres utilisateurs et population française) et *Profil de l'investisseur* (profil de risque, matelas de sécurité, ratio d'endettement) | Coût de gestion consolidé et qualité des données présents ; scores de diversification, revenus passifs projetés, profil de risque et ratios absents |
+| **Budget** | Période (1M/3M/1A/personnalisé), *Entrées / Sorties / Disponible / Dépenses récurrentes*, filtres par catégorie et par compte, distribution des sorties, création de catégories et de règles | Hors périmètre à ce jour (§ N rouvre la décision) |
+| **Partage** | Lien **anonyme, révocable**, par profil, avec sélection des catégories partagées et quatre interrupteurs : partager le budget, partager les objectifs, *masquer les valeurs et les quantités*, *exiger un code de sécurité* | Absent |
+| **Déclaration de patrimoine** | PDF par profil, avec **sélection fine des actifs** à inclure (« Immobilier 2/2 », « Emprunts 3/3 »), alimentée par le *Profil investisseur* (salaire net, dépenses mensuelles, taux d'imposition) | Relevé PDF existant, mais monolithique : ni sélection, ni profil, ni détenteur |
+| **Taxonomie d'ajout** | 18 catégories : Immobilier, Actions & Fonds, PEA, Assurance Vie, Exchange Crypto, Crypto, Wallets Crypto, SCPI, Comptes courants, Comptes titres, Épargne salariale, Comptes d'épargne, Emprunts, Startups & PME, Crowdlending, Montres, Métaux précieux, Autres actifs | 9 environ, dont une catégorie « autre actif » fourre-tout |
+| **Réglages** | Mon compte (langue, **devise**, thème), Sécurité, Profil investisseur, Famille et entreprises, Comptes synchronisés, *Nettoyer graphique* (correction des accidents de série historique) | Préférences de calcul, seuil d'alerte, rafraîchissement, exports. Ni devise, ni profil, ni outil de correction d'historique |
+
+### 6.2 Ce que l'outil observé fait mal — et qui devient notre terrain
+
+L'observation directe est plus instructive que les avis en ligne. Six défauts sont **structurels**,
+pas conjoncturels, et chacun est une occasion :
+
+1. **Le chiffre-clé par défaut est le patrimoine *brut*.** L'écran d'accueil annonce le total des
+   actifs sans déduire les passifs. Sur un patrimoine fortement financé par l'emprunt, l'écart
+   observé atteint un facteur six entre le chiffre mis en avant et ce qui est réellement détenu.
+   Il faut ouvrir un menu déroulant discret pour voir le second. Un outil de suivi patrimonial dont l'indicateur principal flatte de 500 % est un problème
+   de conception, pas un réglage.
+2. **Le mur payant abîme l'écran d'analyse.** La moitié de la page *Analyse* est floutée. Les deux
+   scores de diversification s'affichent « Insuffisante 1/10 » avec l'explication masquée : le
+   diagnostic anxiogène est offert, le remède est vendu. Nous affichons déjà ces scores
+   gratuitement — c'est un argument, à condition de livrer aussi l'explication.
+3. **États vides non traités.** La carte *Performance* de la Synthèse est un grand rectangle blanc :
+   le graphique ne se dessine pas faute de données éligibles, et rien ne le dit. Le *Scanner de
+   frais* affiche « PAS DE DONNÉES / 0.00 % / — €/an ».
+4. **Libellés tronqués** dans la barre latérale (« Déclaration… », « Calculateur de… ») : le menu
+   n'a pas été conçu pour la longueur réelle des intitulés français.
+5. **Vocabulaire incohérent** : l'entrée de menu dit « Patrimoine », le titre de l'onglet dit
+   « Portefeuille », l'URL dit `/portfolio`. Trois mots pour un même écran.
+6. **Bruit commercial permanent** : une bannière d'incitation, deux boutons d'achat dans l'en-tête,
+   un encart dans la barre latérale, des badges `PLUS` sur chaque carte. Sur les 1 568 pixels de
+   large de l'écran d'analyse, une part notable ne parle pas du patrimoine de l'utilisateur.
+
+### 6.3 Positionnement retenu
+
+| Axe | Offre commerciale observée | Cible Lumen |
+|---|---|---|
+| Modèle économique | 0 € limité à 2-3 synchronisations, Lite ≈ 55 €/an, Plus ≈ 150 €/an, Pro ≈ 350 €/an | Gratuit, à code ouvert (FSL-1.1-ALv2), auto-hébergé |
+| Donnée | Cloud, agrégation via prestataire régulé | 100 % local, hors requêtes de cotation |
+| Automatisation | Synchronisation de 20 000+ établissements | Import de fichiers + saisie ; agrégation à instruire (§ E.2) |
+| Transparence du calcul | Boîte noire, scores sans explication en gratuit | Qualité des données affichée, méthode documentée, tout gratuit |
+| Profondeur d'analyse | Pas de TWR, ni volatilité, ni Sharpe, ni bêta | Terrain libre — § P |
+| Fiabilité | Bugs de synchronisation bancaire récurrents, première cause d'avis négatifs | Pas de synchronisation ⇒ pas cette classe de panne |
+| Ergonomie | Barre latérale claire, fiches structurées, chiffre-clé lisible — mais brut par défaut et écran d'analyse mité | À rattraper (§ K), c'est aujourd'hui notre principal retard |
+
+Sources : observation directe du produit le 21/08/2026, complétée par plusieurs analyses et retours
+d'expérience publiés en ligne. Les références détaillées sont conservées hors dépôt.
+
+---
+
+## Annexe A — Bilan du premier chantier d'audit (18-19/08/2026)
+
+Repris de l'ancien `ETAT_DU_CHANTIER.md`. Les chiffres de l'époque (tests, positions, couverture des
+ETF) ne décrivent plus le produit ; les **décisions**, elles, tiennent toujours et sont commentées dans
+le code et détaillées dans `SPECIFICATIONS_FONCTIONNELLES.md`.
+
+**Ce qui avait changé les chiffres affichés, et pourquoi c'était voulu** : les frais étaient
+comptés deux fois (déjà dans le coût de revient et les produits de cession, puis resoustraits) ;
+certains revenus (Saveback, Stockperk, bonus, dons) n'étaient comptés nulle part ; dividendes et
+intérêts sont devenus **nets** d'impôt (`amount` est brut dans l'export du courtier, la taxe est une
+ligne séparée) ; les frais d'entrée des fonds non cotés sont entrés au coût de revient.
+
+**Décisions qui engagent le produit :**
+
+- **Frais et impôts** sont affichés à titre informatif et ne figurent pas dans la formule du
+  gain/perte : ils sont déjà intégrés au coût de revient, aux produits de cession et aux revenus
+  nets.
+- **« Autres revenus »** est alimenté par une **liste fermée** de types de mouvements, jamais par un
+  `else` fourre-tout : un type inconnu reste hors du calcul plutôt que d'y entrer en silence.
+- **Rendement annualisé** : non affiché sous 90 jours de détention, ni au-delà de 1 000 %/an —
+  mieux vaut « — » qu'un pourcentage exact mais absurde.
+- **Un fonds n'est jamais classé sur son pays de domiciliation.** Sans composition réelle ni indice
+  reconnu, il reste « Non catégorisé » : classer un ETF S&P 500 en « Europe » parce qu'il est
+  irlandais serait pire qu'une donnée absente.
+- **Le grand livre fait foi.** Une ligne saisie à la main survit à un import de transactions, sauf
+  si le grand livre reconstruit le même ticker — elle est alors remplacée, et l'événement compté.
+- **Coût moyen pondéré** est la méthode par défaut ; FIFO est une option qui déclenche un recalcul
+  complet.
+- **Une vente sans achat correspondant** n'est signalée qu'en fin de traitement, jamais bornée en
+  cours de route — ce qui préserve un cas réel : un titre offert vendu avant l'horodatage de sa
+  ligne d'achat, le même jour.
+
+**Pistes laissées alors, toujours valables** : les répartitions de repli par indice
+(`services/reference_indices.py`) sont des approximations figées, à relire une fois par an ; la
+qualité des données géographiques reste le premier levier fonctionnel, si une source de composition
+complète devenait accessible.
+
+## Annexe B — Méthode de vérification de clôture de l'ancien audit (19/08/2026)
+
+
+Avant d'archiver l'ancien backlog et d'écrire celui-ci, vérification par sondage plutôt que relecture
+exhaustive des 55 points (la majorité a été traitée directement au fil de cette session, avec preuve
+à l'écran à chaque fois) : contrôle du code source pour les points les plus susceptibles d'une
+régression silencieuse — `lazy="selectin"` toujours présent (`models.py`, § 4.1 archivé),
+recherche dichotomique (`bisect.bisect_right`) toujours en place dans `historical_performance_service.py`
+(§ 4.6 archivé), rafraîchissement toujours renvoyé en 202/asynchrone (`routers/market_data.py`, § 3.7
+archivé), script `backend/scripts/sauvegarde.py` toujours présent (§ 7.6 archivé), dépôt git avec
+historique de commits (§ 7.2 archivé). Suite de tests complète relancée et vérifiée au vert (333
+backend, 84 frontend) juste avant cette réécriture — le filet de test posé par l'ancien § 7.1 est
+lui-même la meilleure garantie que les 53 points ne se sont pas silencieusement rouverts.

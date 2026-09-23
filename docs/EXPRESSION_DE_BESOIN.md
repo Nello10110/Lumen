@@ -528,13 +528,11 @@ Un lot est livré quand **tous** les points suivants sont vrais :
 
 ## 11. Références
 
-- [`docs/BACKLOG.md`](BACKLOG.md) — arbitrage détaillé de chaque point, sections A à W (§ 4 pour
-  l'état de livraison courant, Lot 9 inclus)
-- [`docs/ROADMAP.md`](ROADMAP.md) — phases 1 à 3 livrées, ordre historique
+- [`docs/BACKLOG.md`](BACKLOG.md) — backlog et feuille de route : état du produit (§ 1), ce qui
+  reste à faire (§ 2), historique des phases et des lots (§ 4), arbitrage détaillé de chaque point (§ 5)
 - [`docs/SPECIFICATIONS_FONCTIONNELLES.md`](SPECIFICATIONS_FONCTIONNELLES.md) — règles métier en vigueur
 - [`docs/MANUEL_EXPLOITATION.md`](MANUEL_EXPLOITATION.md) — architecture, exploitation, sauvegarde
 - [`docs/MANUEL_UTILISATEUR.md`](MANUEL_UTILISATEUR.md) — mode d'emploi écran par écran
-- [`docs/ETAT_DU_CHANTIER.md`](ETAT_DU_CHANTIER.md) — bilan du chantier d'audit d'août 2026
 - [`docs/archives/AUDIT_2026-08-18.md`](archives/AUDIT_2026-08-18.md) — audit archivé, 55 points
 
 **Sources externes** : étude d'opportunité du 21/08/2026 — observation directe d'une solution

@@ -541,7 +541,7 @@ def refresh_tickers(
 
     for index, (identifiant_brut, asset_class) in enumerate(items, start=1):
         identifiant = (identifiant_brut or "").strip().upper()
-        # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) : aucune
+        # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/BACKLOG.md` § 4.2) : aucune
         # cotation à chercher, ni sur yfinance ni sur justETF — un bien immobilier n'a
         # pas de ticker. Sauté avant même la déduplication `seen`/la temporisation, qui
         # n'ont de sens que pour des identifiants effectivement interrogés en réseau.

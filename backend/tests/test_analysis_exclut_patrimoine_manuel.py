@@ -2,7 +2,7 @@
 `analysis_service.holdings_financiers`) : les trois endpoints de
 `routers/analysis.py` délèguent bien à cette fonction — un bien immobilier ne doit
 apparaître ni dans `valeur_totale`, ni dans la répartition géo/secteur (Phase 1 de
-`docs/ROADMAP.md`)."""
+`docs/BACKLOG.md` § 4.2)."""
 
 from .conftest import make_holding
 

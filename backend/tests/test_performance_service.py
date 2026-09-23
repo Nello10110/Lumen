@@ -118,7 +118,7 @@ def test_rendement_annualise_dividende_sans_cotation_bricks_co(db):
 
 
 def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
-    """Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) : pas de
+    """Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/BACKLOG.md` § 4.2) : pas de
     `MarketDataCache`, mais `valeur_estimee` joue le rôle du prix actuel."""
     holding = Holding(
         user_id=ID_UTILISATEUR_TEST,
@@ -363,7 +363,7 @@ def test_pas_de_rendement_annualise_si_detention_trop_courte_meme_avec_date_acqu
 
 
 def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
-    """Phase 1 de `docs/ROADMAP.md` : un bien immobilier n'a pas de coût de base
+    """Phase 1 de `docs/BACKLOG.md` § 4.2 : un bien immobilier n'a pas de coût de base
     dans `positions` (jamais issu du grand livre de transactions) — l'inclure dans
     `valeur_positions`/`gains_latents` gonflerait le gain latent de sa valeur
     entière. La carte Rentabilité (boursière pure, increment 5) doit l'ignorer."""

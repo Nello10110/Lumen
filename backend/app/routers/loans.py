@@ -1,4 +1,4 @@
-"""CRUD des emprunts (Phase 1 de `docs/ROADMAP.md`, patrimoine net) — premier vrai
+"""CRUD des emprunts (Phase 1 de `docs/BACKLOG.md` § 4.2, patrimoine net) — premier vrai
 PASSIF de l'application. `capital_restant_du` (dans `LoanOut`) est toujours calculé
 côté serveur (`loan_service.compute_capital_restant_du`), jamais côté frontend."""
 

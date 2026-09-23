@@ -181,7 +181,7 @@ def test_refresh_tickers_ne_temporise_pas_si_delai_nul(db, monkeypatch):
 
 
 def test_refresh_tickers_saute_le_patrimoine_valorise_manuellement(db, monkeypatch):
-    """Phase 1 de `docs/ROADMAP.md` : immobilier/SCPI/assurance-vie/PER n'ont pas de
+    """Phase 1 de `docs/BACKLOG.md` § 4.2 : immobilier/SCPI/assurance-vie/PER n'ont pas de
     ticker coté — ni `resolve_ticker` (yfinance) ni justETF ne doivent être sollicités,
     et aucune `MarketDataCache` ne doit être créée pour ces lignes."""
     appels_resolve = []

@@ -63,7 +63,7 @@ def test_create_holding_sans_prix_revient_accepte(client):
 
 
 def test_create_holding_valeur_estimee_negative_refusee_en_400(client):
-    """Phase 1 de `docs/ROADMAP.md` (immobilier/SCPI/assurance-vie/PER)."""
+    """Phase 1 de `docs/BACKLOG.md` § 4.2 (immobilier/SCPI/assurance-vie/PER)."""
     reponse = client.post("/api/portfolio/holdings", json={"ticker": "MAISON", "quantite": 1, "valeur_estimee": -1})
     assert reponse.status_code == 400
 

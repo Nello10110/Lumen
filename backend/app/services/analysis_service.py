@@ -29,7 +29,7 @@ class ValuedHolding:
 def holdings_financiers(db: Session, user_id: int) -> list[Holding]:
     """Portefeuille FINANCIER seul (actions/ETF/crypto/obligations/private equity, ou
     type non renseigné) — exclut l'immobilier/SCPI/assurance-vie/PER (Phase 1 de
-    `docs/ROADMAP.md`, cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`), qui n'entrent ni
+    `docs/BACKLOG.md` § 4.2, cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`), qui n'entrent ni
     dans le look-through géo/sectoriel, ni dans la rentabilité boursière
     (`performance_service.compute_performance`) — ils entrent en revanche
     dans le patrimoine net (`services/patrimoine_service.py`), qui n'utilise pas cette
@@ -55,7 +55,7 @@ def holdings_financiers(db: Session, user_id: int) -> list[Holding]:
 def value_holdings(holdings: list[Holding]) -> list[ValuedHolding]:
     """Valorise chaque ligne (prix actuel, ou coût de revient à défaut de cotation).
 
-    `Holding.valeur_estimee` (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/
+    `Holding.valeur_estimee` (Phase 1 de `docs/BACKLOG.md` § 4.2, immobilier/SCPI/assurance-vie/
     PER — cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) est un montant ABSOLU en euros,
     prioritaire sur `prix * quantite` quand renseigné : `quantite` vaut 1 par convention
     pour ces lignes, la multiplication resterait correcte, mais autant ne pas en

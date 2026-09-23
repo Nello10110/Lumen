@@ -93,7 +93,7 @@ def test_value_holdings_repli_sur_cout_de_revient_sans_cotation(db):
 
 
 def test_value_holdings_valeur_estimee_prime_sur_prix_fois_quantite(db):
-    """Phase 1 de `docs/ROADMAP.md` (immobilier/SCPI/assurance-vie/PER) : une
+    """Phase 1 de `docs/BACKLOG.md` § 4.2 (immobilier/SCPI/assurance-vie/PER) : une
     `valeur_estimee` renseignée est un montant ABSOLU, prioritaire même si une
     `MarketDataCache` existait par ailleurs (cas normalement impossible pour ces
     types, mais la priorité doit être sans ambiguïté)."""

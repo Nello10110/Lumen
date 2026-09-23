@@ -550,7 +550,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
             detail=f"Une ligne « {payload.ticker} » existe déjà sur ce compte. Modifiez-la plutôt que d'en créer une seconde.",
         )
     # `date_valeur_estimee` (immobilier/SCPI/assurance-vie/PER, Phase 1 de
-    # `docs/ROADMAP.md`) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
+    # `docs/BACKLOG.md` § 4.2) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
     # ici dès qu'une valeur estimée est fournie à la création.
     if donnees.get("valeur_estimee") is not None:
         donnees["date_valeur_estimee"] = datetime.now(UTC).replace(tzinfo=None)
