@@ -6,6 +6,7 @@ hebdomadaire.
 Aucun test ne touche le réseau : `_telecharger` est systématiquement remplacé.
 """
 
+import base64
 import re
 import socket
 from io import BytesIO
@@ -349,3 +350,103 @@ def test_le_data_uri_annonce_le_bon_type_mime():
     assert logo_service.data_uri_catalogue(svg).startswith("data:image/svg+xml;base64,")
     assert logo_service.data_uri_catalogue(png).startswith("data:image/png;base64,")
     assert logo_service.data_uri_catalogue(ancienne).startswith("data:image/png;base64,")
+
+
+# ---------------------------------------------------------------------------
+# Logos embarqués (23/09/2026 : « icône Ledger pas belle »)
+# ---------------------------------------------------------------------------
+
+
+def _sans_reseau(*_args, **_kwargs):
+    raise AssertionError("un logo embarqué ne doit jamais passer par le réseau")
+
+
+def _png_ledger_attendu() -> bytes:
+    return logo_service.normaliser_en_png((logo_service._DOSSIER_LOGOS_EMBARQUES / "ledger.png").read_bytes())
+
+
+def test_chaque_logo_embarque_existe_et_se_normalise():
+    for cle in etablissements_connus.LOGOS_EMBARQUES:
+        image = Image.open(BytesIO(logo_service.logo_embarque(cle)))
+        assert image.format == "PNG"
+        assert max(image.size) <= logo_service.TAILLE_CIBLE_PX
+
+
+def test_le_catalogue_prend_le_logo_embarque_sans_reseau(monkeypatch):
+    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _sans_reseau)
+
+    logo = logo_service._recuperer_logo_catalogue("ledger")
+
+    assert logo.format == logo_service.FORMAT_PNG
+    assert logo.contenu == _png_ledger_attendu()
+
+
+def test_le_job_hebdomadaire_pose_le_logo_embarque(db, monkeypatch):
+    ledger = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ledger", "ledger")
+    logo_service.appliquer_logo(db, ledger, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
+    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _sans_reseau)
+
+    resume = logo_service.rafraichir_logos(db)
+
+    assert resume.mis_a_jour == 1
+    assert ledger.logo_png == base64.b64encode(_png_ledger_attendu()).decode("ascii")
+
+
+def test_au_demarrage_le_logo_embarque_remplace_lancien_sans_toucher_un_choix_de_lutilisateur(db):
+    """Une installation existante a déjà l'ancien logo, téléchargé sur ledger.com, dans
+    le cache du catalogue et sur son établissement : il est remplacé dès le démarrage.
+    Un logo téléversé par l'utilisateur, lui, reste le sien."""
+    db.add(LogoCatalogue(logo_key="ledger", logo_png="ancien", logo_format=logo_service.FORMAT_PNG))
+    catalogue = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ledger", "ledger")
+    logo_service.appliquer_logo(db, catalogue, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
+    televerse = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Mon Ledger", "ledger")
+    logo_service.appliquer_logo(db, televerse, png_factice(couleur="green"), logo_service.SOURCE_UPLOAD)
+    empreinte_televerse = televerse.logo_empreinte
+
+    assert logo_service.appliquer_logos_embarques(db) == 2
+
+    attendu = base64.b64encode(_png_ledger_attendu()).decode("ascii")
+    assert db.get(LogoCatalogue, "ledger").logo_png == attendu
+    assert catalogue.logo_png == attendu
+    assert televerse.logo_empreinte == empreinte_televerse
+    # Idempotent : un second démarrage ne change plus rien.
+    assert logo_service.appliquer_logos_embarques(db) == 0
+
+
+# ---------------------------------------------------------------------------
+# Site injoignable : un échec comme un autre (23/09/2026)
+# ---------------------------------------------------------------------------
+
+
+def _reseau_en_panne(monkeypatch):
+    _resoudre_vers(monkeypatch, "93.184.216.34")
+
+    def _get(*_args, **_kwargs):
+        raise logo_service.requests.ConnectTimeout("délai dépassé")
+
+    monkeypatch.setattr(logo_service.requests, "get", _get)
+
+
+def test_un_site_injoignable_nempeche_pas_le_rafraichissement_du_catalogue(db, monkeypatch):
+    """Avant : l'exception de `requests` remontait telle quelle, et UN site lent faisait
+    échouer tout le rafraîchissement — aucun logo enregistré, pas même les autres."""
+    _reseau_en_panne(monkeypatch)
+
+    logo_service.rafraichir_logos_catalogue(db)
+
+    caches = {c.logo_key: c for c in db.query(LogoCatalogue).all()}
+    assert set(caches) == set(etablissements_connus.DOMAINES)
+    assert all(c.derniere_tentative_le is not None for c in caches.values())
+    assert caches["ledger"].logo_png is not None  # embarqué : aucun réseau nécessaire
+
+
+def test_logo_depuis_une_url_injoignable_repond_400_et_pas_500(client, db, monkeypatch):
+    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ma banque", None)
+    _reseau_en_panne(monkeypatch)
+
+    reponse = client.put(
+        f"/api/comptes/etablissements/{etablissement.id}/logo/url", json={"url": "https://exemple.fr/logo.png"}
+    )
+
+    assert reponse.status_code == 400
+    assert "injoignable" in reponse.json()["detail"]

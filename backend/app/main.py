@@ -83,6 +83,9 @@ def _rechauffer_logos_catalogue() -> None:
     ou de refuser."""
     db = session_tous_foyers()
     try:
+        # Logos livrés avec l'application d'abord : aucun réseau, et un logo changé
+        # dans une mise à jour s'affiche dès le redémarrage.
+        logo_service.appliquer_logos_embarques(db)
         logo_service.rafraichir_logos_catalogue(db)
     except Exception:
         logging.getLogger("patrimoine.logos").exception("échauffement du cache de logos du catalogue en échec")

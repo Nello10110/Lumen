@@ -34,6 +34,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -109,13 +110,21 @@ def _telecharger(url: str) -> bytes:
     courante = url
     for _ in range(MAX_REDIRECTIONS + 1):
         _verifier_url_publique(courante)
-        reponse = requests.get(
-            courante,
-            headers={"User-Agent": _USER_AGENT},
-            timeout=TIMEOUT_SECONDES,
-            allow_redirects=False,
-            stream=True,
-        )
+        try:
+            reponse = requests.get(
+                courante,
+                headers={"User-Agent": _USER_AGENT},
+                timeout=TIMEOUT_SECONDES,
+                allow_redirects=False,
+                stream=True,
+            )
+        except requests.RequestException as exc:
+            # Site injoignable, délai dépassé, DNS… : un échec de téléchargement comme
+            # un autre. Avant le 23/09/2026, l'exception de `requests` passait telle
+            # quelle : UN site lent suffisait à faire échouer tout le rafraîchissement du
+            # catalogue (plus aucun logo enregistré), et une URL injoignable saisie par
+            # l'utilisateur donnait une erreur 500.
+            raise TelechargementError(f"Site injoignable ({type(exc).__name__}).") from exc
         if reponse.is_redirect or reponse.is_permanent_redirect:
             cible = reponse.headers.get("Location")
             reponse.close()
@@ -364,6 +373,9 @@ def rafraichir_logos(db: Session) -> ResumeRafraichissement:
             if etablissement.logo_source == SOURCE_URL and etablissement.logo_source_url:
                 png = recuperer_depuis_url(etablissement.logo_source_url)
                 source_url = etablissement.logo_source_url
+            elif (embarque := logo_embarque(etablissement.logo_key)) is not None:
+                png = embarque
+                source_url = None
             else:
                 domaine = etablissements_connus.domaine_pour(etablissement.logo_key)
                 if not domaine:
@@ -402,12 +414,54 @@ def rafraichir_logos(db: Session) -> ResumeRafraichissement:
 DELAI_NOUVELLE_TENTATIVE_CATALOGUE = timedelta(hours=24)
 
 
+_DOSSIER_LOGOS_EMBARQUES = Path(__file__).resolve().parent.parent / "assets" / "logos"
+
+
+def logo_embarque(cle: str | None) -> bytes | None:
+    """Logo livré avec l'application pour cette clé (`etablissements_connus.LOGOS_EMBARQUES`),
+    normalisé comme tout autre logo — ou `None` : la clé suit alors la récupération
+    habituelle sur le site officiel."""
+    fichier = etablissements_connus.LOGOS_EMBARQUES.get(cle or "")
+    if fichier is None:
+        return None
+    return normaliser_en_png((_DOSSIER_LOGOS_EMBARQUES / fichier).read_bytes())
+
+
+def appliquer_logos_embarques(db: Session) -> int:
+    """Pose immédiatement les logos embarqués, sans attendre le job hebdomadaire : dans
+    le cache du catalogue, et sur chaque établissement dont le logo vient du catalogue.
+    Un logo TÉLÉVERSÉ ou saisi par URL n'est jamais touché, pas plus qu'un
+    établissement sans logo — mêmes règles que `rafraichir_logos`. Aucun appel réseau :
+    appelé à chaque démarrage. Renvoie le nombre de logos changés."""
+    changes = 0
+    for cle in etablissements_connus.LOGOS_EMBARQUES:
+        png = logo_embarque(cle)
+        contenu = base64.b64encode(png).decode("ascii")
+        cache = db.get(LogoCatalogue, cle)
+        if cache is None:
+            cache = LogoCatalogue(logo_key=cle)
+            db.add(cache)
+        if cache.logo_png != contenu or cache.logo_format != FORMAT_PNG:
+            cache.logo_png, cache.logo_format = contenu, FORMAT_PNG
+            cache.derniere_tentative_le = datetime.now(UTC).replace(tzinfo=None)
+            changes += 1
+        etablissements = db.query(Etablissement).filter(
+            Etablissement.logo_key == cle, Etablissement.logo_source == SOURCE_CATALOGUE
+        )
+        for etablissement in etablissements:
+            changes += appliquer_logo(db, etablissement, png, SOURCE_CATALOGUE, commit=False)
+    db.commit()
+    return changes
+
+
 def _recuperer_logo_catalogue(cle: str) -> LogoRecupere | None:
     """RÉSEAU SEUL, aucun accès DB — pensé pour tourner dans un thread parmi
     d'autres (cf. `rafraichir_logos_catalogue` ci-dessous, qui paralléllise les ~14
     domaines plutôt que de les essayer un par un : en série, la première ouverture
     du sélecteur après un redémarrage attendrait la somme de tous les délais
     d'expiration au lieu du plus lent d'entre eux)."""
+    if (png := logo_embarque(cle)) is not None:
+        return LogoRecupere(contenu=png, format=FORMAT_PNG)
     domaine = etablissements_connus.domaine_pour(cle)
     if not domaine:
         return None

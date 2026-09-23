@@ -50,6 +50,19 @@ DOMAINES: dict[str, str] = {
 }
 
 
+# Logos EMBARQUÉS dans l'application (`app/assets/logos/`), qui prennent le pas sur la
+# récupération depuis le site officiel — pour une clé dont l'utilisateur a jugé l'icône
+# du site peu lisible. Livrés avec le code, ils ne font aucun appel réseau : rien n'est
+# signalé à un tiers, pas même au site officiel.
+#
+# `ledger` (23/09/2026, choix de l'utilisateur : « icône Ledger pas belle ») : icône
+# de l'application Ledger Live, 512 × 512, récupérée une fois depuis
+# https://cdn.aptoide.com/imgs/8/f/1/8f19ac835c875b1905f90e7c6b92d386_icon.png.
+LOGOS_EMBARQUES: dict[str, str] = {
+    "ledger": "ledger.png",
+}
+
+
 def domaine_pour(logo_key: str | None) -> str | None:
     if not logo_key:
         return None
