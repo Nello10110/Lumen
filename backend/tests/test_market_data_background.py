@@ -19,6 +19,7 @@ import threading
 
 import pytest
 
+from app import database
 from app.database import SessionLocal
 from app.models import FundComposition, HistoriqueCache, MarketDataCache, ScheduledJobConfig, TickerResolution
 from app.services import historique_cache, market_data_refresh, market_data_service, scheduler_service
@@ -160,6 +161,10 @@ def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(m
         db.close()
 
 
+@pytest.mark.skipif(
+    not database.EST_SQLITE,
+    reason="réglage propre à SQLite : une base serveur gère elle-même la concurrence (§ BI.4)",
+)
 def test_connexion_configuree_en_wal_avec_busy_timeout_genereux():
     """Verrouille le correctif § T.2 (retour utilisateur 30/08/2026, « Rafraîchir
     les cours » échouait par intermittence en `database is locked`) : sans mode WAL
@@ -306,10 +311,11 @@ def test_route_derniere_actualisation_reflete_une_config_deja_en_base(client, db
     docstring de ce module)."""
     from datetime import UTC, datetime
 
-    from app.models import ScheduledJobConfig as ScheduledJobConfigLocal
-
     horodatage = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
-    db.add(ScheduledJobConfigLocal(job_key=scheduler_service.MARKET_DATA_REFRESH, derniere_execution=horodatage))
+    # Lue ou créée, pas insérée : sous Postgres (§ BI.4), l'application et les tests
+    # partagent la base, où le démarrage du planificateur a déjà créé cette ligne.
+    config = scheduler_service.get_or_create_config(db, scheduler_service.MARKET_DATA_REFRESH)
+    config.derniere_execution = horodatage
     db.commit()
 
     reponse = client.get("/api/market-data/derniere-actualisation")

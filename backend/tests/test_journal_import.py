@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from app.models import JournalImport
 from app.services import journal_import_service
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_UTILISATEUR_TEST, creer_utilisateur
 
 CSV_POSITIONS = (
     "ticker,quantite\n"
@@ -108,6 +108,7 @@ def test_deux_sources_differentes_coexistent(client):
 def test_la_trace_d_un_autre_foyer_reste_invisible(client, db):
     """Isolation multi-utilisateur (Milestone 2a) : la route ne doit renvoyer que les
     traces du foyer connecté."""
+    creer_utilisateur(db, ID_UTILISATEUR_TEST + 99)
     journal_import_service.enregistrer(db, ID_UTILISATEUR_TEST + 99, "ledger", 42)
 
     assert client.get("/api/imports/derniers").json() == []

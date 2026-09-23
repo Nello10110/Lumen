@@ -22,6 +22,7 @@ from .conftest import (
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
+    creer_utilisateur,
     make_compte,
     make_holding,
 )
@@ -92,6 +93,7 @@ def test_holding_inexistant_renvoie_404(client):
 def test_holding_avec_compte_id_dun_autre_foyer_refuse(client, db):
     """IDOR : rattacher sa ligne au compte de quelqu'un d'autre ne doit jamais
     réussir silencieusement."""
+    creer_utilisateur(db, ID_UTILISATEUR_B)
     compte_b = make_compte(db, user_id=ID_UTILISATEUR_B, nom="PEA de B")
 
     reponse = client.post("/api/portfolio/holdings", json=_payload_holding(compte_id=compte_b.id))

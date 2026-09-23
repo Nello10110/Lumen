@@ -6679,7 +6679,7 @@ fichier de sauvegarde exact.
 date, ce que l'API ne permet jamais (vérifié par l'API : la création comme la modification
 posent la date). Corrigé dans le générateur, pas dans l'application.
 
-#### BI.4 — `majeur` · `L` · `non traité` · `P3` — Préparer une version hébergée : Postgres et multi-foyer
+#### BI.4 — `majeur` · `L` · `traité` (23/09/2026, volet 2 : décision à prendre) · `P3` — Préparer une version hébergée : Postgres et multi-foyer
 
 **Le vrai sujet d'un SaaS n'est pas le langage** mais la base et l'isolation des clients. Deux
 volets :
@@ -6692,3 +6692,124 @@ volets :
    rattachement sur chaque table : c'est une **décision produit**, avec des conséquences sur
    l'isolation, les sauvegardes et le coût d'exploitation. Elle revient à l'utilisateur ; ce point
    s'arrête à une étude comparative étayée.
+
+**Volet 1 — Portabilité Postgres : faite, et vérifiée en continu.**
+
+*L'inventaire* a été plus court que prévu. Le code applicatif passe entièrement par l'ORM : pas
+de SQL propre à SQLite hors de `app/database.py`, et les rares `strftime` sont des méthodes
+Python. Trois points restaient liés à SQLite : l'URL de connexion, les réglages de connexion
+(délai d'attente, mode WAL), et la sauvegarde intégrée, qui copie le fichier.
+
+*Ce qui change :*
+
+- `PATRIMOINE_DATABASE_URL` (URL SQLAlchemy complète) prend le pas sur le fichier SQLite. Sans
+  elle, **rien ne change** pour une installation existante. Les réglages propres à SQLite ne
+  s'appliquent plus qu'à SQLite.
+- Sur une base serveur, le job de sauvegarde l'indique dans Réglages (« une base serveur se
+  sauvegarde avec ses propres outils ») au lieu de lever une exception.
+- `PATRIMOINE_TEST_DATABASE_URL` fait tourner toute la suite sur une base Postgres jetable, dont
+  le schéma est posé par les migrations Alembic. Le job CI `backend-postgres` (Postgres 16) la
+  lance à chaque push ; le pilote `psycopg` n'entre que dans `requirements-dev.txt`, pas dans
+  l'image.
+
+*Les 35 migrations passent telles quelles*, écrites pour SQLite en mode `batch` : montée
+complète, descente jusqu'à la base vide, remontée, sans une erreur, et un schéma final
+identique aux modèles (comparaison Alembic : 0 écart).
+
+*Premier passage de la suite sous Postgres : 16 échecs sur 1 456*, tous dus à une seule
+différence : **Postgres vérifie les clés étrangères, SQLite non** (`PRAGMA foreign_keys` jamais
+activé). Neuf venaient des tests eux-mêmes (lignes rattachées à un utilisateur ou un compte qui
+n'existait pas) ; cinq testaient des réglages propres à SQLite, désormais ignorés hors SQLite,
+raison affichée. **Les autres étaient de vrais défauts de l'application**, et la lecture de
+chaque chemin de suppression en a révélé d'autres, que les tests n'exerçaient pas :
+
+| Suppression | Défaut | Effet sous SQLite | Sous Postgres |
+| --- | --- | --- | --- |
+| Détenteur | Ses liens de partage et périmètres d'invité restaient pointés sur son id | **Fuite de données** : SQLite redonne le plus grand id libéré au détenteur suivant. Le lien « Pour Alice » montrait publiquement les 250 000 € de Carol, créée après — reproduit, verrouillé par un test | Suppression refusée |
+| Emprunt | Sa répartition entre détenteurs restait en base | L'emprunt suivant reprenant l'id héritait d'une répartition étrangère | Suppression refusée |
+| Reconstruction du portefeuille | Un emprunt rattaché à une ligne reconstruite (crédit lombard) restait pointé sur l'ancien id ; historique de valorisation et fiche immobilière orphelins | Rattachement perdu à chaque import, ou reporté par hasard sur une autre ligne | Reconstruction refusée |
+| Catégorie de budget | Parent et sous-catégories effacés dans un ordre laissé à SQLAlchemy | Sans effet | Suppression refusée |
+| Remise à zéro du foyer | Liens et périmètres effacés après les détenteurs, journal d'accès des liens oublié | Sans effet | Remise à zéro entière annulée |
+
+Chaque défaut est corrigé à la source, avec un test qui échoue sur le code d'avant
+(`tests/test_references_orphelines.py`). Le test de la reconstruction a dû être durci : sur une
+base où rien ne s'intercale, SQLite redonnait à la ligne recréée l'id tout juste libéré, et le
+rattachement tenait par hasard.
+
+**Les résidus déjà en base** sont réparés par la migration `ebc3df676cf9`. Elle couvre les 19
+références entre tables métier. Une ligne qui RESTREINT une portée (lien de partage, périmètre
+d'invité) est supprimée, jamais mise à NULL, ce qui voudrait dire « tout le foyer ». Une ligne
+qui vit sans son rattachement (emprunt, mouvement, ligne sans compte) est détachée. Idempotente,
+journalisée ligne à ligne. Elle ne peut pas savoir si un lien orphelin a déjà désigné une
+autre personne. **Un lien créé pour une personne supprimée depuis peut donc avoir montré le
+patrimoine de la suivante** : il n'existe plus après cette mise à jour.
+
+*Résultat : 1 457 tests verts sous Postgres, 5 ignorés (propres à SQLite) ; 1 462 verts sous
+SQLite.*
+
+
+**Volet 2 — Modèle multi-foyer : étude comparative.** La décision revient à l'utilisateur ; ce
+qui suit l'étaye, recommandation comprise.
+
+*L'existant, mesuré.* Lumen est DÉJÀ multi-foyer par colonne de rattachement : un foyer est un
+`user_id` métier (`auth_service.id_foyer` — un membre ou un invité y est rattaché par
+`owner_user_id`, jamais sous son propre `id`). Sur les 34 tables :
+
+- 17 portent `user_id` ;
+- 5 sont rattachées par leur parent (`holding_valuation_history`, `holding_immobilier_details`,
+  `quotites_holdings`, `quotites_loans`, `partage_acces`) ;
+- 8 sont **partagées par construction** : cours, cache de marché, compositions de fonds, logos,
+  résolution de tickers — une donnée de marché est la même pour tous les foyers, et c'est ce qui
+  rend le rafraîchissement supportable ;
+- `historique_cache` est cloisonné par sa CLÉ (`historique_patrimoine:{user_id}:…`), pas par une
+  colonne ;
+- `parametres` et `scheduled_job_config` valent pour l'INSTALLATION entière (page de connexion,
+  tâches planifiées) — dans un service hébergé, ce sont des réglages d'opérateur, pas de client.
+- et `users` elle-même.
+
+L'isolation repose sur 124 filtres `user_id == …` écrits à la main dans 31 fichiers, vérifiés
+par `tests/test_isolation_utilisateurs.py`. C'est sa faiblesse : un filtre oublié dans une
+route future, et un foyer voit les données d'un autre — sur une installation familiale, un
+désagrément ; sur un service hébergé, une fuite de données financières.
+
+| | Une base par foyer | Un schéma par foyer | Colonne de rattachement (+ RLS) |
+| --- | --- | --- | --- |
+| Isolation | Physique : la plus forte | Forte, mais un `search_path` mal posé suffit à la rompre | Logique ; **RLS** Postgres la rend imposée par la base, plus par la discipline du code |
+| Données de marché partagées (8 tables) | À sortir dans une base commune : deux moteurs, deux jeux de migrations, plus de jointure possible | Dans `public`, jointures possibles | Rien à changer |
+| Migrations | Rejouées sur N bases ; une qui échoue au milieu laisse un parc hétérogène | Rejouées sur N schémas, même risque ; Alembic ne le fait pas nativement | Une seule fois |
+| Connexions | Un pool par base : ne passe pas l'échelle sans PgBouncer | Un pool, `SET search_path` à chaque requête | Un pool |
+| Sauvegarde / restauration d'UN client | Triviale (`pg_dump` de sa base) | Simple (`pg_dump -n`) | Via l'export JSON par foyer, qui existe déjà (§ X.6, testé en aller-retour) |
+| Suppression d'un client (RGPD) | `DROP DATABASE` | `DROP SCHEMA` | `reinitialiser_foyer`, qui existe déjà |
+| Plafond pratique | Quelques centaines de bases par serveur | Quelques milliers de schémas (catalogue qui gonfle) | Sans limite pratique à cette échelle |
+| Travail pour y arriver | Élevé : routage de connexion par requête, séparation des données de marché, orchestration des migrations | Moyen à élevé | **Faible** : c'est le modèle actuel, à durcir |
+
+*Recommandation : garder la colonne de rattachement, et la durcir par la sécurité au niveau des
+lignes (RLS) de Postgres.* Chaque table de foyer reçoit une politique
+`user_id = current_setting('app.foyer_id')::int`, posée par `SET LOCAL` au début de chaque
+requête authentifiée ; un filtre oublié ne renvoie alors plus rien au lieu de tout renvoyer. Ce
+qu'il faudrait faire :
+
+1. donner `user_id` aux 5 tables rattachées par leur parent (une politique par sous-requête est
+   possible mais coûteuse sur `holding_valuation_history`) et à `historique_cache` ;
+2. connecter l'application avec un rôle qui n'est PAS propriétaire des tables — sinon la RLS ne
+   s'applique pas, sauf `FORCE ROW LEVEL SECURITY` ;
+3. poser `app.foyer_id` dans `get_db` après l'authentification, et prévoir un rôle distinct
+   (sans RLS) pour les tâches planifiées qui parcourent tous les foyers ;
+4. rejouer `test_isolation_utilisateurs.py` sous Postgres, et y ajouter un test qui retire
+   volontairement un filtre pour prouver que la base, seule, tient.
+
+La base par foyer ne se justifierait que sur une exigence contractuelle d'isolation physique
+(client professionnel, cabinet de gestion) — on peut alors la réserver à ces clients-là, le
+code restant le même.
+
+*Hors stockage, trois sujets conditionnent un service hébergé plus que le choix ci-dessus* —
+signalés, pas traités :
+
+- **Les données de marché.** `yfinance` lit Yahoo Finance sans licence ; ses conditions
+  réservent les données à un usage personnel. Un service commercial doit passer par un
+  fournisseur sous licence. JustETF est lu par extraction de page ; l'offre gratuite de
+  CoinGecko a ses propres conditions — à vérifier toutes deux avant tout lancement.
+- **Les réglages d'installation** (`parametres`, `scheduled_job_config`, logo SSO) deviennent
+  des réglages d'opérateur : à sortir de l'écran Réglages des clients.
+- **Les sauvegardes** : l'intégré (copie chiffrée du fichier SQLite) ne s'applique pas à
+  Postgres, où la sauvegarde relève de l'hébergement (`pg_dump`, sauvegarde continue).

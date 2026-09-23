@@ -10,7 +10,17 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO, en_decimal
-from ..models import Detenteur, Holding, Loan, PerimetreInvite, QuotiteHolding, QuotiteLoan, Salaire
+from ..models import (
+    Detenteur,
+    Holding,
+    LienPartage,
+    Loan,
+    PartageAcces,
+    PerimetreInvite,
+    QuotiteHolding,
+    QuotiteLoan,
+    Salaire,
+)
 from . import loan_service
 
 TOLERANCE_SOMME_PCT = 0.01
@@ -71,6 +81,16 @@ def delete_detenteur(db: Session, detenteur: Detenteur) -> None:
     db.query(QuotiteHolding).filter(QuotiteHolding.detenteur_id == detenteur.id).delete()
     db.query(QuotiteLoan).filter(QuotiteLoan.detenteur_id == detenteur.id).delete()
     db.query(Salaire).filter(Salaire.detenteur_id == detenteur.id).update({"detenteur_id": None})
+    # Liens de partage et périmètres d'invité restreints à CETTE personne : supprimés
+    # avec elle, jamais élargis (`detenteur_id = None` voudrait dire « tout le foyer »).
+    # Avant § BI.4, ils restaient pointés sur l'id disparu — et SQLite redonne le plus
+    # grand id libéré au prochain détenteur créé : le lien « Pour Alice » montrait
+    # alors publiquement le patrimoine de la personne suivante, et l'invité restreint
+    # à Alice y accédait (constaté le 23/09/2026, verrouillé par un test).
+    liens = db.query(LienPartage.id).filter(LienPartage.detenteur_id == detenteur.id)
+    db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
+    db.query(LienPartage).filter(LienPartage.detenteur_id == detenteur.id).delete(synchronize_session=False)
+    db.query(PerimetreInvite).filter(PerimetreInvite.detenteur_id == detenteur.id).delete(synchronize_session=False)
     db.delete(detenteur)
     db.commit()
 

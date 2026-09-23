@@ -145,6 +145,20 @@ def client(db):
         app.dependency_overrides.pop(get_current_user, None)
 
 
+def creer_utilisateur(db, user_id: int, username: str | None = None) -> User:
+    """Crée le compte `user_id` s'il n'existe pas encore. Une ligne de test rattachée
+    à un utilisateur qui n'existe pas passe sous SQLite, qui ne vérifie pas les clés
+    étrangères, mais Postgres la refuse (§ BI.4) : un test qui simule « un autre
+    foyer » doit donc le créer pour de bon."""
+    utilisateur = db.get(User, user_id)
+    if utilisateur is None:
+        utilisateur = User(id=user_id, username=username or f"utilisateur-{user_id}", password_hash="inutilisé")
+        db.add(utilisateur)
+        db.commit()
+        _resynchroniser_sequence_users(db)
+    return utilisateur
+
+
 def basculer_utilisateur(db, user_id: int, username: str) -> User:
     """Repointe `get_current_user` (Milestone 2a, `test_isolation_utilisateurs.py`)
     vers un autre compte, créé au passage si besoin, sur le MÊME `client` déjà en
@@ -152,12 +166,7 @@ def basculer_utilisateur(db, user_id: int, username: str) -> User:
     du process de test : deux fixtures `client` séparées s'écraseraient l'une
     l'autre plutôt que de coexister, d'où ce basculement explicite en cours de test
     plutôt qu'une seconde fixture `client_b`."""
-    utilisateur = db.get(User, user_id)
-    if utilisateur is None:
-        utilisateur = User(id=user_id, username=username, password_hash="inutilisé")
-        db.add(utilisateur)
-        db.commit()
-        _resynchroniser_sequence_users(db)
+    utilisateur = creer_utilisateur(db, user_id, username)
     app.dependency_overrides[get_current_user] = lambda: utilisateur
     return utilisateur
 

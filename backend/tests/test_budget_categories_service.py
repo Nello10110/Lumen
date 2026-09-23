@@ -6,7 +6,7 @@ import pytest
 from app.models import BudgetCible, MouvementBancaire, RegleCategorisation
 from app.services import budget_categories_service
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_UTILISATEUR_TEST, creer_utilisateur
 
 
 def test_assurer_categories_par_defaut_cree_l_arbre_une_seule_fois(db):
@@ -59,6 +59,7 @@ def test_delete_categorie_cascade_ses_sous_categories(db):
 
 
 def test_create_categorie_avec_parent_dun_autre_utilisateur_leve(db):
+    creer_utilisateur(db, 999)
     parent_autre = budget_categories_service.create_categorie(db, user_id=999, nom="Intrus", parent_id=None)
     with pytest.raises(ValueError, match="introuvable"):
         budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Sous-intrus", parent_autre.id)

@@ -73,7 +73,16 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO
-from ..models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding, QuotiteHolding, Transaction
+from ..models import (
+    ORIGINE_MANUEL,
+    ORIGINE_RECONSTRUIT,
+    Holding,
+    HoldingImmobilierDetail,
+    HoldingValuationHistory,
+    Loan,
+    QuotiteHolding,
+    Transaction,
+)
 from . import historique_cache, preferences_service
 
 # Seuil sous lequel une quantité est tenue pour nulle. Depuis § BI.1, les quantités
@@ -509,6 +518,24 @@ class ReconstructionResult:
     lignes_manuelles_remplacees: int
 
 
+def _detacher_references(db: Session, ids_holdings: list[int]) -> None:
+    """Retire tout ce qui désigne des lignes sur le point d'être supprimées — même
+    doctrine que `routers/portfolio.py::_detacher_references_avant_suppression` :
+    quotités, historique de valorisation et fiche immobilière disparaissent avec la
+    ligne, un emprunt est seulement détaché (l'appelant le reporte s'il le peut).
+    Jusqu'au § BI.4, seules les quotités étaient retirées ici : le reste demeurait
+    orphelin sous SQLite, qui ne vérifie pas les clés étrangères, et faisait échouer
+    la reconstruction entière sous Postgres, qui les vérifie."""
+    db.query(QuotiteHolding).filter(QuotiteHolding.holding_id.in_(ids_holdings)).delete(synchronize_session=False)
+    db.query(HoldingValuationHistory).filter(HoldingValuationHistory.holding_id.in_(ids_holdings)).delete(
+        synchronize_session=False
+    )
+    db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id.in_(ids_holdings)).delete(
+        synchronize_session=False
+    )
+    db.query(Loan).filter(Loan.holding_id.in_(ids_holdings)).update({"holding_id": None}, synchronize_session=False)
+
+
 def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     """Reconstruit les lignes du portefeuille depuis le grand livre, pour UN SEUL
     utilisateur (`user_id`, Milestone 2a) — ne touche jamais aux lignes/transactions
@@ -593,12 +620,23 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     # Les quotités des lignes sur le point de disparaître sont retirées ici : elles
     # sont réécrites plus bas sur les nouvelles lignes, et celles dont le ticker
     # sort du portefeuille n'ont plus de raison d'exister.
-    ids_supprimes = [
-        h.id
-        for h in db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT).all()
-    ]
+    lignes_supprimees = (
+        db.query(Holding.id, Holding.ticker, Holding.compte_id)
+        .filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT)
+        .all()
+    )
+    ids_supprimes = [ligne.id for ligne in lignes_supprimees]
+    # Emprunts rattachés (un crédit lombard sur une ligne d'actions, par exemple) :
+    # reportés sur la ligne recréée, par la même clé et pour la même raison que les
+    # quotités. Avant § BI.4, `Loan.holding_id` restait pointé sur l'ancien id —
+    # rattachement perdu à chaque reconstruction, et reporté par hasard sur la
+    # prochaine ligne qui reprendrait cet id (SQLite réutilise le plus grand).
+    emprunts_par_cle: dict[tuple[str, int | None], list[int]] = {}
     if ids_supprimes:
-        db.query(QuotiteHolding).filter(QuotiteHolding.holding_id.in_(ids_supprimes)).delete(synchronize_session=False)
+        cle_par_id = {ligne.id: (ligne.ticker, ligne.compte_id) for ligne in lignes_supprimees}
+        for loan_id, holding_id in db.query(Loan.id, Loan.holding_id).filter(Loan.holding_id.in_(ids_supprimes)).all():
+            emprunts_par_cle.setdefault(cle_par_id[holding_id], []).append(loan_id)
+        _detacher_references(db, ids_supprimes)
     db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT).delete()
 
     count = 0
@@ -614,13 +652,17 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
         # (saisie manuelle, jamais dupliquée), la seconde itération ne doit pas
         # retenter de la supprimer.
         ligne_manuelle = lignes_manuelles_existantes.pop(state.symbol, None)
+        emprunts_ligne_manuelle: list[int] = []
         if ligne_manuelle is not None:
             logger.warning(
                 "Ligne saisie manuellement pour %s remplacée par la reconstruction depuis le grand "
                 "livre (même ticker) : le grand livre fait foi.",
                 state.symbol,
             )
-            db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == ligne_manuelle.id).delete(synchronize_session=False)
+            emprunts_ligne_manuelle = [
+                loan_id for (loan_id,) in db.query(Loan.id).filter(Loan.holding_id == ligne_manuelle.id).all()
+            ]
+            _detacher_references(db, [ligne_manuelle.id])
             db.delete(ligne_manuelle)
             # Flush immédiat (pas seulement à la fin de la boucle) : la ligne
             # recréée juste en dessous peut légitimement porter le MÊME
@@ -654,11 +696,17 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
         )
         db.add(nouvelle_ligne)
         quotites_reportees = quotites_par_cle.get((state.symbol, compte_id_final))
-        if quotites_reportees:
+        emprunts_reportes = emprunts_par_cle.pop((state.symbol, compte_id_final), []) + emprunts_ligne_manuelle
+        if quotites_reportees or emprunts_reportes:
             db.flush()  # `nouvelle_ligne.id` n'existe qu'après le flush
+        if quotites_reportees:
             db.add_all(
                 QuotiteHolding(holding_id=nouvelle_ligne.id, detenteur_id=detenteur_id, quotite_pct=pct)
                 for detenteur_id, pct in quotites_reportees
+            )
+        if emprunts_reportes:
+            db.query(Loan).filter(Loan.id.in_(emprunts_reportes)).update(
+                {"holding_id": nouvelle_ligne.id}, synchronize_session=False
             )
         count += 1
 

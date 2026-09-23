@@ -8,7 +8,7 @@ import pytest
 from app.models import Holding, Loan
 from app.services import detenteurs_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_UTILISATEUR_TEST, creer_utilisateur, make_holding
 
 
 def make_detenteur(db, nom="Alice"):
@@ -46,6 +46,7 @@ def test_set_quotites_holding_rejette_un_detenteur_en_double(db):
 
 def test_set_quotites_holding_rejette_un_detenteur_dun_autre_compte(db):
     h = make_holding(db)
+    creer_utilisateur(db, 999)
     detenteur_autre_compte = detenteurs_service.create_detenteur(db, user_id=999, nom="Intrus")
 
     with pytest.raises(ValueError, match="introuvable"):

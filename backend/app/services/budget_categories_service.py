@@ -101,6 +101,11 @@ def delete_categorie(db: Session, user_id: int, categorie_id: int) -> None:
     )
     for e in enfants:
         db.delete(e)
+    # Enfants effacés AVANT le parent, et c'est ce `flush` qui le garantit : sans
+    # `relationship()` entre eux, SQLAlchemy ignore la dépendance et ordonne à sa
+    # guise les suppressions d'une même table. SQLite ne vérifie pas `parent_id` ;
+    # Postgres refusait la suppression (§ BI.4).
+    db.flush()
     db.delete(categorie)
     db.commit()
 

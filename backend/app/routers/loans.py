@@ -104,6 +104,11 @@ def delete_loan(loan_id: int, db: Session = Depends(get_db), current_user: User 
     loan = db.get(Loan, loan_id)
     if loan is None or loan.user_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Emprunt introuvable")
+    # Sa répartition entre détenteurs part avec lui. Avant § BI.4, elle restait en
+    # base pointée sur l'id disparu, et le prochain emprunt qui reprenait cet id
+    # (SQLite redonne le plus grand) héritait d'une répartition qui n'était pas la
+    # sienne ; sous Postgres, la suppression échouait.
+    db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == loan.id).delete(synchronize_session=False)
     db.delete(loan)
     db.commit()
     historique_cache.invalider_historiques_patrimoine(db)

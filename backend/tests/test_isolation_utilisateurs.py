@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from app.models import ORIGINE_MANUEL, Holding, Loan
 from app.services import preferences_service
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur, make_holding, make_transaction
+from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur, creer_utilisateur, make_holding, make_transaction
 
 EN_TETE_TRANSACTIONS = (
     "transaction_id,datetime,date,category,type,asset_class,symbol,name,shares,price,amount,fee,tax,description,mcc_code"
@@ -65,6 +65,7 @@ def test_meme_ticker_chez_deux_utilisateurs_reste_deux_lignes_distinctes(client,
     """Deux utilisateurs peuvent détenir le même titre sans jamais se mélanger —
     verrou explicite du risque de collision par ticker relevé pendant l'audit."""
     make_holding(db, ticker="AAA", user_id=ID_UTILISATEUR_TEST, quantite=10.0)
+    creer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
     make_holding(db, ticker="AAA", user_id=ID_UTILISATEUR_B, quantite=99.0)
 
     reponse_a = client.get("/api/portfolio/holdings")
@@ -194,6 +195,7 @@ def test_reconstruction_dun_utilisateur_ne_touche_pas_le_portefeuille_dun_autre(
     """Le grand livre de B ne doit jamais entrer dans la reconstruction du
     portefeuille de A (`portfolio_reconstruction.compute_positions`)."""
     make_transaction(db, symbol="AAA", user_id=ID_UTILISATEUR_TEST, shares=10.0, amount=-1000.0, transaction_id="tx-a")
+    creer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
     make_transaction(db, symbol="AAA", user_id=ID_UTILISATEUR_B, shares=999.0, amount=-999000.0, transaction_id="tx-b")
 
     reponse = client.post("/api/transactions/reconstruct")
@@ -290,6 +292,7 @@ def test_changer_ses_preferences_ne_reconstruit_que_son_propre_portefeuille(clie
     méthode de coût de revient reconstruisait le portefeuille de TOUS les
     comptes — désormais seul celui de l'auteur du changement est touché."""
     make_holding(db, ticker="AAA", user_id=ID_UTILISATEUR_TEST, prix_revient_moyen=100.0, origine=ORIGINE_MANUEL)
+    creer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
     make_holding(db, ticker="BBB", user_id=ID_UTILISATEUR_B, prix_revient_moyen=200.0, origine=ORIGINE_MANUEL)
 
     reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo"})

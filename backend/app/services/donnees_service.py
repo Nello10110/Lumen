@@ -59,6 +59,7 @@ from ..models import (
     LienPartage,
     Loan,
     MouvementBancaire,
+    PartageAcces,
     PerimetreInvite,
     QuotiteHolding,
     QuotiteLoan,
@@ -308,10 +309,16 @@ def reinitialiser_foyer(db: Session, user_id: int, ids_comptes_foyer: Sequence[i
     par décision explicite de l'utilisateur (seules les données comptables sont
     effacées)."""
     try:
-        _supprimer_donnees_du_foyer(db, user_id)
+        # Liens et périmètres d'abord : ils désignent des détenteurs que la suppression
+        # du patrimoine efface. Dans l'ordre inverse, Postgres refusait la remise à zéro
+        # entière (clé étrangère) ; SQLite, qui ne vérifie pas les clés, laissait passer
+        # (§ BI.4).
+        liens = db.query(LienPartage.id).filter(LienPartage.user_id == user_id)
+        db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
         db.query(LienPartage).filter(LienPartage.user_id == user_id).delete(synchronize_session=False)
         if ids_comptes_foyer:
             db.query(PerimetreInvite).filter(PerimetreInvite.user_id.in_(ids_comptes_foyer)).delete(synchronize_session=False)
+        _supprimer_donnees_du_foyer(db, user_id)
         db.commit()
     except Exception:
         db.rollback()

@@ -10,7 +10,7 @@ import pytest
 from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Detenteur, Holding, QuotiteHolding
 from app.services.portfolio_reconstruction import EPSILON, compute_positions, rebuild_holdings
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding, make_transaction
 
 
 def test_achat_simple_quantite_et_cout_de_revient_avec_frais(db):
@@ -334,7 +334,8 @@ def test_paire_free_receipt_scopee_par_compte(db):
     """Garde-fou de non-régression : une paire ne s'apparie que sur le MÊME
     `(symbol, compte_id)` — un retrait sur un compte et un ajout de même quantité
     sur un AUTRE compte ne représentent pas la même migration interne."""
-    make_transaction(db, transaction_id="tx-1", symbol="SSS", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1), compte_id=1)
+    c1, c2 = make_compte(db).id, make_compte(db).id
+    make_transaction(db, transaction_id="tx-1", symbol="SSS", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1), compte_id=c1)
     make_transaction(
         db,
         transaction_id="tx-2",
@@ -344,7 +345,7 @@ def test_paire_free_receipt_scopee_par_compte(db):
         shares=-5.0,
         amount=0.0,
         datetime_utc=datetime(2025, 1, 30, 5, 8, 50),
-        compte_id=1,
+        compte_id=c1,
     )
     make_transaction(
         db,
@@ -355,15 +356,15 @@ def test_paire_free_receipt_scopee_par_compte(db):
         shares=5.0,
         amount=0.0,
         datetime_utc=datetime(2025, 1, 30, 5, 8, 51),
-        compte_id=2,
+        compte_id=c2,
     )
 
     positions = compute_positions(db, ID_UTILISATEUR_TEST)
 
-    assert positions[("SSS", 1)].shares == 5.0
-    assert positions[("SSS", 1)].cost_basis == pytest.approx(500.0)  # 1000 - (100 * 5), retrait non neutralisé
-    assert positions[("SSS", 2)].shares == 5.0
-    assert positions[("SSS", 2)].cost_basis == 0.0  # don à coût nul, non apparié
+    assert positions[("SSS", c1)].shares == 5.0
+    assert positions[("SSS", c1)].cost_basis == pytest.approx(500.0)  # 1000 - (100 * 5), retrait non neutralisé
+    assert positions[("SSS", c2)].shares == 5.0
+    assert positions[("SSS", c2)].cost_basis == 0.0  # don à coût nul, non apparié
 
 
 def test_private_market_buy_une_part_egale_un_euro_investi(db):

@@ -336,6 +336,14 @@ def test_sauvegarde_chiffree_config_par_defaut_quotidienne(db):
     assert config.intervalle_heures == 24.0
 
 
+# La sauvegarde intégrée copie le FICHIER SQLite : sans objet sur une base serveur
+# (§ BI.4), où le job se contente d'un statut explicite — testé plus bas, sur les deux.
+_SAUVEGARDE_DE_FICHIER = pytest.mark.skipif(
+    not database.EST_SQLITE, reason="sauvegarde du fichier SQLite : sans objet sur une base serveur (§ BI.4)"
+)
+
+
+@_SAUVEGARDE_DE_FICHIER
 def test_run_sauvegarde_chiffree_persiste_le_statut_ok(tmp_path, monkeypatch):
     monkeypatch.setattr(backup_service, "sauvegarder_chiffre", lambda source, dossier, horodatage=None: tmp_path / "patrimoine-xxx.db.enc")
     monkeypatch.setattr(backup_service, "appliquer_retention_chiffree", lambda dossier, retention: [])
@@ -348,6 +356,7 @@ def test_run_sauvegarde_chiffree_persiste_le_statut_ok(tmp_path, monkeypatch):
     assert "patrimoine-xxx.db.enc" in config.dernier_message
 
 
+@_SAUVEGARDE_DE_FICHIER
 def test_run_sauvegarde_chiffree_sauvegarde_la_base_reellement_ouverte_par_lapplication(tmp_path, monkeypatch):
     """Régression du 02/09/2026, silencieuse et coûteuse : le job passait
     `sauvegarde.chemin_base_source()`, qui codait `backend/patrimoine.db` en dur,
@@ -372,6 +381,7 @@ def test_run_sauvegarde_chiffree_sauvegarde_la_base_reellement_ouverte_par_lappl
     assert sources == [database.DB_PATH]
 
 
+@_SAUVEGARDE_DE_FICHIER
 def test_run_sauvegarde_chiffree_sans_cle_persiste_le_statut_erreur_sans_planter(monkeypatch):
     """`CleChiffrementAbsenteError` (clé non configurée) ne doit jamais faire
     remonter d'exception — le scheduler et les autres jobs continuent de tourner,
@@ -390,6 +400,7 @@ def test_run_sauvegarde_chiffree_sans_cle_persiste_le_statut_erreur_sans_planter
     assert "PATRIMOINE_BACKUP_KEY" in config.dernier_message
 
 
+@_SAUVEGARDE_DE_FICHIER
 def test_run_job_now_sauvegarde_chiffree_synchrone_via_la_branche_generique(db, monkeypatch):
     appels = []
     monkeypatch.setattr(
@@ -403,6 +414,21 @@ def test_run_job_now_sauvegarde_chiffree_synchrone_via_la_branche_generique(db, 
 
     assert appels == [1]
     assert config.job_key == scheduler_service.BACKUP_ENCRYPTED
+
+
+def test_run_sauvegarde_chiffree_sans_fichier_de_base_statut_explicite(monkeypatch):
+    """Base serveur (§ BI.4, `DB_PATH` à `None`) : aucun fichier à copier. Le job le
+    dit dans Réglages au lieu de lever une exception sur `None`."""
+    appels = []
+    monkeypatch.setattr(database, "DB_PATH", None)
+    monkeypatch.setattr(backup_service, "sauvegarder_chiffre", lambda *a, **k: appels.append(1))
+
+    scheduler_service._run_sauvegarde_chiffree()
+
+    config = _lire_config_job(scheduler_service.BACKUP_ENCRYPTED)
+    assert appels == []
+    assert config.dernier_statut == "erreur"
+    assert "pg_dump" in config.dernier_message
 
 
 # ---------------------------------------------------------------------------
