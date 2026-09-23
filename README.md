@@ -258,7 +258,7 @@ Chaque écran est détaillé dans le [manuel utilisateur](docs/MANUEL_UTILISATEU
 
 ## Sous le capot
 
-**Backend** — Python, FastAPI, SQLAlchemy 2.0, SQLite (Postgres pris en charge), Alembic, APScheduler, `yfinance`
+**Backend** — Python, FastAPI, SQLAlchemy 2.0, SQLite (Postgres : code compatible, déploiement à venir), Alembic, APScheduler, `yfinance`
 **Frontend** — React, TypeScript, Vite, Tailwind CSS, Recharts
 
 Le code et la documentation sont **en français**, commentaires compris : ce projet est lu autant

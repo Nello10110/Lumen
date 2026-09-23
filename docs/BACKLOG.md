@@ -7,7 +7,7 @@ contenu utile est repris ici (§ 4 et annexe A).
 
 **Mode d'emploi.** Pour savoir où en est le produit : § 1. Pour savoir ce qui reste à faire : § 2 —
 c'est la seule liste à tenir à jour, tout le reste est de la trace. Le détail de chaque point, avec
-le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BJ), dans
+le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BK), dans
 l'ordre où les sujets sont apparus.
 
 **Conventions d'un point** : `#### X.n — sévérité · effort · statut · priorité — titre`.
@@ -46,7 +46,8 @@ au § 4.2.
 **Technique.** Backend Python (FastAPI, SQLAlchemy 2, Alembic), montants en `Decimal` exacts au
 centime (§ BI.1). Base **SQLite** par défaut — un fichier, une installation par foyer ; **Postgres**
 possible pour une future version hébergée, avec la séparation des foyers imposée par la base elle-même
-(sécurité au niveau des lignes, § BI.4-BI.5). Frontend React + TypeScript + Vite. Déploiement par un
+(sécurité au niveau des lignes, § BI.4-BI.5) — côté code seulement : ni déployable, ni capable de
+gérer plusieurs foyers à ce jour (§ BK). Frontend React + TypeScript + Vite. Déploiement par un
 `compose.yaml` unique et des images publiées sur GHCR à chaque livraison.
 
 **Qualité.** 1 474 tests backend (SQLite ; la même suite tourne sous Postgres en CI, rôle ordinaire,
@@ -60,8 +61,9 @@ automatique en Apache 2.0 au bout de deux ans.
 
 ## 2. Ce qui reste à faire
 
-Aucun point n'est bloqué par manque de temps : chacun attend une décision, une donnée externe ou
-une action hors code. C'est la liste à tenir à jour — un point qui se débloque passe en tête de la
+Presque aucun point n'est bloqué par manque de temps : chacun attend une décision, une donnée
+externe ou une action hors code — seul BK.1 est du pur travail, sans urgence tant qu'aucune version
+hébergée n'est lancée. C'est la liste à tenir à jour — un point qui se débloque passe en tête de la
 file et reçoit son détail au § 5.
 
 ### 2.1 Points ouverts
@@ -77,12 +79,24 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
+| **BK.1** — déploiement Postgres (compose, image, sauvegardes) | Du travail, pas une décision : aujourd'hui Postgres ne tourne qu'en CI | À faire le jour où une version hébergée est lancée, ou pour un essai (détail § BK) |
+| **BK.2** — gestion des foyers sur une installation partagée | La conception : une installation ne sait créer qu'un foyer | **Atelier avec l'utilisateur** sur les questions du § BK.2, avant tout code |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
 
-La préparation technique est faite (§ BI.4, BI.5) : l'application tourne sous Postgres et la base y
-sépare elle-même les foyers. Avant un lancement, il resterait :
+**État au 23/09/2026 : pas encore utilisable.** La préparation technique est faite (§ BI.4, BI.5) :
+le code tourne sous Postgres — toute la suite de tests y passe en CI — et la base y sépare elle-même
+les foyers. Mais rien ne permet encore de le **déployer** (ni service Postgres dans `compose.yaml`,
+ni pilote dans l'image), et l'application ne sait créer **qu'un seul foyer par installation** : la
+séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas se produire. Les deux
+chantiers qui manquent :
+
+- **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : du travail connu, à faire ;
+- **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
+  partagée. **À concevoir avec l'utilisateur avant tout code** — c'est le vrai sujet.
+
+Et, au-delà de ces deux points :
 
 - **les données de marché** : `yfinance` lit Yahoo Finance sans licence, réservé à un usage personnel ;
   JustETF est lu par extraction de page ; l'offre gratuite de CoinGecko a ses propres conditions. Un
@@ -91,12 +105,7 @@ sépare elle-même les foyers. Avant un lancement, il resterait :
 - **remplacer `yfinance`**, indépendamment de la licence : environ 200 Mo de l'image (§ BI.2) —
   **reporté par l'utilisateur** le 23/09/2026 ;
 - **les réglages d'installation** (`parametres`, `scheduled_job_config`, logo SSO) deviennent des
-  réglages d'opérateur, à sortir de l'écran Réglages des clients ;
-- **les sauvegardes** : l'intégrée copie le fichier SQLite ; sous Postgres, elles relèvent de
-  l'hébergement (`pg_dump`, sauvegarde continue) ;
-- **un chemin de migration** SQLite → Postgres pour les installations existantes, s'il y a lieu :
-  aujourd'hui, changer de base veut dire repartir d'une base vide ou passer par l'export/import des
-  données du foyer.
+  réglages d'opérateur, à sortir de l'écran Réglages des clients — lié à BK.2 (question 2).
 
 ### 2.3 Côté installation de l'utilisateur (hors code)
 
@@ -236,6 +245,7 @@ l'usage réel a fait remonter.
 | BD à BH | Logo SSO, licence, ouverture publique du dépôt, données personnelles, ménage git | 22/09 |
 | BI | Suites de l'étude « réécrire en Rust ? » : décimal, pandas, profilage, Postgres, séparation des foyers | 22-23/09 |
 | BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine, avertissement de suppression d'un compte | 23/09 |
+| BK | Version hébergée : déploiement Postgres et gestion des foyers (ouverts) | 23/09 |
 
 ---
 
@@ -6952,6 +6962,90 @@ plus sûr pour une action désormais définitive, mais c'est un changement d'usa
 l'utilisateur plutôt qu'à décider ici.
 
 **Tests** : 2 dans `CompteDetailContent.test.tsx`, en échec sur l'ancien texte.
+
+
+### BK. Version hébergée : ce qui manque pour que Postgres serve vraiment (23/09/2026)
+
+Relevé par l'utilisateur à la lecture du manuel d'exploitation (§ 14) : « pour l'instant ça ne
+fonctionne pas encore — toute la partie compose à faire, mais surtout toute la partie gestion de
+foyers, il faudra voir comment on fait ça ». Exact : § BI.4 et BI.5 ont rendu le CODE compatible
+avec Postgres et fait séparer les foyers par la base, mais ni le déploiement ni la notion de
+plusieurs foyers sur une même installation n'existent.
+
+#### BK.1 — `majeur` · `M` · `non traité` · `P3` — Déploiement Postgres : compose, image, sauvegardes
+
+Aujourd'hui Postgres ne tourne qu'en CI (`ci.yml`, job `backend-postgres`, pour la suite de tests).
+Pour le faire tourner en vrai :
+
+- **Image** : le pilote `psycopg[binary]` n'est que dans `requirements-dev.txt`. L'ajouter à
+  l'image (dans `requirements.txt`, ou par une variante d'image) — quelques Mo.
+- **Compose** : un service `postgres:16` (volume de données, `healthcheck`, `depends_on` du backend
+  sur la base prête), `PATRIMOINE_DATABASE_URL` passée au backend, mot de passe dans le `.env`
+  (jamais dans le fichier versionné, même règle que la clé de sauvegarde). Plutôt un fichier ou un
+  profil séparé (`compose.postgres.yaml`, ou `profiles: [postgres]`) que de toucher au compose
+  familial, qui doit rester en SQLite.
+- **Rôle applicatif** : créé à l'initialisation de la base (script monté dans
+  `/docker-entrypoint-initdb.d/`), NOSUPERUSER NOBYPASSRLS — sinon la séparation des foyers est
+  contournée. L'avertissement de démarrage (§ BI.5) le signale déjà, mais le compose doit le faire
+  juste du premier coup.
+- **Sauvegardes** : la tâche `sauvegarde_chiffree` ne copie que le fichier SQLite. Sous Postgres, un
+  `pg_dump` planifié et chiffré avec la même clé (`PATRIMOINE_BACKUP_KEY`), soit comme service du
+  compose, soit comme variante de la tâche existante ; et une procédure de restauration testée.
+- **Reprise d'une installation SQLite** : aujourd'hui, seul l'export/import JSON du foyer, qui ne
+  transporte ni les comptes de connexion, ni les sessions, ni les liens de partage. Un script de
+  copie table à table serait plus complet — utile seulement si des installations existantes doivent
+  basculer.
+- **Vérification** : un `docker compose up` réel sur Postgres, la suite E2E dessus, et une
+  sauvegarde restaurée pour de bon — pas seulement les tests unitaires.
+
+Indépendant de BK.2 : peut se faire avant, pour un essai à un seul foyer.
+
+#### BK.2 — `majeur` · `L` · `en attente d'arbitrage` · `P3` — Gestion des foyers sur une installation partagée
+
+**Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
+
+- l'inscription se ferme après le tout premier compte du serveur (`routers/auth.py::register`) —
+  ce premier compte devient le propriétaire du seul foyer ;
+- tout autre compte est créé PAR ce propriétaire, comme membre ou invité de son foyer
+  (`GestionFoyerCard`), et un compte provisionné par SSO rejoint lui aussi le foyer du propriétaire
+  (`oidc_service`) ;
+- un foyer n'est rien d'autre que l'identifiant de son propriétaire (`auth_service.id_foyer` :
+  `owner_user_id or id`) — il n'y a pas d'objet « foyer » avec son nom, son statut, sa date de
+  création (le nom du foyer est une préférence).
+
+Une installation = un foyer. C'est le bon modèle pour un homelab ; une version hébergée demande de
+le repenser, et ces choix touchent le produit, pas seulement le code.
+
+**Questions à trancher avec l'utilisateur :**
+
+1. **Naissance d'un foyer** — inscription libre (avec vérification de l'adresse e-mail) ? sur
+   invitation ? création par l'opérateur ? Et un nouveau compte SSO : quel foyer rejoint-il, ou en
+   crée-t-il un ?
+2. **L'opérateur** — un rôle au-dessus des foyers, pour créer, suspendre ou supprimer un foyer et
+   régler l'installation (tâches planifiées, SSO, logos : les « réglages d'opérateur » du § 2.2).
+   Principe proposé : il administre les foyers sans jamais voir leur patrimoine — la séparation par
+   la base (§ BI.5) le garantit d'office s'il n'appartient à aucun foyer.
+3. **Identité** — les noms d'utilisateur sont uniques sur toute l'installation (`users.username`) :
+   entre foyers inconnus les uns des autres, une connexion par adresse e-mail s'impose sans doute.
+   Et une même personne peut-elle appartenir à deux foyers (un couple séparé, un parent aidant) ?
+   Aujourd'hui, non : un compte = un foyer.
+4. **Vie du foyer** — transférer la propriété (le propriétaire part), faire partir un membre avec
+   ou sans ses données, fusionner deux foyers ?
+5. **Fin du foyer** — suppression complète, droit à l'effacement : `reinitialiser_foyer` efface le
+   patrimoine mais garde les comptes de connexion ; il manque la suppression des comptes, des
+   sessions et du journal d'accès du foyer. L'export des données existe déjà (JSON).
+6. **Tables encore communes** — `users`, `auth_tokens`, `access_log_entries` ne sont pas filtrées
+   par foyer dans la base (la connexion doit pouvoir chercher un compte avant de savoir à quel foyer
+   il appartient). À revoir une fois le modèle arrêté : un propriétaire ne doit lister que les
+   comptes de SON foyer, ce que le code fait, mais que la base ne garantit pas.
+7. **Limites et coût** — quotas par foyer (taille des imports, nombre de lignes), et les tâches
+   planifiées qui parcourent tous les foyers (rafraîchissement des cours, historique) : leur durée
+   croît avec le nombre de foyers. S'il y a monétisation, l'abonnement se rattache au foyer
+   (cf. BF.1b pour la licence).
+
+**Démarche proposée** : un atelier sur ces sept questions, une fiche de conception validée
+(ajoutée ici), puis seulement le code — probablement un vrai objet `Foyer` en base, auquel
+`user_id` renverrait, plutôt que l'identifiant du propriétaire.
 
 ---
 
