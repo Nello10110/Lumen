@@ -1,10 +1,12 @@
 """Calcul de la répartition réelle du portefeuille (géo/secteur) et des indicateurs de risque."""
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO, en_decimal
 from ..models import SOURCE_INDICE, TYPES_ACTIF_PATRIMOINE_MANUEL, FundComposition, Holding
 from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
 from .reference_indices import NON_CATEGORISE, ZONE_EUROPE, label_for_sector
@@ -17,7 +19,7 @@ COMPTE_SANS_ANNOTATION = "Sans compte renseigné"
 @dataclass
 class ValuedHolding:
     holding: Holding
-    valeur: float
+    valeur: Decimal
     region: str | None
     pays: str | None
     secteur_label: str | None
@@ -114,7 +116,9 @@ def value_holdings(holdings: list[Holding]) -> list[ValuedHolding]:
         valued.append(
             ValuedHolding(
                 holding=h,
-                valeur=(prix or 0) * h.quantite,
+                # Frontière de valorisation (§ BI.1) : le cours de marché est un
+                # flottant, le résultat est un montant — conversion explicite.
+                valeur=(en_decimal(prix) or ZERO) * h.quantite,
                 region=region,
                 pays=md.pays if md else None,
                 secteur_label=secteur_label,
@@ -163,15 +167,18 @@ def breakdown_with_lookthrough(db: Session, valued: list[ValuedHolding], type_: 
     que laissés en bloc dans "Non catégorisé". `type_` vaut "geo" ou "sector"."""
     comp_by_ticker = _fund_composition_lookup(db, [v.holding.ticker for v in valued], type_)
 
+    # Estimation pondérée par des poids de composition fournis par Yahoo, donc des
+    # flottants à la source : calcul analytique, en flottant (§ BI.1).
     totals: dict[str, float] = {}
     for v in valued:
+        valeur = float(v.valeur)
         rows = comp_by_ticker.get(v.holding.ticker)
         if rows:
             for row in rows:
-                totals[row.categorie] = totals.get(row.categorie, 0.0) + v.valeur * row.poids
+                totals[row.categorie] = totals.get(row.categorie, 0.0) + valeur * row.poids
         else:
             categorie = categorie_propre_a_la_ligne(v, type_)
-            totals[categorie] = totals.get(categorie, 0.0) + v.valeur
+            totals[categorie] = totals.get(categorie, 0.0) + valeur
     return totals
 
 
@@ -183,10 +190,11 @@ def holdings_in_category(db: Session, valued: list[ValuedHolding], type_: str, c
     lignes = []
     for v in valued:
         rows = comp_by_ticker.get(v.holding.ticker)
+        valeur = float(v.valeur)  # même raison que `breakdown_with_lookthrough`
         if rows:
-            contribution = v.valeur * sum(row.poids for row in rows if row.categorie == categorie)
+            contribution = valeur * sum(row.poids for row in rows if row.categorie == categorie)
         else:
-            contribution = v.valeur if categorie_propre_a_la_ligne(v, type_) == categorie else 0.0
+            contribution = valeur if categorie_propre_a_la_ligne(v, type_) == categorie else 0.0
 
         if contribution > 1e-9:
             # `id` (revu le 14/09/2026) : deux lignes peuvent désormais partager un
@@ -224,18 +232,22 @@ def compute_risk_indicators(valued: list[ValuedHolding], geo_totals: dict[str, f
     top_pays = max(geo_totals.items(), key=lambda kv: kv[1]) if geo_totals else (None, 0.0)
     top_secteur = max(sector_totals.items(), key=lambda kv: kv[1]) if sector_totals else (None, 0.0)
 
+    # Parts et indice de concentration : des ratios pour l'affichage, calculés en
+    # flottant — `geo_totals`/`sector_totals` le sont déjà (§ BI.1).
+    total = float(valeur_totale)
+
     # Indice de Herfindahl-Hirschman (somme des parts au carré) : proche de 0 = très
     # diversifié, proche de 1 = concentré sur une ligne. Score affiché = (1-HHI)*100.
-    hhi = sum((v.valeur / valeur_totale) ** 2 for v in valued)
+    hhi = sum((float(v.valeur) / total) ** 2 for v in valued)
 
     return {
         "valeur_totale": valeur_totale,
         "nombre_lignes": nombre_lignes,
-        "top_ligne_poids": round((top_holding.valeur / valeur_totale) * 100, 1) if top_holding else 0.0,
+        "top_ligne_poids": round((float(top_holding.valeur) / total) * 100, 1) if top_holding else 0.0,
         "top_ligne_nom": (top_holding.holding.nom or top_holding.holding.ticker) if top_holding else None,
-        "top_pays_poids": round((top_pays[1] / valeur_totale) * 100, 1),
+        "top_pays_poids": round((top_pays[1] / total) * 100, 1),
         "top_pays_nom": top_pays[0],
-        "top_secteur_poids": round((top_secteur[1] / valeur_totale) * 100, 1),
+        "top_secteur_poids": round((top_secteur[1] / total) * 100, 1),
         "top_secteur_nom": top_secteur[0],
         "score_diversification": round((1 - hhi) * 100, 1),
         "lignes_sans_donnees": lignes_sans_donnees,
@@ -263,10 +275,10 @@ def compute_data_quality(db: Session, valued: list[ValuedHolding]) -> dict:
     comp_by_ticker = _fund_composition_lookup(db, [v.holding.ticker for v in valued], "geo")
     valeur_totale = sum(v.valeur for v in valued)
 
-    valeur_composition_reelle = 0.0
-    valeur_estimee_par_indice = 0.0
-    valeur_non_categorisee = 0.0
-    valeur_sans_cotation = 0.0
+    valeur_composition_reelle = ZERO
+    valeur_estimee_par_indice = ZERO
+    valeur_non_categorisee = ZERO
+    valeur_sans_cotation = ZERO
 
     for v in valued:
         rows = comp_by_ticker.get(v.holding.ticker)
@@ -286,7 +298,7 @@ def compute_data_quality(db: Session, valued: list[ValuedHolding]) -> dict:
         if not v.a_des_donnees:
             valeur_sans_cotation += v.valeur
 
-    def pct(valeur: float) -> float:
+    def pct(valeur: Decimal) -> Decimal | float:
         return round(valeur / valeur_totale * 100, 1) if valeur_totale > 0 else 0.0
 
     return {
@@ -309,9 +321,9 @@ def compute_cout_gestion_consolide(valued: list[ValuedHolding]) -> dict:
     valeur des fonds pour laquelle un TER est effectivement connu — même logique de
     transparence que `compute_data_quality` ci-dessus : ne jamais présenter une
     estimation partielle comme un chiffre complet sans le dire."""
-    valeur_fonds = 0.0
-    valeur_fonds_avec_ter_connu = 0.0
-    cout_annuel_estime = 0.0
+    valeur_fonds = ZERO
+    valeur_fonds_avec_ter_connu = ZERO
+    cout_annuel_estime = ZERO
 
     for v in valued:
         if v.holding.type_actif != "FUND":
@@ -321,7 +333,8 @@ def compute_cout_gestion_consolide(valued: list[ValuedHolding]) -> dict:
         ter = md.frais_gestion_pct if md else None
         if ter is not None:
             valeur_fonds_avec_ter_connu += v.valeur
-            cout_annuel_estime += v.valeur * ter / 100
+            # TER fourni par Yahoo (flottant à la source), appliqué à un montant.
+            cout_annuel_estime += v.valeur * en_decimal(ter) / 100
 
     couverture_pct = round(valeur_fonds_avec_ter_connu / valeur_fonds * 100, 1) if valeur_fonds > 0 else 0.0
 
@@ -348,10 +361,10 @@ def repartition_par_compte(valued: list[ValuedHolding]) -> list[dict]:
     valeur actuelle est calculable ici, jamais une performance. Les lignes sans
     compte renseigné sont regroupées sous `COMPTE_SANS_ANNOTATION` plutôt que
     d'être écartées du total (le portefeuille reste entièrement représenté)."""
-    totaux: dict[str, float] = {}
+    totaux: dict[str, Decimal] = {}
     for v in valued:
         compte = v.holding.compte.nom if v.holding.compte is not None else COMPTE_SANS_ANNOTATION
-        totaux[compte] = totaux.get(compte, 0.0) + v.valeur
+        totaux[compte] = totaux.get(compte, ZERO) + v.valeur
 
     valeur_totale = sum(v.valeur for v in valued)
     items = [

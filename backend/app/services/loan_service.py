@@ -10,7 +10,9 @@ prêt réel dérive du théorique dès qu'il y a eu un remboursement anticipé, 
 d'échéance, ou simplement une erreur d'arrondi cumulée sur plusieurs années."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
+from ..decimales import ZERO
 from ..models import Loan
 
 
@@ -32,7 +34,7 @@ def mois_ecoules(date_debut: datetime, a_la_date: datetime) -> int:
     return max(0, mois)
 
 
-def compute_capital_restant_du_theorique(loan: Loan, a_la_date: datetime) -> float:
+def compute_capital_restant_du_theorique(loan: Loan, a_la_date: datetime) -> Decimal:
     """Amortissement théorique pur, ignorant délibérément `capital_restant_du_manuel` —
     sert à reconstituer un point historique ANTÉRIEUR à un recalage manuel
     (`derniere_maj_manuelle`), cf. `services/patrimoine_history_service.py`. Toujours
@@ -41,7 +43,7 @@ def compute_capital_restant_du_theorique(loan: Loan, a_la_date: datetime) -> flo
     if n <= 0:
         return loan.capital_initial
     if n >= loan.duree_mois:
-        return 0.0
+        return ZERO
 
     taux_mensuel = loan.taux_annuel_pct / 100 / 12
     if taux_mensuel <= 0:
@@ -50,14 +52,14 @@ def compute_capital_restant_du_theorique(loan: Loan, a_la_date: datetime) -> flo
         facteur = (1 + taux_mensuel) ** n
         restant = loan.capital_initial * facteur - loan.mensualite * (facteur - 1) / taux_mensuel
 
-    return max(0.0, min(loan.capital_initial, restant))
+    return max(ZERO, min(loan.capital_initial, restant))
 
 
-def compute_capital_restant_du(loan: Loan, a_la_date: datetime | None = None) -> float:
+def compute_capital_restant_du(loan: Loan, a_la_date: datetime | None = None) -> Decimal:
     """Capital restant dû à `a_la_date` (aujourd'hui par défaut). Toujours borné entre
     0 et `capital_initial` — un arrondi ou un décalage de mensualité ne doit jamais
     produire un solde négatif ou supérieur au capital emprunté."""
     if loan.capital_restant_du_manuel is not None:
-        return max(0.0, min(loan.capital_initial, loan.capital_restant_du_manuel))
+        return max(ZERO, min(loan.capital_initial, loan.capital_restant_du_manuel))
 
     return compute_capital_restant_du_theorique(loan, a_la_date or maintenant_naif())

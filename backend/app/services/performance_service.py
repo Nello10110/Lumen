@@ -26,9 +26,11 @@ transporter son résultat, jamais le dupliquer.
 
 from datetime import UTC, datetime, timedelta
 from datetime import date as date_cls
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO, en_decimal
 from ..models import TYPE_ACTIF_REAL_ESTATE, TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Transaction
 from . import analysis_service, immobilier_service, portfolio_reconstruction
 from .portfolio_reconstruction import PositionState
@@ -66,7 +68,7 @@ DUREE_MINIMALE_JOURS = 90
 RENDEMENT_ANNUALISE_MAX_PCT = 1000.0
 
 
-def xirr(cash_flows: list[tuple[datetime, float]]) -> float | None:
+def xirr(cash_flows: list[tuple[datetime, Decimal | float]]) -> float | None:
     """Rendement annualisé money-weighted (taux qui annule la valeur actuelle nette
     des flux de trésorerie), résolu par bissection.
 
@@ -85,7 +87,10 @@ def xirr(cash_flows: list[tuple[datetime, float]]) -> float | None:
     if len(cash_flows) < 2:
         return None
 
-    flows = sorted(cash_flows, key=lambda cf: cf[0])
+    # Frontière analytique (§ BI.1) : les flux arrivent en `Decimal`, montants
+    # comptables exacts, mais la recherche du taux passe par des puissances non
+    # entières et une bissection — du calcul numérique, en flottant par nature.
+    flows = sorted(((date, float(montant)) for date, montant in cash_flows), key=lambda cf: cf[0])
     t0 = flows[0][0]
     tolerance = max(XIRR_TOLERANCE_ABSOLUE, XIRR_TOLERANCE_RELATIVE * sum(abs(montant) for _, montant in flows))
     t_dernier = flows[-1][0]
@@ -156,7 +161,7 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     frais_payes = sum(-tx.fee for tx in transactions)
     impots_preleves = sum(-tx.tax for tx in transactions)
 
-    cout_total_investi = 0.0
+    cout_total_investi = ZERO
     for tx in transactions:
         if tx.category == "TRADING" and tx.type == "BUY" and tx.shares is not None:
             cout_total_investi += -(tx.amount + tx.fee + tx.tax)
@@ -207,7 +212,7 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     # Rendement annualisé (XIRR) sur les flux d'achats/ventes agrégés de toutes les
     # positions — même méthode que par ligne (cf. compute_holding_returns), étendue
     # à tout le portefeuille : aucune dépendance aux virements bancaires.
-    cash_flows: list[tuple[datetime, float]] = []
+    cash_flows: list[tuple[datetime, Decimal]] = []
     for state in positions.values():
         cash_flows.extend(state.cash_flows)
     if cash_flows:
@@ -236,7 +241,7 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     }
 
 
-def montant_investi_periode_par_compte(db: Session, user_id: int, date_debut: str, date_fin: str) -> dict[int | None, float]:
+def montant_investi_periode_par_compte(db: Session, user_id: int, date_debut: str, date_fin: str) -> dict[int | None, Decimal]:
     """Somme des achats réels (`TRADING/BUY` + `CASH/PRIVATE_MARKET_BUY`, frais/taxes
     inclus — même logique que `cout_total_investi` ci-dessus, mais bornée à une période
     plutôt qu'à toute la vie du compte) sur `[date_debut, date_fin]` (bornes incluses,
@@ -250,27 +255,27 @@ def montant_investi_periode_par_compte(db: Session, user_id: int, date_debut: st
         .filter(Transaction.user_id == user_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
         .all()
     )
-    par_compte: dict[int | None, float] = {}
+    par_compte: dict[int | None, Decimal] = {}
     for tx in transactions_periode:
-        montant = 0.0
+        montant = ZERO
         if tx.category == "TRADING" and tx.type == "BUY" and tx.shares is not None:
             montant = -(tx.amount + tx.fee + tx.tax)
         elif tx.category == "CASH" and tx.type == "PRIVATE_MARKET_BUY":
             montant = -(tx.amount + tx.fee + tx.tax)
-        if montant != 0.0:
-            par_compte[tx.compte_id] = par_compte.get(tx.compte_id, 0.0) + montant
+        if montant != ZERO:
+            par_compte[tx.compte_id] = par_compte.get(tx.compte_id, ZERO) + montant
     return par_compte
 
 
-def montant_investi_periode(db: Session, user_id: int, date_debut: str, date_fin: str) -> float:
+def montant_investi_periode(db: Session, user_id: int, date_debut: str, date_fin: str) -> Decimal:
     """Volontairement une fonction séparée de `compute_performance` plutôt qu'un
     paramètre optionnel sur celle-ci : ce dernier est déjà livré et testé sur son
     calcul "vie entière", ne pas y toucher pour ce besoin distinct (taux d'épargne
     annuel, § R.1)."""
-    return sum(montant_investi_periode_par_compte(db, user_id, date_debut, date_fin).values())
+    return sum(montant_investi_periode_par_compte(db, user_id, date_debut, date_fin).values(), ZERO)
 
 
-def montant_investi_mensuel_moyen_glissant(db: Session, user_id: int, *, jours: int = 365) -> float | None:
+def montant_investi_mensuel_moyen_glissant(db: Session, user_id: int, *, jours: int = 365) -> Decimal | None:
     """Moyenne mensuelle du montant réellement investi (achats de titres réels, cf.
     `montant_investi_periode`) sur les 12 derniers mois glissants jusqu'à aujourd'hui
     (backlog, demande directe du 16/09/2026) — sert de valeur par défaut au versement
@@ -282,7 +287,8 @@ def montant_investi_mensuel_moyen_glissant(db: Session, user_id: int, *, jours: 
     aujourdhui = date_cls.today()
     date_debut = (aujourdhui - timedelta(days=jours)).isoformat()
     montant = montant_investi_periode(db, user_id, date_debut, aujourdhui.isoformat())
-    return round(montant / (jours / 30.4375), 2) if montant > 0 else None
+    # 30,4375 jours = un mois moyen (365,25 / 12).
+    return round(montant * Decimal("30.4375") / jours, 2) if montant > 0 else None
 
 
 def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:
@@ -300,7 +306,7 @@ def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:
     par_mois: dict[str, dict] = {}
     for tx in transactions:
         mois = tx.date[:7]  # "AAAA-MM" (`Transaction.date` est "AAAA-MM-JJ")
-        entree = par_mois.setdefault(mois, {"mois": mois, "montant_total": 0.0, "lignes": []})
+        entree = par_mois.setdefault(mois, {"mois": mois, "montant_total": ZERO, "lignes": []})
         montant = tx.amount + tx.fee + tx.tax
         entree["montant_total"] += montant
         entree["lignes"].append({"date": tx.date, "symbol": tx.symbol, "nom": tx.name, "montant": round(montant, 2)})
@@ -317,9 +323,9 @@ def _rendement_pour_ligne(
     v: analysis_service.ValuedHolding,
     state: PositionState | None,
     now: datetime,
-    frais_acquisition: float = 0.0,
-    investi_derive: float | None = None,
-    flux_derives: list[tuple[datetime, float]] | None = None,
+    frais_acquisition: Decimal = ZERO,
+    investi_derive: Decimal | None = None,
+    flux_derives: list[tuple[datetime, Decimal]] | None = None,
 ) -> dict:
     """Calcul commun à `compute_holding_returns` (toutes les lignes) et
     `compute_holding_return` (une seule, cf. LOT 4.2) — factorisé pour que les deux
@@ -356,7 +362,10 @@ def _rendement_pour_ligne(
     # `quantite` vaut 1 par convention pour elles (cf. `models.Holding.valeur_estimee`),
     # donc la comparer directement à `prix_revient_moyen` (le montant investi à
     # l'origine) reste correcte.
-    prix_actuel_effectif = h.valeur_estimee if h.valeur_estimee is not None else (h.market_data.prix_actuel if h.market_data else None)
+    # Frontière de valorisation (§ BI.1) : estimation saisie (`Decimal`) ou cours de
+    # marché (flottant à la source), ramenés au même type.
+    cours = h.market_data.prix_actuel if h.market_data else None
+    prix_actuel_effectif = h.valeur_estimee if h.valeur_estimee is not None else en_decimal(cours)
     cout_total = h.prix_revient_moyen + frais_acquisition if h.prix_revient_moyen else investi_derive
     depuis_achat = None
     if cout_total and cout_total > EPSILON and prix_actuel_effectif is not None:

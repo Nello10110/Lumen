@@ -70,6 +70,8 @@ def _valeur_epargne_a_date(db: Session, holdings: list[Holding], date_dt: dateti
     (même bloc de construction, historique réel + ancrage sur le coût d'acquisition, § S.3,
     que la courbe combinée du Tableau de bord) évaluée à une seule date plutôt qu'en série
     complète."""
+    # Valeurs lues sur une série de courbe, donc en flottant (§ BI.1) — tout ce
+    # rapport calcule en flottant, les sommes comptables y entrant converties.
     total = 0.0
     par_type: dict[str, float] = {}
     for h in holdings:
@@ -96,7 +98,7 @@ def _interets_epargne_periode(holdings: list[Holding], date_debut_dt: datetime, 
         for h in holdings
         if h.type_actif in revenus_passifs_service.TYPES_LIVRETS_AVEC_TAUX and h.valeur_estimee and h.taux_pct
     )
-    return interets_annuels * jours_periode / 365
+    return float(interets_annuels * jours_periode / 365)
 
 
 def _versements_declares_periode(db: Session, holdings: list[Holding], date_debut_dt: datetime, date_fin_dt: datetime) -> float | None:
@@ -119,7 +121,7 @@ def _versements_declares_periode(db: Session, holdings: list[Holding], date_debu
     )
     if not points:
         return None
-    return sum(p.versement for p in points)
+    return float(sum(p.versement for p in points))
 
 
 def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str, user_id: int) -> dict:
@@ -193,7 +195,7 @@ def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id
     # depuis l'origine. `valeur_realisee_cumulee` (ventes + dividendes + intérêts +
     # autres revenus, cumulée) fait déjà partie de chaque point de
     # `compute_portfolio_history`.
-    montant_investi_periode = performance_service.montant_investi_periode(db, user_id, date_debut, date_fin)
+    montant_investi_periode = float(performance_service.montant_investi_periode(db, user_id, date_debut, date_fin))
     if points:
         valeur_debut_stricte = _champ_strict_a_ou_avant(points, date_debut, "valeur_portefeuille")
         valeur_fin_stricte = _champ_strict_a_ou_avant(points, date_fin, "valeur_portefeuille")

@@ -6444,7 +6444,7 @@ langage actuel. **L'utilisateur a retenu les quatre**, consignées ci-dessous et
 ordre : BI.2 d'abord (petit, mesurable, isolé), puis BI.1 (le gros chantier), puis BI.3 (qui doit
 mesurer l'état APRÈS BI.1, le calcul en `Decimal` étant plus lent qu'en flottant), puis BI.4.
 
-#### BI.1 — `majeur` · `L` · `non traité` · `P1` — Les montants en `Decimal`, pas en flottant
+#### BI.1 — `majeur` · `L` · `traité` (23/09/2026) — Les montants en `Decimal`, pas en flottant
 
 **Constat.** Les 39 colonnes numériques de `models.py` sont toutes en `Float` : aucune en
 `Numeric`, et `Decimal` n'apparaît nulle part dans `app/`. Le bruit du flottant binaire est
@@ -6486,6 +6486,60 @@ contact oublié se déclare au lieu de corrompre un résultat en silence.
 **Contrat d'API inchangé.** Pydantic v2 sérialise une `Decimal` en chaîne JSON par défaut, ce qui
 casserait le frontend. Les schémas sérialisent donc les montants en nombre JSON : le frontend ne
 voit aucune différence.
+
+**Ce qui a été fait.** Le plan ci-dessus a été affiné à l'examen du code, sur un point : le
+classement par NATURE de colonne a cédé la place à une règle plus simple et plus juste, **le type
+suit la source de la valeur**. Est en `Decimal` tout ce que l'utilisateur saisit ou importe d'un
+relevé — y compris les taux, quotités et la surface, qui multiplient des montants (32 colonnes).
+Reste en flottant tout ce qu'un fournisseur de données de marché produit — cours, prix actuel,
+frais de gestion, poids de composition des fonds —, plus l'intervalle d'une tâche planifiée
+(7 colonnes). Une donnée de marché est un flottant binaire dès sa source : la convertir en
+`Decimal` n'y ajouterait qu'une fausse exactitude.
+
+- **`app/decimales.py`** porte les règles, une fois pour toutes : le type de colonne `Decimale`
+  (arrondi commercial à l'écriture ET à la relecture, pour que la base ne décide de rien) ; un
+  écouteur d'attribut qui convertit **dès l'affectation** — sans lui, `holding.quantite = 7.0`
+  gardait un flottant jusqu'au prochain rechargement, et un même objet portait tantôt l'un, tantôt
+  l'autre ; l'arrondi commercial (`ROUND_HALF_UP`) réglé pour tout `round()` sur une `Decimal`,
+  vérifié dans le fil principal, un fil neuf, le pool de fils de FastAPI et une tâche asyncio.
+- **Frontières explicites.** Comptable en `Decimal` (reconstruction du portefeuille, PRU,
+  plus-values, patrimoine net, quotités, emprunts, budget, salaire, revenus passifs). Analytique en
+  flottant, avec conversion à l'entrée : XIRR, séries des courbes d'évolution (le cumul reste
+  exact en `Decimal`, seuls les points de courbe sont rendus en flottant), ratios et scores
+  d'affichage, répartition par transparence pondérée par les poids Yahoo, rapport de période
+  (tout ce qui dérive d'une série). La valorisation — quantité × cours de marché — est l'unique
+  frontière où une donnée de marché devient un montant, et elle y est convertie explicitement.
+- **Migration `47651f844317`** : `FLOAT` → `NUMERIC(28, échelle)`, et **normalisation des valeurs
+  déjà stockées** à leur échelle, par la même règle d'arrondi que l'application — et non par le
+  `ROUND()` de SQLite, qui arrondit la valeur binaire (2,675 → 2,67). Vérifiée sur une base
+  garnie de valeurs piégeuses : montée, descente et remontée ; bruit flottant effacé
+  (`0.30000000000000004` → 0,3) ; tous les index conservés malgré la recréation des tables.
+- **Contrat d'API inchangé**, et c'est vérifié : un champ `float` de Pydantic accepte une `Decimal`
+  et la rend en nombre JSON. L'export de données reste un fichier de nombres JSON (une valeur de
+  plus de 15 chiffres significatifs, seul cas où un flottant perdrait, passe en texte, relu sans
+  perte à l'import) ; le cache d'historique encode une `Decimal` comme l'encodeur de FastAPI.
+
+**Ce que la bascule a révélé, en dehors du type lui-même :**
+
+| Défaut | Effet |
+| --- | --- |
+| `Decimal("NaN").quantize()` ne lève PAS | Un `NaN` aurait traversé l'arrondi et été écrit en base. Refus explicite de toute valeur non finie. |
+| Dédoublonnage des imports de transactions | Réimporter un fichier IDENTIQUE comptait une « mise à jour » par ligne : le flottant `0.001` issu du parseur n'est pas égal à la `Decimal` `0.0010000000` relue. `_normalise_pour_comparaison` ramène désormais la valeur entrante à ce que la colonne stockerait. |
+| `try` mal placé dans l'import de données (`_valeur_a_inserer`) | Défaut LATENT antérieur : l'accès à `python_type`, qui peut lever, se faisait hors du `try` censé le protéger. Invisible tant qu'aucun type de colonne ne levait. |
+| Écran Analyse en erreur 500 | `compute_indicateurs_situation` divisait par `nb_mois = 3.0`. **Aucun test ne couvrait la fonction : seule la suite de bout en bout l'a vu.** Test unitaire ajouté, vérifié qu'il échoue sur l'ancien code. |
+
+**Les tests y gagnent en exigence.** Des assertions qui devaient tolérer une approximation exigent
+désormais la valeur exacte : `realized_gain == approx(24.17 - 25.16, abs=1e-6)` devient
+`== Decimal("-0.99")` ; `quantite == approx(0.15)  # 0.1 + 0.05` devient `== Decimal("0.15")` ;
+et le test intitulé « scénario complet, gain/perte total **au centime près** » passe ses dix
+montants de `approx(…, abs=0.005)` — une tolérance d'un demi-centime — à l'égalité stricte.
+
+**Vérifié :** 1 456 tests unitaires verts (dont 19 nouveaux sur `app/decimales.py`) ; suite de
+bout en bout 81/81 ; balayage des **68 routes GET** de l'API sur la base de démonstration peuplée
+par la suite de bout en bout, authentifié : aucune erreur serveur.
+
+**À faire au déploiement :** la migration réécrit dix tables. Elle a été éprouvée, mais sur une
+vraie base, une sauvegarde juste avant de mettre à jour reste la moindre des précautions.
 
 #### BI.2 — `majeur` · `M` · `traité` (23/09/2026) — Retirer `pandas` des parseurs d'import
 

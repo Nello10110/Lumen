@@ -4,10 +4,12 @@ cf. `test_pdf_export_service.py`), l'ancien endpoint `GET /api/analysis/comptes`
 été retiré au profit de l'écran Comptes structurel (backlog X.1,
 `services/comptes_service.solde_par_compte`, testé dans `test_comptes_service.py`)."""
 
+from decimal import Decimal
+
 from app.models import Compte, Holding
+from app.services.analysis_service import COMPTE_SANS_ANNOTATION, repartition_par_compte, value_holdings
 
 from .conftest import ID_UTILISATEUR_TEST
-from app.services.analysis_service import COMPTE_SANS_ANNOTATION, repartition_par_compte, value_holdings
 
 
 def _compte(db, nom: str) -> Compte:
@@ -33,8 +35,8 @@ def test_repartition_par_compte_regroupe_les_lignes_annotees(db):
     # PEA : AAA (1000) + CCC (200) = 1200 -> 1200/1700 ~ 70.6%
     assert par_compte["PEA"]["valeur"] == 1200.0
     assert par_compte["CTO"]["valeur"] == 500.0
-    assert par_compte["PEA"]["pourcentage"] == 70.6
-    assert par_compte["CTO"]["pourcentage"] == 29.4
+    assert par_compte["PEA"]["pourcentage"] == Decimal("70.6")
+    assert par_compte["CTO"]["pourcentage"] == Decimal("29.4")
 
 
 def test_repartition_par_compte_regroupe_les_lignes_sans_annotation(db):

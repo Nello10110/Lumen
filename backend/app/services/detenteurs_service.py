@@ -5,8 +5,11 @@ sur l'actif (`QuotiteHolding`) et sur l'emprunt éventuellement rattaché
 (`QuotiteLoan`), la seconde héritant par défaut de la première quand elle n'est pas
 explicitement saisie — cf. `compute_parts`."""
 
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO, en_decimal
 from ..models import Detenteur, Holding, Loan, PerimetreInvite, QuotiteHolding, QuotiteLoan, Salaire
 from . import loan_service
 
@@ -89,7 +92,7 @@ def _valider_quotites(db: Session, user_id: int, quotites: list[tuple[int, float
         raise ValueError("Détenteur introuvable")
 
     total = sum(pct for _, pct in quotites)
-    if abs(total - 100.0) > TOLERANCE_SOMME_PCT:
+    if abs(total - 100) > TOLERANCE_SOMME_PCT:
         raise ValueError(f"La somme des quotités doit être égale à 100 % (actuellement {total:.2f} %)")
 
 
@@ -121,7 +124,7 @@ def set_quotites_loan(
         db.commit()
 
 
-def compute_pourcentages(db: Session, holding: Holding) -> dict[int, float]:
+def compute_pourcentages(db: Session, holding: Holding) -> dict[int, Decimal]:
     """{detenteur_id: quotite_pct} pour cet actif, découplé de toute `valeur` — pour un
     besoin qui doit appliquer le même pourcentage à plusieurs dates d'une série
     (`patrimoine_history_service`), contrairement à `compute_parts` qui rend une part
@@ -131,7 +134,7 @@ def compute_pourcentages(db: Session, holding: Holding) -> dict[int, float]:
     return {q.detenteur_id: q.quotite_pct for q in quotites}
 
 
-def compute_pourcentage_emprunt(db: Session, holding: Holding, emprunt: Loan) -> dict[int, float]:
+def compute_pourcentage_emprunt(db: Session, holding: Holding, emprunt: Loan) -> dict[int, Decimal]:
     """Quotités de l'emprunt rattaché à `holding` : ses propres `QuotiteLoan` si
     saisies, sinon héritées de `compute_pourcentages(db, holding)` — même règle de
     repli que `compute_parts`."""
@@ -155,7 +158,7 @@ def _assembler_parts(
     resultat: dict[int, dict[str, float]] = {}
     for detenteur_id, quotite_pct in quotites_actif:
         part_detenue = quotite_pct / 100 * valeur
-        part_dette = part_dette_par_detenteur.get(detenteur_id, 0.0)
+        part_dette = part_dette_par_detenteur.get(detenteur_id, ZERO)
         resultat[detenteur_id] = {
             "part_detenue": round(part_detenue, 2),
             "part_nette": round(part_detenue - part_dette, 2),
@@ -164,8 +167,8 @@ def _assembler_parts(
 
 
 def compute_parts_bulk(
-    db: Session, holdings_et_valeurs: list[tuple[Holding, float]]
-) -> dict[int, dict[int, dict[str, float]]]:
+    db: Session, holdings_et_valeurs: list[tuple[Holding, Decimal | float]]
+) -> dict[int, dict[int, dict[str, Decimal]]]:
     """`{holding_id: <même contenu que compute_parts>}` pour TOUTES les lignes en
     trois requêtes fixes, au lieu de trois à quatre par ligne.
 
@@ -203,6 +206,7 @@ def compute_parts_bulk(
 
     resultat: dict[int, dict[int, dict[str, float]]] = {}
     for holding, valeur in holdings_et_valeurs:
+        valeur = en_decimal(valeur)  # point d'entrée de service : montant exact (§ BI.1)
         quotites_actif = quotites_par_holding.get(holding.id, [])
         if not quotites_actif:
             continue  # aucune quotité saisie : 100 % foyer implicite, comme `compute_parts`
@@ -214,13 +218,13 @@ def compute_parts_bulk(
             # propres à l'emprunt priment, sinon celles de l'actif financé.
             quotites_emprunt = quotites_par_emprunt.get(emprunt.id) or quotites_actif
             for detenteur_id, pct in quotites_emprunt:
-                part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, 0.0) + pct / 100 * crd
+                part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, ZERO) + pct / 100 * crd
 
         resultat[holding.id] = _assembler_parts(quotites_actif, valeur, part_dette_par_detenteur)
     return resultat
 
 
-def compute_parts(db: Session, holding: Holding, valeur: float) -> dict[int, dict[str, float]]:
+def compute_parts(db: Session, holding: Holding, valeur: Decimal | float) -> dict[int, dict[str, Decimal]]:
     """Part détenue et part nette par détenteur pour cette ligne (backlog 2.L.1).
     `valeur` : valeur déjà calculée de la ligne (`analysis_service.value_holdings`),
     passée en paramètre pour ne jamais diverger de la valeur affichée ailleurs.
@@ -230,6 +234,7 @@ def compute_parts(db: Session, holding: Holding, valeur: float) -> dict[int, dic
     détenteurs qui possèdent une part de l'ACTIF — un détenteur qui n'aurait qu'une
     quotité sur l'emprunt (sans posséder l'actif) n'a pas de cas d'usage identifié à
     ce stade et n'apparaît pas dans le résultat."""
+    valeur = en_decimal(valeur)  # point d'entrée de service : montant exact (§ BI.1)
     quotites_actif = db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).all()
     if not quotites_actif:
         return {}
@@ -243,6 +248,6 @@ def compute_parts(db: Session, holding: Holding, valeur: float) -> dict[int, dic
     for emprunt in emprunts:
         crd = loan_service.compute_capital_restant_du(emprunt)
         for detenteur_id, pct in compute_pourcentage_emprunt(db, holding, emprunt).items():
-            part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, 0.0) + pct / 100 * crd
+            part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, ZERO) + pct / 100 * crd
 
     return _assembler_parts([(q.detenteur_id, q.quotite_pct) for q in quotites_actif], valeur, part_dette_par_detenteur)

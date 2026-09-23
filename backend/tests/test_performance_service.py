@@ -2,6 +2,7 @@
 `compute_holding_returns` et `compute_performance`."""
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 
@@ -160,7 +161,7 @@ def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisitio
 
     # coût total = 200000 + 15000 = 215000 ; rendement = 230000/215000 - 1 ≈ 6.98 %.
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
-    assert resultats[holding.id]["rendement_depuis_achat_pct"] == pytest.approx((230000 / 215000 - 1) * 100, abs=0.01)
+    assert float(resultats[holding.id]["rendement_depuis_achat_pct"]) == pytest.approx((230000 / 215000 - 1) * 100, abs=0.01)
 
     # `compute_holding_return` (variante mono-ligne, utilisée par la fiche) doit
     # renvoyer exactement le même résultat.
@@ -193,7 +194,7 @@ def test_cout_acquisition_derive_de_lhistorique_quand_prix_revient_moyen_est_vid
 
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
     assert resultats[holding.id]["cout_acquisition_total"] == 45000.0
-    assert resultats[holding.id]["rendement_depuis_achat_pct"] == pytest.approx((50000 / 45000 - 1) * 100, abs=0.01)
+    assert float(resultats[holding.id]["rendement_depuis_achat_pct"]) == pytest.approx((50000 / 45000 - 1) * 100, abs=0.01)
 
     # `compute_holding_return` (variante mono-ligne) doit renvoyer exactement le
     # même résultat, même précédent que `test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisition`.
@@ -552,16 +553,16 @@ def test_scenario_complet_gain_perte_total_au_centime_pres(db):
 
     resultat = compute_performance(db, ID_UTILISATEUR_TEST)
 
-    assert resultat["gains_realises"] == pytest.approx(193.2, abs=0.005)
-    assert resultat["gains_latents"] == pytest.approx(55.8, abs=0.005)
-    assert resultat["dividendes_percus"] == pytest.approx(35.0, abs=0.005)
-    assert resultat["interets_percus"] == pytest.approx(7.0, abs=0.005)
-    assert resultat["autres_revenus"] == pytest.approx(5.02, abs=0.005)
-    assert resultat["frais_payes"] == pytest.approx(8.0, abs=0.005)
-    assert resultat["impots_preleves"] == pytest.approx(20.98, abs=0.005)
-    assert resultat["gain_perte_total"] == pytest.approx(296.02, abs=0.005)
-    assert resultat["cout_total_investi"] == pytest.approx(1007.0, abs=0.005)
-    assert resultat["rendement_simple_pct"] == pytest.approx(29.4, abs=0.01)
+    assert resultat["gains_realises"] == Decimal("193.2")  # au centime près : exact depuis § BI.1
+    assert resultat["gains_latents"] == Decimal("55.8")
+    assert resultat["dividendes_percus"] == Decimal("35.0")
+    assert resultat["interets_percus"] == Decimal("7.0")
+    assert resultat["autres_revenus"] == Decimal("5.02")
+    assert resultat["frais_payes"] == Decimal("8.0")
+    assert resultat["impots_preleves"] == Decimal("20.98")
+    assert resultat["gain_perte_total"] == Decimal("296.02")
+    assert resultat["cout_total_investi"] == Decimal("1007.0")
+    assert resultat["rendement_simple_pct"] == Decimal("29.4")
 
 
 def test_type_de_mouvement_inconnu_est_exclu_du_resultat(db):

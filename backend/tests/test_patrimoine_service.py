@@ -3,6 +3,7 @@
 + immobilier/SCPI/assurance-vie/PER) moins passifs (emprunts)."""
 
 from datetime import date, datetime
+from decimal import Decimal
 
 from app.models import Loan
 from app.services import detenteurs_service, patrimoine_service, preferences_service
@@ -424,7 +425,7 @@ class TestExpositionConsolidee:
         # Immobilier reste la plus grosse ligne (180000 nette > 1000), mais avec sa
         # valeur NETTE (180000), jamais sa valeur brute (300000).
         assert resultat["plus_grosse_ligne_ticker_nette"] == "MAISON"
-        assert resultat["plus_grosse_ligne_pct_nette"] == round(180000.0 / 181000.0 * 100, 1)
+        assert resultat["plus_grosse_ligne_pct_nette"] == Decimal("99.4")  # 180000 / 181000
 
     def test_ligne_a_equite_nette_negative_reste_visible_dans_la_repartition_nette(self, db):
         """Un bien dont l'emprunt rattaché dépasse sa valeur (équité négative, ex. achat
@@ -664,3 +665,28 @@ def test_comparaison_insee_ecart_negatif(db):
     resultat = patrimoine_service.compute_comparaison_insee(db, ID_UTILISATEUR_TEST)
 
     assert resultat["ecart_pct"] == -53.5  # (100000 / 215200 - 1) * 100, arrondi à 1 décimale
+
+
+def test_indicateurs_de_situation_calcules_en_decimal_sans_erreur(db):
+    """Verrou § BI.1 : ce calcul divisait des sommes devenues `Decimal` par un
+    nombre de mois FLOTTANT (`3.0`) — `TypeError`, écran Analyse en erreur 500.
+    Aucun test ne couvrait la fonction : c'est la suite de bout en bout
+    (`sweep-ecrans.spec.ts`) qui l'a révélé. Chaque indicateur est vérifié exact."""
+    from app.models import TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REAL_ESTATE, MouvementBancaire
+
+    make_holding(db, ticker="LIVRET", type_actif=TYPE_ACTIF_CASH_ACCOUNT, quantite=1, valeur_estimee=9000)
+    make_holding(db, ticker="APPART", type_actif=TYPE_ACTIF_REAL_ESTATE, quantite=1, valeur_estimee=200000)
+    aujourdhui = date.today().isoformat()
+    for i, montant in enumerate([-1000.10, -999.90, -1000, 2500, 2500, 2500]):
+        db.add(MouvementBancaire(user_id=ID_UTILISATEUR_TEST, transaction_id=f"m{i}", date=aujourdhui, libelle=f"m{i}", montant=montant))
+    db.add(Loan(user_id=ID_UTILISATEUR_TEST, libelle="Prêt", capital_initial=100000, taux_annuel_pct=0, mensualite=750, date_debut=datetime(2020, 1, 1), duree_mois=240))
+    db.commit()
+
+    resultat = patrimoine_service.compute_indicateurs_situation(db, ID_UTILISATEUR_TEST)
+
+    assert resultat["depenses_mensuelles_moyennes"] == Decimal("1000.00")  # 3000 / 3
+    assert resultat["revenus_nets_mensuels_moyens"] == Decimal("2500.00")
+    assert resultat["matelas_securite_mois"] == Decimal("9.0")  # 9000 / 1000
+    assert resultat["taux_endettement_pct"] == Decimal("30.0")  # 750 / 2500
+    assert resultat["mensualites_totales"] == Decimal("750.00")
+    assert resultat["epargne_disponible"] == Decimal("9000.00")

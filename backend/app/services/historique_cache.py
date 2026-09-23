@@ -18,6 +18,7 @@ l'API en développement, et pour rester cohérent avec `database.upgrade_schema(
 
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -124,12 +125,22 @@ def lire(db: Session, cle: str):
     return json.loads(entree.contenu_json)
 
 
+def _nombre_json(valeur):
+    if isinstance(valeur, Decimal):
+        return float(valeur)
+    raise TypeError(f"Objet de type {type(valeur).__name__} non sérialisable en JSON")
+
+
 def ecrire(db: Session, cle: str, contenu) -> None:
     """Écrit (ou remplace) le contenu en cache pour `cle`. `contenu` doit être
     sérialisable en JSON tel quel (listes/dicts de types simples — c'est déjà le cas
     des résultats produits par `historical_performance_service`, qui convertit les
     dates en chaînes ISO avant de renvoyer son résultat)."""
-    contenu_json = json.dumps(contenu)
+    # Même règle que l'encodeur de FastAPI pour les réponses de l'API : une `Decimal`
+    # (§ BI.1) s'écrit en nombre. Les séries de courbe sont calculées en flottant et
+    # n'en contiennent pas, mais une seule qui s'y glisserait ferait échouer tout le
+    # graphique sur une erreur de sérialisation.
+    contenu_json = json.dumps(contenu, default=_nombre_json)
     maintenant = datetime.now(UTC).replace(tzinfo=None)
 
     entree = db.get(HistoriqueCache, cle)

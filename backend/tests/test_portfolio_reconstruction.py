@@ -3,6 +3,7 @@ du coût moyen pondéré) à partir du grand livre de transactions."""
 
 import logging
 from datetime import datetime
+from decimal import Decimal
 
 import pytest
 
@@ -46,7 +47,7 @@ def test_achat_simple_cree_une_ligne_de_portefeuille(db):
 
     holding = db.query(Holding).filter(Holding.ticker == "AAA").one()
     assert holding.quantite == 10.0
-    assert holding.prix_revient_moyen == 100.7  # 1007 / 10
+    assert holding.prix_revient_moyen == Decimal("100.7")  # 1007 / 10
 
 
 def test_achats_successifs_cout_moyen_pondere(db):
@@ -326,7 +327,7 @@ def test_paire_free_receipt_trop_eloignee_dans_le_temps_non_neutralisee(db):
     # (-3) par `_trier_pour_reconstruction` — comportement générique inchangé,
     # jamais neutralisé puisque les deux lignes sont hors fenêtre d'appariement.
     assert etat.shares == 10.0
-    assert etat.cost_basis == pytest.approx(1000.0 * 10 / 13)  # ajout +3/coût nul -> 13 titres/1000 ; retrait 3*1000/13
+    assert float(etat.cost_basis) == pytest.approx(1000.0 * 10 / 13)  # ajout +3/coût nul -> 13 titres/1000 ; retrait 3*1000/13
 
 
 def test_paire_free_receipt_scopee_par_compte(db):
@@ -474,7 +475,7 @@ def test_vente_horodatee_avant_son_achat_ne_cree_pas_de_position_fantome(db, cap
     # (25.17 - 1.0 = 24.17) moins le coût réellement retiré (25.16, tout le lot
     # acheté) = -0.99, pas 24.17 brut. `cost_basis` retombe à ~0, pas orphelin.
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)
-    assert etat.realized_gain == pytest.approx(24.17 - 25.16, abs=1e-6)
+    assert etat.realized_gain == Decimal("-0.99")  # 24,17 - 25,16, exact depuis § BI.1
 
     # Fix 3 : une seule entrée `shares_history` pour cette journée, avec l'état
     # final réellement correct (0) — pas deux points dont un stale (0.1111) qui
@@ -513,7 +514,7 @@ def test_vente_avant_achat_meme_jour_fonctionne_aussi_en_fifo(db):
 
     assert etat.shares == pytest.approx(0.0, abs=1e-9)
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)
-    assert etat.realized_gain == pytest.approx(24.17 - 25.16, abs=1e-6)
+    assert etat.realized_gain == Decimal("-0.99")  # 24,17 - 25,16, exact depuis § BI.1
     assert etat.lots == []  # le lot du jour a bien été consommé, rien ne traîne
 
 
@@ -870,9 +871,9 @@ def test_meme_ticker_deux_comptes_produit_deux_positions_distinctes(db):
     positions = compute_positions(db, ID_UTILISATEUR_TEST)
 
     assert set(positions) == {("BTC", compte_ledger.id), ("BTC", compte_tr.id)}
-    assert positions[("BTC", compte_ledger.id)].shares == pytest.approx(0.1)
+    assert positions[("BTC", compte_ledger.id)].shares == Decimal("0.1")
     assert positions[("BTC", compte_ledger.id)].cost_basis == pytest.approx(4000.0)
-    assert positions[("BTC", compte_tr.id)].shares == pytest.approx(0.2)
+    assert positions[("BTC", compte_tr.id)].shares == Decimal("0.2")
     assert positions[("BTC", compte_tr.id)].cost_basis == pytest.approx(9000.0)
 
 
@@ -899,9 +900,9 @@ def test_meme_ticker_deux_comptes_cree_deux_holdings_apres_rebuild(db):
     lignes = db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST, Holding.ticker == "BTC").all()
     assert len(lignes) == 2
     par_compte = {h.compte_id: h for h in lignes}
-    assert par_compte[compte_ledger.id].quantite == pytest.approx(0.1)
+    assert par_compte[compte_ledger.id].quantite == Decimal("0.1")
     assert par_compte[compte_ledger.id].prix_revient_moyen == pytest.approx(40000.0)
-    assert par_compte[compte_tr.id].quantite == pytest.approx(0.2)
+    assert par_compte[compte_tr.id].quantite == Decimal("0.2")
     assert par_compte[compte_tr.id].prix_revient_moyen == pytest.approx(45000.0)
 
 
@@ -932,8 +933,8 @@ def test_meme_ticker_deux_comptes_puis_achat_supplementaire_reste_scinde(db):
     lignes = db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST, Holding.ticker == "BTC").all()
     assert len(lignes) == 2
     par_compte = {h.compte_id: h for h in lignes}
-    assert par_compte[compte_ledger.id].quantite == pytest.approx(0.15)  # 0.1 + 0.05
-    assert par_compte[compte_tr.id].quantite == pytest.approx(0.2)  # inchangé
+    assert par_compte[compte_ledger.id].quantite == Decimal("0.15")  # 0.1 + 0.05, exact depuis § BI.1
+    assert par_compte[compte_tr.id].quantite == Decimal("0.2")  # inchangé
 
 
 def test_transaction_sans_compte_forme_son_propre_groupe_distinct_des_comptes_reels(db):

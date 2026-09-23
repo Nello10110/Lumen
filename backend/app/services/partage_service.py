@@ -128,7 +128,9 @@ def _repartition_masquee(items: list[dict], total: float, masquer: bool) -> list
         {
             "categorie": item["categorie"],
             "valeur": None if masquer else item["valeur"],
-            "pourcentage": round(item["valeur"] / total * 100, 1) if total > 0 else 0.0,
+            # Pourcentage d'affichage : la répartition géographique est flottante par
+            # construction (poids de composition Yahoo), le total est un montant (§ BI.1).
+            "pourcentage": round(float(item["valeur"]) / float(total) * 100, 1) if total > 0 else 0.0,
         }
         for item in items
     ]

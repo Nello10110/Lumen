@@ -3,6 +3,7 @@
 
 import itertools
 from datetime import date
+from decimal import Decimal
 
 from app.models import MouvementBancaire
 from app.services import budget_recurrences_service
@@ -38,8 +39,8 @@ def test_detecte_une_charge_mensuelle_stable(db):
     assert len(resultats) == 1
     r = resultats[0]
     assert r.libelle == "Netflix"
-    assert r.montant_actuel == 12.99
-    assert r.montant_precedent == 12.99
+    assert r.montant_actuel == Decimal("12.99")
+    assert r.montant_precedent == Decimal("12.99")
     assert r.hausse_prix is False
     assert r.occurrences == 3
     assert r.periodicite == "mensuelle"
@@ -53,8 +54,8 @@ def test_detecte_une_hausse_de_prix(db):
 
     assert len(resultats) == 1
     assert resultats[0].hausse_prix is True
-    assert resultats[0].montant_actuel == 11.99
-    assert resultats[0].montant_precedent == 9.99
+    assert resultats[0].montant_actuel == Decimal("11.99")
+    assert resultats[0].montant_precedent == Decimal("9.99")
 
 
 def test_ignore_une_variation_de_prix_sous_le_seuil(db):

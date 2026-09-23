@@ -18,6 +18,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS, TYPES_ACTIF_PATRIMOINE_MANUEL, Compte, Holding, Loan
 from . import analysis_service, budget_service, detenteurs_service, loan_service, preferences_service, reference_patrimoine_insee
 from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
@@ -89,11 +90,11 @@ def _crd_par_ligne(db: Session, user_id: int) -> tuple[dict[int, float], float]:
     un actif (bucket "Dettes non rattachées" côté appelant)."""
     loans = db.query(Loan).filter(Loan.user_id == user_id).all()
     crd_par_holding: dict[int, float] = {}
-    crd_non_rattache = 0.0
+    crd_non_rattache = ZERO
     for loan in loans:
         crd = loan_service.compute_capital_restant_du(loan)
         if loan.holding_id is not None:
-            crd_par_holding[loan.holding_id] = crd_par_holding.get(loan.holding_id, 0.0) + crd
+            crd_par_holding[loan.holding_id] = crd_par_holding.get(loan.holding_id, ZERO) + crd
         else:
             crd_non_rattache += crd
     return crd_par_holding, crd_non_rattache
@@ -117,11 +118,11 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         par_classe_nette: dict[str, float] = {}
         for v in valued:
             label = label_type_actif(v.holding)
-            par_classe[label] = par_classe.get(label, 0.0) + v.valeur
-            valeur_nette = v.valeur - crd_par_holding.get(v.holding.id, 0.0)
-            par_classe_nette[label] = par_classe_nette.get(label, 0.0) + valeur_nette
-        if crd_non_rattache != 0.0:
-            par_classe_nette[LABEL_DETTES_NON_RATTACHEES] = par_classe_nette.get(LABEL_DETTES_NON_RATTACHEES, 0.0) - crd_non_rattache
+            par_classe[label] = par_classe.get(label, ZERO) + v.valeur
+            valeur_nette = v.valeur - crd_par_holding.get(v.holding.id, ZERO)
+            par_classe_nette[label] = par_classe_nette.get(label, ZERO) + valeur_nette
+        if crd_non_rattache != ZERO:
+            par_classe_nette[LABEL_DETTES_NON_RATTACHEES] = par_classe_nette.get(LABEL_DETTES_NON_RATTACHEES, ZERO) - crd_non_rattache
 
         # Lentille "financier" (backlog 2.K.3) : réutilise `holdings_financiers` (déjà
         # la définition du portefeuille financier ailleurs dans l'app) plutôt que de
@@ -132,10 +133,10 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         par_classe_financiere: dict[str, float] = {}
         for v in valued_financier:
             label = label_type_actif(v.holding)
-            par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + v.valeur
+            par_classe_financiere[label] = par_classe_financiere.get(label, ZERO) + v.valeur
     else:
-        actifs_totaux = 0.0
-        passifs_totaux = 0.0
+        actifs_totaux = ZERO
+        passifs_totaux = ZERO
         par_classe = {}
         par_classe_nette = {}
         # Toutes les parts en 3 requêtes plutôt que 3 à 4 par ligne : cet appel
@@ -149,15 +150,15 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
             actifs_totaux += part["part_detenue"]
             passifs_totaux += part["part_detenue"] - part["part_nette"]
             label = label_type_actif(v.holding)
-            par_classe[label] = par_classe.get(label, 0.0) + part["part_detenue"]
+            par_classe[label] = par_classe.get(label, ZERO) + part["part_detenue"]
             # `part_nette` (déjà = part_detenue − part de l'emprunt rattaché à CETTE
             # ligne, cf. `detenteurs_service.compute_parts`) est exactement la même
             # notion que ci-dessus pour la vue foyer — aucun bucket "non rattaché" ici,
             # un emprunt sans actif n'a de toute façon aucun cas d'usage par détenteur
             # individuel (cf. docstring de `compute_parts`).
-            par_classe_nette[label] = par_classe_nette.get(label, 0.0) + part["part_nette"]
+            par_classe_nette[label] = par_classe_nette.get(label, ZERO) + part["part_nette"]
 
-        patrimoine_financier = 0.0
+        patrimoine_financier = ZERO
         par_classe_financiere = {}
         for h in analysis_service.holdings_financiers(db, user_id):
             # `h` est déjà dans `valued` (les lignes financières en font partie) :
@@ -166,7 +167,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
             if part is not None:
                 patrimoine_financier += part["part_detenue"]
                 label = label_type_actif(h)
-                par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + part["part_detenue"]
+                par_classe_financiere[label] = par_classe_financiere.get(label, ZERO) + part["part_detenue"]
 
     return {
         "actifs_totaux": round(actifs_totaux, 2),
@@ -201,7 +202,8 @@ def compute_comparaison_insee(db: Session, user_id: int) -> dict | None:
         return None
     net = compute_patrimoine_net(db, user_id)
     actifs_totaux = net["actifs_totaux"]
-    ecart_pct = round((actifs_totaux / mediane - 1) * 100, 1) if mediane > 0 else None
+    # Médiane INSEE : table de flottants, comparaison pour l'affichage (§ BI.1).
+    ecart_pct = round((float(actifs_totaux) / mediane - 1) * 100, 1) if mediane > 0 else None
     return {
         "actifs_totaux_foyer": round(actifs_totaux, 2),
         "mediane_reference": mediane,
@@ -254,7 +256,7 @@ def lignes_patrimoine_filtrees(
     lignes: list[dict] = []
     if detenteur_id is None:
         for v in valued:
-            crd = crd_par_holding.get(v.holding.id, 0.0)
+            crd = crd_par_holding.get(v.holding.id, ZERO)
             lignes.append(_ligne_depuis_valeur(v.holding, v.valeur, v.valeur - crd, None))
     else:
         parts_par_holding = detenteurs_service.compute_parts_bulk(db, [(v.holding, v.valeur) for v in valued])
@@ -303,7 +305,7 @@ def _calculer_expo(db: Session, valued: list, valeur_totale: float, *, garder_ne
     totaux_classe: dict[str, float] = {}
     for v in valued:
         label = label_type_actif(v.holding)
-        totaux_classe[label] = totaux_classe.get(label, 0.0) + v.valeur
+        totaux_classe[label] = totaux_classe.get(label, ZERO) + v.valeur
     repartition_classe = _repartition_triee(totaux_classe, garder_negatifs=garder_negatifs)
 
     lignes_triees = sorted(valued, key=lambda v: v.valeur, reverse=True)
@@ -312,7 +314,10 @@ def _calculer_expo(db: Session, valued: list, valeur_totale: float, *, garder_ne
     top5_lignes_pct = round(sum(v.valeur for v in lignes_triees[:5]) / valeur_totale * 100, 1) if valeur_totale > 0 else None
 
     premiere_zone_geo = repartition_geo[0]["categorie"] if repartition_geo else None
-    premiere_zone_geo_pct = round(repartition_geo[0]["valeur"] / valeur_totale * 100, 1) if repartition_geo and valeur_totale > 0 else None
+    # Répartition géographique pondérée par les poids de composition Yahoo : flottante (§ BI.1).
+    premiere_zone_geo_pct = (
+        round(repartition_geo[0]["valeur"] / float(valeur_totale) * 100, 1) if repartition_geo and valeur_totale > 0 else None
+    )
 
     valeur_manuelle = sum(v.valeur for v in valued if v.holding.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL)
     part_estimee_manuelle_pct = round(valeur_manuelle / valeur_totale * 100, 1) if valeur_totale > 0 else 0.0
@@ -371,7 +376,7 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     valeur_totale_brute = sum(v.valeur for v in valued)
 
     crd_par_holding, crd_non_rattache = _crd_par_ligne(db, user_id)
-    valued_net = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, 0.0)) for v in valued]
+    valued_net = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, ZERO)) for v in valued]
     valeur_totale_nette = sum(v.valeur for v in valued_net) - crd_non_rattache
 
     brut = _calculer_expo(db, valued, valeur_totale_brute)
@@ -417,7 +422,7 @@ def compute_composition_categorie_consolidee(db: Session, user_id: int, dimensio
 
     if net:
         crd_par_holding, _crd_non_rattache = _crd_par_ligne(db, user_id)
-        valued = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, 0.0)) for v in valued]
+        valued = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, ZERO)) for v in valued]
 
     if dimension == "geo":
         lignes = analysis_service.holdings_in_category(db, valued, "geo", categorie)
@@ -468,7 +473,7 @@ def compute_indicateurs_situation(db: Session, user_id: int) -> dict:
     date_debut = date(annee, mois, 1)
     summary = budget_service.compute_summary(db, user_id, date_debut.isoformat(), date_fin)
 
-    nb_mois = 3.0
+    nb_mois = 3  # fenêtre de 3 mois pleins — un entier, qui se divise avec une Decimal (§ BI.1)
     depenses_mensuelles = summary["sorties"] / nb_mois if summary["sorties"] > 0 else None
     revenus_nets_mensuels = summary["entrees"] / nb_mois if summary["entrees"] > 0 else None
 

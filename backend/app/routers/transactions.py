@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
+from ..decimales import Decimale, en_decimal
 from ..models import (
     SOURCE_IMPORT_BRICKS,
     SOURCE_IMPORT_LEDGER,
@@ -76,16 +77,26 @@ _CHAMPS_TRANSACTION = (
 )
 
 
-def _normalise_pour_comparaison(valeur):
+def _normalise_pour_comparaison(valeur, champ: str):
     """Neutralise l'écart de fuseau entre `datetime_utc` fraîchement analysé
     (conscient du fuseau, `datetime.fromisoformat` avec un offset explicite) et sa
     valeur relue depuis la base (naïve — SQLite ne conserve pas l'information de
     fuseau) : sans cette normalisation, ce champ semblerait TOUJOURS différent d'un
     ré-import à l'autre, même strictement identique, et chaque ré-import
-    signalerait à tort une mise à jour au lieu d'un doublon ignoré. Sans effet sur
-    les autres champs, déjà de simples types directement comparables."""
+    signalerait à tort une mise à jour au lieu d'un doublon ignoré.
+
+    Même piège, même remède, pour les montants et quantités depuis § BI.1 : le
+    parseur rend un flottant (`0.001`), la base une `Decimal` (`0.0010000000`), et un
+    flottant n'est égal à une `Decimal` que s'il la représente EXACTEMENT en binaire
+    — ce que `0.001` ne fait pas. Chaque ré-import d'un fichier identique comptait
+    donc une « mise à jour » (constaté par `test_reimport_du_meme_fichier_ne_duplique_pas`).
+    La valeur est ramenée à ce que la colonne stockerait : même échelle, même
+    arrondi."""
     if isinstance(valeur, datetime) and valeur.tzinfo is not None:
         return valeur.astimezone(UTC).replace(tzinfo=None)
+    type_colonne = Transaction.__table__.columns[champ].type
+    if isinstance(type_colonne, Decimale):
+        return en_decimal(valeur, type_colonne.echelle)
     return valeur
 
 
@@ -112,7 +123,7 @@ def _upsert_transactions(db: Session, user_id: int, rows: list[dict]) -> tuple[i
 
         champs_modifies = [
             champ for champ in _CHAMPS_TRANSACTION
-            if _normalise_pour_comparaison(getattr(existante, champ)) != _normalise_pour_comparaison(row[champ])
+            if _normalise_pour_comparaison(getattr(existante, champ), champ) != _normalise_pour_comparaison(row[champ], champ)
         ]
         if not champs_modifies:
             doublons += 1

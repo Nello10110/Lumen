@@ -6,6 +6,7 @@ normalisé sur une fenêtre glissante, indépendamment de la période affichée 
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -21,7 +22,7 @@ FENETRE_RECENCE_JOURS = 45
 # Seuil de hausse de prix (backlog 2.N.3) : au-delà de 5 % entre deux occurrences
 # consécutives du même abonnement, signalé comme une hausse plutôt qu'un simple
 # arrondi de facturation.
-SEUIL_HAUSSE_PRIX_PCT = 5.0
+SEUIL_HAUSSE_PRIX_PCT = Decimal("5")  # exact : compare deux montants (§ BI.1)
 
 
 @dataclass

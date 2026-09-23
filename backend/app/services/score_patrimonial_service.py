@@ -89,7 +89,8 @@ def compute_score_patrimonial(db: Session, user_id: int) -> dict:
 
     s_diversification = _score_diversification(net["repartition_par_classe"], net["actifs_totaux"])
     s_qualite = _score_qualite_donnees(qualite, net["patrimoine_financier"])
-    s_endettement = _score_endettement(net["actifs_totaux"], net["passifs_totaux"])
+    # Ratio comparé à des seuils flottants : calcul de score, analytique (§ BI.1).
+    s_endettement = _score_endettement(float(net["actifs_totaux"]), float(net["passifs_totaux"]))
 
     sous_scores = [
         {

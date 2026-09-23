@@ -20,8 +20,11 @@ du foyer agrège TOUTES les entrées d'une année (`compute_synthese_annee`), ja
 prise isolément.
 """
 
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO, en_decimal
 from ..models import Compte, Detenteur, Salaire
 from . import performance_service
 
@@ -31,7 +34,8 @@ EPSILON = 1e-6
 # particuliers) — cadre : ~25 % de charges salariales (dont AGIRC-ARRCO tranche cadre et
 # prévoyance obligatoire) ; non-cadre : ~22 %. Volontairement forfaitaire, cf. docstring
 # de module.
-COEFFICIENT_NET_SUR_BRUT = {"cadre": 0.75, "non_cadre": 0.78}
+# Décimaux exacts : ils multiplient un salaire saisi (§ BI.1).
+COEFFICIENT_NET_SUR_BRUT = {"cadre": Decimal("0.75"), "non_cadre": Decimal("0.78")}
 
 STATUTS_VALIDES = tuple(COEFFICIENT_NET_SUR_BRUT.keys())
 TYPES_MONTANT_VALIDES = ("brut", "net")
@@ -39,9 +43,10 @@ PERIODICITES_VALIDES = ("mensuel", "annuel")
 NOM_PAR_DEFAUT = "Salaire"
 
 
-def estimer_brut_net(montant: float, type_montant: str, statut: str) -> tuple[float, float]:
+def estimer_brut_net(montant: Decimal | float, type_montant: str, statut: str) -> tuple[Decimal, Decimal]:
     """(brut, net_avant_impot) estimés à partir d'une saisie brut OU net, sur la même base
     temporelle que `montant` (l'appelant annualise avant ou après selon son besoin)."""
+    montant = en_decimal(montant)  # fonction pure appelable avec un flottant (§ BI.1)
     coefficient = COEFFICIENT_NET_SUR_BRUT[statut]
     if type_montant == "brut":
         return montant, montant * coefficient
@@ -50,17 +55,20 @@ def estimer_brut_net(montant: float, type_montant: str, statut: str) -> tuple[fl
 
 def compute_resume_entree(
     *,
-    montant: float,
+    montant: Decimal | float,
     type_montant: str,
     periodicite: str,
     statut: str,
     nombre_mois: int,
-    taux_imposition_pct: float | None,
+    taux_imposition_pct: Decimal | float | None,
 ) -> dict:
     """Résumé brut/net d'UNE entrée de salaire — pure fonction, aucun accès base : le taux
     d'imposition est désormais porté par l'entrée elle-même, plus de lecture de préférence
     globale. `net_apres_impot_*` reste `None` tant que `taux_imposition_pct` n'est pas
     renseigné pour cette entrée précise."""
+    # Fonction pure appelable avec des flottants (§ BI.1) : montants exacts dès l'entrée.
+    montant = en_decimal(montant)
+    taux_imposition_pct = en_decimal(taux_imposition_pct)
     brut, net_avant_impot = estimer_brut_net(montant, type_montant, statut)
     if periodicite == "mensuel":
         brut_annuel = brut * nombre_mois
@@ -127,7 +135,7 @@ def compute_synthese_annee(db: Session, user_id: int, annee: int) -> dict:
     foyer) ne doit être rapporté qu'à la somme des revenus, pas répété pour chacun."""
     entrees = list_salaires_annee(db, user_id, annee)
 
-    net_total = 0.0
+    net_total = ZERO
     toutes_avec_taux = True
     for ligne in entrees:
         resume = compute_resume_entree(

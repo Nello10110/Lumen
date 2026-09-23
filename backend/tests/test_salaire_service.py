@@ -2,6 +2,7 @@
 agrégation multi-entrées pour le taux d'épargne du foyer."""
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 from app.services import performance_service, salaire_service
 
@@ -207,7 +208,7 @@ def test_montant_investi_mensuel_moyen_glissant_sur_12_mois(db):
 
     moyenne = performance_service.montant_investi_mensuel_moyen_glissant(db, ID_UTILISATEUR_TEST)
 
-    assert moyenne == round(1200.0 / (365 / 30.4375), 2)
+    assert moyenne == Decimal("100.07")  # 1200 × 30,4375 / 365
 
 
 def test_montant_investi_mensuel_moyen_glissant_none_si_rien_investi(db):

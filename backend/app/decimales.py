@@ -100,6 +100,10 @@ class Decimale(TypeDecorator):
         super().__init__(precision=28, scale=echelle, asdecimal=True)
         self.echelle = echelle
 
+    @property
+    def python_type(self):
+        return Decimal
+
     def process_bind_param(self, value, _dialect):
         return en_decimal(value, self.echelle)
 

@@ -18,9 +18,11 @@ helper partagé `frais_acquisition_total` plutôt qu'un calcul dupliqué à chaq
 appelant."""
 
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import Holding, HoldingImmobilierDetail, HoldingValuationHistory, Loan
 
 
@@ -41,14 +43,14 @@ def details_immobiliers_par_holding(db: Session, holding_ids: list[int]) -> dict
     }
 
 
-def frais_acquisition_total(detail: HoldingImmobilierDetail | None) -> float:
+def frais_acquisition_total(detail: HoldingImmobilierDetail | None) -> Decimal:
     """Somme des 3 postes ponctuels d'acquisition (notaire, travaux, autres) —
     `0.0` si `detail` est `None` (pas de fiche immobilier saisie), jamais `None`
     lui-même : les appelants l'additionnent directement à `prix_revient_moyen`
     sans garde supplémentaire."""
     if detail is None:
-        return 0.0
-    return (detail.frais_notaire or 0.0) + (detail.frais_travaux or 0.0) + (detail.frais_acquisition_autres or 0.0)
+        return ZERO
+    return (detail.frais_notaire or ZERO) + (detail.frais_travaux or ZERO) + (detail.frais_acquisition_autres or ZERO)
 
 
 def upsert_detail_immobilier(db: Session, holding_id: int, **champs) -> HoldingImmobilierDetail:
@@ -139,7 +141,7 @@ def historiques_valorisation_par_holding(db: Session, holding_ids: list[int]) ->
     return par_holding
 
 
-def investi_cumule_derive(holding: Holding, points_historique: list[HoldingValuationHistory]) -> float | None:
+def investi_cumule_derive(holding: Holding, points_historique: list[HoldingValuationHistory]) -> Decimal | None:
     """Dernier montant cumulé "investi" connu pour une ligne valorisée manuellement,
     dérivé de son historique de valorisation daté — repli utilisé par
     `performance_service._rendement_pour_ligne` pour `cout_acquisition_total`
@@ -169,8 +171,8 @@ def investi_cumule_derive(holding: Holding, points_historique: list[HoldingValua
 
 
 def flux_investis_derives(
-    holding: Holding, points_historique: list[HoldingValuationHistory], frais_acquisition: float = 0.0
-) -> list[tuple[datetime, float]]:
+    holding: Holding, points_historique: list[HoldingValuationHistory], frais_acquisition: Decimal = ZERO
+) -> list[tuple[datetime, Decimal]]:
     """Flux de trésorerie datés (montants ALGÉBRIQUES — négatifs pour un versement
     sorti de la poche de l'investisseur) dérivés de l'historique de valorisation
     d'une ligne manuelle, pour un XIRR réel (retour utilisateur du 17/09/2026 :
@@ -206,7 +208,7 @@ def flux_investis_derives(
     )
 
     if ancrage:
-        flux: list[tuple[datetime, float]] = [(holding.date_acquisition, -(holding.prix_revient_moyen + frais_acquisition))]
+        flux: list[tuple[datetime, Decimal]] = [(holding.date_acquisition, -(holding.prix_revient_moyen + frais_acquisition))]
         points_a_evaluer = points_historique
     else:
         flux = [(premiere_date, -premiere_valeur)]
@@ -218,12 +220,12 @@ def flux_investis_derives(
     return flux
 
 
-def _arrondi(valeur: float | None) -> float | None:
+def _arrondi(valeur: Decimal | None) -> Decimal | None:
     return round(valeur, 2) if valeur is not None else None
 
 
 def calculer_cashflow_et_rentabilite(
-    db: Session, holding: Holding, detail: HoldingImmobilierDetail | None, valeur: float
+    db: Session, holding: Holding, detail: HoldingImmobilierDetail | None, valeur: Decimal
 ) -> dict:
     """Renvoie un dict prêt à fusionner dans `HoldingImmobilierOut` — toutes les clés
     valent `None` si `detail` est absent ou si `loyer_mensuel` n'est pas renseigné
@@ -260,9 +262,9 @@ def calculer_cashflow_et_rentabilite(
     # avec `detenteurs_service.compute_parts`/`patrimoine_service._crd_par_ligne`,
     # qui somment déjà explicitement tous les emprunts rattachés à une même ligne.
     emprunts = db.query(Loan).filter(Loan.holding_id == holding.id).all()
-    mensualite = sum(e.mensualite for e in emprunts)
-    charges = detail.charges_mensuelles or 0.0
-    frais_mensuels = (detail.frais_annuels or 0.0) / 12
+    mensualite = sum((e.mensualite for e in emprunts), ZERO)
+    charges = detail.charges_mensuelles or ZERO
+    frais_mensuels = (detail.frais_annuels or ZERO) / 12
     cashflow_mensuel = detail.loyer_mensuel - charges - frais_mensuels - mensualite
 
     rentabilite_brute_pct = None
@@ -270,7 +272,7 @@ def calculer_cashflow_et_rentabilite(
     if prix_acquisition_total:
         loyer_annuel = detail.loyer_mensuel * 12
         rentabilite_brute_pct = loyer_annuel / prix_acquisition_total * 100
-        charges_annuelles = charges * 12 + (detail.frais_annuels or 0.0)
+        charges_annuelles = charges * 12 + (detail.frais_annuels or ZERO)
         rentabilite_nette_pct = (loyer_annuel - charges_annuelles) / prix_acquisition_total * 100
 
     return {

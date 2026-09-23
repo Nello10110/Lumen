@@ -63,9 +63,11 @@ flou plutôt que d'être netté avec la précision du cas manuel."""
 
 import bisect
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import TYPE_ACTIF_REAL_ESTATE, TYPES_ACTIF_PATRIMOINE_MANUEL, TYPES_EPARGNE, Compte, Holding, Loan
 from . import (
     analysis_service,
@@ -155,16 +157,17 @@ def _serie_holding_manuel(holding: Holding, points_historique: list) -> TimeSeri
     que de démarrer artificiellement tard (`created_at`) ou de laisser croire que la
     valeur actuelle était déjà celle du jour de l'achat. Sans effet si
     `prix_revient_moyen` n'est pas renseigné (rien à représenter à cette date)."""
-    serie: TimeSeries = [(p.date_valeur, p.valeur) for p in points_historique] if points_historique else []
+    # Points de courbe : en flottant, comme toute série de ce module (§ BI.1).
+    serie: TimeSeries = [(p.date_valeur, float(p.valeur)) for p in points_historique] if points_historique else []
     if not serie and holding.valeur_estimee is not None:
-        serie = [(holding.created_at, holding.valeur_estimee)]
+        serie = [(holding.created_at, float(holding.valeur_estimee))]
     ancrage_possible = holding.date_acquisition is not None and holding.prix_revient_moyen is not None
     if ancrage_possible and (not serie or holding.date_acquisition < serie[0][0]):
-        serie.insert(0, (holding.date_acquisition, holding.prix_revient_moyen))
+        serie.insert(0, (holding.date_acquisition, float(holding.prix_revient_moyen)))
     return serie
 
 
-def _serie_investie_manuel(holding: Holding, points_historique: list, frais_acquisition: float = 0.0) -> TimeSeries:
+def _serie_investie_manuel(holding: Holding, points_historique: list, frais_acquisition: Decimal = ZERO) -> TimeSeries:
     """Série de la part INVESTIE (cumulée) d'une ligne manuelle — pour le mode étagé
     Investi/Gains hors lentille Financier (backlog § U.4). Même ancrage que
     `_serie_holding_manuel` ci-dessus (coût d'acquisition à `prix_revient_moyen` si
@@ -220,7 +223,9 @@ def _serie_investie_manuel(holding: Holding, points_historique: list, frais_acqu
         if p.versement is not None:
             cumul += p.versement
         serie.append((p.date_valeur, cumul))
-    return serie
+    # Cumul tenu EXACT en `Decimal` ci-dessus — une somme de versements doit tomber
+    # juste au centime —, points rendus en flottant pour la courbe (§ BI.1).
+    return [(date, float(valeur)) for date, valeur in serie]
 
 
 def _valeur_emprunt_a_date(loan: Loan, date: datetime) -> float:
@@ -233,12 +238,12 @@ def _valeur_emprunt_a_date(loan: Loan, date: datetime) -> float:
         return 0.0
     if loan.capital_restant_du_manuel is not None:
         if loan.derniere_maj_manuelle is not None and date < loan.derniere_maj_manuelle:
-            return loan_service.compute_capital_restant_du_theorique(loan, date)
+            return float(loan_service.compute_capital_restant_du_theorique(loan, date))
         # Gelé après le recalage (ou sur toute la vie du prêt si la date du recalage
         # n'est pas connue — repli sûr, cohérent avec le comportement actuel hors
         # historique, qui ignore déjà `a_la_date` dans ce cas).
-        return loan_service.compute_capital_restant_du(loan)
-    return loan_service.compute_capital_restant_du_theorique(loan, date)
+        return float(loan_service.compute_capital_restant_du(loan))
+    return float(loan_service.compute_capital_restant_du_theorique(loan, date))
 
 
 # Champs du point tel que produit par `_compute_patrimoine_history` ci-dessous — sert
@@ -310,7 +315,8 @@ def _compute_patrimoine_history(
         frais_acquisition = immobilier_service.frais_acquisition_total(details_immobiliers.get(holding.id))
         series_investies_manuelles[holding.id] = _serie_investie_manuel(holding, historique, frais_acquisition)
         if detenteur_id is not None:
-            pourcentages_manuels[holding.id] = detenteurs_service.compute_pourcentages(db, holding)
+            # Quotités en flottant : elles pondèrent des points de courbe (§ BI.1).
+            pourcentages_manuels[holding.id] = {d: float(pct) for d, pct in detenteurs_service.compute_pourcentages(db, holding).items()}
 
     # Emprunts (§ AX) : sans filtre classe/compte/établissement, TOUS les emprunts du
     # foyer comme avant ce lot (comportement Synthèse inchangé). Avec un filtre actif,
@@ -328,7 +334,9 @@ def _compute_patrimoine_history(
                 continue  # emprunt non rattaché : jamais visible pour un détenteur individuel
             holding_rattache = holdings_manuels_par_id.get(loan.holding_id) or db.get(Holding, loan.holding_id)
             if holding_rattache is not None:
-                pourcentages_emprunts[loan.id] = detenteurs_service.compute_pourcentage_emprunt(db, holding_rattache, loan)
+                pourcentages_emprunts[loan.id] = {
+                    d: float(pct) for d, pct in detenteurs_service.compute_pourcentage_emprunt(db, holding_rattache, loan).items()
+                }
 
     ratio_financier = 1.0
     if detenteur_id is not None and not filtre_actif:
@@ -336,7 +344,7 @@ def _compute_patrimoine_history(
         patrimoine_foyer = patrimoine_service.compute_patrimoine_net(db, user_id, None)
         patrimoine_detenteur = patrimoine_service.compute_patrimoine_net(db, user_id, detenteur_id)
         financier_foyer = patrimoine_foyer["patrimoine_financier"]
-        ratio_financier = patrimoine_detenteur["patrimoine_financier"] / financier_foyer if financier_foyer > 0 else 0.0
+        ratio_financier = float(patrimoine_detenteur["patrimoine_financier"] / financier_foyer) if financier_foyer > 0 else 0.0
     elif detenteur_id is not None and filtre_actif:
         # Avec un filtre : même principe de ratio « à la valeur d'aujourd'hui » (même
         # flou assumé, cf. docstring du module), mais calculé sur le SEUL sous-ensemble
@@ -347,10 +355,10 @@ def _compute_patrimoine_history(
         parts_financiers = detenteurs_service.compute_parts_bulk(db, [(v.holding, v.valeur) for v in valued_financiers_filtres])
         total_foyer_filtre = sum(v.valeur for v in valued_financiers_filtres)
         total_detenteur_filtre = sum(
-            parts_financiers.get(v.holding.id, {}).get(detenteur_id, {}).get("part_detenue", 0.0)
+            parts_financiers.get(v.holding.id, {}).get(detenteur_id, {}).get("part_detenue", ZERO)
             for v in valued_financiers_filtres
         )
-        ratio_financier = total_detenteur_filtre / total_foyer_filtre if total_foyer_filtre > 0 else 0.0
+        ratio_financier = float(total_detenteur_filtre / total_foyer_filtre) if total_foyer_filtre > 0 else 0.0
 
     candidats_debut: list[datetime] = []
     if serie_financiere:

@@ -8,11 +8,13 @@ pour l'historique des révisions.
 """
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+from .decimales import ECHELLE_MONTANT, ECHELLE_PRIX, ECHELLE_QUANTITE, ECHELLE_TAUX, ZERO, Decimale
 
 
 def utcnow() -> datetime:
@@ -134,8 +136,8 @@ class Holding(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     ticker: Mapped[str] = mapped_column(String, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
-    quantite: Mapped[float] = mapped_column(Float)
-    prix_revient_moyen: Mapped[float | None] = mapped_column(Float, nullable=True)
+    quantite: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_QUANTITE))
+    prix_revient_moyen: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_PRIX), nullable=True)
     # Compte structurel (écran Comptes, backlog X.1) — remplace l'ancienne
     # annotation texte libre (`compte: str | None`, retirée par la migration
     # `ajoute_etablissements_comptes_structurels`, backfillée en de vraies lignes
@@ -160,7 +162,7 @@ class Holding(Base):
     # ce qui permet un vrai calcul de gain (valeur_estimee vs prix_revient_moyen),
     # contrairement à `PRIVATE_FUND`/`BOND` qui restent valorisés à leur coût faute de
     # toute mise à jour possible.
-    valeur_estimee: Mapped[float | None] = mapped_column(Float, nullable=True)
+    valeur_estimee: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     date_valeur_estimee: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Taux annuel purement informatif (backlog § 2.M.1) : positif = taux d'intérêt
     # attendu (épargne réglementée/salariale), négatif = décote annuelle attendue
@@ -169,7 +171,7 @@ class Holding(Base):
     # que l'utilisateur reporte lui-même dans `valeur_estimee` s'il le souhaite (même
     # philosophie que la valorisation immobilière datée : jamais de mutation
     # silencieuse d'une donnée financière).
-    taux_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    taux_pct: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_TAUX), nullable=True)
     # Zone géographique déclarée pour cette ligne (backlog 2.P.1, exposition
     # consolidée tous actifs) : une des 6 zones de `reference_indices` (jamais une
     # granularité par pays — cohérent avec le zonage déjà utilisé partout ailleurs
@@ -204,7 +206,7 @@ class Holding(Base):
     # livre de transactions, qui ne couvre de toute façon pas les virements bancaires,
     # cf. increment 5). Additionné à `versement_mensuel_suggere` du Simulateur
     # (`services/budget_service.compute_jonction_patrimoine`), jamais fusionné en base.
-    versement_mensuel: Mapped[float | None] = mapped_column(Float, nullable=True)
+    versement_mensuel: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     # Date d'ACQUISITION du bien (achat de l'appartement, souscription du contrat...),
     # déclarée par l'utilisateur — à ne pas confondre avec `created_at` (date à laquelle
     # la LIGNE a été saisie dans l'application, souvent bien après l'achat réel) ni
@@ -248,12 +250,12 @@ class Loan(Base):
     # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     libelle: Mapped[str] = mapped_column(String)
-    capital_initial: Mapped[float] = mapped_column(Float)
-    taux_annuel_pct: Mapped[float] = mapped_column(Float)
-    mensualite: Mapped[float] = mapped_column(Float)
+    capital_initial: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
+    taux_annuel_pct: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_TAUX))
+    mensualite: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     date_debut: Mapped[datetime] = mapped_column(DateTime)
     duree_mois: Mapped[int] = mapped_column(Integer)
-    capital_restant_du_manuel: Mapped[float | None] = mapped_column(Float, nullable=True)
+    capital_restant_du_manuel: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     derniere_maj_manuelle: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Rattachement à un actif (backlog 2.M.2, version minimale — un emprunt vers au
     # plus un actif, pas encore de clé de répartition multi-actifs) : condition
@@ -291,12 +293,12 @@ class HoldingImmobilierDetail(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), unique=True, index=True)
     type_location: Mapped[str | None] = mapped_column(String, nullable=True)  # nue, meublée, Pinel, LMNP... texte libre
-    loyer_mensuel: Mapped[float | None] = mapped_column(Float, nullable=True)
-    charges_mensuelles: Mapped[float | None] = mapped_column(Float, nullable=True)
+    loyer_mensuel: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
+    charges_mensuelles: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     # Agrégat volontaire (taxe foncière + copropriété + assurance + gestion) plutôt
     # que quatre colonnes séparées : le backlog ne demande qu'un total pour le calcul
     # de rentabilité, pas un suivi ligne à ligne de chaque poste.
-    frais_annuels: Mapped[float | None] = mapped_column(Float, nullable=True)
+    frais_annuels: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     # Coût ponctuel d'ACQUISITION, distinct de `frais_annuels` ci-dessus qui est
     # récurrent (retour utilisateur du 09/09/2026, détaillé en 3 postes le
     # 10/09/2026 — remplace l'ancien champ unique `frais_acquisition`). S'additionne
@@ -307,18 +309,18 @@ class HoldingImmobilierDetail(Base):
     # (`patrimoine_history_service._serie_investie_manuel`,
     # `performance_service._rendement_pour_ligne`) — jusqu'ici ces frais ne comptaient
     # que dans la rentabilité locative de la fiche, pas dans le P&L global.
-    frais_notaire: Mapped[float | None] = mapped_column(Float, nullable=True)
-    frais_travaux: Mapped[float | None] = mapped_column(Float, nullable=True)
-    frais_acquisition_autres: Mapped[float | None] = mapped_column(Float, nullable=True)
+    frais_notaire: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
+    frais_travaux: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
+    frais_acquisition_autres: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     # Simulateur achat vs location (retour utilisateur du 10/09/2026, page Analyse) :
     # loyer d'un bien équivalent, taxe d'habitation et charges de comparaison —
     # UNIQUEMENT lus par le simulateur (frontend, `SimulateurAchatLocationCard`),
     # jamais par `calculer_cashflow_et_rentabilite` ni par la plus-value globale
     # ci-dessus (demande explicite : ne doivent pas peser sur la rentabilité réelle).
-    simulation_loyer_estime: Mapped[float | None] = mapped_column(Float, nullable=True)
-    simulation_taxe_habitation_annuelle: Mapped[float | None] = mapped_column(Float, nullable=True)
-    simulation_charges_mensuelles: Mapped[float | None] = mapped_column(Float, nullable=True)
-    surface_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    simulation_loyer_estime: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
+    simulation_taxe_habitation_annuelle: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
+    simulation_charges_mensuelles: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
+    surface_m2: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     nb_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
     annee_construction: Mapped[int | None] = mapped_column(Integer, nullable=True)
     dpe: Mapped[str | None] = mapped_column(String, nullable=True)  # A à G, texte libre (pas d'enum : tolère "NC" etc.)
@@ -346,7 +348,7 @@ class HoldingValuationHistory(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), index=True)
-    valeur: Mapped[float] = mapped_column(Float)
+    valeur: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     date_valeur: Mapped[datetime] = mapped_column(DateTime)
     # Part de la hausse (ou de la baisse) depuis le point précédent qui vient d'un
     # versement (ou retrait, valeur négative) plutôt que d'une performance du contrat
@@ -354,7 +356,7 @@ class HoldingValuationHistory(Base):
     # rétro-rempli sur l'historique existant) : le foyer n'a pas précisé, le reste
     # (`valeur − point précédent`) est alors traité comme un GAIN, purement estimé,
     # même logique que l'ancien calcul via `taux_pct` (cf. `rapport_service`).
-    versement: Mapped[float | None] = mapped_column(Float, nullable=True)
+    versement: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
 
 
 class Etablissement(Base):
@@ -499,7 +501,7 @@ class QuotiteHolding(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), index=True)
     detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
-    quotite_pct: Mapped[float] = mapped_column(Float)
+    quotite_pct: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_TAUX))
 
 
 class QuotiteLoan(Base):
@@ -515,7 +517,7 @@ class QuotiteLoan(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
     detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
-    quotite_pct: Mapped[float] = mapped_column(Float)
+    quotite_pct: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_TAUX))
 
 
 class MarketDataCache(Base):
@@ -558,7 +560,7 @@ class Salaire(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     annee: Mapped[int] = mapped_column(Integer, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
-    montant: Mapped[float] = mapped_column(Float)
+    montant: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     type_montant: Mapped[str] = mapped_column(String)  # "brut" | "net"
     periodicite: Mapped[str] = mapped_column(String)  # "mensuel" | "annuel"
     statut: Mapped[str] = mapped_column(String)  # "cadre" | "non_cadre"
@@ -566,7 +568,7 @@ class Salaire(Base):
     # Taux d'imposition PROPRE à cette entrée (pas la préférence globale
     # `Preferences.taux_imposition_pct`, réservée à la déclaration de patrimoine, § 2.Q.2) :
     # `None` tant qu'il n'est pas renseigné pour cette entrée précise.
-    taux_imposition_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    taux_imposition_pct: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_TAUX), nullable=True)
     # Personne du foyer à qui ce revenu appartient (retour utilisateur du 09/09/2026) —
     # purement déclaratif, `None` par défaut (aucune association déduite). Contrairement à
     # `QuotiteHolding`/`QuotiteLoan`, une seule personne au plus par entrée, jamais une
@@ -620,11 +622,11 @@ class Transaction(Base):
     # rien à "protéger" d'une réassignation manuelle puisqu'il n'y en a pas ici.
     compte_id: Mapped[int | None] = mapped_column(ForeignKey("comptes.id"), nullable=True, index=True)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
-    shares: Mapped[float | None] = mapped_column(Float, nullable=True)
-    price: Mapped[float | None] = mapped_column(Float, nullable=True)
-    amount: Mapped[float] = mapped_column(Float)
-    fee: Mapped[float] = mapped_column(Float, default=0.0)
-    tax: Mapped[float] = mapped_column(Float, default=0.0)
+    shares: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_QUANTITE), nullable=True)
+    price: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_PRIX), nullable=True)
+    amount: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
+    fee: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT), default=ZERO)
+    tax: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT), default=ZERO)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -993,7 +995,7 @@ class MouvementBancaire(Base):
     transaction_id: Mapped[str] = mapped_column(String, index=True)
     date: Mapped[str] = mapped_column(String, index=True)  # "YYYY-MM-DD"
     libelle: Mapped[str] = mapped_column(String)
-    montant: Mapped[float] = mapped_column(Float)
+    montant: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     compte: Mapped[str | None] = mapped_column(String, nullable=True)
     categorie_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
     # Distingue une catégorisation posée par une règle (`RegleCategorisation`, jamais
@@ -1030,7 +1032,7 @@ class BudgetCible(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     categorie_id: Mapped[int] = mapped_column(ForeignKey("categories_budget.id"))
-    montant_mensuel: Mapped[float] = mapped_column(Float)
+    montant_mensuel: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 

@@ -6,6 +6,7 @@ les routeurs fins et cette logique testable indépendamment de FastAPI.
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO, en_decimal
 from ..models import Detenteur, FundComposition, FundCompositionBrute, FundTopHolding, Holding, QuotiteHolding, Transaction
 from . import detenteurs_service, immobilier_service, market_data_service, performance_service, reference_indices
 
@@ -103,7 +104,10 @@ def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | N
     # la valeur estimée) pour ces lignes. Découvert en vérifiant le calcul de part
     # nette (2.L.1) sur un bien immobilier réel, où l'écart rendait la part nette
     # fausse — corrigé ici plutôt que silencieusement contourné.
-    valeur = round(holding.valeur_estimee, 2) if holding.valeur_estimee is not None else round((prix or 0) * holding.quantite, 2)
+    # Frontière de valorisation (§ BI.1), même règle que `analysis_service.value_holdings`.
+    valeur = (
+        round(holding.valeur_estimee, 2) if holding.valeur_estimee is not None else round((en_decimal(prix) or ZERO) * holding.quantite, 2)
+    )
 
     # Détenteurs (backlog 2.L.1) : quotités saisies sur cette ligne + part détenue/
     # nette qui en découle. Liste vide si aucune quotité n'a jamais été saisie (100 %

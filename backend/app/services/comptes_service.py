@@ -10,6 +10,7 @@ entremêlé dans plusieurs services financiers testés."""
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import (
     TYPES_ACTIF_SANS_ETABLISSEMENT,
     Compte,
@@ -304,7 +305,7 @@ def _holdings_repartition_incomplete(db: Session, holding_ids: list[int]) -> set
     incomplets = {
         holding_id
         for holding_id, total in sommes_holding.items()
-        if abs(total - 100.0) > detenteurs_service.TOLERANCE_SOMME_PCT
+        if abs(total - 100) > detenteurs_service.TOLERANCE_SOMME_PCT
     }
 
     # Emprunts rattachés : même règle, mais reportée sur LE HOLDING qui les porte —
@@ -320,7 +321,7 @@ def _holdings_repartition_incomplete(db: Session, holding_ids: list[int]) -> set
             .all()
         )
         for loan_id, total in sommes_loan.items():
-            if abs(total - 100.0) > detenteurs_service.TOLERANCE_SOMME_PCT:
+            if abs(total - 100) > detenteurs_service.TOLERANCE_SOMME_PCT:
                 incomplets.add(prets_par_holding[loan_id])
 
     return incomplets
@@ -375,7 +376,7 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
     par_compte_id: dict[int | None, dict] = {
         compte.id: {
             "compte": compte,
-            "solde": 0.0,
+            "solde": ZERO,
             "nombre_lignes": 0,
             "repartition_incomplete": False,
             "repartition_non_renseignee": False,
@@ -389,7 +390,7 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
     # « définir la répartition » y serait une impasse.
     sans_compte = {
         "compte": None,
-        "solde": 0.0,
+        "solde": ZERO,
         "nombre_lignes": 0,
         "repartition_incomplete": False,
         "repartition_non_renseignee": False,

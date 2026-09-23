@@ -68,13 +68,20 @@ qui transformerait un remboursement en charge.
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding, QuotiteHolding, Transaction
 from . import historique_cache, preferences_service
 
-EPSILON = 1e-6
+# Seuil sous lequel une quantité est tenue pour nulle. Depuis § BI.1, les quantités
+# sont des `Decimal` : sommes et différences sont désormais EXACTES, et une position
+# entièrement vendue retombe à zéro pile. Le seuil est pourtant conservé tel quel,
+# par stricte parité de comportement : il décide aussi de ce qu'est une poussière
+# négligeable, et ce choix-là ne relève pas d'un changement de type.
+EPSILON = Decimal("1e-6")
 
 logger = logging.getLogger("patrimoine.reconstruction")
 
@@ -87,11 +94,11 @@ class Lot:
     de `PositionState.lots` (épuisé) ; `cout_unitaire` ne change jamais après
     création — c'est le coût d'ORIGINE du lot, pas un coût courant."""
 
-    quantite: float
-    cout_unitaire: float
+    quantite: Decimal
+    cout_unitaire: Decimal
 
 
-def _consommer_lots_fifo(lots: list[Lot], quantite_a_vendre: float) -> float:
+def _consommer_lots_fifo(lots: list[Lot], quantite_a_vendre: Decimal) -> Decimal:
     """Retire jusqu'à `quantite_a_vendre` des lots les plus anciens en premier
     (début de `lots` = premier entré), et renvoie le coût total ainsi retiré.
     Modifie `lots` en place (lot épuisé retiré de la liste).
@@ -101,7 +108,7 @@ def _consommer_lots_fifo(lots: list[Lot], quantite_a_vendre: float) -> float:
     `_controler_coherence` et son test dédié), la consommation s'arrête simplement
     quand `lots` est vide : le coût retiré est alors celui, réel, des seuls lots
     disponibles, jamais un coût inventé pour la quantité manquante."""
-    cout_retire = 0.0
+    cout_retire = ZERO
     quantite_restante = quantite_a_vendre
     while quantite_restante > EPSILON and lots:
         lot = lots[0]
@@ -125,19 +132,19 @@ class PositionState:
     compte_id: int | None = None
     name: str | None = None
     asset_class: str | None = None
-    shares: float = 0.0
-    cost_basis: float = 0.0
-    realized_gain: float = 0.0
+    shares: Decimal = ZERO
+    cost_basis: Decimal = ZERO
+    realized_gain: Decimal = ZERO
     # Flux de trésorerie côté investisseur (achat = négatif, vente = positif), utilisés
     # pour calculer un rendement annualisé (XIRR) par ligne — cf. performance_service.
-    cash_flows: list[tuple[datetime, float]] = field(default_factory=list)
+    cash_flows: list[tuple[datetime, Decimal]] = field(default_factory=list)
     # Quantité détenue après chaque transaction, pour reconstruire "combien je détenais
     # à telle date" — cf. historical_performance_service.
-    shares_history: list[tuple[datetime, float]] = field(default_factory=list)
+    shares_history: list[tuple[datetime, Decimal]] = field(default_factory=list)
     # Capital cumulé investi (achats uniquement, jamais décrémenté à la vente) — sert de
     # ligne de base "capital investi" façon calculatrice d'intérêts composés.
-    cumulative_invested: float = 0.0
-    invested_history: list[tuple[datetime, float]] = field(default_factory=list)
+    cumulative_invested: Decimal = ZERO
+    invested_history: list[tuple[datetime, Decimal]] = field(default_factory=list)
     # Anomalies détectées lors de la reconstruction (ex. quantité résiduelle négative
     # faute d'achat correspondant) — remontées jusqu'à `rebuild_holdings` puis
     # `TransactionImportResult` pour être signalées à l'utilisateur après un import.
@@ -177,14 +184,14 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
             # moyenne. Garde-fou identique à la méthode moyenne pondérée ci-dessous : ne
             # jamais retirer plus que ce que `cost_basis` contient (protection redondante
             # avec l'épuisement naturel de `lots`, mais qui coûte peu et documente l'intention).
-            cost_removed = min(_consommer_lots_fifo(state.lots, shares_sold), max(state.cost_basis, 0.0))
+            cost_removed = min(_consommer_lots_fifo(state.lots, shares_sold), max(state.cost_basis, ZERO))
         else:
-            avg_cost = (state.cost_basis / state.shares) if state.shares > EPSILON else 0.0
+            avg_cost = (state.cost_basis / state.shares) if state.shares > EPSILON else ZERO
             # Garde-fou sur le COÛT uniquement : on ne retire jamais du coût de base plus
             # que ce qu'il contient, sinon une vente portant sur plus de titres que détenu
             # (données incomplètes) le ferait passer en négatif et fausserait le prix de
             # revient de toute la position.
-            cost_removed = min(avg_cost * shares_sold, max(state.cost_basis, 0.0))
+            cost_removed = min(avg_cost * shares_sold, max(state.cost_basis, ZERO))
 
         # La QUANTITÉ, elle, n'est volontairement pas bornée ici : chez ce type de
         # courtier, la vente d'un titre offert est parfois horodatée AVANT la ligne
@@ -253,7 +260,7 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
         # valeur.
         state.shares += tx.shares
         if en_fifo and tx.shares > EPSILON:
-            state.lots.append(Lot(quantite=tx.shares, cout_unitaire=0.0))
+            state.lots.append(Lot(quantite=tx.shares, cout_unitaire=ZERO))
         shares_changed = True
 
     elif tx.shares is not None:
@@ -267,10 +274,10 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
         # fermée).
         titres_retires = -tx.shares
         if en_fifo:
-            cout_retire = min(_consommer_lots_fifo(state.lots, titres_retires), max(state.cost_basis, 0.0))
+            cout_retire = min(_consommer_lots_fifo(state.lots, titres_retires), max(state.cost_basis, ZERO))
         else:
-            avg_cost = (state.cost_basis / state.shares) if state.shares > EPSILON else 0.0
-            cout_retire = min(avg_cost * titres_retires, max(state.cost_basis, 0.0))
+            avg_cost = (state.cost_basis / state.shares) if state.shares > EPSILON else ZERO
+            cout_retire = min(avg_cost * titres_retires, max(state.cost_basis, ZERO))
         state.realized_gain -= cout_retire
         state.cost_basis -= cout_retire
         state.shares += tx.shares
@@ -569,7 +576,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     # (constaté le 02/09/2026 en construisant l'export de données). Clé
     # `(ticker, compte_id)`, pas `ticker` seul (14/09/2026) : deux lignes peuvent
     # désormais partager un ticker, chacune ses propres quotités.
-    quotites_par_cle: dict[tuple[str, int | None], list[tuple[int, float]]] = {}
+    quotites_par_cle: dict[tuple[str, int | None], list[tuple[int, Decimal]]] = {}
     # Quotités lues en TUPLES (colonnes explicites) et non en objets ORM : les lignes
     # sont supprimées juste après, et les nouvelles réutiliseront les mêmes ids
     # auto-incrémentés — des instances `QuotiteHolding` restées dans l'identity map de

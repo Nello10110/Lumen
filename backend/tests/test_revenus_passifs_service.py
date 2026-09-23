@@ -3,6 +3,7 @@ revenu CERTAIN (loyers nets, intérêts de livrets) vs ESTIMÉ (dividendes/inté
 courtage extrapolés depuis les 12 derniers mois réellement perçus)."""
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 from app.services import immobilier_service, revenus_passifs_service
 
@@ -108,4 +109,4 @@ def test_revenu_total_combine_certain_et_estime(db):
     assert resultat["revenu_certain_annuel"] == 12300.0
     assert resultat["revenu_estime_annuel"] == 100.0
     assert resultat["revenu_total_projete_annuel"] == 12400.0
-    assert resultat["revenu_total_projete_mensuel"] == round(12400.0 / 12, 2)
+    assert resultat["revenu_total_projete_mensuel"] == Decimal("1033.33")  # 12400 / 12

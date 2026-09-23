@@ -83,9 +83,11 @@ def get_analysis(db: Session = Depends(get_db), current_user: User = Depends(get
 
 
 def _build_breakdown(reel: dict[str, float], valeur_totale: float) -> list[AllocationBreakdownItem]:
+    # `reel` vient de `breakdown_with_lookthrough`, flottant par construction (§ BI.1).
+    total = float(valeur_totale)
     items = []
     for categorie, valeur in reel.items():
-        pct_reel = (valeur / valeur_totale * 100) if valeur_totale > 0 else 0.0
+        pct_reel = (valeur / total * 100) if total > 0 else 0.0
         items.append(
             AllocationBreakdownItem(
                 categorie=categorie,

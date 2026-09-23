@@ -40,6 +40,7 @@ import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -178,6 +179,15 @@ def _colonnes(table: TableExportee) -> list[str]:
 def _serialiser(valeur: Any) -> Any:
     if isinstance(valeur, datetime | date):
         return valeur.isoformat()
+    if isinstance(valeur, Decimal):
+        # Montants exacts (§ BI.1) : un nombre JSON, comme avant — le format du
+        # fichier ne change pas — tant qu'un flottant restitue la valeur à
+        # l'identique, ce que 15 chiffres significatifs garantissent pour tout
+        # montant réaliste. Au-delà (une quantité de jetons crypto à 17 chiffres),
+        # du texte, que l'import reconvertit sans perte : `modele(**valeurs)` passe
+        # par l'écouteur de `app.decimales`, qui accepte aussi le texte.
+        en_flottant = float(valeur)
+        return en_flottant if Decimal(repr(en_flottant)) == valeur else str(valeur)
     return valeur
 
 
@@ -243,9 +253,12 @@ def _valeur_a_inserer(colonne: str, valeur: Any, modele: type) -> Any:
     modèle — `json.loads` ne rend que des chaînes."""
     if valeur is None:
         return None
-    type_python = getattr(modele.__table__.columns[colonne].type, "python_type", None)
+    # L'accès à `python_type` est lui-même ce qui peut lever — il doit donc se faire
+    # DANS le `try`. Il se faisait avant, via un `getattr` hors du bloc, qui ne
+    # protégeait rien : sans effet tant qu'aucun type de colonne ne levait, révélé
+    # par le premier `TypeDecorator` (§ BI.1).
     try:
-        cible = type_python
+        cible = modele.__table__.columns[colonne].type.python_type
     except NotImplementedError:  # pragma: no cover - types sans python_type
         return valeur
     if cible is datetime and isinstance(valeur, str):

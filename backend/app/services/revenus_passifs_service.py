@@ -15,18 +15,20 @@ pour les ETF).
   fonction n'a besoin d'aucune nouvelle donnée de marché."""
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import Holding, HoldingImmobilierDetail, Transaction
 
 TYPES_LIVRETS_AVEC_TAUX = ("REGULATED_SAVINGS", "EMPLOYEE_SAVINGS")
 
 
-def _loyers_nets_annuels(db: Session, user_id: int) -> float:
+def _loyers_nets_annuels(db: Session, user_id: int) -> Decimal:
     holdings_immobiliers = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif == "REAL_ESTATE").all()
     if not holdings_immobiliers:
-        return 0.0
+        return ZERO
 
     details = {
         d.holding_id: d
@@ -35,13 +37,13 @@ def _loyers_nets_annuels(db: Session, user_id: int) -> float:
         .all()
     }
 
-    total = 0.0
+    total = ZERO
     for h in holdings_immobiliers:
         detail = details.get(h.id)
         if detail is None or detail.loyer_mensuel is None:
             continue
         loyer_annuel = detail.loyer_mensuel * 12
-        charges_annuelles = (detail.charges_mensuelles or 0.0) * 12 + (detail.frais_annuels or 0.0)
+        charges_annuelles = (detail.charges_mensuelles or ZERO) * 12 + (detail.frais_annuels or ZERO)
         total += loyer_annuel - charges_annuelles
     return total
 

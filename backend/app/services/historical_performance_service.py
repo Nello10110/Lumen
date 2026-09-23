@@ -12,9 +12,11 @@ hebdomadaire qui ne bouge qu'une fois par jour au mieux.
 
 import bisect
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import Holding, Transaction
 from . import (
     analysis_service,
@@ -106,7 +108,7 @@ def _serie_cumulee_ventes_et_revenus(
         transactions = [tx for tx in transactions if (tx.symbol, tx.compte_id) in cles_filtres]
 
     series: TimeSeries = []
-    cumule = 0.0
+    cumule = ZERO  # cumul exact, points en flottant pour la courbe (§ BI.1)
     for tx in transactions:
         if tx.category == "TRADING" and tx.type == "SELL" and tx.shares is not None:
             montant = tx.amount + tx.fee + tx.tax
@@ -119,11 +121,11 @@ def _serie_cumulee_ventes_et_revenus(
         else:
             continue
         cumule += montant
-        series.append((tx.datetime_utc, cumule))
+        series.append((tx.datetime_utc, float(cumule)))
     return series
 
 
-def _valeur_positions_live(db: Session, user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> float:
+def _valeur_positions_live(db: Session, user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> Decimal:
     """Valorisation « live » des positions financières ouvertes — exactement le
     même calcul que `valeur_positions` dans `performance_service.compute_performance`
     (`analysis_service.holdings_financiers` + `value_holdings`). Utilisée
@@ -224,7 +226,7 @@ def _compute_portfolio_history(
         return []
 
     valeur_par_cle_manuelle = {
-        (v.holding.ticker, v.holding.compte_id): v.valeur for v in analysis_service.value_holdings(holdings_manuels)
+        (v.holding.ticker, v.holding.compte_id): float(v.valeur) for v in analysis_service.value_holdings(holdings_manuels)
     }
 
     start = min(starts)
@@ -276,22 +278,26 @@ def _compute_portfolio_history(
 
     revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id, cles_filtres)
 
+    # Courbe d'évolution : calcul analytique, en flottant (§ BI.1). Les quantités et
+    # montants exacts de la reconstruction y entrent convertis — une série de
+    # centaines de dates n'a que faire de l'exactitude au centime, et le serait
+    # nettement plus lentement en `Decimal`.
     points = []
     for date in grid:
         valeur_portefeuille = 0.0
         valeur_investie = 0.0
         for (symbol, compte_id), state in positions.items():
-            valeur_investie += _value_at(state.invested_history, date) or 0.0
+            valeur_investie += float(_value_at(state.invested_history, date) or 0)
 
-            shares_at = _value_at(state.shares_history, date) or 0.0
+            shares_at = float(_value_at(state.shares_history, date) or 0)
             if shares_at <= EPSILON:
                 continue
 
             prix_at = _value_at(price_series.get(symbol, []), date)
             if prix_at is None:
                 holding = holdings_par_cle.get((symbol, compte_id))
-                prix_at = holding.prix_revient_moyen if holding else 0.0
-            valeur_portefeuille += shares_at * (prix_at or 0.0)
+                prix_at = holding.prix_revient_moyen if holding else None
+            valeur_portefeuille += shares_at * float(prix_at or 0)
 
         # Lignes manuelles (cf. ci-dessus) : aucun historique de cours daté n'existe
         # pour elles, seule leur valeur ACTUELLE est connue — valeur plate depuis
@@ -302,21 +308,21 @@ def _compute_portfolio_history(
             if h.date_acquisition is not None and h.date_acquisition <= date:
                 valeur_portefeuille += valeur_par_cle_manuelle.get((h.ticker, h.compte_id), 0.0)
                 if h.prix_revient_moyen is not None:
-                    valeur_investie += h.prix_revient_moyen * h.quantite
+                    valeur_investie += float(h.prix_revient_moyen * h.quantite)
 
         # Dernier point de la grille (toujours "aujourd'hui", cf. `_weekly_grid`) :
         # remplace le prix hebdomadaire — potentiellement vieux de quelques jours —
         # par la même valorisation « live » que la carte Rentabilité globale, pour
         # une coïncidence exacte plutôt qu'une approximation à quelques euros près.
         if date == grid[-1]:
-            valeur_portefeuille = _valeur_positions_live(db, user_id, cles_filtres)
+            valeur_portefeuille = float(_valeur_positions_live(db, user_id, cles_filtres))
 
         points.append(
             {
                 "date": date.date().isoformat(),
                 "valeur_portefeuille": round(valeur_portefeuille, 2),
                 "valeur_investie": round(valeur_investie, 2),
-                "valeur_realisee_cumulee": round(_value_at(revenus_series, date) or 0.0, 2),
+                "valeur_realisee_cumulee": round(float(_value_at(revenus_series, date) or 0), 2),
             }
         )
 

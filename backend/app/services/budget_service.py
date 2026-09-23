@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..decimales import ZERO
 from ..models import TYPES_EPARGNE, BudgetCible, CategorieBudget, Holding, MouvementBancaire
 from . import budget_categories_service
 
@@ -93,7 +94,7 @@ def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str) -
         if m.montant >= 0:
             continue
         cle = _categorie_racine_id(categories[m.categorie_id]) if m.categorie_id in categories else None
-        repartition[cle] = repartition.get(cle, 0.0) + (-m.montant)
+        repartition[cle] = repartition.get(cle, ZERO) + (-m.montant)
 
     cibles = {c.categorie_id: c.montant_mensuel for c in db.query(BudgetCible).filter(BudgetCible.user_id == user_id).all()}
 
