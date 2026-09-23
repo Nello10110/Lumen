@@ -87,13 +87,30 @@ _MESSAGE_XLS = (
 )
 
 
-def _decoder(content: bytes) -> str:
+def decoder_texte(content: bytes) -> str:
+    """Texte d'un fichier importé : UTF-8 d'abord, Windows-1252 sinon.
+
+    Les banques françaises exportent souvent en Windows-1252 (l'encodage historique
+    de Windows en Europe de l'Ouest) — et Excel aussi, pour un « CSV » tout court.
+    Jusqu'au 23/09/2026, un tel fichier était refusé (CSV) ou décodé avec des « � » à
+    la place des accents (OFX, QIF), sans rien dire. Décision de l'utilisateur : le
+    lire tel quel.
+
+    Sans risque pour un fichier UTF-8 : il est TOUJOURS décodé en UTF-8, essayé en
+    premier. L'inverse n'arrive pas en pratique : un texte Windows-1252 accentué
+    n'est presque jamais de l'UTF-8 valide (« é » y est l'octet 0xE9, qu'UTF-8 ne
+    tolère pas seul), et un texte sans accent est identique dans les deux. Dernier
+    recours, Latin-1 : il décode n'importe quel octet — les cinq que Windows-1252
+    laisse indéfinis ne se rencontrent pas dans un relevé."""
     try:
         return content.decode("utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise ValueError(
-            "Le fichier n'est pas encodé en UTF-8. Enregistrez-le en « CSV UTF-8 » depuis votre tableur, puis importez-le de nouveau."
-        ) from exc
+    except UnicodeDecodeError:
+        pass
+    try:
+        return content.decode("cp1252")
+    except UnicodeDecodeError:
+        return content.decode("latin-1")
+
 
 
 def _nommer_colonnes(entete: list[str]) -> list[str]:
@@ -142,7 +159,7 @@ def _rangees_csv(texte: str, separateur: str, strict: bool) -> list[tuple[int, l
 
 
 def lire_csv(content: bytes, *, separateur: str = ",") -> Tableau:
-    return _assembler(_rangees_csv(_decoder(content), separateur, strict=False))
+    return _assembler(_rangees_csv(decoder_texte(content), separateur, strict=False))
 
 
 def lire_csv_separateur_detecte(content: bytes) -> Tableau:
@@ -160,7 +177,7 @@ def lire_csv_separateur_detecte(content: bytes) -> Tableau:
     précise du séparateur deviné est remontée (« Ligne 3 : 3 champs trouvés… »).
     Un vrai fichier à une seule colonne reste lisible : dans ce cas, c'est la
     détection qui échoue, pas la lecture."""
-    texte = _decoder(content)
+    texte = decoder_texte(content)
     premiere = next((ligne for ligne in texte.splitlines() if ligne.strip()), "")
     erreur_detectee: ValueError | None = None
     try:

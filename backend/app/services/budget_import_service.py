@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from ..models import MouvementBancaire
 from . import budget_categories_service
 from .csv_import import to_float
+from .lecture_tableau import decoder_texte
 
 
 @dataclass
@@ -116,7 +117,7 @@ def parse_ofx(content: bytes) -> list[MouvementBrut]:
     projet, cf. `html.parser` plutôt que `lxml` ailleurs) : la structure `<TAG>valeur`
     répétée dans chaque bloc `<STMTTRN>` se parse fiablement par expression
     régulière, sans avoir besoin d'un vrai analyseur SGML/XML."""
-    texte = content.decode("utf-8", errors="replace")
+    texte = decoder_texte(content)
     mouvements: list[MouvementBrut] = []
     for bloc in _BLOC_TRANSACTION.findall(texte):
         champs = {m.group(1).upper(): m.group(2).strip() for m in _CHAMP_OFX.finditer(bloc)}
@@ -141,7 +142,7 @@ def parse_ofx(content: bytes) -> list[MouvementBrut]:
 
 
 def parse_qif(content: bytes) -> list[MouvementBrut]:
-    texte = content.decode("utf-8", errors="replace")
+    texte = decoder_texte(content)
     mouvements: list[MouvementBrut] = []
     date: str | None = None
     montant: float | None = None

@@ -6627,6 +6627,12 @@ En outre, `to_float` refuse désormais `NaN` et l'infini à la source (le texte 
   CSV UTF-8 »). Or les banques françaises exportent souvent en Windows-1252. Un repli sur cet
   encodage serait sûr (UTF-8 essayé d'abord) et épargnerait une manipulation à l'utilisateur ;
   c'est un changement de comportement, laissé à sa décision.
+  **Traité le 23/09/2026** (décision de l'utilisateur) : `lecture_tableau.decoder_texte` essaie
+  UTF-8, puis Windows-1252, puis Latin-1 (qui ne peut pas échouer). Il sert aussi aux relevés
+  OFX et QIF, qui n'étaient pas refusés mais décodés avec des « � » à la place des accents
+  (`errors="replace"`) — « Soci�t� G�n�rale » enregistré tel quel, sans rien signaler. Un
+  fichier UTF-8 est toujours lu en UTF-8. Tests : un CSV avec « € », un OFX et un QIF accentués,
+  tous en échec sur l'ancien code.
 
 #### BI.3 — `mineur` · `M` · `traité` (23/09/2026) — Profiler avant d'optimiser
 

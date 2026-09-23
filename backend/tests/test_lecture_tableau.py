@@ -11,7 +11,7 @@ from openpyxl import Workbook
 
 from app.models import Holding
 from app.services import budget_import_service, csv_import
-from app.services.lecture_tableau import lire_csv, lire_csv_separateur_detecte, lire_excel, lire_fichier
+from app.services.lecture_tableau import decoder_texte, lire_csv, lire_csv_separateur_detecte, lire_excel, lire_fichier
 
 
 def _xlsx(*feuilles: list[list], active: int = 0) -> bytes:
@@ -81,9 +81,27 @@ def test_csv_entetes_vides_et_doublons_restent_distinguables():
     assert tableau.colonnes == ["a", "Unnamed: 1", "a.1", "a.2"]
 
 
-def test_csv_non_utf8_refuse_avec_un_message_qui_dit_quoi_faire():
-    with pytest.raises(ValueError, match="UTF-8"):
-        lire_csv("a,b\nr\xe9sum\xe9,1\n".encode("latin-1"))
+def test_csv_windows_1252_lu_tel_quel():
+    """Export bancaire ou « CSV » d'Excel en Windows-1252 : longtemps refusé (« enregistrez
+    en CSV UTF-8 »), désormais lu avec ses accents — et son « € », propre à cet encodage."""
+    contenu = "libellé;montant\nSociété Générale;12,50 €\n".encode("cp1252")
+    with pytest.raises(UnicodeDecodeError):
+        contenu.decode("utf-8")  # ce que l'ancien code refusait
+    tableau = lire_csv_separateur_detecte(contenu)
+    assert tableau.colonnes == ["libellé", "montant"]
+    assert tableau.lignes == [{"libellé": "Société Générale", "montant": "12,50 €"}]
+
+
+def test_csv_utf8_toujours_lu_en_utf8():
+    """Le repli ne s'applique jamais à un fichier UTF-8 valide : « é » y reste « é »,
+    pas « Ã© »."""
+    assert lire_csv("nom\nRené\n".encode()).lignes == [{"nom": "René"}]
+
+
+def test_decoder_texte_ne_leve_jamais():
+    """Dernier recours Latin-1 : même les octets que Windows-1252 laisse indéfinis
+    donnent du texte, jamais une erreur 500."""
+    assert decoder_texte(b"a\x81b") == "a\x81b"
 
 
 def test_csv_vide_refuse():

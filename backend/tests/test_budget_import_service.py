@@ -114,6 +114,17 @@ def test_parse_qif_gere_le_bloc_final_sans_separateur_terminal():
     assert len(mouvements) == 1
 
 
+def test_ofx_et_qif_windows_1252_gardent_leurs_accents():
+    """Relevés OFX et QIF en Windows-1252 (en-tête OFX `CHARSET:1252`, courant chez les
+    banques françaises) : avant le 23/09/2026, décodés avec des « � » à la place des
+    accents — « Soci�t� G�n�rale » enregistré tel quel, sans rien signaler."""
+    ofx = OFX_EXEMPLE.replace(b"CARTE ACHAT", "CARTE SOCIÉTÉ GÉNÉRALE".encode("cp1252"))
+    qif = QIF_EXEMPLE.replace(b"CARTE ACHAT", "CARTE SOCIÉTÉ GÉNÉRALE".encode("cp1252"))
+
+    assert budget_import_service.parse_ofx(ofx)[0].libelle == "CARTE SOCIÉTÉ GÉNÉRALE"
+    assert budget_import_service.parse_qif(qif)[0].libelle == "CARTE SOCIÉTÉ GÉNÉRALE"
+
+
 def test_importer_mouvements_deduplique_et_categorise_automatiquement(db):
     c = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Transport", None)
     budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "sncf", c.id)
