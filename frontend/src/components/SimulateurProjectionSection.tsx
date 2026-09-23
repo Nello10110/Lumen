@@ -12,7 +12,7 @@ import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT
 import { dateVersISO, formatEuro, formatPct } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel, type ResultatFire } from '../utils/interetsComposes'
 import { SegmentedControl } from './Controls'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 const DUREES = [5, 10, 20, 30] as const
 type Vue = 'annuelle' | 'mensuelle'
@@ -54,9 +54,9 @@ function libelleMoisAnnee(offset: number): string {
  * années arrondies — « 8 mois plus tôt » se compte, « 38 mois plus tôt » se
  * recalcule mentalement en années de toute façon. */
 function formatDelai(mois: number): string {
-  if (mois < 12) return `${mois} mois`
+  if (mois < 12) return t('simulateurProjectionSection.nMois', { n: mois })
   const ans = Math.round(mois / 12)
-  return `${ans} an${ans > 1 ? 's' : ''}`
+  return t('simulateurProjectionSection.nAns', { n: ans })
 }
 
 /** Année calendaire, `moisOffset` mois après aujourd'hui — pour la date
@@ -79,9 +79,12 @@ function anneeCalendairePlusMois(moisOffset: number): number {
 function formatDureeFire(moisTotal: number): string {
   const ans = Math.floor(moisTotal / 12)
   const mois = moisTotal % 12
-  if (ans === 0) return `${mois} mois`
-  if (mois === 0) return `${ans} an${ans > 1 ? 's' : ''}`
-  return `${ans} an${ans > 1 ? 's' : ''} et ${mois} mois`
+  if (ans === 0) return t('simulateurProjectionSection.nMois', { n: mois })
+  if (mois === 0) return t('simulateurProjectionSection.nAns', { n: ans })
+  return t('simulateurProjectionSection.ansEtMois', {
+    ans: t('simulateurProjectionSection.nAns', { n: ans }),
+    mois: t('simulateurProjectionSection.nMois', { n: mois }),
+  })
 }
 
 /** Backlog § AG.6 — la phrase en langage humain qui précède le détail chiffré du
@@ -100,7 +103,7 @@ function phraseFireEnHistoire(fire: ResultatFire | null, fireAvecPlus50: Resulta
     // mais avec, ça devient possible : un cas où « plus tôt » n'a pas de sens,
     // « devient possible » si.
     if (fireAvecPlus50.moisAvantIndependance !== null) {
-      return `Avec 50 € de plus par mois, l'indépendance financière deviendrait atteignable — plutôt que jamais d'ici 60 ans.`
+      return t('simulateurProjectionSection.avec50DePlusPar')
     }
     return null
   }
@@ -113,7 +116,7 @@ function phraseFireEnHistoire(fire: ResultatFire | null, fireAvecPlus50: Resulta
   const moisPlusTot = fire.moisAvantIndependance - fireAvecPlus50.moisAvantIndependance
   if (moisPlusTot < 1) return null
 
-  return `Avec 50 € de plus par mois, tu prendrais ta retraite ${formatDelai(moisPlusTot)} plus tôt.`
+  return t('simulateurProjectionSection.retraitePlusTot', { delai: formatDelai(moisPlusTot) })
 }
 
 /** Hypothèse réglée au curseur (maquette de la refonte : « les hypothèses se
@@ -367,7 +370,7 @@ export default function SimulateurProjectionSection() {
       ? []
       : Array.from({ length: 5 }, (_, i) => {
           const point = data[Math.round((i * (data.length - 1)) / 4)]
-          return point ? `+${point.annee} an${point.annee > 1 ? 's' : ''}` : ''
+          return point ? `+${t('simulateurProjectionSection.nAns', { n: point.annee })}` : ''
         })
 
   // Le champ modifié fait foi, l'autre se recalcule dessus — jamais l'inverse, sinon
@@ -416,17 +419,11 @@ export default function SimulateurProjectionSection() {
 
   return (
     <div className="space-y-[14px]">
-      <p className="text-sm text-texte-attenue">
-        Projette un capital dans le temps — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
-        jamais de façon aussi régulière dans la réalité. Préempli avec ton patrimoine net actuel, mais librement modifiable
-        pour tester n'importe quel autre scénario.
-      </p>
+      <p className="text-sm text-texte-attenue">{t('simulateurProjectionSection.projetteUnCapitalDansLe')}{' '}<strong>{t('simulateurProjectionSection.hypothese')}</strong>{t('simulateurProjectionSection.pasUnePromesseLesMarches')}</p>
 
-      <Card title="Hypothèses">
+      <Card title={t('simulateurProjectionSection.hypotheses')}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Capital de départ (€)
-            <input
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.capitalDeDepart')}<input
               value={capital}
               onChange={(e) => setCapital(e.target.value)}
               type="number"
@@ -440,25 +437,22 @@ export default function SimulateurProjectionSection() {
                 type="button"
                 onClick={() => setCapital(String(patrimoineNetActuel))}
                 className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
-              >
-                Revenir au patrimoine net actuel ({formatEuro(patrimoineNetActuel, 0, montantsMasques)})
+              >{t('simulateurProjectionSection.revenirAuPatrimoineNetActuel')}{formatEuro(patrimoineNetActuel, 0, montantsMasques)})
               </button>
             )}
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Intérêts déjà obtenus (€)
-            <input
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.interetsDejaObtenus')}<input
               value={interetsDejaObtenus}
               onChange={(e) => setInteretsDejaObtenus(e.target.value)}
               type="number"
               step="any"
               min={0}
-              placeholder="optionnel"
+              placeholder={t('simulateurProjectionSection.optionnel')}
               className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
           <CurseurHypothese
-            libelle="Rendement annuel moyen"
+            libelle={t('simulateurProjectionSection.rendementAnnuelMoyen')}
             unite="%"
             valeur={taux}
             onChange={setTaux}
@@ -471,13 +465,12 @@ export default function SimulateurProjectionSection() {
                 type="button"
                 onClick={() => setTaux(String(rendementObserve))}
                 className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
-              >
-                Revenir au rendement observé ({formatPct(rendementObserve)})
+              >{t('simulateurProjectionSection.revenirAuRendementObserve')}{formatPct(rendementObserve)})
               </button>
             )}
           </CurseurHypothese>
           <CurseurHypothese
-            libelle="Versement mensuel"
+            libelle={t('simulateurProjectionSection.versementMensuel')}
             unite="€"
             valeur={versement}
             onChange={setVersement}
@@ -490,57 +483,41 @@ export default function SimulateurProjectionSection() {
                 type="button"
                 onClick={() => setVersement(String(Math.round(versementSuggere)))}
                 className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
-              >
-                Revenir au versement observé ({formatEuro(versementSuggere, 0, montantsMasques)})
+              >{t('simulateurProjectionSection.revenirAuVersementObserve')}{formatEuro(versementSuggere, 0, montantsMasques)})
               </button>
             )}
           </CurseurHypothese>
         </div>
 
-        <p className="mt-3 text-xs text-texte-attenue">
-          « Versement mensuel » : préempli avec la moyenne réellement investie sur les 12 derniers mois glissants (achats
-          de titres réels) ADDITIONNÉE aux versements mensuels déclarés sur les comptes Épargne (assurance-vie, PER...) —
-          plutôt qu'une hypothèse saisie à la main — librement modifiable.
-          {versementSuggere !== null && (
+        <p className="mt-3 text-xs text-texte-attenue">{t('simulateurProjectionSection.versementMensuelPreempliAvecLa')}{versementSuggere !== null && (
             <>
-              {' '}
-              Détail : {formatEuro(versementSuggere - versementEpargneDeclare, 0, montantsMasques)} investis en moyenne
-              sur les 12 derniers mois +{' '}
-              {formatEuro(versementEpargneDeclare, 0, montantsMasques)} déclarés sur l'Épargne.
-            </>
+              {' '}{t('simulateurProjectionSection.detail')}{' '}{formatEuro(versementSuggere - versementEpargneDeclare, 0, montantsMasques)}{' '}{t('simulateurProjectionSection.investisEnMoyenneSurLes')}{' '}
+              {formatEuro(versementEpargneDeclare, 0, montantsMasques)}{' '}{t('simulateurProjectionSection.declaresSurLEpargne')}</>
           )}
         </p>
         {erreurVersement && (
           <div className="mt-2">
             <EtatErreur
-              message={`Le montant réellement investi n'a pas pu être précalculé (${erreurVersement}). Le champ reste modifiable à la main.`}
+              message={t('simulateurProjectionSection.erreurVersement', { erreur: erreurVersement })}
               onReessayer={chargerVersementSuggere}
             />
           </div>
         )}
 
-        <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Durée
-          <SegmentedControl
+        <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.duree')}<SegmentedControl
             options={DUREES.map((d) => ({ valeur: String(d), libelle: `${d} ans` }))}
             valeur={String(duree)}
             onChange={(v) => setDuree(Number(v))}
-            ariaLabel="Durée de la projection"
+            ariaLabel={t('simulateurProjectionSection.dureeDeLaProjection')}
             className="w-fit"
           />
         </div>
 
-        <p className="mt-3 text-xs text-texte-attenue">
-          « Intérêts déjà obtenus » (optionnel) : la part du capital de départ déjà constituée de gains plutôt que de
-          versements — pour un tableau de détail qui distingue les vrais intérêts déjà gagnés des futurs. Préempli avec le
-          gain/perte de ton portefeuille financier, librement modifiable ou effaçable. « Rendement annuel moyen » est de
-          même préempli avec le rendement annualisé réellement observé sur ce portefeuille (même calcul que la carte
-          Rentabilité de l'écran Analyse) plutôt qu'une hypothèse arbitraire de 5 %, tant qu'il est positif et mesurable.
-        </p>
+        <p className="mt-3 text-xs text-texte-attenue">{t('simulateurProjectionSection.interetsDejaObtenusOptionnelLa')}</p>
         {erreurInterets && (
           <div className="mt-2">
             <EtatErreur
-              message={`Le gain/perte et le rendement du portefeuille n'ont pas pu être précalculés (${erreurInterets}). Les champs restent modifiables à la main.`}
+              message={t('simulateurProjectionSection.erreurInterets', { erreur: erreurInterets })}
               onReessayer={chargerPerformance}
             />
           </div>
@@ -549,20 +526,20 @@ export default function SimulateurProjectionSection() {
         {chargementPatrimoine && <SkeletonTexte lignes={1} />}
         {!chargementPatrimoine && erreurPatrimoine && (
           <EtatErreur
-            message={`Le patrimoine net n'a pas pu être préchargé (${erreurPatrimoine}). Le capital de départ reste modifiable à la main ci-dessus.`}
+            message={t('simulateurProjectionSection.erreurPatrimoine', { erreur: erreurPatrimoine })}
             onReessayer={chargerPatrimoineNet}
           />
         )}
         {!chargementPatrimoine && !valide && (
-          <p className="mt-3 text-sm text-negatif">Renseigne des valeurs numériques positives.</p>
+          <p className="mt-3 text-sm text-negatif">{t('simulateurProjectionSection.renseigneDesValeursNumeriquesPositives')}</p>
         )}
 
         {!chargementPatrimoine && valide && (
           <>
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <StatTile label="Valeur finale" value={formatEuro(valeurFinale, 0, montantsMasques)} />
-              <StatTile label="Total versé" value={formatEuro(totalVerse, 0, montantsMasques)} />
-              <StatTile label="Dont intérêts gagnés" value={formatEuro(gains, 0, montantsMasques)} tone="good" />
+              <StatTile label={t('simulateurProjectionSection.valeurFinale')} value={formatEuro(valeurFinale, 0, montantsMasques)} />
+              <StatTile label={t('simulateurProjectionSection.totalVerse')} value={formatEuro(totalVerse, 0, montantsMasques)} />
+              <StatTile label={t('simulateurProjectionSection.dontInteretsGagnes')} value={formatEuro(gains, 0, montantsMasques)} tone="good" />
             </div>
 
             <div className="mt-4">
@@ -581,7 +558,7 @@ export default function SimulateurProjectionSection() {
                 <YAxis hide domain={[0, 'dataMax']} />
                 <Tooltip
                   formatter={(value) => formatEuro(Number(value), 0, montantsMasques)}
-                  labelFormatter={(v) => `Dans ${v} an${Number(v) > 1 ? 's' : ''}`}
+                  labelFormatter={(v) => t('simulateurProjectionSection.dansNAns', { n: Number(v) })}
                   {...STYLE_INFOBULLE}
                 />
                 <Area
@@ -609,16 +586,16 @@ export default function SimulateurProjectionSection() {
             </div>
 
             <div className="mt-6 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Détail par période</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">{t('simulateurProjectionSection.detailParPeriode')}</h3>
               <SegmentedControl
                 options={[
-                  { valeur: 'annuelle', libelle: 'Annuelle' },
-                  { valeur: 'mensuelle', libelle: 'Mensuelle' },
+                  { valeur: 'annuelle', libelle: t('simulateurProjectionSection.annuelle') },
+                  { valeur: 'mensuelle', libelle: t('simulateurProjectionSection.mensuelle') },
                 ]}
                 valeur={vue}
                 onChange={setVue}
                 taille="sm"
-                ariaLabel="Granularité du détail"
+                ariaLabel={t('simulateurProjectionSection.granulariteDuDetail')}
               />
             </div>
 
@@ -626,24 +603,12 @@ export default function SimulateurProjectionSection() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-surface">
                   <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-                    <th scope="col" className="py-2 pl-3 pr-4">
-                      Période
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Versements
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Intérêts
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Capital
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Versé cumulé
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Intérêts à date
-                    </th>
+                    <th scope="col" className="py-2 pl-3 pr-4">{t('simulateurProjectionSection.periode')}</th>
+                    <th scope="col" className="py-2 pr-4 text-right">{t('simulateurProjectionSection.versements')}</th>
+                    <th scope="col" className="py-2 pr-4 text-right">{t('simulateurProjectionSection.interets')}</th>
+                    <th scope="col" className="py-2 pr-4 text-right">{t('simulateurProjectionSection.capital')}</th>
+                    <th scope="col" className="py-2 pr-4 text-right">{t('simulateurProjectionSection.verseCumule')}</th>
+                    <th scope="col" className="py-2 pr-4 text-right">{t('simulateurProjectionSection.interetsADate')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-bordure">
@@ -651,7 +616,7 @@ export default function SimulateurProjectionSection() {
                     ? pointsAnnuels.map((p) => (
                         <tr key={p.annee}>
                           <td className="py-2 pl-3 pr-4 font-medium text-texte">
-                            {p.annee === 0 ? 'Départ' : libelleAnnee(p.annee)}
+                            {p.annee === 0 ? t('simulateurProjectionSection.depart') : libelleAnnee(p.annee)}
                           </td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versements, 2, montantsMasques)}</td>
                           <td className="py-2 pr-4 text-right tabular-nums text-positif">{formatEuro(p.interets, 2, montantsMasques)}</td>
@@ -663,7 +628,7 @@ export default function SimulateurProjectionSection() {
                     : pointsMensuels.map((p) => (
                         <tr key={p.moisIndex}>
                           <td className="py-2 pl-3 pr-4 font-medium text-texte">
-                            {p.annee === 0 ? 'Départ' : libelleMoisAnnee(p.moisIndex)}
+                            {p.annee === 0 ? t('simulateurProjectionSection.depart') : libelleMoisAnnee(p.moisIndex)}
                           </td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versement, 2, montantsMasques)}</td>
                           <td className="py-2 pr-4 text-right tabular-nums text-positif">{formatEuro(p.interets, 2, montantsMasques)}</td>
@@ -679,12 +644,8 @@ export default function SimulateurProjectionSection() {
         )}
       </Card>
 
-      <Card title="Indépendance financière (FIRE)">
-        <p className="mb-4 text-xs text-texte-attenue">
-          Le taux de retrait par défaut (4 %) est un choix méthodologique connu sous le nom de « règle des 4 % » — pas une
-          vérité universelle, à ajuster selon ta propre prudence. Utilise le capital de départ, le rendement et le versement
-          mensuel renseignés ci-dessus.
-        </p>
+      <Card title={t('simulateurProjectionSection.independanceFinanciereFire')}>
+        <p className="mb-4 text-xs text-texte-attenue">{t('simulateurProjectionSection.leTauxDeRetraitPar')}</p>
 
         {/* Aide au chiffrage de la dépense cible (retour utilisateur du 20/09/2026) :
             beaucoup connaissent leur revenu, pas directement leur budget annuel — ce
@@ -693,75 +654,63 @@ export default function SimulateurProjectionSection() {
             qu'au clic explicite sur le bouton, jamais tout seul en tapant, comme les
             autres suggestions de la page (« Revenir au patrimoine net actuel »...). */}
         <div className="mb-4 grid grid-cols-2 gap-4 rounded-card border border-stroke bg-panel p-3 sm:grid-cols-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Revenu annuel (€)
-            <input
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.revenuAnnuel')}<input
               value={revenuAnnuel}
               onChange={(e) => onChangeRevenuAnnuel(e.target.value)}
               type="number"
               step="any"
               min={0}
-              placeholder="ex. 40000"
+              placeholder={t('simulateurProjectionSection.ex40000')}
               className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Revenu mensuel (€)
-            <input
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.revenuMensuel')}<input
               value={revenuMensuel}
               onChange={(e) => onChangeRevenuMensuel(e.target.value)}
               type="number"
               step="any"
               min={0}
-              placeholder="ex. 3333"
+              placeholder={t('simulateurProjectionSection.ex3333')}
               className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Taux d'impôt (%)
-            <input
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.tauxDImpot')}<input
               value={tauxImpot}
               onChange={(e) => setTauxImpot(e.target.value)}
               type="number"
               step="any"
               min={0}
               max={100}
-              placeholder="ex. 20"
+              placeholder={t('simulateurProjectionSection.ex20')}
               className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
 
           {revenuNetEstime !== null && (
             <div className="col-span-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm sm:col-span-3">
-              <span className="text-texte-attenue">Revenu net estimé :</span>
-              <span className="font-semibold text-texte">{formatEuro(revenuNetEstime, 0, montantsMasques)}/an</span>
-              <span className="text-texte-attenue">({formatEuro(revenuNetEstime / 12, 0, montantsMasques)}/mois)</span>
+              <span className="text-texte-attenue">{t('simulateurProjectionSection.revenuNetEstime')}</span>
+              <span className="font-semibold text-texte">{formatEuro(revenuNetEstime, 0, montantsMasques)}{t('simulateurProjectionSection.an')}</span>
+              <span className="text-texte-attenue">({formatEuro(revenuNetEstime / 12, 0, montantsMasques)}{t('simulateurProjectionSection.mois')}</span>
               <button
                 type="button"
                 onClick={() => setDepenseCible(String(Math.round(revenuNetEstime)))}
                 className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
-              >
-                Utiliser comme dépense annuelle cible
-              </button>
+              >{t('simulateurProjectionSection.utiliserCommeDepenseAnnuelleCible')}</button>
             </div>
           )}
         </div>
 
         <div className="flex flex-wrap items-end gap-4">
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Dépense annuelle cible (€)
-            <input
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.depenseAnnuelleCible')}<input
               value={depenseCible}
               onChange={(e) => setDepenseCible(e.target.value)}
               type="number"
               step="any"
-              placeholder="ex. 30000"
+              placeholder={t('simulateurProjectionSection.ex30000')}
               className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Taux de retrait (%)
-            <input
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.tauxDeRetrait')}<input
               value={tauxRetrait}
               onChange={(e) => setTauxRetrait(e.target.value)}
               type="number"
@@ -771,7 +720,7 @@ export default function SimulateurProjectionSection() {
           </label>
         </div>
 
-        {!depenseCible && <p className="mt-4 text-sm text-texte-attenue">Renseigne une dépense annuelle cible pour voir le résultat.</p>}
+        {!depenseCible && <p className="mt-4 text-sm text-texte-attenue">{t('simulateurProjectionSection.renseigneUneDepenseAnnuelleCible')}</p>}
 
         {/* Backlog § AG.6 : la phrase en langage humain, AVANT le détail chiffré —
             le tableau/StatTile en dessous répond à « et si je change vraiment mes
@@ -793,9 +742,9 @@ export default function SimulateurProjectionSection() {
             est faite sur l'indépendance financière — le clin d'œil est volontaire. */}
         {fire && depenseCible && (
           <div className="lumen-horizon-fire relative mt-4 overflow-hidden rounded-panel border border-bordure px-5 py-5">
-            <span className="text-[13px] font-medium text-ink3">Indépendance financière atteinte en</span>
+            <span className="text-[13px] font-medium text-ink3">{t('simulateurProjectionSection.independanceFinanciereAtteinteEn')}</span>
             {fire.moisAvantIndependance === null ? (
-              <p className="mt-2 text-[40px] font-semibold leading-none tracking-hero text-avertissement">jamais d'ici 60 ans</p>
+              <p className="mt-2 text-[40px] font-semibold leading-none tracking-hero text-avertissement">{t('simulateurProjectionSection.jamaisDIci60Ans')}</p>
             ) : (
               <div key={fire.moisAvantIndependance} className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <IconSoleil className="h-9 w-9 shrink-0 text-accent animate-lumen-lever-soleil" />
@@ -803,7 +752,7 @@ export default function SimulateurProjectionSection() {
                   {anneeCalendairePlusMois(fire.moisAvantIndependance)}
                 </span>
                 <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[13px] font-semibold text-accent">
-                  {fire.moisAvantIndependance === 0 ? 'déjà atteinte' : `dans ${formatDureeFire(fire.moisAvantIndependance)}`}
+                  {fire.moisAvantIndependance === 0 ? t('simulateurProjectionSection.dejaAtteinte') : `dans ${formatDureeFire(fire.moisAvantIndependance)}`}
                 </span>
               </div>
             )}
@@ -812,9 +761,9 @@ export default function SimulateurProjectionSection() {
 
         {fire && depenseCible && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <StatTile label="Patrimoine nécessaire" value={formatEuro(fire.patrimoineNecessaire, 0, montantsMasques)} />
+            <StatTile label={t('simulateurProjectionSection.patrimoineNecessaire')} value={formatEuro(fire.patrimoineNecessaire, 0, montantsMasques)} />
             <StatTile
-              label="Indépendance financière"
+              label={t('simulateurProjectionSection.independanceFinanciere')}
               value={
                 fire.moisAvantIndependance === null
                   ? 'Non atteinte (60 ans)'

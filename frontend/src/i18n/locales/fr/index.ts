@@ -65,6 +65,7 @@ import revenusSection from './revenusSection'
 import scorePatrimonialCard from './scorePatrimonialCard'
 import selecteurEtablissement from './selecteurEtablissement'
 import simulateurAchatLocationCard from './simulateurAchatLocationCard'
+import simulateurProjectionSection from './simulateurProjectionSection'
 import skeleton from './skeleton'
 import valorisationHistoriqueCard from './valorisationHistoriqueCard'
 
@@ -135,6 +136,7 @@ const espaces = {
   scorePatrimonialCard,
   selecteurEtablissement,
   simulateurAchatLocationCard,
+  simulateurProjectionSection,
   skeleton,
   valorisationHistoriqueCard,
 } as const
