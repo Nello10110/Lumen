@@ -1,0 +1,38 @@
+/** Textes français — espace « rapportPage » (backlog § BL.2). Généré par
+ * `scripts/i18n-extraire.mjs`, puis relu à la main. */
+const rapportPage = {
+  debutDePeriode: "Début de période",
+  investiParVous: "Investi par vous",
+  genereSeul: "Généré seul",
+  finDePeriode: "Fin de période",
+  rapport: "Rapport",
+  periode: "Période",
+  au: "au",
+  laDateDeFinDoit: "La date de fin doit être postérieure ou égale à la date de début.",
+  aucuneDonneeDisponiblePourCette: "Aucune donnée disponible pour cette période (aucune transaction, portefeuille pas encore constitué à cette date).",
+  valeurEnFinDePeriode: "Valeur en fin de période",
+  evolutionSurLaPeriode: "Évolution sur la période",
+  dividendesPercus: "Dividendes perçus",
+  dOuVientLEvolution: "D'où vient l'évolution ?",
+  investiCeQueVousAvez: "« Investi » : ce que vous avez vous-même ajouté (achats réels) sur la période. « Généré » : plus-value, dividendes et intérêts — ce que le portefeuille a produit de lui-même, distinct de l'argent ajouté.",
+  plusGrosMouvementsDeLa: "Plus gros mouvements de la période",
+  aucunMouvementSurCettePeriode: "Aucun mouvement sur cette période.",
+  epargne: "Épargne",
+  epargneEnFinDePeriode: "Épargne en fin de période",
+  livretsPeePercoAssuranceVie: "livrets, PEE/PERCO, assurance-vie, PER, comptes courants",
+  evolutionDeLEpargne: "Évolution de l'épargne",
+  dOuVientLEvolution2: "D'où vient l'évolution de l'épargne ? (estimation)",
+  dOuVientLEvolution3: "D'où vient l'évolution de l'épargne ?",
+  versementsEstimes: "Versements estimés",
+  versementsDeclares: "Versements déclarés",
+  interetsEstimesLivrets: "Intérêts estimés (livrets)",
+  interetsResidu: "Intérêts (résidu)",
+  contrairementAuPortefeuilleFinancierL: "Contrairement au portefeuille financier, l'épargne n'a pas de grand livre de versements : « Intérêts estimés » applique le taux déclaré de chaque livret, proratisé sur la période ; « Versements estimés » est le reste de l'évolution — une estimation, jamais un montant mesuré. Précisez « dont versement » en ajoutant une valorisation pour remplacer cette estimation par une donnée réelle.",
+  versementsDeclaresEstLaSomme: "« Versements déclarés » est la somme des montants que vous avez précisés (« dont versement ») sur les points de valorisation de la période — une donnée réelle. « Intérêts » est le reste de l'évolution : si un versement de la période n'a pas été précisé, il serait alors compté ici par erreur.",
+  repartitionDeLEpargnePar: "Répartition de l'épargne par type",
+  modeMensuel: "Mensuel",
+  modeAnnuel: "Annuel",
+  modePersonnalise: "Personnalisé",
+} as const
+
+export default rapportPage

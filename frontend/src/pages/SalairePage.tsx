@@ -11,6 +11,7 @@ import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { estimerBrutNet } from '../utils/salaire'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 const ANNEE_COURANTE = new Date().getFullYear()
 
@@ -128,13 +129,13 @@ export default function SalairePage() {
   function enregistrer() {
     const montantNum = Number(formulaire.montant.replace(',', '.'))
     if (!montantNum || montantNum <= 0) {
-      setErreurSauvegarde('Le montant doit être strictement positif.')
+      setErreurSauvegarde(t('salairePage.leMontantDoitEtreStrictement'))
       return
     }
     const tauxTexte = formulaire.tauxImposition.trim()
     const taux = tauxTexte === '' ? null : Number(tauxTexte.replace(',', '.'))
     if (taux !== null && (Number.isNaN(taux) || taux < 0 || taux > 100)) {
-      setErreurSauvegarde("Le taux d'imposition doit être compris entre 0 et 100.")
+      setErreurSauvegarde(t('salairePage.leTauxDImpositionDoit'))
       return
     }
 
@@ -170,7 +171,7 @@ export default function SalairePage() {
   return (
     <div className="space-y-[14px]">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Salaire</h1>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('salairePage.salaire')}</h1>
         <select
           value={annee}
           onChange={(e) => setAnnee(Number(e.target.value))}
@@ -188,16 +189,14 @@ export default function SalairePage() {
         title={`Salaires — ${annee}`}
         headerActions={
           !formulaireOuvert && (
-            <button type="button" onClick={ouvrirAjout} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white">
-              + Ajouter un salaire
-            </button>
+            <button type="button" onClick={ouvrirAjout} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white">{t('salairePage.ajouterUnSalaire')}</button>
           )
         }
       >
         {entreesAnnee.length === 0 && !formulaireOuvert && (
           <EtatVide
-            titre="Aucun salaire enregistré pour cette année."
-            description="Ajoute un salaire (un par revenu, ex. un par conjoint) avec le bouton ci-dessus."
+            titre={t('salairePage.aucunSalaireEnregistrePourCette')}
+            description={t('salairePage.ajouteUnSalaireUnPar')}
           />
         )}
 
@@ -212,30 +211,26 @@ export default function SalairePage() {
                       {entree.detenteur_nom && <span className="ml-2 text-xs font-normal text-texte-attenue">({entree.detenteur_nom})</span>}
                     </p>
                     <p className="text-xs text-texte-attenue">
-                      {entree.statut === 'cadre' ? 'Cadre' : 'Non-cadre'} · {entree.nombre_mois} versements/an ·{' '}
-                      {entree.taux_imposition_pct === null ? "taux d'imposition non renseigné" : `taux d'imposition ${entree.taux_imposition_pct} %`}
+                      {entree.statut === 'cadre' ? t('salairePage.cadre') : t('salairePage.nonCadre')} · {entree.nombre_mois}{' '}{t('salairePage.versementsAn')}{' '}
+                      {entree.taux_imposition_pct === null ? t('salairePage.tauxDImpositionNonRenseigne') : t('salairePage.tauxImposition', { taux: entree.taux_imposition_pct })}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <button type="button" onClick={() => ouvrirEdition(entree)} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-accent hover:underline">
-                      Modifier
-                    </button>
-                    <button type="button" onClick={() => supprimer(entree)} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-negatif hover:underline">
-                      Supprimer
-                    </button>
+                    <button type="button" onClick={() => ouvrirEdition(entree)} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-accent hover:underline">{t('salairePage.modifier')}</button>
+                    <button type="button" onClick={() => supprimer(entree)} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-negatif hover:underline">{t('salairePage.supprimer')}</button>
                   </div>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
                   <div>
-                    <p className="text-xs text-texte-attenue">Brut annuel</p>
+                    <p className="text-xs text-texte-attenue">{t('salairePage.brutAnnuel')}</p>
                     <p className="font-medium text-texte">{formatEuro(entree.brut_annuel, 0, montantsMasques)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-texte-attenue">Net avant impôt</p>
+                    <p className="text-xs text-texte-attenue">{t('salairePage.netAvantImpot')}</p>
                     <p className="font-medium text-texte">{formatEuro(entree.net_avant_impot_annuel, 0, montantsMasques)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-texte-attenue">Net après impôt</p>
+                    <p className="text-xs text-texte-attenue">{t('salairePage.netApresImpot')}</p>
                     <p className="font-medium text-texte">{formatEuro(entree.net_apres_impot_annuel, 0, montantsMasques)}</p>
                   </div>
                 </div>
@@ -246,30 +241,23 @@ export default function SalairePage() {
 
         {formulaireOuvert && (
           <div className={`rounded-card border border-bordure p-4 ${entreesAnnee.length > 0 ? 'mt-3' : ''}`}>
-            <p className="mb-3 text-sm font-medium text-texte">{entreeEnEdition ? 'Modifier ce salaire' : 'Nouveau salaire'}</p>
-            <p className="mb-4 text-sm text-texte-attenue">
-              Conversion brut/net approximative (cotisations salariales forfaitaires selon le statut) — pas un bulletin
-              de paie certifié.
-            </p>
+            <p className="mb-3 text-sm font-medium text-texte">{entreeEnEdition ? t('salairePage.modifierCeSalaire') : t('salairePage.nouveauSalaire')}</p>
+            <p className="mb-4 text-sm text-texte-attenue">{t('salairePage.conversionBrutNetApproximativeCotisations')}</p>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">
-                  Nom (optionnel)
-                </span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('salairePage.nomOptionnel')}</span>
                 <input
                   type="text"
                   value={formulaire.nom}
                   onChange={(e) => setFormulaire({ ...formulaire, nom: e.target.value })}
-                  placeholder="ex. Salaire de Paul"
+                  placeholder={t('salairePage.exSalaireDePaul')}
                   className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
 
               <div className="block">
-                <label htmlFor="salaire-detenteur" className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">
-                  Personne du foyer (optionnel)
-                </label>
+                <label htmlFor="salaire-detenteur" className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('salairePage.personneDuFoyerOptionnel')}</label>
                 <div className="flex gap-2">
                   <select
                     id="salaire-detenteur"
@@ -277,7 +265,7 @@ export default function SalairePage() {
                     onChange={(e) => setFormulaire({ ...formulaire, detenteurId: e.target.value ? Number(e.target.value) : null })}
                     className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                   >
-                    <option value="">— Non associé —</option>
+                    <option value="">{t('salairePage.nonAssocie')}</option>
                     {detenteurs.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.nom}
@@ -288,14 +276,12 @@ export default function SalairePage() {
                     type="button"
                     onClick={() => setPopupNouveauDetenteurOuverte(true)}
                     className="shrink-0 rounded-control border border-bordure px-3 py-2 text-sm text-texte-attenue hover:text-texte"
-                  >
-                    + Nouvelle personne
-                  </button>
+                  >{t('salairePage.nouvellePersonne')}</button>
                 </div>
               </div>
 
               <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">Année</span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('salairePage.annee')}</span>
                 <input
                   type="number"
                   value={formulaire.annee}
@@ -305,21 +291,19 @@ export default function SalairePage() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">Montant</span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('salairePage.montant')}</span>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={formulaire.montant}
                   onChange={(e) => setFormulaire({ ...formulaire, montant: e.target.value })}
-                  placeholder="ex. 2500"
+                  placeholder={t('salairePage.ex2500')}
                   className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">
-                  Nombre de versements par an
-                </span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('salairePage.nombreDeVersementsParAn')}</span>
                 <input
                   type="number"
                   min={1}
@@ -331,15 +315,13 @@ export default function SalairePage() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">
-                  Taux d'imposition de cette entrée (optionnel)
-                </span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('salairePage.tauxDImpositionDeCette')}</span>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={formulaire.tauxImposition}
                   onChange={(e) => setFormulaire({ ...formulaire, tauxImposition: e.target.value })}
-                  placeholder="ex. 11"
+                  placeholder={t('salairePage.ex11')}
                   className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
@@ -351,41 +333,39 @@ export default function SalairePage() {
             <div className="mt-4 flex flex-wrap gap-4">
               <SegmentedControl
                 options={[
-                  { valeur: 'brut', libelle: 'Brut' },
-                  { valeur: 'net', libelle: 'Net' },
+                  { valeur: 'brut', libelle: t('salairePage.brut') },
+                  { valeur: 'net', libelle: t('salairePage.net') },
                 ]}
                 valeur={formulaire.typeMontant}
                 onChange={(v) => setFormulaire({ ...formulaire, typeMontant: v })}
-                ariaLabel="Type de montant"
+                ariaLabel={t('salairePage.typeDeMontant')}
               />
 
               <SegmentedControl
                 options={[
-                  { valeur: 'mensuel', libelle: 'Mensuel' },
-                  { valeur: 'annuel', libelle: 'Annuel' },
+                  { valeur: 'mensuel', libelle: t('salairePage.mensuel') },
+                  { valeur: 'annuel', libelle: t('salairePage.annuel') },
                 ]}
                 valeur={formulaire.periodicite}
                 onChange={(v) => setFormulaire({ ...formulaire, periodicite: v })}
-                ariaLabel="Périodicité"
+                ariaLabel={t('salairePage.periodicite')}
               />
 
               <SegmentedControl
                 options={[
-                  { valeur: 'cadre', libelle: 'Cadre' },
-                  { valeur: 'non_cadre', libelle: 'Non-cadre' },
+                  { valeur: 'cadre', libelle: t('salairePage.cadre') },
+                  { valeur: 'non_cadre', libelle: t('salairePage.nonCadre') },
                 ]}
                 valeur={formulaire.statut}
                 onChange={(v) => setFormulaire({ ...formulaire, statut: v })}
-                ariaLabel="Statut"
+                ariaLabel={t('salairePage.statut')}
               />
             </div>
 
             {apercu && (
-              <p className="mt-4 text-sm text-texte-attenue">
-                Aperçu : {formatEuro(apercu.brutAnnuel, 0, montantsMasques)} brut/an ·{' '}
-                {formatEuro(apercu.netAvantImpotAnnuel, 0, montantsMasques)} net avant impôt/an
-                {apercu.netApresImpotAnnuel !== null && (
-                  <> · {formatEuro(apercu.netApresImpotAnnuel, 0, montantsMasques)} net après impôt/an</>
+              <p className="mt-4 text-sm text-texte-attenue">{t('salairePage.apercu')}{' '}{formatEuro(apercu.brutAnnuel, 0, montantsMasques)}{' '}{t('salairePage.brutAn')}{' '}
+                {formatEuro(apercu.netAvantImpotAnnuel, 0, montantsMasques)}{' '}{t('salairePage.netAvantImpotAn')}{apercu.netApresImpotAnnuel !== null && (
+                  <> · {formatEuro(apercu.netApresImpotAnnuel, 0, montantsMasques)}{' '}{t('salairePage.netApresImpotAn')}</>
                 )}
               </p>
             )}
@@ -397,26 +377,24 @@ export default function SalairePage() {
                 disabled={sauvegarde}
                 className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
-                {sauvegarde ? 'Enregistrement…' : entreeEnEdition ? 'Enregistrer les modifications' : 'Ajouter ce salaire'}
+                {sauvegarde ? t('salairePage.enregistrement') : entreeEnEdition ? t('salairePage.enregistrerLesModifications') : t('salairePage.ajouterCeSalaire')}
               </button>
               <button
                 type="button"
                 onClick={() => setFormulaireOuvert(false)}
                 className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:text-texte"
-              >
-                Annuler
-              </button>
+              >{t('salairePage.annuler')}</button>
             </div>
             {erreurSauvegarde && <EtatErreur message={erreurSauvegarde} />}
           </div>
         )}
       </Card>
 
-      <Card title="Taux d'épargne du foyer">
+      <Card title={t('salairePage.tauxDEpargneDuFoyer')}>
         {donnees.syntheses.length === 0 ? (
           <EtatVide
-            titre="Aucun salaire enregistré pour l'instant."
-            description="Ajoute au moins un salaire ci-dessus pour voir apparaître le taux d'épargne du foyer."
+            titre={t('salairePage.aucunSalaireEnregistrePourL')}
+            description={t('salairePage.ajouteAuMoinsUnSalaire')}
           />
         ) : (
           <div className="space-y-4">
@@ -425,15 +403,11 @@ export default function SalairePage() {
                 <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{annee}</p>
                 <p className="mt-1 text-3xl font-semibold text-texte">{formatPctPositif(syntheseAnnee.taux_epargne_pct)}</p>
                 <p className="mt-1 text-xs text-texte-attenue">
-                  {formatEuro(syntheseAnnee.montant_investi_annee, 0, montantsMasques)} investis en achats réels sur
-                  l'année, rapportés au revenu net total du foyer ({syntheseAnnee.nombre_salaires} salaire
-                  {syntheseAnnee.nombre_salaires > 1 ? 's' : ''}
-                  {!syntheseAnnee.toutes_les_entrees_ont_un_taux_imposition && ", au moins un sans taux d'imposition renseigné (net avant impôt utilisé pour celui-ci)"}
-                  ). Distinct du rendement du portefeuille (performance de marché sur ce qui est déjà investi).
-                </p>
+                  {formatEuro(syntheseAnnee.montant_investi_annee, 0, montantsMasques)}{' '}{t('salairePage.investisEnAchatsReelsSur')}{t('salairePage.nSalaires', { n: syntheseAnnee.nombre_salaires })}
+                  {!syntheseAnnee.toutes_les_entrees_ont_un_taux_imposition && t('salairePage.auMoinsUnSansTaux')}{t('salairePage.distinctDuRendementDuPortefeuille')}</p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <StatTile label="Revenu net total" value={formatEuro(syntheseAnnee.net_total_annuel, 0, montantsMasques)} />
-                  <StatTile label="Investi cette année" value={formatEuro(syntheseAnnee.montant_investi_annee, 0, montantsMasques)} />
+                  <StatTile label={t('salairePage.revenuNetTotal')} value={formatEuro(syntheseAnnee.net_total_annuel, 0, montantsMasques)} />
+                  <StatTile label={t('salairePage.investiCetteAnnee')} value={formatEuro(syntheseAnnee.montant_investi_annee, 0, montantsMasques)} />
                 </div>
 
                 {/* Détail par compte (demande directe du 16/09/2026) — même source
@@ -442,14 +416,12 @@ export default function SalairePage() {
                     année, plutôt qu'un tableau vide. */}
                 {syntheseAnnee.investissement_par_compte.length > 0 && (
                   <div className="mt-4">
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-texte-attenue">
-                      Détail par compte
-                    </p>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('salairePage.detailParCompte')}</p>
                     <table className="w-full text-sm">
                       <tbody>
                         {syntheseAnnee.investissement_par_compte.map((ligne) => (
                           <tr key={ligne.compte_id ?? 'sans-compte'} className="border-b border-bordure last:border-0">
-                            <td className="py-1.5 text-texte-attenue">{ligne.compte_nom ?? 'Sans compte'}</td>
+                            <td className="py-1.5 text-texte-attenue">{ligne.compte_nom ?? t('salairePage.sansCompte')}</td>
                             <td className="py-1.5 text-right font-medium text-texte">
                               {formatEuro(ligne.montant, 0, montantsMasques)}
                             </td>
@@ -463,8 +435,7 @@ export default function SalairePage() {
             )}
 
             {moyenneTauxEpargne !== null && (
-              <p className="text-sm text-texte-attenue">
-                Moyenne sur {valeursTauxEpargne.length} année(s) : <span className="font-medium text-texte">{formatPctPositif(moyenneTauxEpargne)}</span>
+              <p className="text-sm text-texte-attenue">{t('salairePage.moyenneSur')}{' '}{valeursTauxEpargne.length}{' '}{t('salairePage.anneeS')}{' '}<span className="font-medium text-texte">{formatPctPositif(moyenneTauxEpargne)}</span>
               </p>
             )}
 
@@ -475,7 +446,7 @@ export default function SalairePage() {
                   .map((s) => (
                     <tr key={s.annee} className="border-b border-bordure last:border-0">
                       <td className="py-2 text-texte-attenue">
-                        {s.annee} <span className="text-xs">({s.nombre_salaires} salaire{s.nombre_salaires > 1 ? 's' : ''})</span>
+                        {s.annee} <span className="text-xs">({t('salairePage.nSalaires', { n: s.nombre_salaires })})</span>
                       </td>
                       <td className="py-2 text-right font-medium text-texte">{formatPctPositif(s.taux_epargne_pct)}</td>
                     </tr>

@@ -233,7 +233,7 @@ describe('BudgetPage — catégories et règles (backlog 2.N.1)', () => {
     await screen.findByPlaceholderText('Nouvelle catégorie')
     fireEvent.click(screen.getByRole('button', { name: 'Réappliquer les règles en masse' }))
 
-    await screen.findByText('3 mouvement(s) recatégorisé(s).')
+    await screen.findByText('3 mouvements recatégorisés.')
   })
 
   it('supprimer une catégorie appelle deleteCategorieBudget', async () => {

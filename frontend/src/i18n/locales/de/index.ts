@@ -6,7 +6,9 @@ import alerteFraicheurCard from './alerteFraicheurCard'
 import allocationBarChart from './allocationBarChart'
 import allocationChartCard from './allocationChartCard'
 import analysePage from './analysePage'
+import budgetPage from './budgetPage'
 import catalogueEtablissementPicker from './catalogueEtablissementPicker'
+import categoriesEtReglesSection from './categoriesEtReglesSection'
 import celebrationJalon from './celebrationJalon'
 import champDecomposition from './champDecomposition'
 import chargementCourbeLumen from './chargementCourbeLumen'
@@ -46,6 +48,7 @@ import loansCard from './loansCard'
 import lumenFaitAmusant from './lumenFaitAmusant'
 import metriquesAvanceesCard from './metriquesAvanceesCard'
 import miseAJourDisponible from './miseAJourDisponible'
+import mouvementsSection from './mouvementsSection'
 import pageIntrouvablePage from './pageIntrouvablePage'
 import paletteRecherche from './paletteRecherche'
 import patrimoineNetCard from './patrimoineNetCard'
@@ -59,9 +62,12 @@ import portfolioHistoryChart from './portfolioHistoryChart'
 import positionsTable from './positionsTable'
 import qualiteDonneesCard from './qualiteDonneesCard'
 import rafraichissementCoursIndicateur from './rafraichissementCoursIndicateur'
+import rapportPage from './rapportPage'
+import recurrencesSection from './recurrencesSection'
 import repartitionSection from './repartitionSection'
 import revenusPassifsCard from './revenusPassifsCard'
 import revenusSection from './revenusSection'
+import salairePage from './salairePage'
 import scorePatrimonialCard from './scorePatrimonialCard'
 import selecteurEtablissement from './selecteurEtablissement'
 import simulateurAchatLocationCard from './simulateurAchatLocationCard'
@@ -77,7 +83,9 @@ const espaces = {
   allocationBarChart,
   allocationChartCard,
   analysePage,
+  budgetPage,
   catalogueEtablissementPicker,
+  categoriesEtReglesSection,
   celebrationJalon,
   champDecomposition,
   chargementCourbeLumen,
@@ -117,6 +125,7 @@ const espaces = {
   lumenFaitAmusant,
   metriquesAvanceesCard,
   miseAJourDisponible,
+  mouvementsSection,
   pageIntrouvablePage,
   paletteRecherche,
   patrimoineNetCard,
@@ -130,9 +139,12 @@ const espaces = {
   positionsTable,
   qualiteDonneesCard,
   rafraichissementCoursIndicateur,
+  rapportPage,
+  recurrencesSection,
   repartitionSection,
   revenusPassifsCard,
   revenusSection,
+  salairePage,
   scorePatrimonialCard,
   selecteurEtablissement,
   simulateurAchatLocationCard,

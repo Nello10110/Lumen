@@ -5,6 +5,7 @@ import Card from './Card'
 import EtatVide from './EtatVide'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Filtres catégorie/compte (backlog 2.N.2) — appliqués côté client sur la liste
  * déjà chargée pour la période : le volume d'un budget personnel reste modeste, et
@@ -41,8 +42,8 @@ export default function MouvementsSection({
         onChange={(e) => setFiltreCategorieId(e.target.value === 'TOUTES' || e.target.value === 'NON_CATEGORISE' ? e.target.value : Number(e.target.value))}
         className="rounded-control border border-bordure bg-surface px-2 py-1 text-xs text-texte"
       >
-        <option value="TOUTES">Toutes catégories</option>
-        <option value="NON_CATEGORISE">Non catégorisé</option>
+        <option value="TOUTES">{t('mouvementsSection.toutesCategories')}</option>
+        <option value="NON_CATEGORISE">{t('mouvementsSection.nonCategorise')}</option>
         {categories.map((c) => (
           <option key={c.id} value={c.id}>
             {c.parent_id !== null ? '↳ ' : ''}
@@ -56,7 +57,7 @@ export default function MouvementsSection({
           onChange={(e) => setFiltreCompte(e.target.value)}
           className="rounded-control border border-bordure bg-surface px-2 py-1 text-xs text-texte"
         >
-          <option value="TOUS">Tous les comptes</option>
+          <option value="TOUS">{t('mouvementsSection.tousLesComptes')}</option>
           {comptesDisponibles.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -69,25 +70,25 @@ export default function MouvementsSection({
 
   if (mouvementsPeriode.length === 0) {
     return (
-      <Card title="Mouvements">
-        <EtatVide titre="Aucun mouvement sur cette période." description="Importe un relevé bancaire depuis l'écran Import." />
+      <Card title={t('mouvementsSection.mouvements')}>
+        <EtatVide titre={t('mouvementsSection.aucunMouvementSurCettePeriode')} description={t('mouvementsSection.importeUnReleveBancaireDepuis')} />
       </Card>
     )
   }
 
   return (
-    <Card title="Mouvements" headerActions={filtres}>
+    <Card title={t('mouvementsSection.mouvements')} headerActions={filtres}>
       {mouvements.length === 0 ? (
-        <EtatVide titre="Aucun mouvement ne correspond à ce filtre." />
+        <EtatVide titre={t('mouvementsSection.aucunMouvementNeCorrespondA')} />
       ) : (
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-                <th className="py-2 pr-4">Date</th>
-                <th className="py-2 pr-4">Libellé</th>
-                <th className="py-2 pr-4 text-right">Montant</th>
-                <th className="py-2 pr-4">Catégorie</th>
+                <th className="py-2 pr-4">{t('mouvementsSection.date')}</th>
+                <th className="py-2 pr-4">{t('mouvementsSection.libelle')}</th>
+                <th className="py-2 pr-4 text-right">{t('mouvementsSection.montant')}</th>
+                <th className="py-2 pr-4">{t('mouvementsSection.categorie')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-bordure">
@@ -104,7 +105,7 @@ export default function MouvementsSection({
                       onChange={(e) => api.categoriserMouvement(m.id, e.target.value ? Number(e.target.value) : null).then(onCategorized)}
                       className="rounded-control border border-bordure bg-surface px-2 py-1 text-xs text-texte"
                     >
-                      <option value="">Non catégorisé</option>
+                      <option value="">{t('mouvementsSection.nonCategorise')}</option>
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.parent_id !== null ? '↳ ' : ''}

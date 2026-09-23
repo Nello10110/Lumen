@@ -11,14 +11,14 @@ import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { dateVersISO, formatDate, formatEuro, formatPct } from '../utils/format'
 import { bornesPeriode } from '../utils/periode'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 type Mode = 'mensuel' | 'annuel' | 'personnalise'
 
 const MODES: { value: Mode; label: string }[] = [
-  { value: 'mensuel', label: 'Mensuel' },
-  { value: 'annuel', label: 'Annuel' },
-  { value: 'personnalise', label: 'Personnalisé' },
+  { value: 'mensuel', get label() { return t('rapportPage.modeMensuel') } },
+  { value: 'annuel', get label() { return t('rapportPage.modeAnnuel') } },
+  { value: 'personnalise', get label() { return t('rapportPage.modePersonnalise') } },
 ]
 
 function aujourdhuiISO(): string {
@@ -100,10 +100,10 @@ export default function RapportPage() {
   // mises chacune à 100 % de leur propre valeur ne compareraient plus rien.
   const montantsColonnes = rapport
     ? [
-        { libelle: 'Début de période', montant: rapport.valeur_debut_periode, classe: 'bg-s3' },
-        { libelle: 'Investi par vous', montant: rapport.montant_investi_periode, classe: 'bg-s2' },
-        { libelle: 'Généré seul', montant: rapport.gain_genere_periode, classe: 'bg-pos' },
-        { libelle: 'Fin de période', montant: rapport.valeur_fin_periode, classe: 'bg-s1' },
+        { libelle: t('rapportPage.debutDePeriode'), montant: rapport.valeur_debut_periode, classe: 'bg-s3' },
+        { libelle: t('rapportPage.investiParVous'), montant: rapport.montant_investi_periode, classe: 'bg-s2' },
+        { libelle: t('rapportPage.genereSeul'), montant: rapport.gain_genere_periode, classe: 'bg-pos' },
+        { libelle: t('rapportPage.finDePeriode'), montant: rapport.valeur_fin_periode, classe: 'bg-s1' },
       ]
     : []
   const plusGrandMontant = Math.max(1, ...montantsColonnes.map((c) => Math.max(0, c.montant ?? 0)))
@@ -119,7 +119,7 @@ export default function RapportPage() {
     <div className="space-y-[14px]">
       <div className="flex flex-wrap items-center justify-end md:justify-between gap-3">
         <div className="hidden md:block">
-          <h1 className="text-[28px] font-semibold tracking-title text-ink">Rapport</h1>
+          <h1 className="text-[28px] font-semibold tracking-title text-ink">{t('rapportPage.rapport')}</h1>
           <p className="mt-0.5 text-[13px] text-ink3">{libellePeriode}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -127,7 +127,7 @@ export default function RapportPage() {
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
             valeur={mode}
             onChange={setMode}
-            ariaLabel="Période"
+            ariaLabel={t('rapportPage.periode')}
           />
 
           {mode === 'mensuel' && (
@@ -158,7 +158,7 @@ export default function RapportPage() {
                 onChange={(e) => setDateDebutPerso(e.target.value)}
                 className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
-              <span className="text-sm text-texte-attenue">au</span>
+              <span className="text-sm text-texte-attenue">{t('rapportPage.au')}</span>
               <input
                 type="date"
                 value={dateFinPerso}
@@ -171,7 +171,7 @@ export default function RapportPage() {
         </div>
       </div>
 
-      {periodeInvalide && <EtatErreur message="La date de fin doit être postérieure ou égale à la date de début." />}
+      {periodeInvalide && <EtatErreur message={t('rapportPage.laDateDeFinDoit')} />}
       {!periodeInvalide && loading && <SkeletonTexte lignes={4} />}
       {!periodeInvalide && error && <EtatErreur message={error} onReessayer={chargerRapport} />}
 
@@ -180,17 +180,17 @@ export default function RapportPage() {
 
           {rapport.nombre_transactions === 0 && rapport.valeur_debut_periode === null ? (
             <Card>
-              <EtatVide titre="Aucune donnée disponible pour cette période (aucune transaction, portefeuille pas encore constitué à cette date)." />
+              <EtatVide titre={t('rapportPage.aucuneDonneeDisponiblePourCette')} />
             </Card>
           ) : (
             <>
               <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-3">
-                <Card title="Valeur en fin de période">
+                <Card title={t('rapportPage.valeurEnFinDePeriode')}>
                   <p className="text-2xl font-semibold text-texte">
                     {rapport.valeur_fin_periode !== null ? formatEuro(rapport.valeur_fin_periode, 0, montantsMasques) : '—'}
                   </p>
                 </Card>
-                <Card title="Évolution sur la période">
+                <Card title={t('rapportPage.evolutionSurLaPeriode')}>
                   <p
                     className={`text-2xl font-semibold ${
                       rapport.evolution_pct === null ? 'text-texte' : rapport.evolution_pct >= 0 ? 'text-positif' : 'text-negatif'
@@ -199,12 +199,12 @@ export default function RapportPage() {
                     {formatPct(rapport.evolution_pct)}
                   </p>
                 </Card>
-                <Card title="Dividendes perçus">
+                <Card title={t('rapportPage.dividendesPercus')}>
                   <p className="text-2xl font-semibold text-ink">{formatEuro(rapport.dividendes_percus, 2, montantsMasques)}</p>
                 </Card>
               </div>
 
-              <Card title="D'où vient l'évolution ?">
+              <Card title={t('rapportPage.dOuVientLEvolution')}>
                 {/* Quatre colonnes en escalier (maquette de la refonte) : début de
                     période, ce que VOUS avez ajouté, ce que le portefeuille a généré
                     seul, valeur finale. Les hauteurs sont proportionnelles aux
@@ -238,15 +238,12 @@ export default function RapportPage() {
                     </span>
                   ))}
                 </div>
-                <p className="mt-3 text-sm text-texte-attenue">
-                  « Investi » : ce que vous avez vous-même ajouté (achats réels) sur la période. « Généré » : plus-value,
-                  dividendes et intérêts — ce que le portefeuille a produit de lui-même, distinct de l'argent ajouté.
-                </p>
+                <p className="mt-3 text-sm text-texte-attenue">{t('rapportPage.investiCeQueVousAvez')}</p>
               </Card>
 
-              <Card title="Plus gros mouvements de la période">
+              <Card title={t('rapportPage.plusGrosMouvementsDeLa')}>
                 {rapport.plus_gros_mouvements.length === 0 ? (
-                  <EtatVide titre="Aucun mouvement sur cette période." />
+                  <EtatVide titre={t('rapportPage.aucunMouvementSurCettePeriode')} />
                 ) : (
                   <ul className="divide-y divide-bordure">
                     {rapport.plus_gros_mouvements.map((m, i) => (
@@ -265,18 +262,16 @@ export default function RapportPage() {
 
               {rapport.epargne.a_des_donnees && (
                 <>
-                  <h3 className="pt-2 text-sm font-semibold uppercase tracking-wide text-texte-attenue">Épargne</h3>
+                  <h3 className="pt-2 text-sm font-semibold uppercase tracking-wide text-texte-attenue">{t('rapportPage.epargne')}</h3>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Card title="Épargne en fin de période">
+                    <Card title={t('rapportPage.epargneEnFinDePeriode')}>
                       <p className="text-2xl font-semibold text-texte">
                         {formatEuro(rapport.epargne.valeur_fin_periode, 0, montantsMasques)}
                       </p>
-                      <p className="mt-1 text-xs text-texte-attenue">
-                        livrets, PEE/PERCO, assurance-vie, PER, comptes courants
-                      </p>
+                      <p className="mt-1 text-xs text-texte-attenue">{t('rapportPage.livretsPeePercoAssuranceVie')}</p>
                     </Card>
-                    <Card title="Évolution de l'épargne">
+                    <Card title={t('rapportPage.evolutionDeLEpargne')}>
                       <p
                         className={`text-2xl font-semibold ${
                           rapport.epargne.evolution_pct === null
@@ -294,41 +289,32 @@ export default function RapportPage() {
                   <Card
                     title={
                       rapport.epargne.decomposition_estimee
-                        ? "D'où vient l'évolution de l'épargne ? (estimation)"
-                        : "D'où vient l'évolution de l'épargne ?"
+                        ? t('rapportPage.dOuVientLEvolution2')
+                        : t('rapportPage.dOuVientLEvolution3')
                     }
                   >
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <StatTile
-                        label={rapport.epargne.decomposition_estimee ? 'Versements estimés' : 'Versements déclarés'}
+                        label={rapport.epargne.decomposition_estimee ? t('rapportPage.versementsEstimes') : t('rapportPage.versementsDeclares')}
                         value={formatEuro(rapport.epargne.versements_periode, 0, montantsMasques)}
                       />
                       <StatTile
-                        label={rapport.epargne.decomposition_estimee ? 'Intérêts estimés (livrets)' : 'Intérêts (résidu)'}
+                        label={rapport.epargne.decomposition_estimee ? t('rapportPage.interetsEstimesLivrets') : t('rapportPage.interetsResidu')}
                         value={formatEuro(rapport.epargne.interets_periode, 0, montantsMasques)}
                         tone="good"
                       />
                     </div>
                     <p className="mt-3 text-sm text-texte-attenue">
                       {rapport.epargne.decomposition_estimee ? (
-                        <>
-                          Contrairement au portefeuille financier, l'épargne n'a pas de grand livre de versements : « Intérêts
-                          estimés » applique le taux déclaré de chaque livret, proratisé sur la période ; « Versements estimés »
-                          est le reste de l'évolution — une estimation, jamais un montant mesuré. Précisez « dont versement » en
-                          ajoutant une valorisation pour remplacer cette estimation par une donnée réelle.
-                        </>
+                        <>{t('rapportPage.contrairementAuPortefeuilleFinancierL')}</>
                       ) : (
-                        <>
-                          « Versements déclarés » est la somme des montants que vous avez précisés (« dont versement ») sur les
-                          points de valorisation de la période — une donnée réelle. « Intérêts » est le reste de l'évolution :
-                          si un versement de la période n'a pas été précisé, il serait alors compté ici par erreur.
-                        </>
+                        <>{t('rapportPage.versementsDeclaresEstLaSomme')}</>
                       )}
                     </p>
                   </Card>
 
                   <PieChartCard
-                    title="Répartition de l'épargne par type"
+                    title={t('rapportPage.repartitionDeLEpargnePar')}
                     items={rapport.epargne.repartition_par_type.map((l) => ({
                       categorie: l.label,
                       poids: rapport.epargne.valeur_fin_periode > 0 ? l.valeur / rapport.epargne.valeur_fin_periode : 0,

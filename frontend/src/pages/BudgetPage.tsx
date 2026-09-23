@@ -14,14 +14,14 @@ import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { dateVersISO, formatDate, formatEuro } from '../utils/format'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 type Mode = 'mensuel' | 'annuel' | 'personnalise'
 
 const MODES: { value: Mode; label: string }[] = [
-  { value: 'mensuel', label: 'Mensuel' },
-  { value: 'annuel', label: 'Annuel' },
-  { value: 'personnalise', label: 'Personnalisé' },
+  { value: 'mensuel', get label() { return t('budgetPage.modeMensuel') } },
+  { value: 'annuel', get label() { return t('budgetPage.modeAnnuel') } },
+  { value: 'personnalise', get label() { return t('budgetPage.modePersonnalise') } },
 ]
 
 function aujourdhuiISO(): string {
@@ -121,7 +121,7 @@ export default function BudgetPage() {
     .map((r, i) => ({ libelle: r.categorie_nom, montant: r.montant, classe: COULEURS_POSTE[i] }))
   const nonDepense = summary && summary.disponible > 0 ? summary.disponible : 0
   const decompositionMois = nonDepense > 0
-    ? [...postesSortie, { libelle: 'Non dépensé', montant: nonDepense, classe: 'bg-track' }]
+    ? [...postesSortie, { libelle: t('budgetPage.nonDepense'), montant: nonDepense, classe: 'bg-track' }]
     : postesSortie
   const totalDecomposition = decompositionMois.reduce((somme, p) => somme + p.montant, 0) || 1
 
@@ -129,7 +129,7 @@ export default function BudgetPage() {
     <div className="space-y-[14px]">
       <div className="flex flex-wrap items-center justify-end md:justify-between gap-3">
         <div className="hidden md:block">
-          <h1 className="text-[28px] font-semibold tracking-title text-ink">Budget</h1>
+          <h1 className="text-[28px] font-semibold tracking-title text-ink">{t('budgetPage.budget')}</h1>
           <p className="mt-0.5 text-[13px] text-ink3">{libellePeriode}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -137,7 +137,7 @@ export default function BudgetPage() {
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
             valeur={mode}
             onChange={setMode}
-            ariaLabel="Période"
+            ariaLabel={t('budgetPage.periode')}
           />
 
           {mode === 'mensuel' && (
@@ -168,7 +168,7 @@ export default function BudgetPage() {
                 onChange={(e) => setDateDebutPerso(e.target.value)}
                 className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
-              <span className="text-sm text-texte-attenue">au</span>
+              <span className="text-sm text-texte-attenue">{t('budgetPage.au')}</span>
               <input
                 type="date"
                 value={dateFinPerso}
@@ -181,7 +181,7 @@ export default function BudgetPage() {
         </div>
       </div>
 
-      {periodeInvalide && <EtatErreur message="La date de fin doit être postérieure ou égale à la date de début." />}
+      {periodeInvalide && <EtatErreur message={t('budgetPage.laDateDeFinDoit')} />}
       {!periodeInvalide && loading && <SkeletonTexte lignes={4} />}
       {!periodeInvalide && error && <EtatErreur message={error} onReessayer={chargerTout} />}
 
@@ -190,8 +190,8 @@ export default function BudgetPage() {
           {mouvements.length === 0 ? (
             <Card>
               <EtatVide
-                titre="Aucun mouvement bancaire importé pour cette période."
-                description="Importe un relevé (CSV, OFX ou QIF) depuis l'écran Import."
+                titre={t('budgetPage.aucunMouvementBancaireImportePour')}
+                description={t('budgetPage.importeUnReleveCsvOfx')}
               />
             </Card>
           ) : (
@@ -203,7 +203,7 @@ export default function BudgetPage() {
                   chaque poste. Le « non dépensé » y figure en `--track` : sans lui,
                   la barre ne montrerait que la façon de dépenser, jamais ce qui reste. */}
               <GlassPanel niveau="hero" className="px-6 py-5">
-                <p className="text-[13px] font-medium text-ink3">Disponible sur la période</p>
+                <p className="text-[13px] font-medium text-ink3">{t('budgetPage.disponibleSurLaPeriode')}</p>
                 <p
                   className={`text-[48px] font-semibold leading-none tracking-hero ${
                     summary.disponible >= 0 ? 'text-ink' : 'text-neg'
@@ -212,9 +212,8 @@ export default function BudgetPage() {
                   {formatEuro(summary.disponible, 0, montantsMasques)}
                 </p>
                 <p className="mt-1.5 text-[13px] text-ink3">
-                  {formatEuro(summary.entrees, 0, montantsMasques)} d'entrées −{' '}
-                  {formatEuro(summary.sorties, 0, montantsMasques)} de sorties
-                </p>
+                  {formatEuro(summary.entrees, 0, montantsMasques)}{' '}{t('budgetPage.dEntrees')}{' '}
+                  {formatEuro(summary.sorties, 0, montantsMasques)}{' '}{t('budgetPage.deSorties')}</p>
 
                 {decompositionMois.length > 0 && (
                   <>
@@ -248,30 +247,30 @@ export default function BudgetPage() {
                   qu'un occupant, ce qui laissait une demi-carte suivie d'un trou. */}
               <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2 lg:grid-cols-3">
                 <StatTile
-                  label="Dépenses récurrentes / mois"
+                  label={t('budgetPage.depensesRecurrentesMois')}
                   value={formatEuro(summary.depenses_recurrentes_mensuelles, 0, montantsMasques)}
-                  sub="estimé sur les 3 derniers mois"
+                  sub={t('budgetPage.estimeSurLes3Derniers')}
                 />
                 {jonction?.taux_epargne_reel_pct != null && (
                   <StatTile
-                    label="Taux d'épargne réel"
+                    label={t('budgetPage.tauxDEpargneReel')}
                     value={`${jonction.taux_epargne_reel_pct.toFixed(1)} %`}
-                    sub="sorties catégorie « Épargne » / entrées"
+                    sub={t('budgetPage.sortiesCategorieEpargneEntrees')}
                   />
                 )}
                 {jonction?.reste_a_vivre != null && (
                   <StatTile
-                    label="Reste à vivre"
+                    label={t('budgetPage.resteAVivre')}
                     value={formatEuro(jonction.reste_a_vivre, 0, montantsMasques)}
-                    sub="entrées − logement − charges récurrentes"
+                    sub={t('budgetPage.entreesLogementChargesRecurrentes')}
                     tone={jonction.reste_a_vivre >= 0 ? 'good' : 'warning'}
                   />
                 )}
               </div>
               {jonction && (jonction.categorie_epargne_introuvable || jonction.categorie_logement_introuvable) && (
                 <p className="text-xs text-texte-attenue">
-                  {jonction.categorie_epargne_introuvable && 'Taux d\'épargne indisponible : crée ou renomme une catégorie « Épargne » ci-dessous. '}
-                  {jonction.categorie_logement_introuvable && 'Reste à vivre indisponible : crée ou renomme une catégorie « Logement » ci-dessous.'}
+                  {jonction.categorie_epargne_introuvable && t('budgetPage.tauxDEpargneIndisponibleCree')}
+                  {jonction.categorie_logement_introuvable && t('budgetPage.resteAVivreIndisponibleCree')}
                 </p>
               )}
 
