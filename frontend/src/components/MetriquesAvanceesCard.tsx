@@ -12,6 +12,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatPct } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { POINTILLES_REPERE, STYLE_INFOBULLE, STYLE_LEGENDE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
+import { t } from '../i18n'
 
 const COULEUR_PORTEFEUILLE = 'var(--accent)'
 // Le comparatif reste distinct de la série principale, mais dans la même famille :
@@ -97,34 +98,29 @@ export default function MetriquesAvanceesCard() {
   const reperesAxe = reperesTemporels(donneesGraphique, 'date', formatDate)
 
   return (
-    <Card title="Métriques de performance avancées">
-      <p className="mb-4 text-sm text-texte-attenue">
-        Le rendement annualisé affiché ci-dessus (money-weighted, XIRR) juge votre décision — quand et combien vous avez
-        versé. Le <strong>TWR</strong> (time-weighted, ci-dessous) neutralise l'effet de vos versements pour juger le
-        placement lui-même : deux personnes investies dans le même portefeuille au même moment ont le même TWR, même avec
-        des montants différents.
-      </p>
+    <Card title={t('metriquesAvanceesCard.metriquesDePerformanceAvancees')}>
+      <p className="mb-4 text-sm text-texte-attenue">{t('metriquesAvanceesCard.leRendementAnnualiseAfficheCi')}{' '}<strong>{t('metriquesAvanceesCard.twr')}</strong>{' '}{t('metriquesAvanceesCard.timeWeightedCiDessousNeutralise')}</p>
 
       {metriques.twr_cumule_pct === null ? (
-        <EtatVide titre="Historique insuffisant pour calculer ces métriques." />
+        <EtatVide titre={t('metriquesAvanceesCard.historiqueInsuffisantPourCalculerCes')} />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
               <Label>
-                <LabelAdaptatif simple="Performance du placement (cumulée)" technique="TWR cumulé" />
+                <LabelAdaptatif simple={t('metriquesAvanceesCard.performanceDuPlacementCumulee')} technique={t('metriquesAvanceesCard.twrCumule')} />
               </Label>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(metriques.twr_cumule_pct)}</p>
             </div>
             <div>
               <Label>
-                <LabelAdaptatif simple="Performance du placement (par an)" technique="TWR annualisé" />
+                <LabelAdaptatif simple={t('metriquesAvanceesCard.performanceDuPlacementParAn')} technique={t('metriquesAvanceesCard.twrAnnualise')} />
               </Label>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(metriques.twr_annualise_pct)}</p>
             </div>
             <div>
               <Label>
-                <LabelAdaptatif simple="Régularité du parcours" technique="Volatilité annualisée" />
+                <LabelAdaptatif simple={t('metriquesAvanceesCard.regulariteDuParcours')} technique={t('metriquesAvanceesCard.volatiliteAnnualisee')} />
               </Label>
               <p className="mt-1 text-xl font-semibold text-texte">
                 {metriques.volatilite_annualisee_pct !== null ? `${metriques.volatilite_annualisee_pct}%` : '—'}
@@ -132,7 +128,7 @@ export default function MetriquesAvanceesCard() {
             </div>
             <div>
               <Label>
-                <LabelAdaptatif simple="Pire chute essuyée" technique="Perte maximale (drawdown)" />
+                <LabelAdaptatif simple={t('metriquesAvanceesCard.pireChuteEssuyee')} technique={t('metriquesAvanceesCard.perteMaximaleDrawdown')} />
               </Label>
               <p className="mt-1 text-xl font-semibold text-negatif">
                 {metriques.max_drawdown_pct !== null ? `${metriques.max_drawdown_pct}%` : '—'}
@@ -140,8 +136,8 @@ export default function MetriquesAvanceesCard() {
               {metriques.max_drawdown_pct !== 0 && (
                 <p className="text-xs text-texte-attenue">
                   {metriques.drawdown_recupere
-                    ? `récupéré en ${metriques.semaines_recuperation} semaine${(metriques.semaines_recuperation ?? 0) > 1 ? 's' : ''}`
-                    : 'non récupéré à ce jour'}
+                    ? t('metriquesAvanceesCard.recupereEnSemaines', { n: metriques.semaines_recuperation ?? 0 })
+                    : t('metriquesAvanceesCard.nonRecupereACeJour')}
                 </p>
               )}
             </div>
@@ -149,9 +145,9 @@ export default function MetriquesAvanceesCard() {
 
           <div className="mt-6 border-t border-bordure pt-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-[15px] font-semibold -tracking-[0.01em] text-ink">Comparaison à un indice</h3>
+              <h3 className="text-[15px] font-semibold -tracking-[0.01em] text-ink">{t('metriquesAvanceesCard.comparaisonAUnIndice')}</h3>
               <Select value={benchmarkChoisi} onChange={(e) => handleBenchmarkChange(e.target.value)} className="w-auto">
-                <option value="">Choisir un indice de référence</option>
+                <option value="">{t('metriquesAvanceesCard.choisirUnIndiceDeReference')}</option>
                 {benchmarks.map((b) => (
                   <option key={b.key} value={b.key}>
                     {b.label}
@@ -200,10 +196,7 @@ export default function MetriquesAvanceesCard() {
             )}
 
             {!chargementComparaison && !erreurComparaison && !comparaison && !benchmarkChoisi && (
-              <p className="text-sm text-texte-attenue">
-                Choisis un indice pour comparer l'évolution de ton portefeuille (en %, depuis le début du suivi) à celle de
-                cet indice sur la même période.
-              </p>
+              <p className="text-sm text-texte-attenue">{t('metriquesAvanceesCard.choisisUnIndicePourComparer')}</p>
             )}
           </div>
         </>

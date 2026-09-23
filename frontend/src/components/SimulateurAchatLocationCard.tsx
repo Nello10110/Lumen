@@ -9,6 +9,7 @@ import { DataPoint, Field, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 // Lien vers l'onglet Paramètres de la fiche du bien (`HoldingDetailContent` lit
 // `?onglet=` au montage, retour utilisateur du 10/09/2026) — évite un clic
@@ -90,13 +91,11 @@ export default function SimulateurAchatLocationCard() {
 
   if (!biensImmobiliers || biensImmobiliers.length === 0) {
     return (
-      <Card title="Achat vs location">
+      <Card title={t('simulateurAchatLocationCard.achatVsLocation')}>
         <EtatVide
-          titre="Aucun bien immobilier enregistré"
+          titre={t('simulateurAchatLocationCard.aucunBienImmobilierEnregistre')}
           description={
-            <Link to="/patrimoine" className="font-medium text-accent hover:underline">
-              Ajouter un bien immobilier
-            </Link>
+            <Link to="/patrimoine" className="font-medium text-accent hover:underline">{t('simulateurAchatLocationCard.ajouterUnBienImmobilier')}</Link>
           }
         />
       </Card>
@@ -107,24 +106,18 @@ export default function SimulateurAchatLocationCard() {
 
   if (residencesPrincipales.length === 0) {
     return (
-      <Card title="Achat vs location">
+      <Card title={t('simulateurAchatLocationCard.achatVsLocation')}>
         <EtatVide
-          titre="Aucune résidence principale configurée"
+          titre={t('simulateurAchatLocationCard.aucuneResidencePrincipaleConfiguree')}
           description={
             <span className="flex flex-col items-center gap-1">
               {biensImmobiliers.length === 1 ? (
-                <>
-                  Cochez « Résidence principale » sur la fiche du bien pour activer ce simulateur.
-                  <Link to={urlParametresBien(biensImmobiliers[0].id)} className="font-medium text-accent hover:underline">
-                    Configurer « {biensImmobiliers[0].nom ?? biensImmobiliers[0].ticker} »
+                <>{t('simulateurAchatLocationCard.cochezResidencePrincipaleSurLa')}<Link to={urlParametresBien(biensImmobiliers[0].id)} className="font-medium text-accent hover:underline">{t('simulateurAchatLocationCard.configurer')}{' '}{biensImmobiliers[0].nom ?? biensImmobiliers[0].ticker} »
                   </Link>
                 </>
               ) : (
-                <>
-                  Cochez « Résidence principale » sur la fiche d'un de vos biens pour activer ce simulateur.
-                  {biensImmobiliers.map((b) => (
-                    <Link key={b.id} to={urlParametresBien(b.id)} className="font-medium text-accent hover:underline">
-                      Configurer « {b.nom ?? b.ticker} »
+                <>{t('simulateurAchatLocationCard.cochezResidencePrincipaleSurLa2')}{biensImmobiliers.map((b) => (
+                    <Link key={b.id} to={urlParametresBien(b.id)} className="font-medium text-accent hover:underline">{t('simulateurAchatLocationCard.configurer')}{' '}{b.nom ?? b.ticker} »
                     </Link>
                   ))}
                 </>
@@ -141,18 +134,16 @@ export default function SimulateurAchatLocationCard() {
 
   if (immobilier.simulation_loyer_estime === null) {
     return (
-      <Card title="Achat vs location">
+      <Card title={t('simulateurAchatLocationCard.achatVsLocation')}>
         {residencesPrincipales.length > 1 && (
           <SelecteurBien biens={residencesPrincipales} holdingId={bien.id} onChange={setHoldingId} className="mb-4" />
         )}
         <EtatVide
-          titre="Simulateur non configuré"
+          titre={t('simulateurAchatLocationCard.simulateurNonConfigure')}
           description={
             <span className="flex flex-col items-center gap-1">
-              {`Renseignez le loyer mensuel estimé sur la fiche « ${bien.nom ?? bien.ticker} » pour activer la comparaison.`}
-              <Link to={urlParametresBien(bien.id)} className="font-medium text-accent hover:underline">
-                Configurer le simulateur
-              </Link>
+              {t('simulateurAchatLocationCard.renseignezLoyer', { bien: bien.nom ?? bien.ticker })}
+              <Link to={urlParametresBien(bien.id)} className="font-medium text-accent hover:underline">{t('simulateurAchatLocationCard.configurerLeSimulateur')}</Link>
             </span>
           }
         />
@@ -173,38 +164,32 @@ export default function SimulateurAchatLocationCard() {
   const moisDeLoyerEquivalent = fraisAcquisition > 0 && loyerEstime > 0 ? fraisAcquisition / loyerEstime : null
 
   return (
-    <Card title="Achat vs location">
+    <Card title={t('simulateurAchatLocationCard.achatVsLocation')}>
       {residencesPrincipales.length > 1 && (
         <SelecteurBien biens={residencesPrincipales} holdingId={bien.id} onChange={setHoldingId} className="mb-4" />
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <DataPoint label="Loyer estimé (bien équivalent)" valeur={formatEuro(loyerEstime, 0, montantsMasques) + ' / mois'} />
+        <DataPoint label={t('simulateurAchatLocationCard.loyerEstimeBienEquivalent')} valeur={formatEuro(loyerEstime, 0, montantsMasques) + t('simulateurAchatLocationCard.mois')} />
         <DataPoint
-          label="Coût mensuel de possession"
-          valeur={formatEuro(coutMensuelPossession, 0, montantsMasques) + ' / mois'}
-          note={emprunt ? 'Intérêts + charges + taxe d\'habitation' : "Charges + taxe d'habitation (pas d'emprunt rattaché)"}
+          label={t('simulateurAchatLocationCard.coutMensuelDePossession')}
+          valeur={formatEuro(coutMensuelPossession, 0, montantsMasques) + t('simulateurAchatLocationCard.mois')}
+          note={emprunt ? t('simulateurAchatLocationCard.interetsChargesTaxeDHabitation') : t('simulateurAchatLocationCard.chargesTaxeDHabitationPas')}
         />
         <DataPoint
-          label="Écart"
-          valeur={(ecart >= 0 ? '+' : '') + formatEuro(ecart, 0, montantsMasques) + ' / mois'}
+          label={t('simulateurAchatLocationCard.ecart')}
+          valeur={(ecart >= 0 ? '+' : '') + formatEuro(ecart, 0, montantsMasques) + t('simulateurAchatLocationCard.mois')}
           ton={ecart >= 0 ? 'positif' : 'negatif'}
-          note={ecart >= 0 ? 'Posséder coûte moins cher que louer' : 'Louer coûterait moins cher ce mois-ci'}
+          note={ecart >= 0 ? t('simulateurAchatLocationCard.possederCouteMoinsCherQue') : t('simulateurAchatLocationCard.louerCouteraitMoinsCherCe')}
         />
       </div>
 
       {fraisAcquisition > 0 && (
-        <p className="mt-4 text-xs text-texte-attenue">
-          Frais d'acquisition versés : {formatEuro(fraisAcquisition, 0, montantsMasques)}
-          {moisDeLoyerEquivalent !== null && ` (soit environ ${moisDeLoyerEquivalent.toFixed(1)} mois de loyer à ce tarif)`} — non
-          inclus dans la comparaison mensuelle ci-dessus.
-        </p>
+        <p className="mt-4 text-xs text-texte-attenue">{t('simulateurAchatLocationCard.fraisDAcquisitionVerses')}{' '}{formatEuro(fraisAcquisition, 0, montantsMasques)}
+          {moisDeLoyerEquivalent !== null && t('simulateurAchatLocationCard.soitMoisDeLoyer', { mois: Number(moisDeLoyerEquivalent.toFixed(1)) })}{' '}{t('simulateurAchatLocationCard.nonInclusDansLaComparaison')}</p>
       )}
 
-      <p className="mt-2 text-xs text-texte-attenue">
-        Comparaison indicative : seule la part d'intérêts du crédit compte (le capital remboursé reste votre patrimoine), hors
-        évolution de la valeur du bien et hors placement alternatif de l'apport.
-      </p>
+      <p className="mt-2 text-xs text-texte-attenue">{t('simulateurAchatLocationCard.comparaisonIndicativeSeuleLaPart')}</p>
     </Card>
   )
 }
@@ -221,7 +206,7 @@ function SelecteurBien({
   className?: string
 }) {
   return (
-    <Field label="Bien" className={className}>
+    <Field label={t('simulateurAchatLocationCard.bien')} className={className}>
       <Select value={String(holdingId)} onChange={(e) => onChange(Number(e.target.value))}>
         {biens.map((b) => (
           <option key={b.id} value={b.id}>

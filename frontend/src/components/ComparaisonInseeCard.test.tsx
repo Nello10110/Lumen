@@ -37,18 +37,20 @@ describe('ComparaisonInseeCard', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  // Écart au format de la langue depuis le multilingue (§ BL) : « 12,5 % » en
+  // français — l'ancien « 12.5 % » portait un point décimal anglais.
   it('affiche "au-dessus" quand ecart_pct est positif', async () => {
     vi.mocked(api.getComparaisonInsee).mockResolvedValue(comparaison({ ecart_pct: 12.5 }))
     render(<ComparaisonInseeCard />)
 
-    await screen.findByText('Vous êtes 12.5 % au-dessus de cette médiane.')
+    await screen.findByText('Vous êtes 12,5 % au-dessus de cette médiane.')
   })
 
   it('affiche "en-dessous" quand ecart_pct est négatif', async () => {
     vi.mocked(api.getComparaisonInsee).mockResolvedValue(comparaison({ ecart_pct: -7.1 }))
     render(<ComparaisonInseeCard />)
 
-    await screen.findByText('Vous êtes 7.1 % en-dessous de cette médiane.')
+    await screen.findByText('Vous êtes 7,1 % en-dessous de cette médiane.')
   })
 
   it('mentionne la source et "patrimoine brut"', async () => {

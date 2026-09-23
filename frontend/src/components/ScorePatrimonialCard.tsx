@@ -5,6 +5,7 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
+import { t } from '../i18n'
 
 /** Score patrimonial consolidé (backlog § AZ.1, veille concurrentielle
  * du 20/09/2026) : un chiffre 0-100, moyenne pondérée de sous-scores dérivés de
@@ -41,7 +42,7 @@ export default function ScorePatrimonialCard() {
 
   if (loading) {
     return (
-      <Card title="Score patrimonial">
+      <Card title={t('scorePatrimonialCard.scorePatrimonial')}>
         <SkeletonTexte lignes={2} />
       </Card>
     )
@@ -49,7 +50,7 @@ export default function ScorePatrimonialCard() {
 
   if (erreur) {
     return (
-      <Card title="Score patrimonial">
+      <Card title={t('scorePatrimonialCard.scorePatrimonial')}>
         <EtatErreur message={erreur} onReessayer={charger} />
       </Card>
     )
@@ -58,19 +59,17 @@ export default function ScorePatrimonialCard() {
   if (!score) return null
 
   return (
-    <Card title="Score patrimonial">
-      <StatTile label="Score global" value={`${score.score_global}/100`} tone={tonalite(score.score_global)} />
+    <Card title={t('scorePatrimonialCard.scorePatrimonial')}>
+      <StatTile label={t('scorePatrimonialCard.scoreGlobal')} value={`${score.score_global}/100`} tone={tonalite(score.score_global)} />
 
       <details className="group mt-3 rounded-card border border-bordure p-3 open:bg-surface-elevee">
         <summary className="cursor-pointer list-none text-sm font-medium text-texte marker:content-none">
-          <span className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
-          Comment c'est calculé ?
-        </summary>
+          <span className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>{t('scorePatrimonialCard.commentCEstCalcule')}</summary>
         <div className="mt-2 space-y-3 pl-4">
           {score.sous_scores.map((sousScore) => (
             <div key={sousScore.id}>
               <p className="text-sm font-semibold text-texte">
-                {sousScore.label} — {sousScore.score}/100 <span className="font-normal text-texte-attenue">({sousScore.poids_pct} % du score)</span>
+                {sousScore.label} — {sousScore.score}/100 <span className="font-normal text-texte-attenue">({sousScore.poids_pct}{' '}{t('scorePatrimonialCard.duScore')}</span>
               </p>
               <p className="text-xs text-texte-attenue">{sousScore.explication}</p>
             </div>

@@ -10,6 +10,8 @@ import StatTile from './StatTile'
 import { SkeletonGraphique } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 /** Exposition consolidée tous actifs (backlog 2.P.1) : une seule répartition
  * géo/classe, financier ET immobilier/épargne confondus — jamais servie ailleurs
@@ -60,8 +62,8 @@ export default function ExpositionConsolideeCard() {
 
   if (valeurTotale === 0) {
     return (
-      <Card title="Exposition consolidée — tous actifs">
-        <EtatVide titre="Aucun actif valorisé." description="Importe un historique de transactions ou renseigne un actif manuellement pour voir l'exposition consolidée." />
+      <Card title={t('expositionConsolideeCard.expositionConsolideeTousActifs')}>
+        <EtatVide titre={t('expositionConsolideeCard.aucunActifValorise')} description={t('expositionConsolideeCard.importeUnHistoriqueDeTransactions')} />
       </Card>
     )
   }
@@ -71,25 +73,24 @@ export default function ExpositionConsolideeCard() {
       {/* Chaque bloc est sa propre carte (`PieChartCard` s'enveloppe déjà lui-même,
           comme partout ailleurs dans l'app) : les imbriquer dans une carte englobante
           empilerait deux panneaux de verre flous l'un dans l'autre. */}
-      <Card title="Exposition consolidée — tous actifs">
+      <Card title={t('expositionConsolideeCard.expositionConsolideeTousActifs')}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatTile
-            label="Plus grosse ligne"
+            label={t('expositionConsolideeCard.plusGrosseLigne')}
             value={plusGrosseLigneTicker ?? '—'}
             sub={plusGrosseLignePct !== null ? `${plusGrosseLignePct}% du patrimoine` : undefined}
           />
-          <StatTile label="Top 5 lignes" value={top5LignesPct !== null ? `${top5LignesPct}%` : '—'} sub="du patrimoine total" />
+          <StatTile label={t('expositionConsolideeCard.top5Lignes')} value={top5LignesPct !== null ? `${top5LignesPct}%` : '—'} sub={t('expositionConsolideeCard.duPatrimoineTotal')} />
           <StatTile
-            label="Première zone géographique"
-            value={premiereZoneGeo ?? '—'}
+            label={t('expositionConsolideeCard.premiereZoneGeographique')}
+            value={premiereZoneGeo ? libelleDonnee(premiereZoneGeo) : '—'}
             sub={premiereZoneGeoPct !== null ? `${premiereZoneGeoPct}% du patrimoine` : undefined}
           />
         </div>
-        <p className="mt-4 text-xs text-texte-attenue">
-          Valeur totale consolidée{enNet ? ' (nette des emprunts rattachés à chaque actif)' : ' (valeur brute)'} :{' '}
+        <p className="mt-4 text-xs text-texte-attenue">{t('expositionConsolideeCard.valeurTotaleConsolidee')}{enNet ? t('expositionConsolideeCard.netteDesEmpruntsRattachesA') : t('expositionConsolideeCard.valeurBrute')} :{' '}
           {formatEuro(valeurTotale, 0, montantsMasques)}.{' '}
           {partEstimeeManuellePct > 0 &&
-            `${partEstimeeManuellePct}% de cette valeur (immobilier/épargne saisis manuellement) a une zone géographique déclarée, pas mesurée.`}
+            t('expositionConsolideeCard.partDeclaree', { pct: partEstimeeManuellePct })}
         </p>
       </Card>
 
@@ -99,12 +100,12 @@ export default function ExpositionConsolideeCard() {
           afficher une équité négative en repli). */}
       <div className="grid grid-cols-1 gap-[14px] lg:grid-cols-2">
         <PieChartCard
-          title="Répartition géographique consolidée"
+          title={t('expositionConsolideeCard.repartitionGeographiqueConsolidee')}
           items={repartitionGeo.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
           onCategoryClick={(categorie) => setModal({ dimension: 'geo', categorie })}
         />
         <PieChartCard
-          title="Répartition par classe d'actif"
+          title={t('expositionConsolideeCard.repartitionParClasseDActif')}
           items={repartitionClasse.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
           onCategoryClick={(categorie) => setModal({ dimension: 'classe', categorie })}
         />
@@ -113,7 +114,7 @@ export default function ExpositionConsolideeCard() {
       {modal && (
         <CompositionModal
           categorie={modal.categorie}
-          sousTitre={modal.dimension === 'geo' ? 'Répartition géographique consolidée' : "Répartition par classe d'actif"}
+          sousTitre={modal.dimension === 'geo' ? t('expositionConsolideeCard.repartitionGeographiqueConsolidee') : t('expositionConsolideeCard.repartitionParClasseDActif')}
           fetchComposition={(categorie) => api.getExpositionConsolideeComposition(modal.dimension, categorie, enNet)}
           onClose={() => setModal(null)}
         />

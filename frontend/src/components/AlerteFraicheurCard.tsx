@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { AlerteFraicheurItem } from '../api/types'
 import Card from './Card'
 import { formatDate } from '../utils/format'
+import { t } from '../i18n'
 
 /** Alertes de fraîcheur des valorisations manuelles (backlog § BA.2, veille
  * concurrentielle du 21/09/2026) : signale les lignes valorisées
@@ -26,13 +27,12 @@ export default function AlerteFraicheurCard() {
   if (alertes.length === 0) return null
 
   return (
-    <Card title="Données à rafraîchir">
+    <Card title={t('alerteFraicheurCard.donneesARafraichir')}>
       <ul className="space-y-2 text-sm text-texte">
         {alertes.map((a) => (
           <li key={a.holding_id}>
-            {a.nom} ({a.type_actif_label}) — non mise à jour depuis le {formatDate(a.date_valeur_estimee)} (
-            {a.jours_depuis_maj} jours)
-          </li>
+            {a.nom} ({a.type_actif_label}{t('alerteFraicheurCard.nonMiseAJourDepuis')}{' '}{formatDate(a.date_valeur_estimee)} (
+            {a.jours_depuis_maj}{' '}{t('alerteFraicheurCard.jours')}</li>
         ))}
       </ul>
     </Card>

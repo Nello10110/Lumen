@@ -5,6 +5,7 @@ import Card from './Card'
 import EtatVide from './EtatVide'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Édition inline du budget cible d'une catégorie racine (backlog 2.N.2) — champ
  * texte local, enregistré sur perte de focus/Entrée plutôt qu'à chaque frappe. */
@@ -45,7 +46,7 @@ function CibleInput({ categorieId, valeurInitiale, onSaved }: { categorieId: num
       onBlur={enregistrer}
       onKeyDown={(e) => e.key === 'Enter' && enregistrer()}
       placeholder="—"
-      title="Montant mensuel visé pour cette catégorie. Videz le champ pour retirer la cible."
+      title={t('repartitionSection.montantMensuelVisePourCette')}
       className="w-24 rounded-control border border-bordure bg-surface px-2 py-1 text-right text-sm text-texte"
     />
   )
@@ -56,21 +57,21 @@ export default function RepartitionSection({ summary, onCibleChanged }: { summar
 
   if (summary.repartition_sorties.length === 0) {
     return (
-      <Card title="Répartition des sorties">
-        <EtatVide titre="Aucune sortie sur cette période." />
+      <Card title={t('repartitionSection.repartitionDesSorties')}>
+        <EtatVide titre={t('repartitionSection.aucuneSortieSurCettePeriode')} />
       </Card>
     )
   }
 
   return (
-    <Card title="Répartition des sorties">
+    <Card title={t('repartitionSection.repartitionDesSorties')}>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-            <th className="py-2 pr-4">Catégorie</th>
-            <th className="py-2 pr-4 text-right">Montant</th>
-            <th className="py-2 pr-4 text-right">Budget cible</th>
-            <th className="py-2 pr-4 text-right">Écart</th>
+            <th className="py-2 pr-4">{t('repartitionSection.categorie')}</th>
+            <th className="py-2 pr-4 text-right">{t('repartitionSection.montant')}</th>
+            <th className="py-2 pr-4 text-right">{t('repartitionSection.budgetCible')}</th>
+            <th className="py-2 pr-4 text-right">{t('repartitionSection.ecart')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">

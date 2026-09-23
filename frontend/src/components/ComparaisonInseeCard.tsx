@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { ComparaisonInsee } from '../api/types'
 import Card from './Card'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 /** Comparaison au patrimoine médian INSEE par tranche d'âge (backlog § AZ.2) —
  * données STATIQUES déjà publiées par l'INSEE, jamais un classement face à
@@ -32,18 +32,15 @@ export default function ComparaisonInseeCard() {
     ecartAbs === null
       ? null
       : ecart_pct !== null && ecart_pct >= 0
-        ? `Vous êtes ${ecartAbs} % au-dessus de cette médiane.`
-        : `Vous êtes ${ecartAbs} % en-dessous de cette médiane.`
+        ? t('comparaisonInseeCard.auDessus', { ecart: ecartAbs })
+        : t('comparaisonInseeCard.enDessous', { ecart: ecartAbs })
 
   return (
-    <Card title="Comparaison au patrimoine médian français">
-      <p className="text-sm text-texte">
-        Votre patrimoine brut : <strong>{actifs_totaux_foyer.toLocaleString(localeCourante())} €</strong>. Médiane française pour
-        votre tranche d'âge ({age_utilise} ans) : <strong>{mediane_reference.toLocaleString(localeCourante())} €</strong>.
+    <Card title={t('comparaisonInseeCard.comparaisonAuPatrimoineMedianFrancais')}>
+      <p className="text-sm text-texte">{t('comparaisonInseeCard.votrePatrimoineBrut')}{' '}<strong>{actifs_totaux_foyer.toLocaleString(localeCourante())} €</strong>{t('comparaisonInseeCard.medianeFrancaisePourVotreTranche')}{age_utilise}{' '}{t('comparaisonInseeCard.ans')}{' '}<strong>{mediane_reference.toLocaleString(localeCourante())} €</strong>.
       </p>
       {phraseEcart && <p className="mt-1 text-sm text-texte">{phraseEcart}</p>}
-      <p className="mt-2 text-xs text-texte-attenue">
-        Patrimoine brut, hors emprunts déduits. Source : {source}.
+      <p className="mt-2 text-xs text-texte-attenue">{t('comparaisonInseeCard.patrimoineBrutHorsEmpruntsDeduits')}{' '}{source}.
       </p>
     </Card>
   )

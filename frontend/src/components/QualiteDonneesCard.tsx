@@ -2,6 +2,7 @@ import type { QualiteDonnees } from '../api/types'
 import Card from './Card'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Encart de qualité des données (LOT 2.1/2.3) : la répartition géo/sectorielle du
  * tableau de bord n'a de sens que si l'utilisateur sait à quel point le "réel" est
@@ -14,19 +15,28 @@ export default function QualiteDonneesCard({ qualite }: { qualite: QualiteDonnee
 
   if (qualite.pct_estimee_par_indice > 0) {
     lignes.push(
-      `${qualite.pct_estimee_par_indice}% de la valeur du portefeuille (${formatEuro(qualite.valeur_estimee_par_indice, 0, montantsMasques)}) a une répartition géographique estimée à partir de l'indice suivi par le fonds, faute de composition détaillée disponible.`,
+      t('qualiteDonneesCard.estimeeParIndice', {
+        pct: qualite.pct_estimee_par_indice,
+        valeur: formatEuro(qualite.valeur_estimee_par_indice, 0, montantsMasques),
+      }),
     )
   }
 
   if (qualite.pct_non_categorisee > 0) {
     lignes.push(
-      `${qualite.pct_non_categorisee}% de la valeur du portefeuille (${formatEuro(qualite.valeur_non_categorisee, 0, montantsMasques)}) n'a aucune donnée géographique disponible et apparaît en "Non catégorisé".`,
+      t('qualiteDonneesCard.nonCategorisee', {
+        pct: qualite.pct_non_categorisee,
+        valeur: formatEuro(qualite.valeur_non_categorisee, 0, montantsMasques),
+      }),
     )
   }
 
   if (qualite.valeur_sans_cotation > 0) {
     lignes.push(
-      `${formatEuro(qualite.valeur_sans_cotation, 0, montantsMasques)} (${qualite.pct_sans_cotation}%) sont valorisés à leur coût de revient faute de cotation disponible — cette valeur entre telle quelle dans le score de diversification et dans les montants de rééquilibrage en euros.`,
+      t('qualiteDonneesCard.sansCotation', {
+        valeur: formatEuro(qualite.valeur_sans_cotation, 0, montantsMasques),
+        pct: qualite.pct_sans_cotation,
+      }),
     )
   }
 
@@ -39,7 +49,7 @@ export default function QualiteDonneesCard({ qualite }: { qualite: QualiteDonnee
   // été prématuré (aucun autre bandeau de ce type dans l'application aujourd'hui).
   return (
     <Card className="border-avertissement/25 bg-avertissement/10">
-      <p className="mb-2 text-sm font-semibold text-avertissement">Qualité des données</p>
+      <p className="mb-2 text-sm font-semibold text-avertissement">{t('qualiteDonneesCard.qualiteDesDonnees')}</p>
       <ul className="space-y-1.5">
         {lignes.map((ligne) => (
           <li key={ligne} className="text-sm text-avertissement">

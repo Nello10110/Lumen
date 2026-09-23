@@ -25,17 +25,18 @@ import StatTile from '../components/StatTile'
 import { useAuth } from '../hooks/useAuth'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 type OngletKey = 'portefeuille' | 'repartition' | 'diagnostic' | 'evolution' | 'revenus' | 'simulateur' | 'projection'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconPatrimoine }[] = [
-  { key: 'portefeuille', label: 'Portefeuille', Icone: IconPatrimoine },
-  { key: 'repartition', label: 'Répartition', Icone: IconRepartition },
-  { key: 'diagnostic', label: 'Diagnostic', Icone: IconDiagnostic },
-  { key: 'evolution', label: 'Évolution', Icone: IconEvolution },
-  { key: 'revenus', label: 'Revenus', Icone: IconDividendes },
-  { key: 'simulateur', label: 'Achat vs location', Icone: IconMaison },
-  { key: 'projection', label: 'Simulateur', Icone: IconObjectifs },
+  { key: 'portefeuille', get label() { return t('analysePage.ongletPortefeuille') }, Icone: IconPatrimoine },
+  { key: 'repartition', get label() { return t('analysePage.ongletRepartition') }, Icone: IconRepartition },
+  { key: 'diagnostic', get label() { return t('analysePage.ongletDiagnostic') }, Icone: IconDiagnostic },
+  { key: 'evolution', get label() { return t('analysePage.ongletEvolution') }, Icone: IconEvolution },
+  { key: 'revenus', get label() { return t('analysePage.ongletRevenus') }, Icone: IconDividendes },
+  { key: 'simulateur', get label() { return t('analysePage.ongletAchatLocation') }, Icone: IconMaison },
+  { key: 'projection', get label() { return t('analysePage.ongletSimulateur') }, Icone: IconObjectifs },
 ]
 
 const ONGLET_PAR_DEFAUT: OngletKey = 'portefeuille'
@@ -177,9 +178,9 @@ export default function AnalysePage() {
   return (
     <div className="space-y-[14px]">
       <div className="flex items-center justify-end gap-3 md:justify-between">
-        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Analyse</h1>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('analysePage.analyse')}</h1>
         <SecondaryButton onClick={chargerDonnees} disabled={loading}>
-          {loading ? 'Actualisation...' : 'Actualiser'}
+          {loading ? t('analysePage.actualisation') : t('analysePage.actualiser')}
         </SecondaryButton>
       </div>
 
@@ -195,7 +196,7 @@ export default function AnalysePage() {
         }))}
         valeur={onglet}
         onChange={setOnglet}
-        ariaLabel="Sections de l'analyse"
+        ariaLabel={t('analysePage.sectionsDeLAnalyse')}
         semantique="onglets"
         idOnglet={(v) => `onglet-${v}`}
         idPanneau={(v) => `panneau-${v}`}
@@ -253,9 +254,9 @@ export default function AnalysePage() {
               seul financier, plus pertinente que ce que ces pastilles montraient. */}
           {!loading && !error && analysis && (
             <div className="grid grid-cols-2 gap-[14px]">
-              <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />
+              <StatTile label={t('analysePage.valeurDesPositions')} value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />
               <StatTile
-                label="Score de diversification"
+                label={t('analysePage.scoreDeDiversification')}
                 value={`${analysis.risques.score_diversification}/100`}
                 tone={analysis.risques.score_diversification < 50 ? 'warning' : 'good'}
               />
@@ -277,20 +278,15 @@ export default function AnalysePage() {
             <>
               <div className="grid grid-cols-1 gap-[14px] lg:grid-cols-2">
                 <AllocationChartCard
-                  title="Répartition géographique"
+                  title={t('analysePage.repartitionGeographique')}
                   items={analysis.geo}
                   onCategoryClick={(categorie) => setModal({ type: 'geo', categorie })}
                   footnote={
-                    <p className="mt-2 text-xs text-texte-attenue">
-                      Géographie des fonds/ETF issue de leur composition réelle (10 plus grosses lignes, extrapolées à 100% du
-                      fonds) quand Yahoo Finance la fournit, sinon estimée à partir de l'indice suivi par le fonds (voir le détail
-                      de qualité des données ci-dessous) ; secteur des fonds basé sur leur composition complète. Clique sur une
-                      barre (ou une ligne du tableau en plein écran) pour voir le détail des lignes.
-                    </p>
+                    <p className="mt-2 text-xs text-texte-attenue">{t('analysePage.geographieDesFondsEtfIssue')}</p>
                   }
                 />
                 <AllocationChartCard
-                  title="Répartition sectorielle"
+                  title={t('analysePage.repartitionSectorielle')}
                   items={analysis.sector}
                   onCategoryClick={(categorie) => setModal({ type: 'sector', categorie })}
                 />
@@ -305,7 +301,7 @@ export default function AnalysePage() {
           {modal && (
             <CompositionModal
               categorie={modal.categorie}
-              sousTitre={modal.type === 'geo' ? 'Répartition géographique' : 'Répartition sectorielle'}
+              sousTitre={modal.type === 'geo' ? t('analysePage.repartitionGeographique') : t('analysePage.repartitionSectorielle')}
               fetchComposition={(categorie) => api.getCategoryComposition(modal.type, categorie)}
               onClose={() => setModal(null)}
             />

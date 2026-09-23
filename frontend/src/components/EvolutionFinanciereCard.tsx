@@ -15,6 +15,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { dateVersISO, formatDate, formatEuro, formatEuroAxe } from '../utils/format'
 import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
 import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, variationSurPeriode, PERIODES_RELATIVES, type Periode, type PeriodeRelative } from '../utils/periode'
+import { t } from '../i18n'
 
 // Libellé de chaque `type_actif` sélectionnable ici — dérivé de `TYPE_ACTIF_OPTIONS`
 // (même liste que le formulaire d'ajout manuel, `holdingCategories.ts`) plutôt que
@@ -34,12 +35,12 @@ type LentilleLocale = 'brut' | 'net'
 
 const OPTIONS_PERIODE: { valeur: ModeDate; label: string }[] = [
   ...PERIODES_RELATIVES,
-  { valeur: 'PERSO', label: 'Personnalisé' },
+  { valeur: 'PERSO', get label() { return t('evolutionFinanciereCard.periodePersonnalisee') } },
 ]
 
 const OPTIONS_LENTILLE_LOCALE: { valeur: LentilleLocale; label: string }[] = [
-  { valeur: 'net', label: 'Net' },
-  { valeur: 'brut', label: 'Brut' },
+  { valeur: 'net', get label() { return t('evolutionFinanciereCard.lentilleNet') } },
+  { valeur: 'brut', get label() { return t('evolutionFinanciereCard.lentilleBrut') } },
 ]
 
 /** Onglet « Évolution » de l'écran Analyse (retour utilisateur du 13/09/2026) —
@@ -246,17 +247,11 @@ export default function EvolutionFinanciereCard() {
   if (holdingsPertinents.length === 0) {
     return (
       <EtatVide
-        titre="Aucune position suivie pour l'instant."
+        titre={t('evolutionFinanciereCard.aucunePositionSuiviePourL')}
         description={
-          <>
-            Importez un relevé ou ajoutez une ligne (immobilier, PER, assurance-vie...) depuis{' '}
-            <Link to="/import" className="font-medium text-accent hover:underline">
-              Import
-            </Link>{' '}
-            ou{' '}
-            <Link to="/patrimoine" className="font-medium text-accent hover:underline">
-              Actifs
-            </Link>
+          <>{t('evolutionFinanciereCard.importezUnReleveOuAjoutez')}{' '}
+            <Link to="/import" className="font-medium text-accent hover:underline">{t('evolutionFinanciereCard.import')}</Link>{' '}{t('evolutionFinanciereCard.ou')}{' '}
+            <Link to="/patrimoine" className="font-medium text-accent hover:underline">{t('evolutionFinanciereCard.actifs')}</Link>
             .
           </>
         }
@@ -267,9 +262,9 @@ export default function EvolutionFinanciereCard() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Field label="Classe d'actif">
+        <Field label={t('evolutionFinanciereCard.classeDActif')}>
           <Select value={typeActif ?? ''} onChange={(e) => setTypeActif(e.target.value || null)}>
-            <option value="">Tout</option>
+            <option value="">{t('evolutionFinanciereCard.tout')}</option>
             {classesDisponibles.map((cle) => (
               <option key={cle} value={cle}>
                 {LABEL_TYPE_ACTIF[cle]}
@@ -277,11 +272,11 @@ export default function EvolutionFinanciereCard() {
             ))}
           </Select>
         </Field>
-        <Field label="Établissement ou compte">
+        <Field label={t('evolutionFinanciereCard.etablissementOuCompte')}>
           <Select value={valeurSelectGroupe} onChange={(e) => onChangeGroupe(e.target.value)}>
-            <option value="">Tout</option>
+            <option value="">{t('evolutionFinanciereCard.tout')}</option>
             {etablissementsDisponibles.length > 0 && (
-              <optgroup label="Établissements">
+              <optgroup label={t('evolutionFinanciereCard.etablissements')}>
                 {etablissementsDisponibles.map((e) => (
                   <option key={`e:${e.id}`} value={`e:${e.id}`}>
                     {e.nom}
@@ -290,7 +285,7 @@ export default function EvolutionFinanciereCard() {
               </optgroup>
             )}
             {comptesDisponibles.length > 0 && (
-              <optgroup label="Comptes">
+              <optgroup label={t('evolutionFinanciereCard.comptes')}>
                 {comptesDisponibles.map((c) => (
                   <option key={`c:${c.id}`} value={`c:${c.id}`}>
                     {c.nom}
@@ -301,9 +296,9 @@ export default function EvolutionFinanciereCard() {
           </Select>
         </Field>
         {detenteurs.length > 0 && (
-          <Field label="Détenteur">
+          <Field label={t('evolutionFinanciereCard.detenteur')}>
             <Select value={detenteurId ?? ''} onChange={(e) => setDetenteurId(e.target.value ? Number(e.target.value) : null)}>
-              <option value="">Foyer</option>
+              <option value="">{t('evolutionFinanciereCard.foyer')}</option>
               {detenteurs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.nom}
@@ -320,7 +315,7 @@ export default function EvolutionFinanciereCard() {
           valeur={modeDate}
           onChange={setModeDate}
           taille="sm"
-          ariaLabel="Période du graphique"
+          ariaLabel={t('evolutionFinanciereCard.periodeDuGraphique')}
         />
         <div className="flex flex-wrap items-center gap-2">
           {modeDate === 'PERSO' && (
@@ -330,34 +325,32 @@ export default function EvolutionFinanciereCard() {
                 value={dateDebutPerso}
                 max={dateVersISO(new Date())}
                 onChange={(e) => setDateDebutPerso(e.target.value)}
-                aria-label="Date de début"
+                aria-label={t('evolutionFinanciereCard.dateDeDebut')}
                 className="w-auto"
               />
-              <span className="text-sm text-texte-attenue">au</span>
+              <span className="text-sm text-texte-attenue">{t('evolutionFinanciereCard.au')}</span>
               <Input
                 type="date"
                 value={dateFinPerso}
                 max={dateVersISO(new Date())}
                 onChange={(e) => setDateFinPerso(e.target.value)}
-                aria-label="Date de fin"
+                aria-label={t('evolutionFinanciereCard.dateDeFin')}
                 className="w-auto"
               />
             </div>
           )}
-          <Pill actif={stacked} onClick={() => setStacked((v) => !v)} title="Superpose l'investi sous le total : la tranche visible entre les deux courbes, ce sont les gains.">
-            Mode étagé
-          </Pill>
+          <Pill actif={stacked} onClick={() => setStacked((v) => !v)} title={t('evolutionFinanciereCard.superposeLInvestiSousLe')}>{t('evolutionFinanciereCard.modeEtage')}</Pill>
           <SegmentedControl
             options={OPTIONS_LENTILLE_LOCALE.map((o) => ({ valeur: o.valeur, libelle: o.label }))}
             valeur={lentille}
             onChange={setLentille}
             taille="sm"
-            ariaLabel="Brut ou net (emprunts déduits)"
+            ariaLabel={t('evolutionFinanciereCard.brutOuNetEmpruntsDeduits')}
           />
         </div>
       </div>
 
-      {periodeInvalide && <EtatErreur message="La date de fin doit être postérieure ou égale à la date de début." />}
+      {periodeInvalide && <EtatErreur message={t('evolutionFinanciereCard.laDateDeFinDoit')} />}
 
       {!periodeInvalide && loading && (
         <>
@@ -366,13 +359,13 @@ export default function EvolutionFinanciereCard() {
               recalcule en quelques dizaines de millisecondes — 68 ms mesurées sur le
               portefeuille réel. Annoncer « jusqu'à une minute » à chaque fois serait
               désormais faux, et ferait patienter pour rien. */}
-          <p className="mb-2 text-[13px] text-ink3">Calcul de l'historique en cours...</p>
+          <p className="mb-2 text-[13px] text-ink3">{t('evolutionFinanciereCard.calculDeLHistoriqueEn')}</p>
           <SkeletonGraphique />
         </>
       )}
       {!periodeInvalide && error && <EtatErreur message={error} />}
       {!periodeInvalide && !loading && !error && data.length === 0 && (
-        <EtatVide titre="Aucun historique pour cette combinaison de filtres." />
+        <EtatVide titre={t('evolutionFinanciereCard.aucunHistoriquePourCetteCombinaison')} />
       )}
 
       {!periodeInvalide && !loading && !error && data.length > 0 && (
@@ -380,13 +373,9 @@ export default function EvolutionFinanciereCard() {
           {stacked && (
             <div className="mb-2 flex justify-end gap-3 text-[11px] text-ink3">
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />
-                Investi
-              </span>
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />{t('evolutionFinanciereCard.investi')}</span>
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />
-                Gains
-              </span>
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />{t('evolutionFinanciereCard.gains')}</span>
             </div>
           )}
 
@@ -449,14 +438,11 @@ export default function EvolutionFinanciereCard() {
           </ChartFrame>
 
           {stacked && (
-            <p className="mt-2 text-[11px] text-ink4">
-              Pour l'immobilier/l'épargne, seul un versement explicitement déclaré compte comme « Investi » — une hausse non
-              déclarée est traitée comme un gain.
-            </p>
+            <p className="mt-2 text-[11px] text-ink4">{t('evolutionFinanciereCard.pourLImmobilierLEpargne')}</p>
           )}
 
           <div className="mt-4 border-t border-bordure pt-4">
-            <h3 className="mb-3 text-sm font-semibold text-texte">Détail des lignes</h3>
+            <h3 className="mb-3 text-sm font-semibold text-texte">{t('evolutionFinanciereCard.detailDesLignes')}</h3>
             {loadingLignes && <SkeletonTexte lignes={3} />}
             {!loadingLignes && erreurLignes && <EtatErreur message={erreurLignes} />}
             {!loadingLignes && !erreurLignes && lignes && (

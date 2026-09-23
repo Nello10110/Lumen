@@ -1,0 +1,35 @@
+/** Textes français — espace « evolutionFinanciereCard » (backlog § BL.2). Généré par
+ * `scripts/i18n-extraire.mjs`, puis relu à la main. */
+const evolutionFinanciereCard = {
+  aucunePositionSuiviePourL: "Aucune position suivie pour l'instant.",
+  importezUnReleveOuAjoutez: "Importez un relevé ou ajoutez une ligne (immobilier, PER, assurance-vie...) depuis",
+  import: "Import",
+  ou: "ou",
+  actifs: "Actifs",
+  classeDActif: "Classe d'actif",
+  tout: "Tout",
+  etablissementOuCompte: "Établissement ou compte",
+  etablissements: "Établissements",
+  comptes: "Comptes",
+  detenteur: "Détenteur",
+  foyer: "Foyer",
+  periodeDuGraphique: "Période du graphique",
+  dateDeDebut: "Date de début",
+  au: "au",
+  dateDeFin: "Date de fin",
+  superposeLInvestiSousLe: "Superpose l'investi sous le total : la tranche visible entre les deux courbes, ce sont les gains.",
+  modeEtage: "Mode étagé",
+  brutOuNetEmpruntsDeduits: "Brut ou net (emprunts déduits)",
+  laDateDeFinDoit: "La date de fin doit être postérieure ou égale à la date de début.",
+  calculDeLHistoriqueEn: "Calcul de l'historique en cours...",
+  aucunHistoriquePourCetteCombinaison: "Aucun historique pour cette combinaison de filtres.",
+  investi: "Investi",
+  gains: "Gains",
+  pourLImmobilierLEpargne: "Pour l'immobilier/l'épargne, seul un versement explicitement déclaré compte comme « Investi » — une hausse non déclarée est traitée comme un gain.",
+  detailDesLignes: "Détail des lignes",
+  periodePersonnalisee: "Personnalisé",
+  lentilleNet: "Net",
+  lentilleBrut: "Brut",
+} as const
+
+export default evolutionFinanciereCard

@@ -19,7 +19,7 @@ import {
   STYLE_INFOBULLE,
 } from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
-import { localeCourante } from '../i18n'
+import { localeCourante, t } from '../i18n'
 
 // Nombre de mois affichés par défaut dans « Détail des dividendes » (retour
 // utilisateur du 21/09/2026) — un historique de plusieurs années y affichait
@@ -120,8 +120,8 @@ export default function RevenusSection() {
   return (
     <div className="space-y-[14px]">
       {calendrier.length === 0 ? (
-        <Card title="Dividendes">
-          <EtatVide titre="Aucun dividende perçu pour l'instant sur les transactions importées." />
+        <Card title={t('revenusSection.dividendes')}>
+          <EtatVide titre={t('revenusSection.aucunDividendePercuPourL')} />
         </Card>
       ) : (
         <>
@@ -129,16 +129,15 @@ export default function RevenusSection() {
               total perçu, en encre — c'est un cumul, pas un gain à comparer à une
               référence, et le vert le faisait lire comme une variation. */}
           <GlassPanel niveau="hero" className="px-6 py-5">
-            <p className="text-[13px] font-medium text-ink3">Dividendes perçus</p>
+            <p className="text-[13px] font-medium text-ink3">{t('revenusSection.dividendesPercus')}</p>
             <p className="text-[48px] font-semibold leading-none tracking-hero text-ink">
               {formatEuro(total, 2, montantsMasques)}
             </p>
-            <p className="mt-1.5 text-[13px] text-ink3">
-              sur {calendrier.length} mois, du {libelleMois(calendrier[0].mois)} au {libelleMois(calendrier[calendrier.length - 1].mois)}
+            <p className="mt-1.5 text-[13px] text-ink3">{t('revenusSection.sur')}{' '}{calendrier.length}{' '}{t('revenusSection.moisDu')}{' '}{libelleMois(calendrier[0].mois)}{' '}{t('revenusSection.au')}{' '}{libelleMois(calendrier[calendrier.length - 1].mois)}
             </p>
           </GlassPanel>
 
-          <Card title="Par mois">
+          <Card title={t('revenusSection.parMois')}>
             <ResponsiveContainer width="100%" height={HAUTEUR.panneau}>
               <BarChart data={donneesGraphique} margin={{ left: 0, right: 8, bottom: 4 }} barSize={EPAISSEUR_BARRE}>
                 <XAxis dataKey="moisCourt" interval={0} {...AXE_CATEGORIES} />
@@ -154,7 +153,7 @@ export default function RevenusSection() {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="Détail des dividendes">
+          <Card title={t('revenusSection.detailDesDividendes')}>
             <div className="space-y-2">
               {moisAffiches.map((mois) => (
                 <MoisCard key={mois.mois} mois={mois} />
@@ -163,7 +162,7 @@ export default function RevenusSection() {
             {moisMasques > 0 && (
               <div className="mt-3 flex justify-center">
                 <SecondaryButton onClick={() => setToutAffiche((v) => !v)}>
-                  {toutAffiche ? 'Réduire' : `Afficher les ${moisMasques} mois précédents`}
+                  {toutAffiche ? t('revenusSection.reduire') : t('revenusSection.afficherMoisPrecedents', { n: moisMasques })}
                 </SecondaryButton>
               </div>
             )}

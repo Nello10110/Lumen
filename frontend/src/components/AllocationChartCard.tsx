@@ -8,6 +8,8 @@ import EtatVide from './EtatVide'
 import { IconFermer } from './icons'
 import Modale from './Modale'
 import StatTile from './StatTile'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 function IconExpand({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -45,8 +47,8 @@ export default function AllocationChartCard({
     <div className="flex items-center gap-1.5">
       <button
         type="button"
-        aria-label="Agrandir le graphique"
-        title="Agrandir"
+        aria-label={t('allocationChartCard.agrandirLeGraphique')}
+        title={t('allocationChartCard.agrandir')}
         onClick={() => setPleinEcran(true)}
         className="flex h-11 w-11 items-center justify-center rounded-control border border-hairline bg-chip text-ink3 transition-colors hover:bg-hover md:h-8 md:w-8"
       >
@@ -64,8 +66,8 @@ export default function AllocationChartCard({
           <AllocationBarChart items={items} onCategoryClick={onCategoryClick} />
         ) : (
           <EtatVide
-            titre="Aucune donnée de répartition disponible."
-            description="Ajoute des positions au portefeuille, ou vérifie leur classification géographique/sectorielle sur la fiche de chaque titre."
+            titre={t('allocationChartCard.aucuneDonneeDeRepartitionDisponible')}
+            description={t('allocationChartCard.ajouteDesPositionsAuPortefeuille')}
           />
         )}
         {footnote}
@@ -79,7 +81,7 @@ export default function AllocationChartCard({
                 <h3 id={titleId} className="text-[15px] font-semibold -tracking-[0.01em] text-ink">
                   {title}
                 </h3>
-                <button onClick={() => setPleinEcran(false)} aria-label="Fermer" className="text-ink3 hover:text-ink">
+                <button onClick={() => setPleinEcran(false)} aria-label={t('allocationChartCard.fermer')} className="text-ink3 hover:text-ink">
                   <IconFermer className="h-4 w-4" />
                 </button>
               </div>
@@ -87,15 +89,15 @@ export default function AllocationChartCard({
               <AllocationBarChart items={items} onCategoryClick={onCategoryClick} />
 
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <StatTile label="Valeur totale" value={formatEuro(totalValeur, 0, montantsMasques)} />
+                <StatTile label={t('allocationChartCard.valeurTotale')} value={formatEuro(totalValeur, 0, montantsMasques)} />
               </div>
 
               <table className="mt-6 w-full text-sm">
                 <thead>
                   <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-ink3">
-                    <th className="py-2 font-medium">Catégorie</th>
-                    <th className="py-2 text-right font-medium">Valeur</th>
-                    <th className="py-2 text-right font-medium">Réel</th>
+                    <th className="py-2 font-medium">{t('allocationChartCard.categorie')}</th>
+                    <th className="py-2 text-right font-medium">{t('allocationChartCard.valeur')}</th>
+                    <th className="py-2 text-right font-medium">{t('allocationChartCard.reel')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-hairline">
@@ -107,7 +109,7 @@ export default function AllocationChartCard({
                         className="cursor-pointer hover:bg-hover"
                         onClick={() => onCategoryClick(item.categorie)}
                       >
-                        <td className="py-2 text-ink">{item.categorie}</td>
+                        <td className="py-2 text-ink">{libelleDonnee(item.categorie)}</td>
                         <td className="py-2 text-right text-ink2">{formatEuro(item.valeur, 0, montantsMasques)}</td>
                         <td className="py-2 text-right text-ink2">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
                       </tr>

@@ -7,6 +7,7 @@ import EtatVide from './EtatVide'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { t } from '../i18n'
 
 /** Revenus passifs projetés à 12 mois (backlog 2.P.3, absorbe C.2) : distingue ce
  * qui est CERTAIN (loyers nets, intérêts de livrets — montants déjà connus) de ce
@@ -36,23 +37,23 @@ export default function RevenusPassifsCard() {
   if (!revenus) return null
 
   return (
-    <Card title="Revenus passifs projetés (12 mois)">
+    <Card title={t('revenusPassifsCard.revenusPassifsProjetes12Mois')}>
       {revenus.revenu_total_projete_annuel === 0 ? (
         <EtatVide
-          titre="Aucun revenu passif détecté."
-          description="Renseigne un loyer sur une fiche immobilière, un taux sur une épargne, ou importe un historique avec des dividendes perçus."
+          titre={t('revenusPassifsCard.aucunRevenuPassifDetecte')}
+          description={t('revenusPassifsCard.renseigneUnLoyerSurUne')}
         />
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Projection annuelle</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('revenusPassifsCard.projectionAnnuelle')}</p>
               <p className="mt-1 text-2xl font-semibold text-texte">
                 {formatEuro(revenus.revenu_total_projete_annuel, 0, montantsMasques)}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Projection mensuelle</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('revenusPassifsCard.projectionMensuelle')}</p>
               <p className="mt-1 text-2xl font-semibold text-texte">
                 {formatEuro(revenus.revenu_total_projete_mensuel, 0, montantsMasques)}
               </p>
@@ -61,14 +62,14 @@ export default function RevenusPassifsCard() {
 
           <div className="grid grid-cols-1 gap-4 border-t border-bordure pt-4 sm:grid-cols-2">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-positif">Certain</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-positif">{t('revenusPassifsCard.certain')}</p>
               <ul className="space-y-1 text-sm">
                 <li className="flex items-center justify-between">
-                  <span className="text-texte-attenue">Loyers nets</span>
+                  <span className="text-texte-attenue">{t('revenusPassifsCard.loyersNets')}</span>
                   <span className="font-medium text-texte">{formatEuro(revenus.loyers_nets_annuels, 0, montantsMasques)}</span>
                 </li>
                 <li className="flex items-center justify-between">
-                  <span className="text-texte-attenue">Intérêts de livrets</span>
+                  <span className="text-texte-attenue">{t('revenusPassifsCard.interetsDeLivrets')}</span>
                   <span className="font-medium text-texte">
                     {formatEuro(revenus.interets_livrets_annuels, 0, montantsMasques)}
                   </span>
@@ -76,18 +77,16 @@ export default function RevenusPassifsCard() {
               </ul>
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-avertissement">
-                Estimé (12 derniers mois extrapolés)
-              </p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-avertissement">{t('revenusPassifsCard.estime12DerniersMoisExtrapoles')}</p>
               <ul className="space-y-1 text-sm">
                 <li className="flex items-center justify-between">
-                  <span className="text-texte-attenue">Dividendes</span>
+                  <span className="text-texte-attenue">{t('revenusPassifsCard.dividendes')}</span>
                   <span className="font-medium text-texte">
                     {formatEuro(revenus.dividendes_estimes_annuels, 0, montantsMasques)}
                   </span>
                 </li>
                 <li className="flex items-center justify-between">
-                  <span className="text-texte-attenue">Intérêts de courtage</span>
+                  <span className="text-texte-attenue">{t('revenusPassifsCard.interetsDeCourtage')}</span>
                   <span className="font-medium text-texte">
                     {formatEuro(revenus.interets_courtage_estimes_annuels, 0, montantsMasques)}
                   </span>
@@ -95,10 +94,7 @@ export default function RevenusPassifsCard() {
               </ul>
             </div>
           </div>
-          <p className="mt-4 text-xs text-texte-attenue">
-            La part « certaine » repose sur des montants déjà connus (loyer, taux déclaré). La part « estimée » extrapole
-            les 12 derniers mois réellement perçus — jamais une promesse pour les 12 prochains.
-          </p>
+          <p className="mt-4 text-xs text-texte-attenue">{t('revenusPassifsCard.laPartCertaineReposeSur')}</p>
         </>
       )}
     </Card>
