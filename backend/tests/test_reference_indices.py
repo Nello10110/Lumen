@@ -180,3 +180,19 @@ def test_zones_geographiques_france_dans_europe():
     assert "France" in zones[ZONE_EUROPE]
     assert "Inde" in zones[ZONE_MARCHES_EMERGENTS]
     assert "Japon" in zones[ZONE_JAPON]
+
+
+def test_zones_geographiques_chaque_pays_a_son_code_iso():
+    """Backlog § BL : l'écran d'aide nomme les pays dans la langue du foyer à partir
+    de leur code ISO — un pays de `COUNTRY_TO_REGION` sans code resterait affiché en
+    français dans toutes les langues."""
+    from app.services.reference_indices import COUNTRY_ISO, COUNTRY_TO_REGION
+
+    assert set(COUNTRY_TO_REGION) <= set(COUNTRY_ISO)
+    zones = {z["zone"]: z for z in zones_geographiques()}
+    assert "FR" in zones["Europe"]["codes_pays"]
+    assert "US" in zones["Amérique du Nord"]["codes_pays"]
+    # Tchéquie : deux variantes yfinance, un seul code, un seul libellé.
+    assert zones["Europe"]["codes_pays"].count("CZ") == 1
+    assert len(zones["Europe"]["codes_pays"]) == len(zones["Europe"]["pays"])
+    assert zones["Autres zones"]["codes_pays"] == []

@@ -50,3 +50,6 @@ class ZoneGeographiqueInfo(BaseModel):
 
     zone: str
     pays: list[str]
+    # Codes ISO 3166-1 alpha-2 des mêmes pays (§ BL) : le frontend les nomme dans la
+    # langue du foyer ; `pays` reste le libellé français de référence.
+    codes_pays: list[str] = []

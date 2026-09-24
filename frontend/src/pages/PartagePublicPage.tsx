@@ -7,6 +7,8 @@ import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { SkeletonTexte } from '../components/Skeleton'
 import { formatDate, formatEuro, formatPct } from '../utils/format'
+import { t } from '../i18n'
+import { libelleDonnee } from '../i18n/donnees'
 
 /** Consultation publique d'un lien de partage (backlog 2.Q.1) — page volontairement
  * AUTONOME : montée en dehors de `AuthProvider`/`PreferencesAffichageProvider`
@@ -28,7 +30,7 @@ export default function PartagePublicPage() {
 
   useEffect(() => {
     if (!token) return
-    document.title = 'Patrimoine partagé'
+    document.title = t('partagePublicPage.patrimoinePartage')
     api
       .getPartageMeta(token)
       .then((meta) => {
@@ -61,19 +63,17 @@ export default function PartagePublicPage() {
     <div className="min-h-screen bg-surface-elevee px-6 py-10">
       <div className="mx-auto max-w-3xl space-y-6">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Patrimoine partagé</p>
-          <h1 className="text-xl font-semibold text-texte">{nomLien ?? 'Consultation'}</h1>
+          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.patrimoinePartage')}</p>
+          <h1 className="text-xl font-semibold text-texte">{nomLien ?? t('partagePublicPage.consultation')}</h1>
         </div>
 
         {chargementMeta && <SkeletonTexte lignes={3} />}
         {erreurMeta && <EtatErreur message={erreurMeta} />}
 
         {!chargementMeta && !erreurMeta && codeRequis && !donnees && (
-          <Card title="Code d'accès requis">
+          <Card title={t('partagePublicPage.codeDAccesRequis')}>
             <form onSubmit={handleSubmitCode} className="flex items-end gap-3">
-              <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-texte-attenue">
-                Code
-                <input
+              <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-texte-attenue">{t('partagePublicPage.code')}<input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   type="password"
@@ -85,7 +85,7 @@ export default function PartagePublicPage() {
                 disabled={envoiEnCours || !code}
                 className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
               >
-                {envoiEnCours ? 'Vérification...' : 'Accéder'}
+                {envoiEnCours ? t('partagePublicPage.verification') : t('partagePublicPage.acceder')}
               </button>
             </form>
             {erreurCode && <p className="mt-2 text-sm text-negatif">{erreurCode}</p>}
@@ -102,12 +102,12 @@ export default function PartagePublicPage() {
 }
 
 function TableauRepartition({ items }: { items: PartageRepartitionItem[] }) {
-  if (items.length === 0) return <EtatVide titre="Aucune donnée." />
+  if (items.length === 0) return <EtatVide titre={t('partagePublicPage.aucuneDonnee')} />
   return (
     <ul className="divide-y divide-bordure">
       {items.map((item) => (
         <li key={item.categorie} className="flex items-center justify-between py-2 text-sm">
-          <span className="text-texte">{item.categorie}</span>
+          <span className="text-texte">{libelleDonnee(item.categorie)}</span>
           <span className="text-texte-attenue">
             {item.valeur !== null ? `${formatEuro(item.valeur, 0)} · ` : ''}
             {item.pourcentage}%
@@ -122,18 +122,18 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
   return (
     <div className="space-y-[14px]">
       {donnees.patrimoine_net && (
-        <Card title="Patrimoine net">
+        <Card title={t('partagePublicPage.patrimoineNet')}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Actifs totaux</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.actifsTotaux')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatEuro(donnees.patrimoine_net.actifs_totaux, 0)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Passifs</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.passifs')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatEuro(donnees.patrimoine_net.passifs_totaux, 0)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Patrimoine net</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.patrimoineNet')}</p>
               <p className="mt-1 text-xl font-semibold text-positif">{formatEuro(donnees.patrimoine_net.patrimoine_net, 0)}</p>
             </div>
           </div>
@@ -144,32 +144,32 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
       )}
 
       {donnees.exposition && (
-        <Card title="Exposition consolidée">
+        <Card title={t('partagePublicPage.expositionConsolidee')}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Plus grosse ligne</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.plusGrosseLigne')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">
                 {donnees.exposition.plus_grosse_ligne_pct !== null ? `${donnees.exposition.plus_grosse_ligne_pct}%` : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Top 5 lignes</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.top5Lignes')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">
                 {donnees.exposition.top5_lignes_pct !== null ? `${donnees.exposition.top5_lignes_pct}%` : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Première zone</p>
-              <p className="mt-1 text-xl font-semibold text-texte">{donnees.exposition.premiere_zone_geo ?? '—'}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.premiereZone')}</p>
+              <p className="mt-1 text-xl font-semibold text-texte">{donnees.exposition.premiere_zone_geo ? libelleDonnee(donnees.exposition.premiere_zone_geo) : '—'}</p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-texte-attenue">Géographique</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.geographique')}</p>
               <TableauRepartition items={donnees.exposition.repartition_geo} />
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-texte-attenue">Par classe d'actif</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.parClasseDActif')}</p>
               <TableauRepartition items={donnees.exposition.repartition_classe} />
             </div>
           </div>
@@ -177,18 +177,18 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
       )}
 
       {donnees.performance && (
-        <Card title="Rentabilité">
+        <Card title={t('partagePublicPage.rentabilite')}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Gain/perte total</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.gainPerteTotal')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatEuro(donnees.performance.gain_perte_total, 0)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rendement simple</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.rendementSimple')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(donnees.performance.rendement_simple_pct)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rendement annualisé</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.rendementAnnualise')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(donnees.performance.rendement_annualise_pct)}</p>
             </div>
           </div>
@@ -199,15 +199,15 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
         <Card title={`Budget (${formatDate(donnees.budget.periode_debut)} au ${formatDate(donnees.budget.periode_fin)})`}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Entrées</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.entrees')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatEuro(donnees.budget.entrees, 0)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Sorties</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.sorties')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatEuro(donnees.budget.sorties, 0)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Disponible</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.disponible')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">{formatEuro(donnees.budget.disponible, 0)}</p>
             </div>
           </div>
@@ -217,7 +217,7 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
         </Card>
       )}
 
-      <p className="text-center text-xs text-texte-attenue">Vue en lecture seule, générée par Lumen.</p>
+      <p className="text-center text-xs text-texte-attenue">{t('partagePublicPage.vueEnLectureSeuleGeneree')}</p>
     </div>
   )
 }

@@ -174,6 +174,83 @@ COUNTRY_LABELS_FR: dict[str, str] = {
 }
 
 
+# Code ISO 3166-1 alpha-2 des pays de `COUNTRY_TO_REGION` (backlog § BL) : l'écran
+# d'aide nomme chaque pays dans la langue du foyer à partir de ce code
+# (`Intl.DisplayNames` côté navigateur), plutôt que de maintenir ici une table de
+# noms par langue. Les deux variantes yfinance de la Tchéquie partagent un code.
+COUNTRY_ISO: dict[str, str] = {
+    "United States": "US",
+    "Canada": "CA",
+    "Japan": "JP",
+    "United Kingdom": "GB",
+    "France": "FR",
+    "Germany": "DE",
+    "Switzerland": "CH",
+    "Netherlands": "NL",
+    "Spain": "ES",
+    "Italy": "IT",
+    "Sweden": "SE",
+    "Denmark": "DK",
+    "Belgium": "BE",
+    "Norway": "NO",
+    "Finland": "FI",
+    "Ireland": "IE",
+    "Austria": "AT",
+    "Portugal": "PT",
+    "Luxembourg": "LU",
+    "Israel": "IL",
+    "Greece": "GR",
+    "Cyprus": "CY",
+    "Iceland": "IS",
+    "Liechtenstein": "LI",
+    "Monaco": "MC",
+    "Czechia": "CZ",
+    "Czech Republic": "CZ",
+    "Hungary": "HU",
+    "Romania": "RO",
+    "Slovenia": "SI",
+    "Slovakia": "SK",
+    "Estonia": "EE",
+    "Latvia": "LV",
+    "Lithuania": "LT",
+    "Croatia": "HR",
+    "Bulgaria": "BG",
+    "Australia": "AU",
+    "Hong Kong": "HK",
+    "Singapore": "SG",
+    "New Zealand": "NZ",
+    "China": "CN",
+    "India": "IN",
+    "Brazil": "BR",
+    "South Korea": "KR",
+    "Taiwan": "TW",
+    "Mexico": "MX",
+    "South Africa": "ZA",
+    "Indonesia": "ID",
+    "Thailand": "TH",
+    "Malaysia": "MY",
+    "Poland": "PL",
+    "Turkey": "TR",
+    "Argentina": "AR",
+    "Chile": "CL",
+    "Colombia": "CO",
+    "Peru": "PE",
+    "Uruguay": "UY",
+    "Egypt": "EG",
+    "Morocco": "MA",
+    "Nigeria": "NG",
+    "Kenya": "KE",
+    "Qatar": "QA",
+    "United Arab Emirates": "AE",
+    "Saudi Arabia": "SA",
+    "Kuwait": "KW",
+    "Philippines": "PH",
+    "Vietnam": "VN",
+    "Pakistan": "PK",
+    "Bangladesh": "BD",
+}
+
+
 def zones_geographiques() -> list[dict]:
     """Pour l'écran d'aide (FAQ) : la liste, triée alphabétiquement en français,
     des pays connus de chacune des 6 zones géographiques. Dérivée directement de
@@ -185,14 +262,19 @@ def zones_geographiques() -> list[dict]:
     non encore répertorié, cf. `region_for_country`) — y afficher une énumération
     donnerait à tort l'impression d'être exhaustif, elle est donc renvoyée à part
     avec une liste de pays vide."""
-    par_zone: dict[str, set[str]] = {
-        zone: set() for zone in (ZONE_AMERIQUE_DU_NORD, ZONE_EUROPE, ZONE_JAPON, ZONE_ASIE_PACIFIQUE, ZONE_MARCHES_EMERGENTS)
-    }
+    zones_listees = (ZONE_AMERIQUE_DU_NORD, ZONE_EUROPE, ZONE_JAPON, ZONE_ASIE_PACIFIQUE, ZONE_MARCHES_EMERGENTS)
+    par_zone: dict[str, set[str]] = {zone: set() for zone in zones_listees}
+    codes_par_zone: dict[str, set[str]] = {zone: set() for zone in zones_listees}
     for pays_en, zone in COUNTRY_TO_REGION.items():
         par_zone[zone].add(COUNTRY_LABELS_FR.get(pays_en, pays_en))
+        if pays_en in COUNTRY_ISO:
+            codes_par_zone[zone].add(COUNTRY_ISO[pays_en])
 
-    zones = [{"zone": zone, "pays": sorted(pays, key=lambda p: p)} for zone, pays in par_zone.items()]
-    zones.append({"zone": ZONE_AUTRES, "pays": []})
+    zones = [
+        {"zone": zone, "pays": sorted(pays, key=lambda p: p), "codes_pays": sorted(codes_par_zone[zone])}
+        for zone, pays in par_zone.items()
+    ]
+    zones.append({"zone": ZONE_AUTRES, "pays": [], "codes_pays": []})
     return zones
 
 

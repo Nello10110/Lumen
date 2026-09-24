@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
+import { activerLangue } from '../i18n'
 import AidePage from './AidePage'
 
 vi.mock('../api/client', () => ({
@@ -10,12 +11,12 @@ vi.mock('../api/client', () => ({
 }))
 
 const ZONES = [
-  { zone: 'Amérique du Nord', pays: ['Canada', 'États-Unis'] },
-  { zone: 'Europe', pays: ['Allemagne', 'France'] },
-  { zone: 'Japon', pays: ['Japon'] },
-  { zone: 'Asie-Pacifique (hors Japon)', pays: ['Australie'] },
-  { zone: 'Marchés émergents', pays: ['Chine', 'Inde'] },
-  { zone: 'Autres zones', pays: [] },
+  { zone: 'Amérique du Nord', pays: ['Canada', 'États-Unis'], codes_pays: ['CA', 'US'] },
+  { zone: 'Europe', pays: ['Allemagne', 'France'], codes_pays: ['DE', 'FR'] },
+  { zone: 'Japon', pays: ['Japon'], codes_pays: ['JP'] },
+  { zone: 'Asie-Pacifique (hors Japon)', pays: ['Australie'], codes_pays: ['AU'] },
+  { zone: 'Marchés émergents', pays: ['Chine', 'Inde'], codes_pays: ['CN', 'IN'] },
+  { zone: 'Autres zones', pays: [], codes_pays: [] },
 ]
 
 describe('AidePage', () => {
@@ -92,5 +93,23 @@ describe('AidePage', () => {
 
     fireEvent.click(question)
     expect(details).toHaveAttribute('open')
+  })
+
+  it('en anglais, nomme zones, secteurs et pays dans la langue du foyer (§ BL)', async () => {
+    // Les pays viennent de leur code ISO (`Intl.DisplayNames`) : sans cela, un foyer
+    // anglophone lirait « Allemagne » et « États-Unis » au milieu d'un écran anglais.
+    await activerLangue('en')
+    try {
+      vi.mocked(api.getZonesGeographiques).mockResolvedValue(ZONES)
+      render(<AidePage />)
+
+      await screen.findByText('North America')
+      expect(screen.getByText('United States')).toBeInTheDocument()
+      expect(screen.getByText('Germany')).toBeInTheDocument()
+      expect(screen.queryByText('Allemagne')).not.toBeInTheDocument()
+      expect(screen.getByText('Information technology')).toBeInTheDocument()
+    } finally {
+      await activerLangue('fr')
+    }
   })
 })

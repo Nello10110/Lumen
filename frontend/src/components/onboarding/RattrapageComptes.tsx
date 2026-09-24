@@ -10,6 +10,7 @@ import EtatErreur from '../EtatErreur'
 import { Field, Input, Select } from '../Field'
 import { SkeletonTexte } from '../Skeleton'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from '../SelecteurEtablissement'
+import { t } from '../../i18n'
 
 const NOUVEAU_COMPTE = '__nouveau__'
 
@@ -128,15 +129,12 @@ export default function RattrapageComptes() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-elevee px-6 py-10">
       <div className="w-full max-w-2xl">
-        <h1 className="mb-2 text-center text-xl font-semibold text-texte">Rattacher vos lignes à un compte</h1>
-        <p className="mb-6 text-center text-sm text-texte-attenue">
-          Chaque ligne financière doit désormais être rattachée à un compte (l'immobilier, un véhicule ou un autre bien
-          en restent dispensés). Choisissez un compte existant ou créez-en un pour chacune des lignes ci-dessous.
-        </p>
+        <h1 className="mb-2 text-center text-xl font-semibold text-texte">{t('rattrapageComptes.rattacherVosLignesAUn')}</h1>
+        <p className="mb-6 text-center text-sm text-texte-attenue">{t('rattrapageComptes.chaqueLigneFinanciereDoitDesormais')}</p>
 
         <Card>
           {toutesResolues ? (
-            <p className="py-6 text-center text-sm text-texte">Toutes vos lignes sont désormais rattachées à un compte.</p>
+            <p className="py-6 text-center text-sm text-texte">{t('rattrapageComptes.toutesVosLignesSontDesormais')}</p>
           ) : (
             <ul className="divide-y divide-bordure">
               {holdings.map((h) => {
@@ -150,32 +148,32 @@ export default function RattrapageComptes() {
                         {h.ticker} · {formatEuro(h.valeur, 2, false)}
                       </p>
                     </div>
-                    <Field label="Compte" className="w-40">
+                    <Field label={t('rattrapageComptes.compte')} className="w-40">
                       <Select
                         value={form.compte_id}
                         onChange={(e) => majForm(h.id, { compte_id: e.target.value })}
-                        aria-label={`Compte pour ${h.ticker}`}
+                        aria-label={t('rattrapageComptes.ariaComptePour', { ticker: h.ticker })}
                       >
-                        <option value="">— Choisir —</option>
+                        <option value="">{t('rattrapageComptes.choisir')}</option>
                         {comptes.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.nom}
                           </option>
                         ))}
-                        <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
+                        <option value={NOUVEAU_COMPTE}>{t('rattrapageComptes.nouveauCompte')}</option>
                       </Select>
                     </Field>
                     {form.compte_id === NOUVEAU_COMPTE && (
                       <>
-                        <Field label="Nom du nouveau compte" className="w-36">
+                        <Field label={t('rattrapageComptes.nomDuNouveauCompte')} className="w-36">
                           <Input
                             value={form.compte_nom}
                             onChange={(e) => majForm(h.id, { compte_nom: e.target.value })}
-                            aria-label={`Nom du nouveau compte pour ${h.ticker}`}
-                            placeholder="PEA, CTO..."
+                            aria-label={t('rattrapageComptes.ariaNomNouveauComptePour', { ticker: h.ticker })}
+                            placeholder={t('rattrapageComptes.peaCto')}
                           />
                         </Field>
-                        <Field label="Établissement" className="w-36">
+                        <Field label={t('rattrapageComptes.etablissement')} className="w-36">
                           <SelecteurEtablissement
                             etablissements={etablissements}
                             value={form.etablissement_id}
@@ -184,14 +182,12 @@ export default function RattrapageComptes() {
                             onNomNouveauChange={(v) => majForm(h.id, { etablissement_nom: v })}
                             logoKeyNouveau={form.etablissement_logo_key}
                             onLogoKeyNouveauChange={(v) => majForm(h.id, { etablissement_logo_key: v })}
-                            ariaLabel={`Établissement pour ${h.ticker}`}
+                            ariaLabel={t('rattrapageComptes.ariaEtablissementPour', { ticker: h.ticker })}
                           />
                         </Field>
                       </>
                     )}
-                    <PrimaryButton onClick={() => resoudre(h)} disabled={savingId === h.id || !validable}>
-                      Valider
-                    </PrimaryButton>
+                    <PrimaryButton onClick={() => resoudre(h)} disabled={savingId === h.id || !validable}>{t('rattrapageComptes.valider')}</PrimaryButton>
                   </li>
                 )
               })}
@@ -200,7 +196,7 @@ export default function RattrapageComptes() {
           {error && <EtatErreur message={error} />}
           <div className="mt-4 flex justify-end border-t border-bordure pt-4">
             <PrimaryButton onClick={continuer} disabled={!toutesResolues || finishing}>
-              {finishing ? 'Chargement…' : 'Continuer'}
+              {finishing ? t('rattrapageComptes.chargement') : t('rattrapageComptes.continuer')}
             </PrimaryButton>
           </div>
         </Card>

@@ -1,4 +1,5 @@
 // Généré par `scripts/i18n-agreger.mjs` — ne pas modifier à la main.
+import aidePage from './aidePage'
 import ajoutCompteForm from './ajoutCompteForm'
 import ajoutDetenteurModale from './ajoutDetenteurModale'
 import ajoutHoldingForm from './ajoutHoldingForm'
@@ -68,6 +69,7 @@ import mouvementsSection from './mouvementsSection'
 import pageIntrouvablePage from './pageIntrouvablePage'
 import paletteRecherche from './paletteRecherche'
 import partageCard from './partageCard'
+import partagePublicPage from './partagePublicPage'
 import patrimoineNetCard from './patrimoineNetCard'
 import patrimoineVide from './patrimoineVide'
 import performanceCard from './performanceCard'
@@ -81,6 +83,7 @@ import preferencesCard from './preferencesCard'
 import qualiteDonneesCard from './qualiteDonneesCard'
 import rafraichissementCoursIndicateur from './rafraichissementCoursIndicateur'
 import rapportPage from './rapportPage'
+import rattrapageComptes from './rattrapageComptes'
 import recurrencesSection from './recurrencesSection'
 import reglagesPage from './reglagesPage'
 import repartitionSection from './repartitionSection'
@@ -99,6 +102,7 @@ import tuileSourceImport from './tuileSourceImport'
 import valorisationHistoriqueCard from './valorisationHistoriqueCard'
 
 const espaces = {
+  aidePage,
   ajoutCompteForm,
   ajoutDetenteurModale,
   ajoutHoldingForm,
@@ -168,6 +172,7 @@ const espaces = {
   pageIntrouvablePage,
   paletteRecherche,
   partageCard,
+  partagePublicPage,
   patrimoineNetCard,
   patrimoineVide,
   performanceCard,
@@ -181,6 +186,7 @@ const espaces = {
   qualiteDonneesCard,
   rafraichissementCoursIndicateur,
   rapportPage,
+  rattrapageComptes,
   recurrencesSection,
   reglagesPage,
   repartitionSection,

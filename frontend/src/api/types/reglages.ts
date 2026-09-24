@@ -52,7 +52,10 @@ export interface ScheduledJob {
 // liste dupliquée à la main, pour rester toujours fidèle au classement réel.
 export interface ZoneGeographiqueInfo {
   zone: string
+  /** Libellés français de référence. */
   pays: string[]
+  /** Codes ISO 3166-1 alpha-2 des mêmes pays (§ BL) : nommés dans la langue du foyer. */
+  codes_pays: string[]
 }
 
 // Jalons personnels — célébrations et galerie de badges (backlog §§ AG.3/AG.4).
