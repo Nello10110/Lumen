@@ -63,9 +63,28 @@ export function formatQuantite(value: number): string {
   return formatteurNombre('quantite', { maximumFractionDigits: 8 }).format(Number(value.toFixed(8)))
 }
 
+/** Part ou taux en pourcentage, sans signe (`12,5 %` en français, `12.5%` en
+ * anglais) — `value` est déjà un pourcentage. Remplace les `toFixed(1) + ' %'` écrits à
+ * la main, qui gardaient le point décimal dans toutes les langues (§ BL). */
+export function formatPourcent(value: number, decimales: 1 | 2 = 1): string {
+  return formatteurNombre(`pct${decimales}`, {
+    style: 'percent',
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  }).format(value / 100)
+}
+
+/** Variation en pourcentage, signée (`+12,5 %` en français, `+12.5%` en anglais) —
+ * `value` est déjà un pourcentage (12.5 pour 12,5 %). Séparateur décimal et espace
+ * avant « % » suivent la langue (§ BL) ; zéro reste sans signe, comme avant. */
 export function formatPct(value: number | null): string {
   if (value === null) return '—'
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
+  return formatteurNombre('pctSigne', {
+    style: 'percent',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    signDisplay: 'exceptZero',
+  }).format(value / 100)
 }
 
 /** Sérialise une `Date` en "YYYY-MM-DD" d'après ses composantes LOCALES (jamais

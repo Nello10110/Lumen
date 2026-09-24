@@ -25,8 +25,8 @@ describe('IndicateursSituationCard (backlog 2.O.2)', () => {
     render(<IndicateursSituationCard indicateurs={indicateurs()} />)
 
     expect(screen.getByText('6 mois')).toBeInTheDocument()
-    expect(screen.getByText('+25.0%')).toBeInTheDocument()
-    expect(screen.getByText('+40.0%')).toBeInTheDocument()
+    expect(screen.getByText('+25,0 %')).toBeInTheDocument()
+    expect(screen.getByText('+40,0 %')).toBeInTheDocument()
     expect(screen.queryByText(/Nécessite des mouvements bancaires/)).not.toBeInTheDocument()
   })
 

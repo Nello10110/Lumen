@@ -71,8 +71,8 @@ describe('MetriquesAvanceesCard', () => {
 
     renderCard()
 
-    await screen.findByText('+12.5%')
-    expect(screen.getByText('+8.2%')).toBeInTheDocument()
+    await screen.findByText('+12,5 %')
+    expect(screen.getByText('+8,2 %')).toBeInTheDocument()
     expect(screen.getByText('15%')).toBeInTheDocument()
     expect(screen.getByText('-10%')).toBeInTheDocument()
     expect(screen.getByText('récupéré en 3 semaines')).toBeInTheDocument()
@@ -84,7 +84,7 @@ describe('MetriquesAvanceesCard', () => {
 
     renderCard()
 
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
     expect(screen.queryByText(/récupéré/)).not.toBeInTheDocument()
   })
 
@@ -111,7 +111,7 @@ describe('MetriquesAvanceesCard', () => {
     vi.mocked(api.getComparaisonBenchmark).mockResolvedValue(comparaison)
 
     renderCard()
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
 
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MSCI_WORLD' } })
 
@@ -128,7 +128,7 @@ describe('MetriquesAvanceesCard', () => {
     vi.mocked(api.listBenchmarks).mockResolvedValueOnce([])
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
   })
 })
 
@@ -143,7 +143,7 @@ describe('MetriquesAvanceesCard — mode langage simple (backlog § AG.1)', () =
 
     renderCard('financier', false)
 
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
     expect(screen.getByText('TWR cumulé')).toBeInTheDocument()
     expect(screen.getByText('Volatilité annualisée')).toBeInTheDocument()
     expect(screen.getByText('Perte maximale (drawdown)')).toBeInTheDocument()
@@ -155,7 +155,7 @@ describe('MetriquesAvanceesCard — mode langage simple (backlog § AG.1)', () =
     vi.mocked(api.listBenchmarks).mockResolvedValue([])
 
     renderCard('financier', true)
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
 
     expect(screen.getByText('Régularité du parcours')).toBeInTheDocument()
     expect(screen.getByText('Pire chute essuyée')).toBeInTheDocument()
@@ -176,7 +176,7 @@ describe('MetriquesAvanceesCard — lentille Net/Brut/Financier', () => {
 
     renderCard('brut')
 
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
     expect(api.getMetriquesAvancees).toHaveBeenCalledWith('brut')
   })
 
@@ -185,7 +185,7 @@ describe('MetriquesAvanceesCard — lentille Net/Brut/Financier', () => {
     vi.mocked(api.listBenchmarks).mockResolvedValue([])
 
     const { rerender } = renderCard('financier')
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
     expect(api.getMetriquesAvancees).toHaveBeenCalledWith('financier')
 
     rerender(providerJsx('net'))
@@ -203,7 +203,7 @@ describe('MetriquesAvanceesCard — lentille Net/Brut/Financier', () => {
     })
 
     const { rerender } = renderCard('financier')
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MSCI_WORLD' } })
     await vi.waitFor(() => expect(api.getComparaisonBenchmark).toHaveBeenCalledWith('MSCI_WORLD', 'financier'))
 
@@ -217,7 +217,7 @@ describe('MetriquesAvanceesCard — lentille Net/Brut/Financier', () => {
     vi.mocked(api.listBenchmarks).mockResolvedValue([{ key: 'MSCI_WORLD', label: 'MSCI World' }])
 
     const { rerender } = renderCard('financier')
-    await screen.findByText('+12.5%')
+    await screen.findByText('+12,5 %')
 
     rerender(providerJsx('brut'))
     await vi.waitFor(() => expect(api.getMetriquesAvancees).toHaveBeenCalledWith('brut'))

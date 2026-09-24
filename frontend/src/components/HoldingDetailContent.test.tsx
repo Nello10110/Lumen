@@ -271,8 +271,8 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
     await screen.findByText('Cashflow et rentabilité')
     expect(screen.getByText('700,00 €')).toBeInTheDocument()
-    expect(screen.getByText('+6.0%')).toBeInTheDocument()
-    expect(screen.getByText('+4.2%')).toBeInTheDocument()
+    expect(screen.getByText('+6,0 %')).toBeInTheDocument()
+    expect(screen.getByText('+4,2 %')).toBeInTheDocument()
     expect(screen.getByText('5 000,00 €')).toBeInTheDocument()
   })
 

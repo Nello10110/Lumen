@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro } from '../utils/format'
+import { formatEuro, formatPourcent } from '../utils/format'
 import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, variationSurPeriode } from '../utils/periode'
 import Card from './Card'
 import { DeltaBadge } from './Controls'
@@ -230,7 +230,7 @@ export default function PatrimoineNetCard({
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {variationPct !== null && (
             <DeltaBadge
-              valeur={`${variationPct >= 0 ? '↑' : '↓'} ${Math.abs(variationPct).toFixed(1)} %`}
+              valeur={`${variationPct >= 0 ? '↑' : '↓'} ${formatPourcent(Math.abs(variationPct))}`}
               positif={variationPct >= 0}
             />
           )}

@@ -44,6 +44,7 @@ from ..services import (
     journal_import_service,
     ledger_import,
     portfolio_reconstruction,
+    preferences_service,
     transaction_import,
     upload_limits,
 )
@@ -149,8 +150,11 @@ async def import_apercu(file: UploadFile, db: Session = Depends(get_db), current
 
     token = transaction_import.stage_parsed(parsed)
     comptages = {cle: n for cle, n in parsed.lignes_par_cle_compte.items() if n > 0}
-    noms_par_defaut = {cle: transaction_import.NOMS_COMPTE_PAR_DEFAUT[cle] for cle in comptages}
-    etablissements = comptes_service.list_etablissements(db, auth_service.id_foyer(current_user))
+    foyer = auth_service.id_foyer(current_user)
+    langue = preferences_service.lire_langue_foyer(db, foyer)
+    noms_existants = {nom for (nom,) in db.query(Compte.nom).filter(Compte.user_id == foyer).all()}
+    noms_par_defaut = {cle: transaction_import.nom_compte_propose(cle, langue, noms_existants) for cle in comptages}
+    etablissements = comptes_service.list_etablissements(db, foyer)
 
     return TransactionImportApercu(
         file_token=token,
@@ -186,10 +190,12 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     # actuel si déjà créé par un import précédent.
     comptes_par_cle: dict[str, int] = {}
     comptes_crees = 0
+    langue = preferences_service.lire_langue_foyer(db, user_id)
+    noms_existants = {nom for (nom,) in db.query(Compte.nom).filter(Compte.user_id == user_id).all()}
     for cle, nb_lignes in parsed.lignes_par_cle_compte.items():
         if nb_lignes <= 0:
             continue
-        nom = payload.noms_comptes.get(cle) or transaction_import.NOMS_COMPTE_PAR_DEFAUT[cle]
+        nom = payload.noms_comptes.get(cle) or transaction_import.nom_compte_propose(cle, langue, noms_existants)
         existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom).first() is not None
         compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, nom, etablissement_id)
         comptes_par_cle[cle] = compte.id

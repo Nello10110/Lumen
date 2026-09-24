@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { activerLangue } from '../i18n'
-import { formatDate, formatDateHeure, formatEuro, formatEuroAxe, formatPct, formatQuantite } from './format'
+import { formatDate, formatDateHeure, formatEuro, formatEuroAxe, formatPct, formatPourcent, formatQuantite } from './format'
 
 describe('formatEuro', () => {
   it('affiche un tiret cadratin pour une valeur nulle', () => {
@@ -62,12 +62,30 @@ describe('formatPct', () => {
     expect(formatPct(null)).toBe('—')
   })
 
+  // Espace fine insécable avant « % » en français (`Intl`) : normalisée pour la lecture.
   it('préfixe les valeurs positives par un signe +', () => {
-    expect(formatPct(12.34)).toBe('+12.3%')
+    expect(formatPct(12.34).replace(/\s/g, ' ')).toBe('+12,3 %')
   })
 
   it("n'ajoute pas de signe pour les valeurs négatives", () => {
-    expect(formatPct(-5.6)).toBe('-5.6%')
+    expect(formatPct(-5.6).replace(/\s/g, ' ')).toBe('-5,6 %')
+  })
+
+  it('suit la langue active : point décimal et « % » collé en anglais (§ BL)', async () => {
+    await activerLangue('en')
+    try {
+      expect(formatPct(12.34)).toBe('+12.3%')
+      expect(formatPourcent(7.25, 2)).toBe('7.25%')
+    } finally {
+      await activerLangue('fr')
+    }
+  })
+})
+
+describe('formatPourcent', () => {
+  it('écrit une part sans signe, virgule décimale en français', () => {
+    expect(formatPourcent(12.5).replace(/\s/g, ' ')).toBe('12,5 %')
+    expect(formatPourcent(3.456, 2).replace(/\s/g, ' ')).toBe('3,46 %')
   })
 })
 

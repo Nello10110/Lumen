@@ -16,7 +16,7 @@ import PieChartCard from './PieChartCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useImmobilierDetail } from '../hooks/useImmobilierDetail'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
-import { formatEuro, formatPct, formatQuantite } from '../utils/format'
+import { formatEuro, formatPct, formatPourcent, formatQuantite } from '../utils/format'
 import {
   AXE_CATEGORIES,
   CURSEUR_BARRE,
@@ -124,7 +124,7 @@ export default function HoldingDetailContent({
         {detail.rendement_depuis_achat_pct !== null && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <DeltaBadge
-              valeur={`${gainPositif ? '↑' : '↓'} ${Math.abs(detail.rendement_depuis_achat_pct).toFixed(1)} %`}
+              valeur={`${gainPositif ? '↑' : '↓'} ${formatPourcent(Math.abs(detail.rendement_depuis_achat_pct))}`}
               positif={gainPositif}
             />
             {plusValueLatente !== null && (
@@ -256,7 +256,7 @@ export default function HoldingDetailContent({
                         .map((item) => (
                           <tr key={item.categorie}>
                             <td className="py-2 pr-4 text-texte">{item.categorie}</td>
-                            <td className="py-2 text-right font-medium text-texte">{(item.poids * 100).toFixed(2)}%</td>
+                            <td className="py-2 text-right font-medium text-texte">{formatPourcent(item.poids * 100, 2)}</td>
                           </tr>
                         ))}
                     </tbody>
@@ -272,7 +272,7 @@ export default function HoldingDetailContent({
                         .map((item) => (
                           <tr key={item.categorie}>
                             <td className="py-2 pr-4 text-texte">{item.categorie}</td>
-                            <td className="py-2 text-right font-medium text-texte">{(item.poids * 100).toFixed(2)}%</td>
+                            <td className="py-2 text-right font-medium text-texte">{formatPourcent(item.poids * 100, 2)}</td>
                           </tr>
                         ))}
                     </tbody>
@@ -299,7 +299,7 @@ export default function HoldingDetailContent({
                     {...AXE_CATEGORIES}
                   />
                   <Tooltip
-                    formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`}
+                    formatter={(value) => formatPourcent(Number(value) * 100, 2)}
                     labelFormatter={(_, p) => p?.[0]?.payload?.nom ?? ''}
                     cursor={CURSEUR_BARRE}
                     {...STYLE_INFOBULLE}
@@ -327,7 +327,7 @@ export default function HoldingDetailContent({
                             déjà le nom de l'entreprise — sous-titre redondant, donc masqué. */}
                           {a.symbol !== a.nom && <span className="ml-1 text-xs text-texte-attenue">{a.symbol}</span>}
                         </td>
-                        <td className="py-2 pr-4 text-texte">{(a.poids * 100).toFixed(2)}%</td>
+                        <td className="py-2 pr-4 text-texte">{formatPourcent(a.poids * 100, 2)}</td>
                         <td className="py-2 pr-4 text-texte-attenue">{a.pays ?? '—'}</td>
                         <td className="py-2 pr-4 text-texte-attenue">{a.secteur ?? '—'}</td>
                       </tr>

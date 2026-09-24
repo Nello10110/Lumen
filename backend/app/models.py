@@ -960,7 +960,7 @@ class AuthToken(Base):
 class CategorieBudget(Base):
     """Arbre de catégories de dépenses/revenus (backlog 2.N.1), propre à chaque
     utilisateur (`user_id`) et entièrement modifiable — les catégories par défaut
-    (`services/budget_categories_service.DEFAULT_CATEGORIES`) ne sont que le point de
+    (`services/budget_categories_service.CATEGORIES_PAR_DEFAUT`) ne sont que le point de
     départ suggéré à la première utilisation, jamais recréées après coup. `parent_id`
     autorise UN niveau de sous-catégorie (ex. "Alimentation" > "Restaurants") ; les
     indicateurs de l'écran Budget (N.2) et les cibles (`BudgetCible`) portent sur les
@@ -974,6 +974,10 @@ class CategorieBudget(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
+    # Repère stable d'une catégorie par défaut (`epargne`, `logement`...), backlog § BL.3 :
+    # le nom se traduit et se renomme, le code reste — c'est lui que le taux d'épargne
+    # et le reste à vivre recherchent. `None` pour une catégorie créée par l'utilisateur.
+    code: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

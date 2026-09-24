@@ -12,7 +12,7 @@ import { Field, Input, Select } from './Field'
 import LignesPatrimoineTable from './LignesPatrimoineTable'
 import { SkeletonGraphique, SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { dateVersISO, formatDate, formatEuro, formatEuroAxe } from '../utils/format'
+import { dateVersISO, formatDate, formatEuro, formatEuroAxe, formatPourcent } from '../utils/format'
 import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
 import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, variationSurPeriode, PERIODES_RELATIVES, type Periode, type PeriodeRelative } from '../utils/periode'
 import { t } from '../i18n'
@@ -383,7 +383,7 @@ export default function EvolutionFinanciereCard() {
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {variationPct !== null && (
                 <DeltaBadge
-                  valeur={`${variationPct >= 0 ? '↑' : '↓'} ${Math.abs(variationPct).toFixed(1)} %`}
+                  valeur={`${variationPct >= 0 ? '↑' : '↓'} ${formatPourcent(Math.abs(variationPct))}`}
                   positif={variationPct >= 0}
                 />
               )}

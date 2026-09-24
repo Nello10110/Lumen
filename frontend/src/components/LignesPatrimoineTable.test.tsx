@@ -48,7 +48,7 @@ describe('LignesPatrimoineTable', () => {
 
     rerender(<LignesPatrimoineTable lignes={[ligne({ quotite_pct: 60 })]} lentille="brut" detenteurFiltre={true} />)
     expect(screen.getByText('Quote-part')).toBeInTheDocument()
-    expect(screen.getByText('60.0 %')).toBeInTheDocument()
+    expect(screen.getByText('60,0 %')).toBeInTheDocument()
   })
 
   it('additionne le total de la colonne affichée', () => {

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { AllocationBreakdownItem } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro } from '../utils/format'
+import { formatEuro, formatPourcent } from '../utils/format'
 import AllocationBarChart from './AllocationBarChart'
 import Card from './Card'
 import EtatVide from './EtatVide'
@@ -111,7 +111,7 @@ export default function AllocationChartCard({
                       >
                         <td className="py-2 text-ink">{libelleDonnee(item.categorie)}</td>
                         <td className="py-2 text-right text-ink2">{formatEuro(item.valeur, 0, montantsMasques)}</td>
-                        <td className="py-2 text-right text-ink2">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
+                        <td className="py-2 text-right text-ink2">{formatPourcent(item.pourcentage_reel)}</td>
                       </tr>
                     ))}
                 </tbody>

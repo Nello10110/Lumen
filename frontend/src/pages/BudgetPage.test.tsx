@@ -300,7 +300,7 @@ describe('BudgetPage — jonction budget/patrimoine (backlog 2.N.4)', () => {
     render(<BudgetPage />)
 
     await screen.findByText("Taux d'épargne réel")
-    expect(screen.getByText('25.5 %')).toBeInTheDocument()
+    expect(screen.getByText('25,5 %')).toBeInTheDocument()
     expect(screen.getByText('Reste à vivre')).toBeInTheDocument()
     expect(screen.getByText('1 200 €')).toBeInTheDocument()
   })

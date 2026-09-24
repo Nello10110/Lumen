@@ -398,7 +398,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    await screen.findByText('↑ 10.0 %')
+    await screen.findByText('↑ 10,0 %')
     expect(screen.getByText(/depuis le début du suivi/)).toBeInTheDocument()
   })
 
@@ -409,7 +409,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    const variation = await screen.findByText('↓ 10.0 %')
+    const variation = await screen.findByText('↓ 10,0 %')
     expect(variation).toHaveClass('text-neg')
   })
 
@@ -433,7 +433,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       { type: 'relative', valeur: '3M' },
     )
 
-    await screen.findByText('↑ 20.0 %')
+    await screen.findByText('↑ 20,0 %')
     expect(screen.getByText(/sur les 3 derniers mois/)).toBeInTheDocument()
   })
 
@@ -444,7 +444,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    await screen.findByText('↑ 10.0 %')
+    await screen.findByText('↑ 10,0 %')
     expect(screen.getByText(/depuis le début du suivi/)).toBeInTheDocument()
   })
 
@@ -455,7 +455,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    const variation = await screen.findByText('↓ 10.0 %')
+    const variation = await screen.findByText('↓ 10,0 %')
     expect(variation).toHaveClass('text-neg')
   })
 })

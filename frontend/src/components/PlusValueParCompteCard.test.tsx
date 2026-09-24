@@ -79,7 +79,7 @@ describe('PlusValueParCompteCard', () => {
 
     const ligne = screen.getByText('PEA').closest('tr')!
     expect(ligne).toHaveTextContent('1 200 €')
-    expect(ligne).toHaveTextContent('+200 €(+20.0%)')
+    expect(ligne).toHaveTextContent('+200 €(+20,0 %)')
   })
 
   it('affiche "—" pour le rendement annualisé quand aucune ligne du compte ne le connaît', () => {

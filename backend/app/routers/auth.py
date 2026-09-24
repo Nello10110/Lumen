@@ -24,7 +24,7 @@ from ..schemas import (
     SessionOut,
     UserOut,
 )
-from ..services import auth_service, comptes_service, logo_oidc_service, oidc_service, preferences_service
+from ..services import auth_service, budget_categories_service, comptes_service, logo_oidc_service, oidc_service, preferences_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -212,7 +212,13 @@ def changer_langue_foyer(
     """Langue d'affichage du foyer (backlog § BL) — réglage du foyer entier, réservé
     au propriétaire comme son nom : un membre ou un invité la suit, il ne la choisit
     pas pour les autres."""
-    preferences_service.enregistrer_langue_foyer(db, auth_service.id_foyer(current_user), payload.langue)
+    foyer = auth_service.id_foyer(current_user)
+    # Catégories de budget par défaut encore à leur nom d'origine : suivent la
+    # nouvelle langue (§ BL.3), validées avec elle par `enregistrer_langue_foyer`.
+    budget_categories_service.traduire_categories_par_defaut(
+        db, foyer, preferences_service.lire_langue_foyer(db, foyer), payload.langue
+    )
+    preferences_service.enregistrer_langue_foyer(db, foyer, payload.langue)
     return _user_out(db, current_user)
 
 

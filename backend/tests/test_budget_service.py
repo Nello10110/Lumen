@@ -165,6 +165,19 @@ class TestJonctionPatrimoine:
         assert j["reste_a_vivre"] == 3000.0 - 1000.0 - 15.0
         assert j["categorie_logement_introuvable"] is False
 
+    def test_categories_presentes_sans_mouvement_sur_la_periode(self, db):
+        """Régression (trouvée en § BL.3) : « Épargne » et « Logement » existent mais
+        n'ont aucun mouvement sur la période — le repli à 0 était un float, soustrait
+        à des montants Decimal : l'écran Budget tombait en erreur 500."""
+        budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Épargne", None)
+        budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Logement", None)
+        make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=1500.0)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+
+        assert j["taux_epargne_reel_pct"] == 0.0
+        assert j["reste_a_vivre"] == 1500.0
+
     def test_reste_a_vivre_introuvable_si_categorie_logement_absente(self, db):
         budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Loisirs", None)
         make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=1000.0)

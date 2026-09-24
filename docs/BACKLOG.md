@@ -7096,15 +7096,15 @@ foyer choisira sa langue). »
   françaises), comparaison INSEE. Ils sont traduits mot à mot, pas adaptés à un autre pays — un
   utilisateur non français verra un produit pensé pour la France, en sa langue ;
 - `formatPct` écrit toujours `+12.3%` (point décimal), quelle que soit la langue — à aligner sur
-  la langue avec les autres formats, dans le lot qui traduit les écrans concernés.
+  la langue avec les autres formats, dans le lot qui traduit les écrans concernés (fait en BL.3).
 
 **Découpage en lots** :
 
 | Lot | Contenu | État |
 |---|---|---|
 | BL.1 | Socle : langue du foyer (serveur), module de traduction et formats (interface), choix de la langue en tête de la première page de l'assistant, carte « Langue » dans Réglages, coquille traduite (navigation, barre de contrôles, menus, recherche, connexion, assistant) | **traité** (23/09/2026) |
-| BL.2 | Écrans, un par un : Synthèse, Actifs et fiche détaillée, Comptes, Analyse, Budget, Rapport, Salaire, Import, Réglages, Aide, partage public | à faire |
-| BL.3 | Libellés-données en codes (zones, secteurs, classes, catégories de budget par défaut et leur repérage) | à faire |
+| BL.2 | Écrans, un par un : Synthèse, Actifs et fiche détaillée, Comptes, Analyse, Budget, Rapport, Salaire, Import, Réglages, Aide, partage public | **traité** (24/09/2026) |
+| BL.3 | Libellés-données traduits (zones, secteurs, classes, catégories de budget par défaut et leur repérage, noms de comptes proposés à l'import, pays de l'aide), pourcentages selon la langue | **traité** (24/09/2026) |
 | BL.4 | Serveur : messages d'erreur, PDF, en-têtes CSV | à faire |
 
 Tant que BL.2 à BL.4 ne sont pas livrés, une langue autre que le français donne une application
@@ -7145,6 +7145,80 @@ langue du foyer (en échec sans la synchronisation). E2E 81/81 (navigateur de te
 français, Chromium se présentant en anglais par défaut). Vérifié en navigateur réel réglé en
 anglais : connexion en anglais, foyer créé en anglais, passage en espagnol depuis l'assistant, en
 allemand depuis Réglages, langue conservée après rechargement.
+
+#### BL.2 — `majeur` · `L` · `traité` (24/09/2026) — Tous les écrans traduits
+
+Tous les écrans de l'interface, dans les cinq langues : Synthèse, Actifs et fiche détaillée,
+Comptes, Analyse (dont le simulateur), Budget, Rapport, Salaire, Import (tuiles et guides
+d'export), Réglages (tous les onglets), Aide (FAQ, secteurs, glossaire), page de partage public,
+rattrapage des comptes. Un dictionnaire français par composant (`locales/fr/<espace>.ts`), ses
+quatre traductions à côté ; `scripts/i18n-agreger.mjs` génère les index par langue.
+
+**Outil** : `scripts/i18n-extraire.mjs <fichier> <espace> [--ecrire]` remplace les textes JSX, les
+attributs porteurs de texte et les chaînes d'allure française par `t('espace.cle')`, et signale ce
+qui demande une reprise à la main (gabarits, pluriels, chaînes de module). Relancé sur tout
+`src/` en fin de lot : il ne reste que des noms de marque (Lumen, Yahoo Finance, établissements,
+entreprises citées en exemple), des valeurs-données passées par `libelleDonnee` et des classes CSS.
+
+**Choix faits en traduisant** :
+
+- **vrais pluriels** (`{ one, other }`, choisis par `Intl.PluralRules`) à la place des
+  « ligne(s) importée(s) », intraduisibles : les comptes-rendus d'import partagent un espace
+  `resultatImport` ;
+- **tables de module en accesseurs ou fonctions** (onglets de Réglages, rôles, jobs planifiés,
+  tables de sauvegarde, méthodes de coût, guides d'export) : une constante figerait la langue du
+  chargement ;
+- **codes stables traduits à l'affichage** quand le serveur renvoie un code (motifs d'échec du
+  journal d'accès, clés de job) ; un code inconnu s'affiche tel quel plutôt que masqué ;
+- **pays de l'écran d'aide** nommés par `Intl.DisplayNames` à partir de leur code ISO, que
+  `/api/reference/zones-geographiques` renvoie désormais (`codes_pays`) : aucune table de pays par
+  langue à maintenir. Le français garde les libellés du serveur ;
+- phrase de confirmation de remise à zéro : le nom du foyer, sinon `SUPPRIMER`, **non traduit**
+  — le serveur vérifie ce mot exact ;
+- retirés au passage : « (backlog 2.Q.2) » qui s'affichait dans Réglages, « Voir le patrimoine »
+  (l'écran s'appelle Actifs).
+
+**Tests** : attentes ajustées là où le texte change réellement (pluriels, nombres au format de la
+langue) ; nouveau test de l'aide en anglais (zones, secteurs et pays traduits, en échec sans les
+codes ISO) ; serveur : chaque pays de `COUNTRY_TO_REGION` a son code ISO.
+
+#### BL.3 — `majeur` · `M` · `traité` (24/09/2026) — Libellés-données et catégories de budget
+
+**Zones, secteurs, classes d'actif** : traduits **à l'affichage** (`i18n/donnees.ts`,
+`libelleDonnee`), les valeurs stockées et renvoyées par le serveur restant françaises. Plutôt que
+les codes envisagés au cadrage : ces valeurs servent de clés dans tout le calcul
+(`COUNTRY_TO_REGION`, répartitions estimées par indice, objectifs sectoriels, partage) et sont
+stockées sur les lignes ; les remplacer par des codes aurait touché les données et chaque
+consommateur, sans rien changer à ce que voit l'utilisateur. La table de correspondance est le seul
+point de traduction ; une valeur qu'elle ne connaît pas s'affiche en français.
+
+**Catégories de budget** : colonne `categories_budget.code` (migration `d7b2e4c9a1f3`, qui la
+rattrape sur les racines d'après leur nom français — une seule par foyer et par code). Les
+catégories par défaut sont créées dans la langue du foyer ; le taux d'épargne et le reste à vivre
+les retrouvent **par code** (`budget_categories_service.categorie_racine_par_code`), avec repli sur
+le nom par défaut dans n'importe quelle langue pour une catégorie recréée à la main. Levée au
+passage la limite documentée : renommer « Épargne » ne fait plus disparaître le taux d'épargne. Au
+changement de langue du foyer, les catégories par défaut **jamais renommées** suivent la nouvelle
+langue ; un nom personnalisé n'est jamais écrasé, un nom déjà pris au même niveau non plus. Une
+sauvegarde antérieure restaurée n'a pas de codes : le repli par nom la couvre.
+
+**Comptes proposés à l'import de transactions** (« Compte-titres », « Cryptomonnaie »…) : dans la
+langue du foyer, **sauf** si un compte existe déjà sous l'un de ces noms dans une autre langue — le
+ré-import retrouve un compte par son nom, sans cette priorité un changement de langue aurait
+dédoublé les comptes.
+
+**Pourcentages** : `formatPct` et le nouveau `formatPourcent` passent par `Intl` (`+12,5 %` en
+français, `+12.5%` en anglais) ; quinze pourcentages écrits à la main (`toFixed(1)` + « % »,
+point décimal en toutes langues, y compris en français) les utilisent désormais.
+
+**Anomalie trouvée et corrigée** : une catégorie « Épargne » ou « Logement » présente mais **sans
+mouvement sur la période** faisait tomber l'indicateur en erreur 500 — le repli à zéro était un
+`float` mêlé aux montants `Decimal` (§ BI.1). Repli en `ZERO` ; test de non-régression.
+
+**Tests** : serveur 10 (création dans la langue du foyer, indicateurs retrouvés en anglais,
+catégorie renommée, catégorie recréée sans code, changement de langue avec et sans conflit,
+migration de rattrapage, noms de comptes proposés, régression du repli à zéro) ; interface :
+formats de pourcentage en français et en anglais.
 
 ---
 

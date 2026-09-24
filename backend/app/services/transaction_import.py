@@ -85,6 +85,28 @@ NOMS_COMPTE_PAR_DEFAUT = {
     CLE_COMPTE_CRYPTO: "Cryptomonnaie",
     CLE_COMPTE_OBLIGATIONS: "Obligations",
 }
+# Les mêmes dans les autres langues du foyer (§ BL.3). « PEA » est une enveloppe
+# française : son nom ne se traduit pas.
+_NOMS_COMPTE_TRADUITS = {
+    "en": {CLE_COMPTE_TITRES: "Securities account", CLE_COMPTE_CRYPTO: "Crypto", CLE_COMPTE_OBLIGATIONS: "Bonds"},
+    "es": {CLE_COMPTE_TITRES: "Cuenta de valores", CLE_COMPTE_CRYPTO: "Criptomonedas", CLE_COMPTE_OBLIGATIONS: "Bonos"},
+    "de": {CLE_COMPTE_TITRES: "Wertpapierdepot", CLE_COMPTE_CRYPTO: "Kryptowährungen", CLE_COMPTE_OBLIGATIONS: "Anleihen"},
+    "it": {CLE_COMPTE_TITRES: "Conto titoli", CLE_COMPTE_CRYPTO: "Criptovalute", CLE_COMPTE_OBLIGATIONS: "Obbligazioni"},
+}
+
+
+def nom_compte_propose(cle: str, langue: str, noms_existants: set[str]) -> str:
+    """Nom proposé pour le compte d'une clé : celui d'un compte DÉJÀ créé sous l'un des
+    noms par défaut, dans n'importe quelle langue, sinon le nom par défaut dans la
+    langue du foyer. Le ré-import retrouve un compte par son nom
+    (`get_or_create_compte_sans_commit`) : sans cette priorité, un foyer passé du
+    français à l'anglais verrait un second « Securities account » créé à côté de son
+    « Compte-titres » au premier ré-import."""
+    candidats = [NOMS_COMPTE_PAR_DEFAUT[cle]] + [noms[cle] for noms in _NOMS_COMPTE_TRADUITS.values() if cle in noms]
+    existant = next((nom for nom in candidats if nom in noms_existants), None)
+    if existant is not None:
+        return existant
+    return _NOMS_COMPTE_TRADUITS.get(langue, {}).get(cle, NOMS_COMPTE_PAR_DEFAUT[cle])
 
 
 def cle_compte(account_type: str | None, asset_class: str | None) -> str:

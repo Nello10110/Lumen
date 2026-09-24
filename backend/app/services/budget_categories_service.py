@@ -14,16 +14,31 @@ from . import preferences_service
 # l'écran Budget/Import, jamais recréé une fois l'utilisateur passé par là (cf.
 # `assurer_categories_par_defaut`) — entièrement modifiable ensuite, comme le texte
 # du backlog l'exige.
-DEFAULT_CATEGORIES = [
-    "Logement",
-    "Transport",
-    "Alimentation",
-    "Loisirs",
-    "Santé",
-    "Épargne",
-    "Revenus",
-    "Autres",
+#
+# Un code stable par catégorie et son nom dans chaque langue du foyer (§ BL.3) : les
+# catégories sont créées dans la langue du foyer, et le code reste le repère des
+# indicateurs (taux d'épargne, reste à vivre) quel que soit le nom affiché.
+CATEGORIES_PAR_DEFAUT: list[tuple[str, dict[str, str]]] = [
+    ("logement", {"fr": "Logement", "en": "Housing", "es": "Vivienda", "de": "Wohnen", "it": "Abitazione"}),
+    ("transport", {"fr": "Transport", "en": "Transport", "es": "Transporte", "de": "Mobilität", "it": "Trasporti"}),
+    ("alimentation", {"fr": "Alimentation", "en": "Food", "es": "Alimentación", "de": "Lebensmittel", "it": "Alimentari"}),
+    ("loisirs", {"fr": "Loisirs", "en": "Leisure", "es": "Ocio", "de": "Freizeit", "it": "Tempo libero"}),
+    ("sante", {"fr": "Santé", "en": "Health", "es": "Salud", "de": "Gesundheit", "it": "Salute"}),
+    ("epargne", {"fr": "Épargne", "en": "Savings", "es": "Ahorro", "de": "Sparen", "it": "Risparmio"}),
+    ("revenus", {"fr": "Revenus", "en": "Income", "es": "Ingresos", "de": "Einnahmen", "it": "Entrate"}),
+    ("autres", {"fr": "Autres", "en": "Other", "es": "Otros", "de": "Sonstiges", "it": "Altro"}),
 ]
+_NOMS_PAR_CODE = dict(CATEGORIES_PAR_DEFAUT)
+
+CODE_EPARGNE = "epargne"
+CODE_LOGEMENT = "logement"
+
+
+def nom_par_defaut(code: str, langue: str) -> str:
+    """Nom d'une catégorie par défaut dans une langue ; repli sur le français pour une
+    langue sans traduction (ajoutée à `LANGUES_DISPONIBLES` sans passer par ici)."""
+    noms = _NOMS_PAR_CODE[code]
+    return noms.get(langue, noms["fr"])
 
 
 def normaliser(texte: str) -> str:
@@ -45,13 +60,52 @@ def assurer_categories_par_defaut(db: Session, user_id: int) -> list[CategorieBu
         return existantes
     if preferences_service.budget_categories_initialisees(db, user_id):
         return []
-    creees = [CategorieBudget(user_id=user_id, nom=nom) for nom in DEFAULT_CATEGORIES]
+    langue = preferences_service.lire_langue_foyer(db, user_id)
+    creees = [CategorieBudget(user_id=user_id, nom=nom_par_defaut(code, langue), code=code) for code, _ in CATEGORIES_PAR_DEFAUT]
     db.add_all(creees)
     preferences_service.marquer_budget_categories_initialisees(db, user_id)
     db.commit()
     for c in creees:
         db.refresh(c)
     return creees
+
+
+def categorie_racine_par_code(db: Session, user_id: int, code: str) -> CategorieBudget | None:
+    """Catégorie racine repérée par son code (§ BL.3) ; à défaut, par son nom par défaut
+    dans l'une des langues proposées — une catégorie recréée à la main après
+    suppression de l'originale (donc sans code) reste reconnue, comme avant les codes.
+    Comparaison normalisée en Python plutôt qu'un `ILIKE` SQL : `LOWER()` de SQLite ne
+    minuscule que l'ASCII (aucune extension ICU chargée), donc ne reconnaît pas
+    "Épargne" == "épargne"."""
+    racines = (
+        db.query(CategorieBudget)
+        .filter(CategorieBudget.user_id == user_id, CategorieBudget.parent_id.is_(None))
+        .order_by(CategorieBudget.id)
+        .all()
+    )
+    par_code = next((c for c in racines if c.code == code), None)
+    if par_code is not None:
+        return par_code
+    noms = {normaliser(n) for n in _NOMS_PAR_CODE[code].values()}
+    return next((c for c in racines if c.code is None and normaliser(c.nom) in noms), None)
+
+
+def traduire_categories_par_defaut(db: Session, user_id: int, ancienne_langue: str, nouvelle_langue: str) -> None:
+    """Au changement de langue du foyer (§ BL.3), renomme les catégories par défaut
+    que l'utilisateur n'a PAS renommées — un nom personnalisé est un choix, jamais
+    écrasé. Un nom déjà pris par une autre catégorie au même niveau est laissé tel
+    quel plutôt que de heurter la contrainte d'unicité (`uq_categorie_budget_user_nom_parent`).
+    Ne valide pas : l'appelant enregistre la langue dans la même transaction."""
+    if ancienne_langue == nouvelle_langue:
+        return
+    categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
+    for categorie in categories:
+        if categorie.code not in _NOMS_PAR_CODE or categorie.nom != nom_par_defaut(categorie.code, ancienne_langue):
+            continue
+        cible = nom_par_defaut(categorie.code, nouvelle_langue)
+        pris = any(c.id != categorie.id and c.parent_id == categorie.parent_id and c.nom == cible for c in categories)
+        if not pris:
+            categorie.nom = cible
 
 
 def list_categories(db: Session, user_id: int) -> list[CategorieBudget]:

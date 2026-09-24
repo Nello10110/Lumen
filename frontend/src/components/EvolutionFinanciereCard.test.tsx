@@ -177,7 +177,7 @@ describe('EvolutionFinanciereCard', () => {
 
     render_()
 
-    expect(await screen.findByText('↑ 10.0 %')).toBeInTheDocument()
+    expect(await screen.findByText('↑ 10,0 %')).toBeInTheDocument()
   })
 
   it('le bouton Brut/Net recalcule sans nouvel appel réseau — la réponse porte déjà les deux champs', async () => {
@@ -190,13 +190,13 @@ describe('EvolutionFinanciereCard', () => {
     )
 
     render_()
-    expect(await screen.findByText('↑ 10.0 %')).toBeInTheDocument() // net : 1000 -> 1100
+    expect(await screen.findByText('↑ 10,0 %')).toBeInTheDocument() // net : 1000 -> 1100
     const appelsAvant = vi.mocked(api.getPatrimoineHistory).mock.calls.length
 
     fireEvent.click(screen.getByRole('button', { name: 'Brut' }))
 
     // Brut : 2000 -> 2000, donc 0 % — la variation change bien de valeur...
-    expect(await screen.findByText('↑ 0.0 %')).toBeInTheDocument()
+    expect(await screen.findByText('↑ 0,0 %')).toBeInTheDocument()
     // ... sans qu'un seul appel réseau supplémentaire n'ait été nécessaire.
     expect(api.getPatrimoineHistory).toHaveBeenCalledTimes(appelsAvant)
   })
@@ -304,7 +304,7 @@ describe('EvolutionFinanciereCard', () => {
     fireEvent.change(screen.getByLabelText("Classe d'actif"), { target: { value: 'CRYPTO' } })
     await waitFor(() => expect(api.getPatrimoineHistory).toHaveBeenCalledTimes(3))
 
-    expect(await screen.findByText('↑ 10.0 %')).toBeInTheDocument()
+    expect(await screen.findByText('↑ 10,0 %')).toBeInTheDocument()
 
     // La requête STOCK (lancée avant CRYPTO, mais restée en attente) résout
     // seulement MAINTENANT, avec une variation très différente (+50 %) — son
@@ -314,7 +314,7 @@ describe('EvolutionFinanciereCard', () => {
     )
 
     await new Promise((r) => setTimeout(r, 0))
-    expect(screen.getByText('↑ 10.0 %')).toBeInTheDocument()
-    expect(screen.queryByText('↑ 50.0 %')).not.toBeInTheDocument()
+    expect(screen.getByText('↑ 10,0 %')).toBeInTheDocument()
+    expect(screen.queryByText('↑ 50,0 %')).not.toBeInTheDocument()
   })
 })

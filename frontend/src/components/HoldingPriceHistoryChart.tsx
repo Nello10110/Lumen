@@ -7,7 +7,7 @@ import { SkeletonGraphique } from './Skeleton'
 import EtatVide from './EtatVide'
 import EtatErreur from './EtatErreur'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatDate, formatEuro } from '../utils/format'
+import { formatDate, formatEuro, formatPourcent } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
 import { t } from '../i18n'
@@ -83,12 +83,12 @@ export default function HoldingPriceHistoryChart({ holdingId }: { holdingId: num
         <div>
           <p className="text-xs text-texte-attenue">{t('holdingPriceHistoryChart.volatiliteAnnualisee')}</p>
           <p className="font-medium text-texte">
-            {data.volatilite_annualisee_pct !== null ? `${data.volatilite_annualisee_pct.toFixed(1)}%` : '—'}
+            {data.volatilite_annualisee_pct !== null ? formatPourcent(data.volatilite_annualisee_pct) : '—'}
           </p>
         </div>
         <div>
           <p className="text-xs text-texte-attenue">{t('holdingPriceHistoryChart.perteMaximaleHistoriqueDrawdown')}</p>
-          <p className="font-medium text-negatif">{data.max_drawdown_pct !== null ? `${data.max_drawdown_pct.toFixed(1)}%` : '—'}</p>
+          <p className="font-medium text-negatif">{data.max_drawdown_pct !== null ? formatPourcent(data.max_drawdown_pct) : '—'}</p>
         </div>
       </div>
     </Card>

@@ -311,7 +311,7 @@ describe('LoansCard — cartes sur mobile (backlog 2.K.4)', () => {
 
     await screen.findByText('Crédit immobilier')
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(screen.getByText('3.50%')).toBeInTheDocument()
+    expect(screen.getByText('3,50 %')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Recaler' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
   })

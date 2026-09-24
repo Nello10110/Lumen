@@ -10,13 +10,13 @@ import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { estimerBrutNet } from '../utils/salaire'
-import { formatEuro } from '../utils/format'
+import { formatEuro, formatPourcent } from '../utils/format'
 import { t } from '../i18n'
 
 const ANNEE_COURANTE = new Date().getFullYear()
 
 function formatPctPositif(value: number | null): string {
-  return value === null ? '—' : `${value.toFixed(1)} %`
+  return value === null ? '—' : formatPourcent(value)
 }
 
 type Formulaire = {

@@ -13,7 +13,7 @@ import RepartitionSection from '../components/RepartitionSection'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { dateVersISO, formatDate, formatEuro } from '../utils/format'
+import { dateVersISO, formatDate, formatEuro, formatPourcent } from '../utils/format'
 import { localeCourante, t } from '../i18n'
 
 type Mode = 'mensuel' | 'annuel' | 'personnalise'
@@ -254,7 +254,7 @@ export default function BudgetPage() {
                 {jonction?.taux_epargne_reel_pct != null && (
                   <StatTile
                     label={t('budgetPage.tauxDEpargneReel')}
-                    value={`${jonction.taux_epargne_reel_pct.toFixed(1)} %`}
+                    value={formatPourcent(jonction.taux_epargne_reel_pct)}
                     sub={t('budgetPage.sortiesCategorieEpargneEntrees')}
                   />
                 )}

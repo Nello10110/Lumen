@@ -4,7 +4,7 @@ import type { Etablissement, Holding, Loan } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
-import { formatDateHeure, formatEuro } from '../utils/format'
+import { formatDateHeure, formatEuro, formatPourcent } from '../utils/format'
 import Card from './Card'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
@@ -152,7 +152,7 @@ function LoanCardMobile({
         </div>
         <div>
           <span className="block text-xs text-texte-attenue">{t('loansCard.taux')}</span>
-          {loan.taux_annuel_pct.toFixed(2)}%
+          {formatPourcent(loan.taux_annuel_pct, 2)}
         </div>
         <div>
           <span className="block text-xs text-texte-attenue">{t('loansCard.mensualite')}</span>
@@ -519,7 +519,7 @@ export default function LoansCard({
                 <tr>
                   <td className="py-2 pr-4 font-medium text-texte">{loan.libelle}</td>
                   <td className="py-2 pr-4 text-texte">{formatEuro(loan.capital_initial, 0, montantsMasques)}</td>
-                  <td className="py-2 pr-4 text-texte">{loan.taux_annuel_pct.toFixed(2)}%</td>
+                  <td className="py-2 pr-4 text-texte">{formatPourcent(loan.taux_annuel_pct, 2)}</td>
                   <td className="py-2 pr-4 text-texte">{formatEuro(loan.mensualite, 0, montantsMasques)}</td>
                   <td className="py-2 pr-4">
                     {recalageId === loan.id ? (

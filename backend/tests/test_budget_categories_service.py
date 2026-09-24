@@ -11,7 +11,7 @@ from .conftest import ID_UTILISATEUR_TEST, creer_utilisateur
 
 def test_assurer_categories_par_defaut_cree_l_arbre_une_seule_fois(db):
     categories = budget_categories_service.assurer_categories_par_defaut(db, ID_UTILISATEUR_TEST)
-    assert [c.nom for c in categories] == budget_categories_service.DEFAULT_CATEGORIES
+    assert [c.nom for c in categories] == [noms["fr"] for _, noms in budget_categories_service.CATEGORIES_PAR_DEFAUT]
 
     # Un utilisateur qui a tout supprimé volontairement ne doit pas les voir
     # réapparaître au prochain appel.

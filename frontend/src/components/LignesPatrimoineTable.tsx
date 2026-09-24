@@ -1,7 +1,7 @@
 import type { LignePatrimoineFiltree } from '../api/types'
 import EtatVide from './EtatVide'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro, formatQuantite } from '../utils/format'
+import { formatEuro, formatPourcent, formatQuantite } from '../utils/format'
 import { t } from '../i18n'
 import { libelleDonnee } from '../i18n/donnees'
 
@@ -56,7 +56,7 @@ export default function LignesPatrimoineTable({
               <td className="py-2 pr-4 text-right text-texte">{formatQuantite(l.quantite)}</td>
               {detenteurFiltre && (
                 <td className="py-2 pr-4 text-right text-texte">
-                  {l.quotite_pct !== null ? `${l.quotite_pct.toFixed(1)} %` : '—'}
+                  {l.quotite_pct !== null ? formatPourcent(l.quotite_pct) : '—'}
                 </td>
               )}
               <td className="py-2 pr-4 text-right font-medium text-texte">{formatEuro(l[cleValeur], 0, montantsMasques)}</td>

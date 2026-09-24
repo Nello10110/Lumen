@@ -61,7 +61,7 @@ describe('RapportPage — mode mensuel (par défaut)', () => {
     render(<RapportPage />)
 
     await waitFor(() => expect(api.getRapportPeriode).toHaveBeenCalled())
-    expect(screen.getByText('+10.0%')).toBeInTheDocument()
+    expect(screen.getByText('+10,0 %')).toBeInTheDocument()
     expect(screen.getByText('8,50 €')).toBeInTheDocument()
     expect(screen.getByText(/Titre AAA/)).toBeInTheDocument()
   })
@@ -215,7 +215,7 @@ describe("RapportPage — bloc épargne (backlog § U.1)", () => {
 
     await screen.findByText('Épargne en fin de période')
     expect(screen.getByText('10 500 €')).toBeInTheDocument()
-    expect(screen.getByText('+5.0%')).toBeInTheDocument()
+    expect(screen.getByText('+5,0 %')).toBeInTheDocument()
     expect(screen.getByText("D'où vient l'évolution de l'épargne ? (estimation)")).toBeInTheDocument()
     expect(screen.getByText('300 €')).toBeInTheDocument()
     expect(screen.getByText('200 €')).toBeInTheDocument()

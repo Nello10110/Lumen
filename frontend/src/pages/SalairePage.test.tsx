@@ -191,7 +191,7 @@ describe('SalairePage', () => {
     await screen.findByText('Paul')
     expect(screen.getByText('Julie')).toBeInTheDocument()
     expect(screen.getAllByText(/2 salaires/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText('5.0 %').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('5,0 %').length).toBeGreaterThan(0)
   })
 
   it("affiche l'historique du taux d'épargne sur plusieurs années et sa moyenne", async () => {
@@ -204,7 +204,7 @@ describe('SalairePage', () => {
 
     render(<SalairePage />)
 
-    await screen.findByText('15.0 %') // moyenne (10+20)/2
+    await screen.findByText('15,0 %') // moyenne (10+20)/2
     expect(screen.getByRole('cell', { name: new RegExp(String(ANNEE - 1)) })).toBeInTheDocument()
   })
 

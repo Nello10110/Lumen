@@ -13,7 +13,7 @@ import {
   libelleTaux,
   valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
-import { formatDate, formatEuro, formatQuantite } from '../utils/format'
+import { formatDate, formatEuro, formatPct, formatQuantite } from '../utils/format'
 import InfoBulle from './InfoBulle'
 import { Badge, Field, Input, Select } from './Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
@@ -24,7 +24,7 @@ function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
   const positif = value >= 0
   return (
-    <span className={positif ? 'text-positif' : 'text-negatif'}>{`${positif ? '+' : ''}${value.toFixed(1)}%`}</span>
+    <span className={positif ? 'text-positif' : 'text-negatif'}>{formatPct(value)}</span>
   )
 }
 

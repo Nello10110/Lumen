@@ -24,7 +24,7 @@ import {
   comptesDisponibles,
   correspondAuFiltreCompte,
 } from '../utils/holdingCategories'
-import { formatDateHeure, parseDateApi } from '../utils/format'
+import { formatDateHeure, formatPourcent, parseDateApi } from '../utils/format'
 import { t } from '../i18n'
 
 // Position de défilement de la page (backlog 2.K.2), restituée au remontage
@@ -532,7 +532,7 @@ export default function PortefeuillePage() {
             <span className="text-ink3">{t('portefeuillePage.performanceDesLignesAffichees')}</span>
             <span className={`font-semibold ${performancePct >= 0 ? 'text-pos' : 'text-neg'}`}>
               {performancePct >= 0 ? '+' : ''}
-              {performancePct.toFixed(1)} %
+              {formatPourcent(performancePct)}
             </span>
           </div>
         )}

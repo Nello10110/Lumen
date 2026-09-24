@@ -147,26 +147,6 @@ def delete_cible(db: Session, user_id: int, categorie_id: int) -> None:
 # Jonction budget ↔ patrimoine (backlog 2.N.4)
 # ---------------------------------------------------------------------------
 
-# Noms des catégories par défaut (`budget_categories_service.DEFAULT_CATEGORIES`)
-# utilisés pour repérer "l'épargne" et "le logement" sans nouveau champ sur
-# `CategorieBudget` : recherche par nom (insensible à la casse), racine uniquement.
-# Limite assumée et documentée : si l'utilisateur renomme ces deux catégories, le
-# rapprochement ne les retrouve plus — acceptable pour un item d'effort S, le
-# renommage restant rare pour des catégories aussi structurantes.
-NOM_CATEGORIE_EPARGNE = "épargne"
-NOM_CATEGORIE_LOGEMENT = "logement"
-
-
-def _categorie_racine_par_nom(db: Session, user_id: int, nom: str) -> CategorieBudget | None:
-    # Comparaison normalisée en Python plutôt qu'un `ILIKE` SQL : `LOWER()` de
-    # SQLite ne minuscule que l'ASCII (aucune extension ICU chargée), donc ne
-    # reconnaît pas "Épargne" == "épargne" — `normaliser` (accents retirés) gère ce
-    # cas correctement, comme pour la correspondance des règles de catégorisation.
-    nom_normalise = budget_categories_service.normaliser(nom)
-    racines = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id, CategorieBudget.parent_id.is_(None)).all()
-    return next((c for c in racines if budget_categories_service.normaliser(c.nom) == nom_normalise), None)
-
-
 def _nombre_mois_periode(date_debut: str, date_fin: str) -> int:
     d1 = datetime.strptime(date_debut, "%Y-%m-%d").date()
     d2 = datetime.strptime(date_fin, "%Y-%m-%d").date()
@@ -184,21 +164,23 @@ def compute_jonction_patrimoine(db: Session, user_id: int, date_debut: str, date
     summary = compute_summary(db, user_id, date_debut, date_fin)
     entrees = summary["entrees"]
 
-    categorie_epargne = _categorie_racine_par_nom(db, user_id, NOM_CATEGORIE_EPARGNE)
+    # Repli `ZERO` (Decimal), pas `0.0` : une catégorie présente mais sans mouvement
+    # sur la période mêlait sinon un float aux montants Decimal (§ BI.1) — TypeError.
+    categorie_epargne = budget_categories_service.categorie_racine_par_code(db, user_id, budget_categories_service.CODE_EPARGNE)
     montant_epargne = None
     taux_epargne_reel_pct = None
     if categorie_epargne is not None:
         montant_epargne = next(
-            (item["montant"] for item in summary["repartition_sorties"] if item["categorie_id"] == categorie_epargne.id), 0.0
+            (item["montant"] for item in summary["repartition_sorties"] if item["categorie_id"] == categorie_epargne.id), ZERO
         )
         taux_epargne_reel_pct = round(montant_epargne / entrees * 100, 1) if entrees > 0 else None
 
-    categorie_logement = _categorie_racine_par_nom(db, user_id, NOM_CATEGORIE_LOGEMENT)
+    categorie_logement = budget_categories_service.categorie_racine_par_code(db, user_id, budget_categories_service.CODE_LOGEMENT)
     montant_logement = None
     reste_a_vivre = None
     if categorie_logement is not None:
         montant_logement = next(
-            (item["montant"] for item in summary["repartition_sorties"] if item["categorie_id"] == categorie_logement.id), 0.0
+            (item["montant"] for item in summary["repartition_sorties"] if item["categorie_id"] == categorie_logement.id), ZERO
         )
         # `aujourdhui` calé sur la fin de la période demandée (pas la date système) :
         # sans ça, consulter un mois passé exclurait à tort toute charge récurrente

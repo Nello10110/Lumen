@@ -23,7 +23,7 @@ def _mois_precedent(d: date, n: int) -> date:
 def test_list_categories_cree_l_arbre_par_defaut_au_premier_appel(client):
     reponse = client.get("/api/budget/categories")
     assert reponse.status_code == 200
-    assert [c["nom"] for c in reponse.json()] == budget_categories_service.DEFAULT_CATEGORIES
+    assert [c["nom"] for c in reponse.json()] == [noms["fr"] for _, noms in budget_categories_service.CATEGORIES_PAR_DEFAUT]
 
 
 def test_create_rename_delete_categorie(client):

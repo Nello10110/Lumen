@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ResponsiveContainer } from 'recharts'
 import { HAUTEUR } from '../utils/chartTheme'
 import { libelleDonnee } from '../i18n/donnees'
+import { formatPourcent } from '../utils/format'
 
 /** Cadre d'une COURBE (aire ou ligne dans le temps) — impose le langage graphique de
  * la maquette : aucune grille, aucun axe dessiné, et cinq repères de date en HTML
@@ -131,11 +132,11 @@ export function RepartitionEmpilee({
                 <>
                   <span className="ml-auto shrink-0 text-[13px] text-ink3">{p.valeur}</span>
                   <span className="w-16 shrink-0 text-right text-[15px] font-semibold text-ink">
-                    {p.pourcentage.toFixed(1)} %
+                    {formatPourcent(p.pourcentage)}
                   </span>
                 </>
               ) : (
-                <span className="ml-auto shrink-0 text-[15px] font-semibold text-ink">{p.pourcentage.toFixed(1)} %</span>
+                <span className="ml-auto shrink-0 text-[15px] font-semibold text-ink">{formatPourcent(p.pourcentage)}</span>
               )}
             </>
           )

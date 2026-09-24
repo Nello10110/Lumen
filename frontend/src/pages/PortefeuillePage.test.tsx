@@ -567,9 +567,9 @@ describe('PortefeuillePage', () => {
       ])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
-      // (250 000 - 215 000) / 215 000 × 100 ≈ +16.3 %, pas +25 % (qu'on obtiendrait
+      // (250 000 - 215 000) / 215 000 × 100 ≈ +16,3 %, pas +25 % (qu'on obtiendrait
       // en ignorant les frais d'acquisition, cf. `cout_acquisition_total`).
-      expect(await screen.findByText('+16.3 %')).toBeInTheDocument()
+      expect(await screen.findByText('+16,3 %')).toBeInTheDocument()
     })
   })
 
@@ -809,7 +809,7 @@ describe('PortefeuillePage', () => {
       expect(screen.queryByRole('table')).not.toBeInTheDocument()
       expect(screen.getByText('Technologie')).toBeInTheDocument()
       expect(screen.getByText('France')).toBeInTheDocument()
-      expect(screen.getByText('+12.5%')).toBeInTheDocument()
+      expect(screen.getByText('+12,5 %')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
     })

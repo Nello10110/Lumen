@@ -1,6 +1,7 @@
 import type { AllocationBreakdownItem } from '../api/types'
 import { libelleDonnee } from '../i18n/donnees'
 import { t } from '../i18n'
+import { formatPourcent } from '../utils/format'
 
 /** Barres horizontales de répartition (écran Analyse) — la forme exacte de la
  * maquette : une grille CSS de trois colonnes, `libellé | piste | valeur`, en
@@ -48,7 +49,7 @@ export default function AllocationBarChart({
               />
             </span>
             <span className="flex h-10 items-center whitespace-nowrap text-[13px] font-semibold text-ink">
-              {item.pourcentage_reel.toFixed(1)} %
+              {formatPourcent(item.pourcentage_reel)}
             </span>
           </>
         )
