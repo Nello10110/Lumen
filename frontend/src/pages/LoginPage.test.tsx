@@ -252,7 +252,9 @@ describe('LoginPage — langue de l\'appareil', () => {
     // sous la charge de la suite complète.
     expect(await screen.findByRole('heading', { name: 'Welcome back' }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument()
+    // Comme dans `App.test.tsx` : le dictionnaire change avant l'état qui pose `lang` —
+    // on attend l'état final plutôt que de le lire dans l'intervalle.
+    await waitFor(() => expect(document.documentElement.lang).toBe('en'))
     expect(localStorage.getItem('lumen.langue')).toBe('en')
-    expect(document.documentElement.lang).toBe('en')
   })
 })

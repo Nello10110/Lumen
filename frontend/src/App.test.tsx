@@ -405,7 +405,10 @@ describe('App — langue du foyer', () => {
     // son chargement dépasse parfois la seconde par défaut de `findBy`.
     const navigation = await screen.findByRole('navigation', { name: 'Hauptnavigation' }, { timeout: 5000 })
     expect(within(navigation).getByRole('link', { name: 'Übersicht' })).toBeInTheDocument()
-    expect(document.documentElement.lang).toBe('de')
+    // `changerLangue` active le dictionnaire AVANT de mettre à jour l'état React qui pose
+    // `lang` et retient le choix : un rendu intermédiaire peut déjà afficher l'allemand
+    // (vu en CI) — on attend l'état final plutôt que de le lire dans cet intervalle.
+    await waitFor(() => expect(document.documentElement.lang).toBe('de'))
     expect(localStorage.getItem('lumen.langue')).toBe('de')
   })
 
