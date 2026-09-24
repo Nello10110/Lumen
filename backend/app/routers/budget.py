@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
+from ..i18n import tr
 from ..models import SOURCE_IMPORT_BANCAIRE, User
 from ..schemas import (
     BudgetCibleOut,
@@ -141,7 +142,10 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
     colonnes_attendues = {mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col}
     colonnes_absentes = [c for c in colonnes_attendues if c and c not in colonnes]
     if colonnes_absentes:
-        raise HTTPException(status_code=400, detail=f"Colonne(s) introuvable(s) dans le fichier : {', '.join(colonnes_absentes)}")
+        raise HTTPException(
+            status_code=400,
+            detail=tr("Colonne(s) introuvable(s) dans le fichier : {colonnes}", colonnes=", ".join(colonnes_absentes)),
+        )
 
     user_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(

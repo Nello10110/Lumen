@@ -15,9 +15,10 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
+from ..i18n import formats, tr
+from ..i18n.donnees import libelle_donnee
 from . import analysis_service, patrimoine_service, performance_service
 from .analysis_service import COMPTE_SANS_ANNOTATION
-from .csv_export import formater_nombre
 from .pdf_watermark import dessiner_filigrane
 
 _COULEUR_FILET = colors.HexColor("#e2e8f0")  # slate-200, cohérent avec l'identité visuelle du frontend
@@ -32,30 +33,16 @@ def _pied_de_page(canvas, doc) -> None:
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawString(2 * cm, 1.3 * cm, f"Généré le {date.today().strftime('%d/%m/%Y')} par Lumen")
+    canvas.drawString(2 * cm, 1.3 * cm, tr("Généré le {date} par Lumen", date=formats.date_courte(date.today())))
     canvas.restoreState()
 
 
-def _avec_separateurs_milliers(nombre: str) -> str:
-    """Insère l'espace séparateur de milliers français (absent de `formater_nombre`,
-    dont le format brut convient au CSV mais pas à un document destiné à être lu)."""
-    signe, chiffres = ("-", nombre[1:]) if nombre.startswith("-") else ("", nombre)
-    groupes = []
-    while len(chiffres) > 3:
-        groupes.insert(0, chiffres[-3:])
-        chiffres = chiffres[:-3]
-    groupes.insert(0, chiffres)
-    return signe + " ".join(groupes)
-
-
 def _euros(valeur: float | None) -> str:
-    formate = formater_nombre(valeur, 0)
-    return f"{_avec_separateurs_milliers(formate)} €" if formate else "—"
+    return formats.euros(valeur, 0)
 
 
 def _pourcentage(valeur: float | None) -> str:
-    formate = formater_nombre(valeur, 1)
-    return f"{formate} %" if formate else "—"
+    return formats.pourcentage(valeur, 1)
 
 
 def _table_deux_colonnes(lignes: list[tuple[str, str]]) -> Table:
@@ -86,42 +73,44 @@ def generer_pdf_patrimoine(db: Session, user_id: int) -> bytes:
     )
     elements = []
 
-    elements.append(Paragraph("Relevé de patrimoine", styles["Title"]))
-    elements.append(Paragraph(f"Situation au {date.today().strftime('%d/%m/%Y')}", styles["Normal"]))
+    elements.append(Paragraph(tr("Relevé de patrimoine"), styles["Title"]))
+    elements.append(Paragraph(tr("Situation au {date}", date=formats.date_courte(date.today())), styles["Normal"]))
     elements.append(Spacer(1, 0.6 * cm))
 
     patrimoine = patrimoine_service.compute_patrimoine_net(db, user_id)
-    elements.append(Paragraph("Patrimoine net", styles["Heading2"]))
+    elements.append(Paragraph(tr("Patrimoine net"), styles["Heading2"]))
     elements.append(
         _table_deux_colonnes(
             [
-                ("Actifs totaux", _euros(patrimoine["actifs_totaux"])),
-                ("Passifs (emprunts)", _euros(patrimoine["passifs_totaux"])),
-                ("Patrimoine net", _euros(patrimoine["patrimoine_net"])),
+                (tr("Actifs totaux"), _euros(patrimoine["actifs_totaux"])),
+                (tr("Passifs (emprunts)"), _euros(patrimoine["passifs_totaux"])),
+                (tr("Patrimoine net"), _euros(patrimoine["patrimoine_net"])),
             ]
         )
     )
     elements.append(Spacer(1, 0.5 * cm))
 
     if patrimoine["repartition_par_classe"]:
-        elements.append(Paragraph("Répartition par classe d'actif", styles["Heading2"]))
+        elements.append(Paragraph(tr("Répartition par classe d'actif"), styles["Heading2"]))
         elements.append(
-            _table_deux_colonnes([(item["categorie"], _euros(item["valeur"])) for item in patrimoine["repartition_par_classe"]])
+            _table_deux_colonnes(
+                [(libelle_donnee(item["categorie"]), _euros(item["valeur"])) for item in patrimoine["repartition_par_classe"]]
+            )
         )
         elements.append(Spacer(1, 0.5 * cm))
 
     performance = performance_service.compute_performance(db, user_id)
     if performance["nombre_transactions"] > 0:
-        elements.append(Paragraph("Rentabilité globale (portefeuille financier)", styles["Heading2"]))
+        elements.append(Paragraph(tr("Rentabilité globale (portefeuille financier)"), styles["Heading2"]))
         elements.append(
             _table_deux_colonnes(
                 [
-                    ("Valeur des positions", _euros(performance["valeur_positions"])),
-                    ("Coût total investi", _euros(performance["cout_total_investi"])),
-                    ("Gain / perte total", _euros(performance["gain_perte_total"])),
-                    ("Rendement annualisé", _pourcentage(performance["rendement_annualise_pct"])),
-                    ("Dividendes perçus", _euros(performance["dividendes_percus"])),
-                    ("Gains réalisés", _euros(performance["gains_realises"])),
+                    (tr("Valeur des positions"), _euros(performance["valeur_positions"])),
+                    (tr("Coût total investi"), _euros(performance["cout_total_investi"])),
+                    (tr("Gain / perte total"), _euros(performance["gain_perte_total"])),
+                    (tr("Rendement annualisé"), _pourcentage(performance["rendement_annualise_pct"])),
+                    (tr("Dividendes perçus"), _euros(performance["dividendes_percus"])),
+                    (tr("Gains réalisés"), _euros(performance["gains_realises"])),
                 ]
             )
         )
@@ -132,8 +121,8 @@ def generer_pdf_patrimoine(db: Session, user_id: int) -> bytes:
     comptes = analysis_service.repartition_par_compte(valued)
     a_des_comptes_annotes = any(c["compte"] != COMPTE_SANS_ANNOTATION for c in comptes)
     if a_des_comptes_annotes:
-        elements.append(Paragraph("Répartition par compte", styles["Heading2"]))
-        elements.append(_table_deux_colonnes([(c["compte"], _euros(c["valeur"])) for c in comptes]))
+        elements.append(Paragraph(tr("Répartition par compte"), styles["Heading2"]))
+        elements.append(_table_deux_colonnes([(libelle_donnee(c["compte"]), _euros(c["valeur"])) for c in comptes]))
 
     doc.build(elements, onFirstPage=_pied_de_page, onLaterPages=_pied_de_page)
     return tampon.getvalue()

@@ -27,6 +27,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
 from ..database import session_tous_foyers
+from ..i18n import a_traduire, tr
 from . import market_data_service
 from .historique_cache import invalider_historiques_patrimoine, invalider_historiques_portefeuille
 
@@ -47,7 +48,10 @@ class RafraichissementTropFrequentError(Exception):
     def __init__(self, secondes_restantes: float):
         self.secondes_restantes = secondes_restantes
         super().__init__(
-            f"Merci de patienter encore {secondes_restantes:.0f} seconde(s) avant un nouveau rafraîchissement manuel."
+            tr(
+                "Merci de patienter encore {secondes} seconde(s) avant un nouveau rafraîchissement manuel.",
+                secondes=f"{secondes_restantes:.0f}",
+            )
         )
 
 
@@ -89,7 +93,7 @@ class RafraichissementDejaEnCoursError(Exception):
     cours d'exécution (déclenché depuis un autre écran ou un appel précédent)."""
 
     def __init__(self):
-        super().__init__("Un rafraîchissement des cours est déjà en cours.")
+        super().__init__(a_traduire("Un rafraîchissement des cours est déjà en cours."))
 
 
 @dataclass
@@ -161,7 +165,7 @@ def _executer_rafraichissement(
 
         with _verrou_etat:
             _etat.statut = "ok"
-            _etat.message = f"{total} position(s) rafraîchie(s)"
+            _etat.message = a_traduire("{total} position(s) rafraîchie(s)").format(total=total)
     except Exception as exc:  # jamais laisser une exception tuer le fil en silence
         logger.exception("échec du rafraîchissement des cours en tâche de fond")
         with _verrou_etat:

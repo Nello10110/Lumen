@@ -8,7 +8,7 @@ const en: Dictionnaire = {
     titre: 'Language',
     choixAria: 'Interface language',
     reglagesDescription:
-      'Language of the app for the whole household: every member sees it in this language, with numbers and dates in the matching format. Translation of the app is in progress: some screens are still in French for now.',
+      'Language of the app for the whole household: every member sees it in this language, with numbers and dates in the matching format.',
     etapeTexte: 'Which language do you want to use the app in? You can change it at any time in Settings → General.',
   },
   nav: {

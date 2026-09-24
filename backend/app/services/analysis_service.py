@@ -7,13 +7,14 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO, en_decimal
+from ..i18n import a_traduire
 from ..models import SOURCE_INDICE, TYPES_ACTIF_PATRIMOINE_MANUEL, FundComposition, Holding
 from .bricks_import import PREFIXE_SYMBOLE as PREFIXE_SYMBOLE_BRICKS
 from .reference_indices import NON_CATEGORISE, ZONE_EUROPE, label_for_sector
 
 # Libellé affiché pour regrouper les lignes sans compte renseigné (LOT 5.1), plutôt
 # que de les écarter du total ou de laisser un libellé vide/ambigu dans la répartition.
-COMPTE_SANS_ANNOTATION = "Sans compte renseigné"
+COMPTE_SANS_ANNOTATION = a_traduire("Sans compte renseigné")
 
 
 @dataclass

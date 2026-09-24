@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime  # noqa: F401
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator  # noqa: F401
 
+from ..i18n import tr, traduire_message
 from ..services.preferences_service import METHODES_VALIDES
 
 
@@ -16,6 +17,12 @@ class ScheduledJobOut(BaseModel):
     derniere_execution: datetime | None = None
     dernier_statut: str | None = None
     dernier_message: str | None = None
+
+    @field_serializer("dernier_message")
+    def _message_traduit(self, message: str | None) -> str | None:
+        # Compte rendu écrit par la tâche planifiée, hors requête donc en français :
+        # traduit à l'envoi, gabarit reconnu avec ses valeurs (§ BL.4).
+        return traduire_message(message) if message else message
 
 
 class ScheduledJobUpdate(BaseModel):
@@ -53,7 +60,12 @@ class PreferencesUpdate(BaseModel):
     @classmethod
     def _valider_methode(cls, v: str) -> str:
         if v not in METHODES_VALIDES:
-            raise ValueError(f"Méthode de calcul du coût de revient invalide : doit être l'une de {METHODES_VALIDES}")
+            raise ValueError(
+                tr(
+                    "Méthode de calcul du coût de revient invalide : doit être l'une de {valeurs}",
+                    valeurs=", ".join(sorted(METHODES_VALIDES)),
+                )
+            )
         return v
 
     @field_validator("taux_imposition_pct")

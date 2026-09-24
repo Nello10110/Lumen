@@ -51,7 +51,9 @@ describe('LangueFoyerCard — langue du foyer dans Réglages (backlog § BL)', (
 
     fireEvent.change(screen.getByRole('combobox', { name: "Langue de l'interface" }), { target: { value: 'de' } })
 
-    await vi.waitFor(() => expect(api.updateLangueFoyer).toHaveBeenCalledWith('de'))
+    // Délai large : la langue choisie est chargée à la demande (`import()`), dictionnaire
+    // volumineux depuis § BL.2 — la seconde par défaut ne suffit pas toujours en suite complète.
+    await vi.waitFor(() => expect(api.updateLangueFoyer).toHaveBeenCalledWith('de'), { timeout: 5000 })
     await vi.waitFor(() => expect(refetchUser).toHaveBeenCalled())
   })
 

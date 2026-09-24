@@ -6,8 +6,8 @@ import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { SkeletonTexte } from '../components/Skeleton'
-import { formatDate, formatEuro, formatPct } from '../utils/format'
-import { t } from '../i18n'
+import { formatDate, formatEuro, formatPct, formatPourcent } from '../utils/format'
+import { activerLangue, estLangue, langueActive, t } from '../i18n'
 import { libelleDonnee } from '../i18n/donnees'
 
 /** Consultation publique d'un lien de partage (backlog 2.Q.1) — page volontairement
@@ -33,7 +33,16 @@ export default function PartagePublicPage() {
     document.title = t('partagePublicPage.patrimoinePartage')
     api
       .getPartageMeta(token)
-      .then((meta) => {
+      .then(async (meta) => {
+        // Page affichée dans la langue du foyer qui partage (§ BL.4), sans la retenir
+        // sur l'appareil du visiteur (`activerLangue`, pas `changerLangue`) : ce n'est
+        // pas SON choix. Les mises à jour d'état qui suivent redessinent la page
+        // dans cette langue.
+        if (meta.langue && estLangue(meta.langue) && meta.langue !== langueActive()) {
+          await activerLangue(meta.langue).catch(() => undefined)
+          document.documentElement.lang = meta.langue
+          document.title = t('partagePublicPage.patrimoinePartage')
+        }
         setNomLien(meta.nom_lien)
         setCodeRequis(meta.code_requis)
         if (!meta.code_requis) consulter(null)
@@ -110,7 +119,7 @@ function TableauRepartition({ items }: { items: PartageRepartitionItem[] }) {
           <span className="text-texte">{libelleDonnee(item.categorie)}</span>
           <span className="text-texte-attenue">
             {item.valeur !== null ? `${formatEuro(item.valeur, 0)} · ` : ''}
-            {item.pourcentage}%
+            {formatPourcent(item.pourcentage)}
           </span>
         </li>
       ))}
@@ -149,13 +158,13 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.plusGrosseLigne')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">
-                {donnees.exposition.plus_grosse_ligne_pct !== null ? `${donnees.exposition.plus_grosse_ligne_pct}%` : '—'}
+                {donnees.exposition.plus_grosse_ligne_pct !== null ? formatPourcent(donnees.exposition.plus_grosse_ligne_pct) : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.top5Lignes')}</p>
               <p className="mt-1 text-xl font-semibold text-texte">
-                {donnees.exposition.top5_lignes_pct !== null ? `${donnees.exposition.top5_lignes_pct}%` : '—'}
+                {donnees.exposition.top5_lignes_pct !== null ? formatPourcent(donnees.exposition.top5_lignes_pct) : '—'}
               </p>
             </div>
             <div>
@@ -196,7 +205,7 @@ function ContenuPartage({ donnees }: { donnees: PartagePayload }) {
       )}
 
       {donnees.budget && (
-        <Card title={`Budget (${formatDate(donnees.budget.periode_debut)} au ${formatDate(donnees.budget.periode_fin)})`}>
+        <Card title={t('partagePublicPage.budgetPeriode', { debut: formatDate(donnees.budget.periode_debut), fin: formatDate(donnees.budget.periode_fin) })}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{t('partagePublicPage.entrees')}</p>

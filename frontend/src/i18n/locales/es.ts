@@ -9,7 +9,7 @@ const es: Dictionnaire = {
     titre: 'Idioma',
     choixAria: 'Idioma de la interfaz',
     reglagesDescription:
-      'Idioma de la aplicación para todo el hogar: cada miembro la ve en este idioma, con los números y las fechas en el formato correspondiente. La traducción de la aplicación está en curso: algunas pantallas siguen en francés por ahora.',
+      'Idioma de la aplicación para todo el hogar: cada miembro la ve en este idioma, con los números y las fechas en el formato correspondiente.',
     etapeTexte: '¿En qué idioma quieres usar la aplicación? Podrás cambiarlo en cualquier momento en Ajustes → General.',
   },
   nav: {

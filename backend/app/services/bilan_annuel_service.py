@@ -28,26 +28,16 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
+from ..i18n import formats, tr
+from ..i18n.donnees import libelle_donnee
 from . import jalons_service, patrimoine_history_service, patrimoine_service, score_patrimonial_service
-from .csv_export import formater_nombre
 from .pdf_watermark import dessiner_filigrane
 
 _COULEUR_FILET = colors.HexColor("#e2e8f0")
 
 
-def _avec_separateurs_milliers(nombre: str) -> str:
-    signe, chiffres = ("-", nombre[1:]) if nombre.startswith("-") else ("", nombre)
-    groupes = []
-    while len(chiffres) > 3:
-        groupes.insert(0, chiffres[-3:])
-        chiffres = chiffres[:-3]
-    groupes.insert(0, chiffres)
-    return signe + " ".join(groupes)
-
-
 def _euros(valeur: float | None) -> str:
-    formate = formater_nombre(valeur, 0)
-    return f"{_avec_separateurs_milliers(formate)} €" if formate else "—"
+    return formats.euros(valeur, 0)
 
 
 def _pourcentage_signe(valeur: float | None) -> str:
@@ -56,8 +46,8 @@ def _pourcentage_signe(valeur: float | None) -> str:
     comme un pourcentage brut sans direction."""
     if valeur is None:
         return "—"
-    signe = "+" if valeur >= 0 else ""
-    return f"{signe}{formater_nombre(valeur, 1)} %"
+    texte = formats.pourcentage(valeur, 1)
+    return f"+{texte}" if valeur >= 0 else texte
 
 
 def _table_deux_colonnes(lignes: list[tuple[str, str]]) -> Table:
@@ -81,7 +71,7 @@ def _pied_de_page(canvas, doc) -> None:
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawString(2 * cm, 1.3 * cm, f"Généré le {date.today().strftime('%d/%m/%Y')} par Lumen")
+    canvas.drawString(2 * cm, 1.3 * cm, tr("Généré le {date} par Lumen", date=formats.date_courte(date.today())))
     canvas.restoreState()
 
 
@@ -122,22 +112,24 @@ def generer_pdf_bilan_annuel(db: Session, user_id: int, annee: int) -> bytes:
     doc = SimpleDocTemplate(tampon, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
     elements = []
 
-    titre = f"Bilan de l'année {annee}" + (" (en cours)" if annee_en_cours else "")
+    titre = tr("Bilan de l'année {annee} (en cours)", annee=annee) if annee_en_cours else tr("Bilan de l'année {annee}", annee=annee)
     elements.append(Paragraph(titre, styles["Title"]))
-    sous_titre = f"Période du {debut_periode.strftime('%d/%m/%Y')} au {fin_periode.strftime('%d/%m/%Y')}"
+    sous_titre = tr("Période du {debut} au {fin}", debut=formats.date_courte(debut_periode), fin=formats.date_courte(fin_periode))
     elements.append(Paragraph(sous_titre, styles["Normal"]))
     elements.append(Spacer(1, 0.6 * cm))
 
-    elements.append(Paragraph("Évolution du patrimoine net", styles["Heading2"]))
+    elements.append(Paragraph(tr("Évolution du patrimoine net"), styles["Heading2"]))
     if point_debut is None or point_fin is None:
-        elements.append(Paragraph("Historique non disponible sur cette période.", styles["Normal"]))
+        elements.append(Paragraph(tr("Historique non disponible sur cette période."), styles["Normal"]))
     else:
         date_reelle_debut = date.fromisoformat(point_debut["date"])
         if date_reelle_debut > debut_periode:
             elements.append(
                 Paragraph(
-                    f"Historique disponible depuis le {date_reelle_debut.strftime('%d/%m/%Y')} seulement "
-                    "(début du suivi sur ce foyer).",
+                    tr(
+                        "Historique disponible depuis le {date} seulement (début du suivi sur ce foyer).",
+                        date=formats.date_courte(date_reelle_debut),
+                    ),
                     styles["Normal"],
                 )
             )
@@ -149,44 +141,48 @@ def generer_pdf_bilan_annuel(db: Session, user_id: int, annee: int) -> bytes:
         # inversant le signe) — la variation en euros, elle, reste toujours
         # affichée, quel que soit le signe de `net_debut`.
         variation_pct = round((net_fin / net_debut - 1) * 100, 1) if net_debut > 0 else None
-        libelle_variation = "Variation" if variation_pct is None else f"Variation ({_pourcentage_signe(variation_pct)})"
+        libelle_variation = (
+            tr("Variation") if variation_pct is None else tr("Variation ({pourcentage})", pourcentage=_pourcentage_signe(variation_pct))
+        )
         elements.append(
             _table_deux_colonnes(
                 [
-                    (f"Patrimoine net au {date_reelle_debut.strftime('%d/%m/%Y')}", _euros(net_debut)),
-                    (f"Patrimoine net au {date.fromisoformat(point_fin['date']).strftime('%d/%m/%Y')}", _euros(net_fin)),
+                    (tr("Patrimoine net au {date}", date=formats.date_courte(date_reelle_debut)), _euros(net_debut)),
+                    (tr("Patrimoine net au {date}", date=formats.date_courte(date.fromisoformat(point_fin["date"]))), _euros(net_fin)),
                     (libelle_variation, _euros(net_fin - net_debut)),
                 ]
             )
         )
     elements.append(Spacer(1, 0.5 * cm))
 
-    elements.append(Paragraph("Jalons franchis sur la période", styles["Heading2"]))
+    elements.append(Paragraph(tr("Jalons franchis sur la période"), styles["Heading2"]))
     jalons_periode = [
         j
         for j in jalons_service.evaluer_jalons(db, user_id)
         if j.date_atteint is not None and debut_periode <= j.date_atteint <= fin_periode
     ]
     if jalons_periode:
-        elements.append(_table_deux_colonnes([(j.titre, j.date_atteint.strftime("%d/%m/%Y")) for j in jalons_periode]))
+        elements.append(_table_deux_colonnes([(j.titre, formats.date_courte(j.date_atteint)) for j in jalons_periode]))
     else:
-        elements.append(Paragraph("Aucun jalon franchi sur cette période.", styles["Normal"]))
+        elements.append(Paragraph(tr("Aucun jalon franchi sur cette période."), styles["Normal"]))
 
     if annee_en_cours:
         elements.append(Spacer(1, 0.5 * cm))
-        elements.append(Paragraph("Situation actuelle", styles["Heading2"]))
+        elements.append(Paragraph(tr("Situation actuelle"), styles["Heading2"]))
         elements.append(
             Paragraph(
-                "Les indicateurs ci-dessous décrivent l'état du patrimoine AUJOURD'HUI, pas l'année écoulée : "
-                "ni le score patrimonial ni la répartition par classe d'actif ne sont historisés.",
+                tr(
+                    "Les indicateurs ci-dessous décrivent l'état du patrimoine AUJOURD'HUI, pas l'année écoulée : "
+                    "ni le score patrimonial ni la répartition par classe d'actif ne sont historisés."
+                ),
                 styles["Normal"],
             )
         )
         elements.append(Spacer(1, 0.2 * cm))
         net = patrimoine_service.compute_patrimoine_net(db, user_id)
         score = score_patrimonial_service.compute_score_patrimonial(db, user_id)
-        lignes_situation = [("Score patrimonial", f"{score['score_global']}/100")]
-        lignes_situation += [(item["categorie"], _euros(item["valeur"])) for item in net["repartition_par_classe"]]
+        lignes_situation = [(tr("Score patrimonial"), f"{score['score_global']}/100")]
+        lignes_situation += [(libelle_donnee(item["categorie"]), _euros(item["valeur"])) for item in net["repartition_par_classe"]]
         elements.append(_table_deux_colonnes(lignes_situation))
 
     doc.build(elements, onFirstPage=_pied_de_page, onLaterPages=_pied_de_page)

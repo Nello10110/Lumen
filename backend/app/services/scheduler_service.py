@@ -20,6 +20,7 @@ from scripts import sauvegarde as sauvegarde_module
 
 from .. import database
 from ..database import session_tous_foyers
+from ..i18n import a_traduire
 from ..models import Holding, ScheduledJobConfig
 from . import backup_service, coingecko_service, cours_service, justetf_service, logo_service, market_data_refresh, market_data_service
 
@@ -52,7 +53,7 @@ def _run_market_data_refresh() -> None:
         # tous les comptes — ce job doit couvrir les tickers de tout le monde.
         items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
         market_data_service.refresh_tickers(db, items)
-        record_result(db, MARKET_DATA_REFRESH, "ok", f"{len(items)} position(s) rafraîchie(s)")
+        record_result(db, MARKET_DATA_REFRESH, "ok", a_traduire("{total} position(s) rafraîchie(s)").format(total=len(items)))
     except Exception as exc:
         db.rollback()
         logger.exception("échec du rafraîchissement planifié")
@@ -81,7 +82,10 @@ def _run_justetf_refresh() -> None:
     try:
         resume = justetf_service.refresh_all(db)
         record_result(
-            db, JUSTETF_REFRESH, "ok", f"{resume['reussis']}/{resume['traites']} ETF mis à jour"
+            db,
+            JUSTETF_REFRESH,
+            "ok",
+            a_traduire("{reussis}/{traites} ETF mis à jour").format(reussis=resume["reussis"], traites=resume["traites"]),
         )
     except Exception as exc:
         db.rollback()
@@ -112,7 +116,9 @@ def _run_sauvegarde_chiffree() -> None:
                 db,
                 BACKUP_ENCRYPTED,
                 "erreur",
-                "Sauvegarde intégrée réservée à une base SQLite : une base serveur se sauvegarde avec ses propres outils (pg_dump).",
+                a_traduire(
+                    "Sauvegarde intégrée réservée à une base SQLite : une base serveur se sauvegarde avec ses propres outils (pg_dump)."
+                ),
             )
             return
         # `database.DB_PATH`, pas `sauvegarde_module.chemin_base_source()` : c'est la
@@ -132,7 +138,7 @@ def _run_sauvegarde_chiffree() -> None:
         )
         message = chemin.name
         if supprimees:
-            message += f" ({len(supprimees)} ancienne(s) supprimée(s))"
+            message = a_traduire("{fichier} ({n} ancienne(s) supprimée(s))").format(fichier=chemin.name, n=len(supprimees))
         record_result(db, BACKUP_ENCRYPTED, "ok", message)
     except Exception as exc:
         db.rollback()
@@ -165,7 +171,9 @@ def _run_logos_refresh() -> None:
             db,
             LOGOS_REFRESH,
             "ok",
-            f"{resume.mis_a_jour} mis à jour, {resume.inchanges} inchangé(s), {resume.echecs} échec(s) sur {resume.traites}",
+            a_traduire("{mis_a_jour} mis à jour, {inchanges} inchangé(s), {echecs} échec(s) sur {traites}").format(
+                mis_a_jour=resume.mis_a_jour, inchanges=resume.inchanges, echecs=resume.echecs, traites=resume.traites
+            ),
         )
     except Exception as exc:
         db.rollback()
@@ -219,7 +227,7 @@ def _run_cours_historiques() -> None:
                 time.sleep(coingecko_service.DELAI_ENTRE_APPELS_COINGECKO_SECONDES)
             cours_service.rafraichir_crypto(db, ticker, forcer=True)
         record_result(
-            db, COURS_HISTORIQUES, "ok", f"{len(tickers) + len(tickers_crypto)} série(s) de cours à jour"
+            db, COURS_HISTORIQUES, "ok", a_traduire("{n} série(s) de cours à jour").format(n=len(tickers) + len(tickers_crypto))
         )
     except Exception as exc:
         db.rollback()

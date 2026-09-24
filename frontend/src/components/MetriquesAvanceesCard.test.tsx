@@ -73,8 +73,8 @@ describe('MetriquesAvanceesCard', () => {
 
     await screen.findByText('+12,5 %')
     expect(screen.getByText('+8,2 %')).toBeInTheDocument()
-    expect(screen.getByText('15%')).toBeInTheDocument()
-    expect(screen.getByText('-10%')).toBeInTheDocument()
+    expect(screen.getByText('15,00 %')).toBeInTheDocument()
+    expect(screen.getByText('-10,00 %')).toBeInTheDocument()
     expect(screen.getByText('récupéré en 3 semaines')).toBeInTheDocument()
   })
 

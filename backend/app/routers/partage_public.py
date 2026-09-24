@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..i18n import definir_langue, tr
 from ..schemas import PartageAccesRequest, PartagePayload
-from ..services import partage_service
+from ..services import partage_service, preferences_service
 
 router = APIRouter(prefix="/api/partage-public", tags=["partage-public"])
 
@@ -29,7 +30,10 @@ def meta(token: str, db: Session = Depends(get_db)):
     lien = partage_service.lien_valide_par_token(db, token)
     if lien is None:
         raise HTTPException(status_code=404, detail=MESSAGE_LIEN_INTROUVABLE)
-    return {"nom_lien": lien.nom, "code_requis": lien.code_hash is not None}
+    # Langue du foyer qui partage (§ BL.4) : la page publique s'affiche dans la langue
+    # choisie par ce foyer, pas dans celle du navigateur du visiteur.
+    langue = preferences_service.lire_langue_foyer(db, lien.user_id)
+    return {"nom_lien": lien.nom, "code_requis": lien.code_hash is not None, "langue": langue}
 
 
 @router.post("/{token}", response_model=PartagePayload)
@@ -38,9 +42,12 @@ def consulter(token: str, payload: PartageAccesRequest, request: Request, db: Se
     lien = partage_service.lien_valide_par_token(db, token)
     if lien is None:
         raise HTTPException(status_code=404, detail=MESSAGE_LIEN_INTROUVABLE)
+    definir_langue(preferences_service.lire_langue_foyer(db, lien.user_id))
     verrouille_jusqua = partage_service.verrouillage_actif(db, lien.id)
     if verrouille_jusqua is not None:
-        raise HTTPException(status_code=429, detail=f"Trop de tentatives. Réessayez après {verrouille_jusqua.strftime('%H:%M UTC')}.")
+        raise HTTPException(
+            status_code=429, detail=tr("Trop de tentatives. Réessayez après {heure}.", heure=verrouille_jusqua.strftime("%H:%M UTC"))
+        )
     if not partage_service.verifier_code(lien, payload.code):
         partage_service.journaliser_acces(db, lien.id, ip, "code_incorrect")
         raise HTTPException(status_code=401, detail="Code incorrect.")

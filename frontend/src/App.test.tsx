@@ -400,7 +400,10 @@ describe('App — langue du foyer', () => {
       </MemoryRouter>,
     )
 
-    const navigation = await screen.findByRole('navigation', { name: 'Hauptnavigation' })
+    // Délai large : le dictionnaire allemand est chargé à la demande (`import()`), et
+    // il porte tous les écrans depuis § BL.2 — sous la charge de la suite complète,
+    // son chargement dépasse parfois la seconde par défaut de `findBy`.
+    const navigation = await screen.findByRole('navigation', { name: 'Hauptnavigation' }, { timeout: 5000 })
     expect(within(navigation).getByRole('link', { name: 'Übersicht' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('de')
     expect(localStorage.getItem('lumen.langue')).toBe('de')

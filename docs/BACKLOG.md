@@ -81,7 +81,7 @@ file et reçoit son détail au § 5.
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.1** — déploiement Postgres (compose, image, sauvegardes) | Du travail, pas une décision : aujourd'hui Postgres ne tourne qu'en CI | À faire le jour où une version hébergée est lancée, ou pour un essai (détail § BK) |
 | **BK.2** — gestion des foyers sur une installation partagée | La conception : une installation ne sait créer qu'un foyer | **Atelier avec l'utilisateur** sur les questions du § BK.2, avant tout code |
-| **BL.2 à BL.4** — application multilingue, suite du socle | Du travail : traduire écran par écran, puis les libellés-données et le serveur | En cours (§ BL) |
+| **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
@@ -7076,10 +7076,12 @@ foyer choisira sa langue). »
 - **avant connexion** (écran de connexion, création du premier compte), la langue vient du dernier
   choix fait sur cet appareil, sinon de la langue du navigateur si elle est proposée, sinon le
   français ; le premier compte crée son foyer dans cette langue ;
-- **un fichier par langue** côté interface (`frontend/src/i18n/locales/<code>.ts`), le français
-  servant de référence : TypeScript refuse la compilation si une clé manque dans une autre langue.
-  Ajouter une langue = ajouter un fichier et une ligne dans la liste des langues. Les langues autres
-  que le français sont chargées à la demande, pour ne pas alourdir le premier chargement ;
+- **un dictionnaire par langue** côté interface (`frontend/src/i18n/locales/<code>/`, un fichier
+  par écran ou composant depuis BL.2), le français servant de référence : TypeScript refuse la
+  compilation si une clé manque dans une autre langue. Ajouter une langue : voir
+  `CONTRIBUTING.md` (un dossier de traductions, une ligne dans la liste des langues, son
+  catalogue serveur). Les langues autres que le français sont chargées à la demande, pour ne pas
+  alourdir le premier chargement ;
 - **côté serveur**, les messages et les PDF passent par un catalogue équivalent, choisi d'après la
   langue du foyer.
 
@@ -7105,10 +7107,11 @@ foyer choisira sa langue). »
 | BL.1 | Socle : langue du foyer (serveur), module de traduction et formats (interface), choix de la langue en tête de la première page de l'assistant, carte « Langue » dans Réglages, coquille traduite (navigation, barre de contrôles, menus, recherche, connexion, assistant) | **traité** (23/09/2026) |
 | BL.2 | Écrans, un par un : Synthèse, Actifs et fiche détaillée, Comptes, Analyse, Budget, Rapport, Salaire, Import, Réglages, Aide, partage public | **traité** (24/09/2026) |
 | BL.3 | Libellés-données traduits (zones, secteurs, classes, catégories de budget par défaut et leur repérage, noms de comptes proposés à l'import, pays de l'aide), pourcentages selon la langue | **traité** (24/09/2026) |
-| BL.4 | Serveur : messages d'erreur, PDF, en-têtes CSV | à faire |
+| BL.4 | Serveur : messages d'erreur, PDF, en-têtes CSV | **traité** (24/09/2026) |
+| BL.5 | Relecture des traductions par des natifs | en attente de relecteurs |
 
-Tant que BL.2 à BL.4 ne sont pas livrés, une langue autre que le français donne une application
-**en partie traduite** : la coquille dans la langue choisie, le reste en français.
+Depuis le 24/09/2026 (BL.2 à BL.4), **tout ce que voit l'utilisateur est traduit** dans les cinq
+langues. Reste la relecture native (BL.5).
 
 #### BL.1 — `majeur` · `M` · `traité` (23/09/2026) — Socle multilingue et coquille traduite
 
@@ -7219,6 +7222,85 @@ mouvement sur la période** faisait tomber l'indicateur en erreur 500 — le rep
 catégorie renommée, catégorie recréée sans code, changement de langue avec et sans conflit,
 migration de rattrapage, noms de comptes proposés, régression du repli à zéro) ; interface :
 formats de pourcentage en français et en anglais.
+
+#### BL.4 — `majeur` · `L` · `traité` (24/09/2026) — Serveur : messages, PDF, CSV
+
+**Catalogue par texte source** (`backend/app/i18n/`) : les messages restent écrits en français
+là où ils sont levés, lisibles tels quels ; chaque catalogue (`en.py`, `es.py`, `de.py`, `it.py`)
+associe un texte français à sa traduction, et un texte absent reste en français plutôt que de
+disparaître. Plutôt que des clés à la façon de l'interface : 110 messages fixes existaient déjà,
+levés dans une quarantaine de fichiers et relayés par `detail=str(exc)` — les renommer tous en
+clés aurait touché chaque levée sans rien apporter au lecteur du code.
+
+- **messages fixes** : traduits en un seul point, par les gestionnaires d'exception de `main.py`
+  (`HTTPException` et validation Pydantic) ;
+- **messages avec variables** : `tr("Un compte nommé « {nom} » existe déjà.", nom=...)` là où ils
+  sont construits — les f-strings de messages ont toutes été converties ;
+- **textes stockés hors requête** (compte rendu d'une tâche planifiée, erreur de cotation) :
+  marqués `a_traduire(...)`, écrits en français, traduits **à l'envoi** (`traduire_message`
+  reconnaît le gabarit dans le texte formaté et en reprend les valeurs) ;
+- **langue de la requête** : celle du foyer dès l'authentification (`get_current_user`, qui
+  couvre aussi un PDF ou un CSV ouvert par un lien direct), sinon l'en-tête `X-Langue` envoyé par
+  l'interface (écran de connexion), sinon `Accept-Language`, sinon le français. Tenue dans un
+  `ContextVar` posé par un middleware ASGI ; l'état est un objet **mutable** — les dépendances
+  synchrones de FastAPI tournent dans un autre fil avec une copie du contexte, une réaffectation
+  n'y remonterait pas ;
+- **garde-fou** : `tests/test_i18n_serveur.py` relève par analyse du code (`ast`) tout `detail`
+  d'`HTTPException`, tout message d'exception levée, tout `tr(...)`/`a_traduire(...)`, et exige
+  sa traduction dans les quatre langues, sans paramètre perdu, sans entrée orpheline, sans
+  f-string. Cinq fichiers en sont exclus, à dessein : erreurs internes ou de configuration du
+  serveur, lues par l'exploitant dans le journal, jamais montrées dans l'interface.
+
+**PDF** (relevé, déclaration, bilan annuel) : textes, dates, montants et pourcentages dans la
+langue du foyer (`app/i18n/formats.py` : milliers, décimale, position de l'euro, format de date —
+écrits à la main, cinq langues ne justifiant pas une dépendance). Libellés-données (classes
+d'actif) traduits comme à l'écran ; un test vérifie que serveur et interface leur donnent les
+mêmes noms.
+
+**CSV** : en-têtes traduits ; en anglais, séparateur `,` et point décimal (ce qu'un Excel
+anglophone lit comme des nombres), ailleurs `;` et virgule comme avant ; dates au format court de
+la langue.
+
+**Aussi traduits** : titres et descriptions des badges, critères et explications du score
+patrimonial, compte rendu des tâches planifiées, erreurs de cotation, messages de connexion SSO,
+libellé « Non catégorisé » du budget. **Page de partage public** : `/meta` renvoie la langue du
+foyer qui partage, la page s'y affiche **sans la retenir** sur l'appareil du visiteur (ce n'est
+pas son choix), et les erreurs de cette page suivent la même langue.
+
+**Relevés en finissant** (vérification en navigateur réel, anglais et allemand) :
+
+- une quinzaine de pourcentages étaient formatés à la main avec le point décimal — y compris en
+  français (« 12.5 % ») : tous passent par `formatPct`/`formatPourcent` ;
+- quatre gabarits d'interface avaient échappé à l'extraction (« Salaires — 2026 », périodes
+  personnalisées, « 60% du patrimoine ») ; la date « depuis le 2025-05-12 » de la carte
+  Performance restait au format ISO ;
+- la carte Langue annonçait encore « certains écrans restent en français ».
+
+**Poids** : chaque langue autre que le français pèse ~32 Ko compressés, chargés une seule fois et
+seulement si elle est choisie. Quelques tests d'interface attendaient leur dictionnaire avec le
+délai par défaut d'une seconde, devenu court sous la charge de la suite complète : délai porté à
+cinq secondes pour ces seuls chargements, commentaire à l'appui.
+
+**Hors périmètre, assumé** : la phrase de confirmation de remise à zéro (nom du foyer, sinon
+`SUPPRIMER`) n'est pas traduite — le serveur vérifie ce mot exact ; les valeurs lues dans les
+fichiers importés (colonnes Bricks.co, types d'opération) restent celles de ces fichiers ; les
+données saisies par l'utilisateur (noms de comptes, libellés) ne se traduisent pas.
+
+**Tests** : serveur 27 (catalogues complets et cohérents, langue annoncée avant connexion, langue
+du foyer qui prime une fois connecté, validation et messages paramétrés traduits, formats des
+cinq langues, CSV anglais et français, PDF générés dans chaque langue, langue de la page de
+partage, messages stockés traduits à l'envoi) ; interface : en-tête `X-Langue`, page de partage
+public dans la langue du foyer sans mémorisation. Suites complètes : serveur 1519, interface 883,
+E2E 81/81.
+
+#### BL.5 — `mineur` · `S` · `en attente` — Relecture native des traductions
+
+Tout a été traduit par Claude (décision du 23/09/2026). Fichiers à confier à un relecteur par
+langue : `frontend/src/i18n/locales/<code>/` (un fichier par écran ou composant, le français à
+côté dans `locales/fr/`) et `backend/app/i18n/<code>.py` (texte français → traduction, trié).
+Points à regarder en priorité : les termes financiers propres à chaque marché (PEA, Livret A,
+PER traduits mot à mot), le registre (il suit le texte français, tutoiement ou vouvoiement selon
+l'écran — un relecteur voudra peut-être l'unifier), et les textes longs de l'aide.
 
 ---
 

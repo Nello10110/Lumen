@@ -4,6 +4,7 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
+from ..i18n import tr
 from ..models import TYPES_ACTIF_SANS_ETABLISSEMENT
 from .commun import RepartitionItem
 from .comptes import CompteOut, EtablissementOut
@@ -90,7 +91,7 @@ class HoldingBase(BaseModel):
     def _valider_date_acquisition(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        return _valider_date_jour_non_future(v, "La date d'acquisition")
+        return _valider_date_jour_non_future(v, tr("La date d'acquisition"))
 
 
 class HoldingCreate(HoldingBase):
@@ -201,7 +202,7 @@ class HoldingUpdate(BaseModel):
     def _valider_date_acquisition(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        return _valider_date_jour_non_future(v, "La date d'acquisition")
+        return _valider_date_jour_non_future(v, tr("La date d'acquisition"))
 
     @field_validator("compte_nom", "etablissement_nom")
     @classmethod
@@ -234,7 +235,7 @@ class ValorisationInput(BaseModel):
     @field_validator("date")
     @classmethod
     def _valider_date(cls, v: str) -> str:
-        return _valider_date_jour_non_future(v, "La date de valorisation")
+        return _valider_date_jour_non_future(v, tr("La date de valorisation"))
 
 
 class HoldingOut(HoldingBase):

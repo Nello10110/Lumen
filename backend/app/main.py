@@ -10,14 +10,17 @@ import threading
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import ENV_CHARGE
 from .auth import get_current_user, require_role
 from .config_env import CHEMIN_ENV, variables_chargees
 from .database import avertir_si_separation_contournee, session_tous_foyers, upgrade_schema
+from .i18n import MiddlewareLangue, a_traduire, traduire
 from .logging_config import configure_logging
 from .models import ROLE_MEMBRE, ROLE_PROPRIETAIRE
 from .routers import (
@@ -130,8 +133,25 @@ app.add_middleware(
     allow_origins=_origines_cors,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    # `X-Langue` (§ BL.4) : langue de l'interface, pour les messages d'une requête
+    # non authentifiée (écran de connexion).
+    allow_headers=["Content-Type", "Authorization", "X-Langue"],
 )
+# Langue de chaque requête (§ BL.4), lue par les gestionnaires d'exception ci-dessous
+# et par `i18n.tr`. Ajouté APRÈS CORS, donc placé AUTOUR de lui : l'état existe pour
+# toute la durée de la requête, erreurs comprises.
+app.add_middleware(MiddlewareLangue)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def gestion_erreurs_http(request: Request, exc: StarletteHTTPException) -> Response:
+    """Traduit un `detail` textuel fixe dans la langue de la requête (§ BL.4) — les
+    messages restent écrits en français là où ils sont levés, y compris ceux relayés
+    depuis un service par `detail=str(exc)`. Le reste de la réponse (code, en-têtes)
+    est celui du gestionnaire par défaut de FastAPI."""
+    if isinstance(exc.detail, str):
+        exc.detail = traduire(exc.detail)
+    return await http_exception_handler(request, exc)
 
 
 @app.exception_handler(RequestValidationError)
@@ -144,11 +164,14 @@ async def gestion_erreurs_validation(request: Request, exc: RequestValidationErr
     Seule la première erreur est retenue : largement suffisant pour un formulaire de
     saisie où l'utilisateur corrige un champ à la fois."""
     premiere = exc.errors()[0] if exc.errors() else {}
-    message = premiere.get("msg", "Requête invalide")
+    message = premiere.get("msg", a_traduire("Requête invalide"))
     prefixe = "Value error, "
     if message.startswith(prefixe):
         message = message[len(prefixe) :]
-    return JSONResponse(status_code=400, content={"detail": message})
+    # Messages de nos `field_validator` : écrits en français, traduits ici (§ BL.4).
+    # Ceux de Pydantic lui-même (« Field required »...) ne sont pas au catalogue et
+    # passent inchangés.
+    return JSONResponse(status_code=400, content={"detail": traduire(message)})
 
 
 app.include_router(auth.router)

@@ -4,17 +4,18 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
+from ..i18n import tr
 from ..models import ROLES_ASSIGNABLES
 from ..services.preferences_service import LANGUES_DISPONIBLES
 
 MESSAGE_MOT_DE_PASSE_TROP_COURT = "Le mot de passe doit contenir au moins 8 caractères"
 MESSAGE_NOM_UTILISATEUR_INVALIDE = "Le nom d'utilisateur doit contenir entre 2 et 32 caractères"
-MESSAGE_LANGUE_INCONNUE = "Langue non proposée : " + ", ".join(LANGUES_DISPONIBLES)
+MESSAGE_LANGUE_INCONNUE = "Langue non proposée : {langues}"
 
 
 def _valider_langue(v: str) -> str:
     if v not in LANGUES_DISPONIBLES:
-        raise ValueError(MESSAGE_LANGUE_INCONNUE)
+        raise ValueError(tr(MESSAGE_LANGUE_INCONNUE, langues=", ".join(LANGUES_DISPONIBLES)))
     return v
 
 

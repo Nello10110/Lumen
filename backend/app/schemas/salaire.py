@@ -4,6 +4,7 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
+from ..i18n import tr
 from ..services.salaire_service import PERIODICITES_VALIDES, STATUTS_VALIDES, TYPES_MONTANT_VALIDES
 
 
@@ -49,21 +50,21 @@ class SalaireIn(BaseModel):
     @classmethod
     def _valider_type_montant(cls, v: str) -> str:
         if v not in TYPES_MONTANT_VALIDES:
-            raise ValueError(f"Type de montant invalide : doit être l'un de {TYPES_MONTANT_VALIDES}")
+            raise ValueError(tr("Type de montant invalide : doit être l'un de {valeurs}", valeurs=", ".join(sorted(TYPES_MONTANT_VALIDES))))
         return v
 
     @field_validator("periodicite")
     @classmethod
     def _valider_periodicite(cls, v: str) -> str:
         if v not in PERIODICITES_VALIDES:
-            raise ValueError(f"Périodicité invalide : doit être l'une de {PERIODICITES_VALIDES}")
+            raise ValueError(tr("Périodicité invalide : doit être l'une de {valeurs}", valeurs=", ".join(sorted(PERIODICITES_VALIDES))))
         return v
 
     @field_validator("statut")
     @classmethod
     def _valider_statut(cls, v: str) -> str:
         if v not in STATUTS_VALIDES:
-            raise ValueError(f"Statut invalide : doit être l'un de {STATUTS_VALIDES}")
+            raise ValueError(tr("Statut invalide : doit être l'un de {valeurs}", valeurs=", ".join(sorted(STATUTS_VALIDES))))
         return v
 
     @field_validator("nombre_mois")

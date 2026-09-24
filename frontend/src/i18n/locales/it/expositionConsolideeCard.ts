@@ -16,6 +16,7 @@ const expositionConsolideeCard: Structure<typeof fr> = {
   repartitionGeographiqueConsolidee: "Ripartizione geografica consolidata",
   repartitionParClasseDActif: "Ripartizione per classe di attività",
   partDeclaree: "Il {pct}% di questo valore (immobili/risparmio inseriti manualmente) ha un’area geografica dichiarata, non misurata.",
+  pctDuPatrimoine: "{pct} del patrimonio",
 }
 
 export default expositionConsolideeCard

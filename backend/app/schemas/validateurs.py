@@ -4,10 +4,12 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
-MESSAGE_TICKER_VIDE = "Le ticker ne peut pas être vide"
-MESSAGE_QUANTITE_POSITIVE = "La quantité doit être strictement positive (les positions vendues à découvert ne sont pas gérées)"
-MESSAGE_PRIX_NON_NEGATIF = "Le prix de revient moyen ne peut pas être négatif"
-MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE = "La valeur estimée ne peut pas être négative"
+from ..i18n import a_traduire, tr
+
+MESSAGE_TICKER_VIDE = a_traduire("Le ticker ne peut pas être vide")
+MESSAGE_QUANTITE_POSITIVE = a_traduire("La quantité doit être strictement positive (les positions vendues à découvert ne sont pas gérées)")
+MESSAGE_PRIX_NON_NEGATIF = a_traduire("Le prix de revient moyen ne peut pas être négatif")
+MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE = a_traduire("La valeur estimée ne peut pas être négative")
 
 
 def _valider_date_jour_non_future(valeur: str, libelle: str) -> str:
@@ -23,9 +25,9 @@ def _valider_date_jour_non_future(valeur: str, libelle: str) -> str:
     try:
         jour = datetime.strptime(valeur, "%Y-%m-%d").date()
     except ValueError:
-        raise ValueError(f"{libelle} doit être au format AAAA-MM-JJ") from None
+        raise ValueError(tr("{libelle} doit être au format AAAA-MM-JJ", libelle=libelle)) from None
     if jour > datetime.now().date():
-        raise ValueError(f"{libelle} ne peut pas être dans le futur")
+        raise ValueError(tr("{libelle} ne peut pas être dans le futur", libelle=libelle))
     return valeur
 
 

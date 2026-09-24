@@ -293,7 +293,9 @@ describe('WelcomeWizard — choix de la langue en première page', () => {
 
     fireEvent.change(screen.getByRole('combobox', { name: "Langue de l'interface" }), { target: { value: 'es' } })
 
-    await vi.waitFor(() => expect(api.updateLangueFoyer).toHaveBeenCalledWith('es'))
+    // Délai large : la langue choisie est chargée à la demande (`import()`), dictionnaire
+    // volumineux depuis § BL.2 — la seconde par défaut ne suffit pas toujours en suite complète.
+    await vi.waitFor(() => expect(api.updateLangueFoyer).toHaveBeenCalledWith('es'), { timeout: 5000 })
     await vi.waitFor(() => expect(refetchUser).toHaveBeenCalled())
   })
 })

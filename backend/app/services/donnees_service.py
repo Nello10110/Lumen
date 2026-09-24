@@ -45,6 +45,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from ..i18n import tr
 from ..models import (
     ORIGINE_MANUEL,
     ORIGINE_RECONSTRUIT,
@@ -243,7 +244,11 @@ def valider(document: Any) -> None:
     version = document.get("version")
     if version != VERSION:
         raise FichierExportInvalideError(
-            f"Export en version {version}, incompatible avec cette application (version {VERSION} attendue)."
+            tr(
+                "Export en version {version}, incompatible avec cette application (version {attendue} attendue).",
+                version=version,
+                attendue=VERSION,
+            )
         )
     if not isinstance(document.get("donnees"), dict):
         raise FichierExportInvalideError("Le fichier est un export de patrimoine, mais son contenu est illisible.")
@@ -338,7 +343,12 @@ def _verifier_valeur_autorisee(table: TableExportee, colonne: str, valeur: Any) 
     if valeur not in autorisees:
         attendues = ", ".join(sorted(autorisees))
         raise ValeurInvalideError(
-            f"Valeur invalide pour {table.nom}.{colonne} : « {valeur} ». Attendu l'une de : {attendues}."
+            tr(
+                "Valeur invalide pour {champ} : « {valeur} ». Attendu l'une de : {attendues}.",
+                champ=f"{table.nom}.{colonne}",
+                valeur=valeur,
+                attendues=attendues,
+            )
         )
 
 

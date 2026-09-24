@@ -21,6 +21,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..i18n import a_traduire, traduire
 from ..models import Transaction, User, UserParametre
 
 _CLE_JALONS_CELEBRES = "jalons_celebres"
@@ -31,9 +32,9 @@ TROIS_MOIS_SUIVI = "trois_mois_suivi"
 UN_AN_SUIVI = "un_an_suivi"
 
 _TITRES: dict[str, tuple[str, str]] = {
-    PREMIER_IMPORT: ("Premier import", "Au moins une transaction importée dans le grand livre."),
-    TROIS_MOIS_SUIVI: ("3 mois de suivi", "Le compte existe depuis au moins 3 mois."),
-    UN_AN_SUIVI: ("Une année de suivi complète", "Le compte existe depuis au moins un an."),
+    PREMIER_IMPORT: (a_traduire("Premier import"), a_traduire("Au moins une transaction importée dans le grand livre.")),
+    TROIS_MOIS_SUIVI: (a_traduire("3 mois de suivi"), a_traduire("Le compte existe depuis au moins 3 mois.")),
+    UN_AN_SUIVI: (a_traduire("Une année de suivi complète"), a_traduire("Le compte existe depuis au moins un an.")),
 }
 
 _ORDRE_JALONS = [PREMIER_IMPORT, TROIS_MOIS_SUIVI, UN_AN_SUIVI]
@@ -106,8 +107,8 @@ def evaluer_jalons(db: Session, user_id: int) -> list[JalonStatut]:
         resultats.append(
             JalonStatut(
                 id=jalon_id,
-                titre=titre,
-                description=description,
+                titre=traduire(titre),
+                description=traduire(description),
                 atteint=atteint,
                 date_atteint=date_atteint,
                 nouveau=atteint and jalon_id not in deja_celebres,

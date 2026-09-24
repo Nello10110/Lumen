@@ -11,8 +11,9 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from .database import get_db
+from .i18n import definir_langue
 from .models import AuthToken, User
-from .services import auth_service
+from .services import auth_service, preferences_service
 
 MESSAGE_NON_AUTHENTIFIE = "Authentification requise."
 MESSAGE_ROLE_INSUFFISANT = "Action non autorisée pour ce rôle."
@@ -38,6 +39,9 @@ def get_current_user(token_row: AuthToken = Depends(get_current_token), db: Sess
     if user is None:
         raise HTTPException(status_code=401, detail=MESSAGE_NON_AUTHENTIFIE)
     auth_service.ouvrir_perimetre(db, user)
+    # Authentifié : la langue du FOYER prime sur celle annoncée par la requête (§ BL.4)
+    # — un PDF ou un CSV téléchargé par un lien direct n'a pas l'en-tête de l'interface.
+    definir_langue(preferences_service.lire_langue_foyer(db, auth_service.id_foyer(user)))
     return user
 
 

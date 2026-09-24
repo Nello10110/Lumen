@@ -108,7 +108,7 @@ export default function BudgetPage() {
       ? libelleMois(moisSelectionne)
       : mode === 'annuel'
         ? String(anneeSelectionnee)
-        : `${formatDate(dateDebutPerso)} au ${formatDate(dateFinPerso)}`
+        : t('budgetPage.periodeDuAu', { debut: formatDate(dateDebutPerso), fin: formatDate(dateFinPerso) })
 
   // Décomposition de la période pour la barre empilée du bloc héros : les plus gros
   // postes de sortie, puis le non dépensé — jamais une part négative (un « disponible »

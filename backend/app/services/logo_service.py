@@ -42,6 +42,7 @@ from bs4 import BeautifulSoup
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
+from ..i18n import tr
 from ..models import Etablissement, LogoCatalogue
 from . import etablissements_connus
 
@@ -94,7 +95,7 @@ def _verifier_url_publique(url: str) -> None:
     try:
         infos = socket.getaddrinfo(analyse.hostname, analyse.port or (443 if analyse.scheme == "https" else 80))
     except socket.gaierror as exc:
-        raise UrlNonAutoriseeError(f"Nom de domaine introuvable : {analyse.hostname}") from exc
+        raise UrlNonAutoriseeError(tr("Nom de domaine introuvable : {domaine}", domaine=analyse.hostname)) from exc
 
     for info in infos:
         adresse = ipaddress.ip_address(info[4][0])
@@ -124,7 +125,7 @@ def _telecharger(url: str) -> bytes:
             # quelle : UN site lent suffisait à faire échouer tout le rafraîchissement du
             # catalogue (plus aucun logo enregistré), et une URL injoignable saisie par
             # l'utilisateur donnait une erreur 500.
-            raise TelechargementError(f"Site injoignable ({type(exc).__name__}).") from exc
+            raise TelechargementError(tr("Site injoignable ({cause}).", cause=type(exc).__name__)) from exc
         if reponse.is_redirect or reponse.is_permanent_redirect:
             cible = reponse.headers.get("Location")
             reponse.close()
@@ -135,7 +136,7 @@ def _telecharger(url: str) -> bytes:
 
         if reponse.status_code != 200:
             reponse.close()
-            raise TelechargementError(f"Le serveur a répondu {reponse.status_code}.")
+            raise TelechargementError(tr("Le serveur a répondu {code}.", code=reponse.status_code))
 
         contenu = bytearray()
         for morceau in reponse.iter_content(chunk_size=8192):
@@ -160,7 +161,7 @@ def normaliser_en_png(contenu: bytes) -> bytes:
         format_source = (image.format or "").upper()
         if format_source not in FORMATS_ACCEPTES:
             raise ImageInvalideError(
-                f"Format d'image non pris en charge ({format_source or 'inconnu'}) — attendu : PNG, JPEG, WEBP, ICO."
+                tr("Format d'image non pris en charge ({format}) — attendu : PNG, JPEG, WEBP, ICO.", format=format_source or "?")
             )
         image = image.convert("RGBA")
         image.thumbnail((TAILLE_CIBLE_PX, TAILLE_CIBLE_PX))
@@ -172,7 +173,7 @@ def normaliser_en_png(contenu: bytes) -> bytes:
     except ImageInvalideError:
         raise
     except Exception as exc:  # décodage Pillow en échec sur une image corrompue
-        raise ImageInvalideError(f"Image illisible : {exc}") from exc
+        raise ImageInvalideError(tr("Image illisible : {cause}", cause=exc)) from exc
 
 
 def recuperer_depuis_url(url: str) -> bytes:
@@ -302,7 +303,7 @@ def recuperer_pour_domaine(domaine: str, accepter_svg: bool = False) -> LogoRecu
         if logo is not None:
             return logo
     logger.info("aucun logo récupérable pour %s (%s)", domaine, " | ".join(erreurs[:3]))
-    raise TelechargementError(f"Aucun logo récupérable sur {domaine}.")
+    raise TelechargementError(tr("Aucun logo récupérable sur {domaine}.", domaine=domaine))
 
 
 def appliquer_logo(

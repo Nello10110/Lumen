@@ -24,3 +24,6 @@ ignore = [
 # d'autorisation, pas du code mort — le retirer réintroduirait une faille.
 "app/routers/*.py" = ["ARG001"]
 "app/main.py" = ["ARG001"]
+# Catalogues de traduction (§ BL.4) : une entrée par ligne, texte source et traduction
+# entiers — les couper rendrait chaque paire illisible pour un relecteur.
+"app/i18n/[a-z][a-z].py" = ["E501"]

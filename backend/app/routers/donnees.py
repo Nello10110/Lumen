@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
+from ..i18n import tr, traduire
 from ..models import User
 from ..schemas import EffacerFoyerRequest
 from ..services import auth_service, donnees_service, historique_cache, preferences_service
@@ -88,7 +89,7 @@ async def importer(
     except ValueError as exc:
         # Valeur hors de son ensemble autorisé, date illisible... : message écrit pour
         # l'utilisateur.
-        raise HTTPException(status_code=400, detail=f"Import impossible : {exc}") from exc
+        raise HTTPException(status_code=400, detail=tr("Import impossible : {cause}", cause=traduire(str(exc)))) from exc
     except Exception as exc:
         # Erreur de base de données ou imprévue : son texte exposerait la requête SQL.
         # Le service a déjà tout annulé ; le détail va au journal.
@@ -123,7 +124,9 @@ def effacer(
     user_id = auth_service.id_foyer(current_user)
     attendu = preferences_service.lire_nom_foyer(db, user_id) or PHRASE_CONFIRMATION_PAR_DEFAUT
     if payload.confirmation.strip() != attendu:
-        raise HTTPException(status_code=400, detail=f"Confirmation incorrecte. Tapez exactement « {attendu} » pour confirmer.")
+        raise HTTPException(
+            status_code=400, detail=tr("Confirmation incorrecte. Tapez exactement « {attendu} » pour confirmer.", attendu=attendu)
+        )
 
     ids_comptes_foyer = [
         ligne.id for ligne in db.query(User.id).filter((User.id == user_id) | (User.owner_user_id == user_id)).all()

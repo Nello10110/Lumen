@@ -44,6 +44,8 @@ from openpyxl import load_workbook
 from openpyxl.cell.cell import TYPE_ERROR, TYPE_NUMERIC
 from openpyxl.utils.exceptions import InvalidFileException
 
+from ..i18n import tr
+
 SEPARATEURS_DE_REPLI = (";", ",", "\t")
 
 
@@ -138,7 +140,14 @@ def _assembler(rangees: list[tuple[int, list[str]]]) -> Tableau:
     for numero, cellules in rangees[1:]:
         if len(cellules) > len(colonnes):
             if any(c.strip() for c in cellules[len(colonnes) :]):
-                raise ValueError(f"Ligne {numero} : {len(cellules)} champs trouvés, {len(colonnes)} attendus d'après l'en-tête")
+                raise ValueError(
+                    tr(
+                        "Ligne {numero} : {trouves} champs trouvés, {attendus} attendus d'après l'en-tête",
+                        numero=numero,
+                        trouves=len(cellules),
+                        attendus=len(colonnes),
+                    )
+                )
             cellules = cellules[: len(colonnes)]
         cellules = cellules + [""] * (len(colonnes) - len(cellules))
         lignes.append(Ligne(dict(zip(colonnes, cellules, strict=True)), numero))
@@ -154,7 +163,7 @@ def _rangees_csv(texte: str, separateur: str, strict: bool) -> list[tuple[int, l
                 continue
             rangees.append((lecteur.line_num, cellules))
     except csv.Error as exc:
-        raise ValueError(f"Fichier CSV mal formé (ligne {lecteur.line_num}) : {exc}") from exc
+        raise ValueError(tr("Fichier CSV mal formé (ligne {ligne}) : {cause}", ligne=lecteur.line_num, cause=exc)) from exc
     return rangees
 
 

@@ -17,7 +17,7 @@ const fr = {
     titre: 'Langue',
     choixAria: "Langue de l'interface",
     reglagesDescription:
-      "Langue de l'application pour tout le foyer : chaque membre la voit dans cette langue, ainsi que les nombres et les dates dans le format correspondant. La traduction de l'application est en cours : certains écrans restent en français pour l'instant.",
+      "Langue de l'application pour tout le foyer : chaque membre la voit dans cette langue, ainsi que les nombres et les dates dans le format correspondant.",
     etapeTexte: "Dans quelle langue veux-tu utiliser l'application ? Tu pourras la changer à tout moment dans Réglages → Général.",
   },
   nav: {

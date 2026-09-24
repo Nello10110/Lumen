@@ -6,6 +6,8 @@ mémoire avant tout traitement : sans limite, un fichier arbitrairement volumine
 (par erreur ou malveillance) peut épuiser la mémoire du process. LOT 3.6.
 """
 
+from ..i18n import tr
+
 TAILLE_MAX_IMPORT_OCTETS = 25 * 1024 * 1024  # 25 Mo
 
 
@@ -19,5 +21,9 @@ def verifier_taille_fichier(content: bytes) -> None:
     taille_max_mo = TAILLE_MAX_IMPORT_OCTETS / (1024 * 1024)
     taille_obtenue_mo = len(content) / (1024 * 1024)
     raise FichierTropVolumineuxError(
-        f"Fichier trop volumineux ({taille_obtenue_mo:.1f} Mo) : la taille maximale acceptée est {taille_max_mo:.0f} Mo"
+        tr(
+            "Fichier trop volumineux ({taille} Mo) : la taille maximale acceptée est {maximum} Mo",
+            taille=f"{taille_obtenue_mo:.1f}",
+            maximum=f"{taille_max_mo:.0f}",
+        )
     )

@@ -54,6 +54,7 @@ import yfinance as yf
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..i18n import a_traduire
 from ..models import (
     SOURCE_COMPOSITION,
     SOURCE_INDICE,
@@ -296,13 +297,13 @@ def get_fx_rate_to_eur(devise: str | None, cache: dict[str, float | None]) -> fl
 
 def fetch_one(identifiant: str, ticker_resolu: str | None, fx_cache: dict[str, float | None]) -> dict:
     if ticker_resolu is None:
-        return {"ticker": identifiant, "erreur": "Cotation indisponible (titre non coté ou non reconnu)"}
+        return {"ticker": identifiant, "erreur": a_traduire("Cotation indisponible (titre non coté ou non reconnu)")}
 
     try:
         t = yf.Ticker(ticker_resolu)
         info = t.info
         if not info or info.get("regularMarketPrice") is None and info.get("currentPrice") is None:
-            return {"ticker": identifiant, "erreur": "Ticker introuvable ou données indisponibles"}
+            return {"ticker": identifiant, "erreur": a_traduire("Ticker introuvable ou données indisponibles")}
 
         prix_natif = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
         devise = info.get("currency")
@@ -312,7 +313,7 @@ def fetch_one(identifiant: str, ticker_resolu: str | None, fx_cache: dict[str, f
         if fx_rate is None:
             return {
                 "ticker": identifiant,
-                "erreur": f"Conversion {devise}→EUR indisponible (prix en devise d'origine non affiché)",
+                "erreur": a_traduire("Conversion {devise}→EUR indisponible (prix en devise d'origine non affiché)").format(devise=devise),
             }
         prix_eur = prix_natif * fx_rate
 
@@ -327,7 +328,7 @@ def fetch_one(identifiant: str, ticker_resolu: str | None, fx_cache: dict[str, f
             "erreur": None,
         }
     except Exception as exc:  # yfinance peut lever des erreurs réseau/parsing variées
-        return {"ticker": identifiant, "erreur": f"Erreur de récupération: {exc}"}
+        return {"ticker": identifiant, "erreur": a_traduire("Erreur de récupération : {cause}").format(cause=exc)}
 
 
 def _nom_pour_repli_geo(db: Session, identifiant: str, nom_donnee: str | None) -> str | None:
@@ -593,7 +594,7 @@ def refresh_tickers(
                     "erreur": None,
                 }
             else:
-                data = {"ticker": identifiant, "erreur": "Cotation indisponible (justETF)"}
+                data = {"ticker": identifiant, "erreur": a_traduire("Cotation indisponible (justETF)")}
         elif asset_class == "CRYPTO":
             # Retour utilisateur du 15/09/2026 (cf. docstring de
             # `coingecko_service`) : une crypto au ticker Yahoo ambigu (ex.
@@ -613,7 +614,7 @@ def refresh_tickers(
                     "erreur": None,
                 }
             else:
-                data = {"ticker": identifiant, "erreur": "Cotation indisponible (CoinGecko)"}
+                data = {"ticker": identifiant, "erreur": a_traduire("Cotation indisponible (CoinGecko)")}
         else:
             data = fetch_one(identifiant, ticker_resolu, fx_cache)
         results.append(data)

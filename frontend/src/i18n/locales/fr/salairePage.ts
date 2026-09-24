@@ -59,6 +59,7 @@ const salairePage = {
   anneeS: "année(s) :",
   tauxImposition: "taux d'imposition {taux} %",
   nSalaires: { one: "{n} salaire", other: "{n} salaires" },
+  salairesAnnee: "Salaires — {annee}",
 } as const
 
 export default salairePage

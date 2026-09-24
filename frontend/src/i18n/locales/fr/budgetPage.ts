@@ -22,6 +22,7 @@ const budgetPage = {
   modeMensuel: "Mensuel",
   modeAnnuel: "Annuel",
   modePersonnalise: "Personnalisé",
+  periodeDuAu: "{debut} au {fin}",
 } as const
 
 export default budgetPage

@@ -322,7 +322,7 @@ export default function PatrimoineNetCard({
                   </span>
                   {totalPositif > 0 && item.valeur > 0 && (
                     <span className="w-10 text-right text-xs text-ink4">
-                      {((item.valeur / totalPositif) * 100).toFixed(0)} %
+                      {formatPourcent((item.valeur / totalPositif) * 100, 0)}
                     </span>
                   )}
                   {/* `i` conservé pour la stabilité de clé si deux catégories homonymes apparaissaient. */}

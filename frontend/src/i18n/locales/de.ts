@@ -9,7 +9,7 @@ const de: Dictionnaire = {
     titre: 'Sprache',
     choixAria: 'Sprache der Oberfläche',
     reglagesDescription:
-      'Sprache der App für den gesamten Haushalt: Jedes Mitglied sieht sie in dieser Sprache, Zahlen und Daten im passenden Format. Die Übersetzung der App ist in Arbeit: Einige Bildschirme sind vorerst noch auf Französisch.',
+      'Sprache der App für den gesamten Haushalt: Jedes Mitglied sieht sie in dieser Sprache, Zahlen und Daten im passenden Format.',
     etapeTexte: 'In welcher Sprache möchtest du die App nutzen? Du kannst sie jederzeit unter Einstellungen → Allgemein ändern.',
   },
   nav: {

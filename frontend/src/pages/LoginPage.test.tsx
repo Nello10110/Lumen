@@ -247,7 +247,10 @@ describe('LoginPage — langue de l\'appareil', () => {
 
     fireEvent.change(screen.getByRole('combobox', { name: "Langue de l'interface" }), { target: { value: 'en' } })
 
-    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
+    // Délai large : dictionnaire anglais chargé à la demande, volumineux depuis § BL.2
+    // (tous les écrans) — la seconde par défaut de `findBy` ne suffit pas toujours
+    // sous la charge de la suite complète.
+    expect(await screen.findByRole('heading', { name: 'Welcome back' }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument()
     expect(localStorage.getItem('lumen.langue')).toBe('en')
     expect(document.documentElement.lang).toBe('en')

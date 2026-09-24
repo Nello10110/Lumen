@@ -232,7 +232,7 @@ def test_import_positions_quantite_vide_ecarte_la_ligne_sans_bloquer_les_autres(
     corps = reponse.json()
     assert corps["imported"] == 2
     assert corps["skipped"] == 1
-    assert corps["errors"] == ["Ligne 3: ticker ou quantité invalide"]
+    assert corps["errors"] == ["Ligne 3 : ticker ou quantité invalide"]
     assert {h.ticker: h.quantite for h in db.query(Holding).all()} == {"AAA": 10.0, "CCC": 3.0}
 
 

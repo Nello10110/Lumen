@@ -206,3 +206,24 @@ describe("api client — portail d'authentification interposé (retour utilisate
     await expect(api.logout()).resolves.toBeUndefined()
   })
 })
+
+describe('api client — langue des messages du serveur (§ BL.4)', () => {
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    const { activerLangue } = await import('../i18n')
+    await activerLangue('fr')
+  })
+
+  it('annonce la langue active dans l’en-tête X-Langue de chaque requête', async () => {
+    // Avant connexion (écran de connexion), c'est la seule façon pour le serveur de
+    // répondre « mot de passe incorrect » dans la langue de l'écran.
+    const { activerLangue } = await import('../i18n')
+    await activerLangue('es')
+    const fetchMock = mockFetchOnce({ ok: true, status: 200, json: async () => [] })
+
+    await api.listHoldings()
+
+    const [, options] = fetchMock.mock.calls[0]
+    expect((options as RequestInit).headers).toMatchObject({ 'X-Langue': 'es' })
+  })
+})

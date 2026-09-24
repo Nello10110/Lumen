@@ -124,7 +124,28 @@ describe('PartagePublicPage', () => {
     renderPage()
 
     await screen.findByText('Immobilier')
-    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByText('100,0 %')).toBeInTheDocument()
     expect(screen.queryByText('180 000 €')).not.toBeInTheDocument()
   })
+
+  it('s’affiche dans la langue du foyer qui partage, sans la retenir sur l’appareil (§ BL.4)', async () => {
+    const { activerLangue, langueMemorisee } = await import('../i18n')
+    try {
+      vi.mocked(api.getPartageMeta).mockResolvedValue({ nom_lien: 'For the bank', code_requis: false, langue: 'en' })
+      vi.mocked(api.consulterPartage).mockResolvedValue(payload())
+      renderPage()
+
+      // Libellé-donnée traduit aussi : « Immobilier » devient « Real estate ».
+      // Délai large : dictionnaire anglais chargé à la demande, volumineux depuis § BL.2.
+      await screen.findByText('Real estate', {}, { timeout: 5000 })
+      expect(screen.getByText('Shared wealth')).toBeInTheDocument()
+      expect(document.documentElement.lang).toBe('en')
+      // Le choix du foyer n'est pas celui du visiteur : rien n'est mémorisé.
+      expect(langueMemorisee()).toBeNull()
+    } finally {
+      await activerLangue('fr')
+      document.documentElement.lang = 'fr'
+    }
+  })
 })
+

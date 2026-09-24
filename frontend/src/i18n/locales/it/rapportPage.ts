@@ -35,6 +35,7 @@ const rapportPage: Structure<typeof fr> = {
   modeMensuel: "Mensile",
   modeAnnuel: "Annuale",
   modePersonnalise: "Personalizzato",
+  periodeDuAu: "dal {debut} al {fin}",
 }
 
 export default rapportPage

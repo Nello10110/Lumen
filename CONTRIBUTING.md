@@ -71,10 +71,24 @@ trouve : c'est exactement par là qu'une régression est déjà passée (cf. `do
   alternatives écartées. Le dépôt se lit autant qu'il s'écrit.
 - **Un changement de comportement s'accompagne d'un test** qui échouerait sans lui.
 - **Aucun texte affiché écrit en dur dans un composant** (backlog § BL) : il passe par
-  `t('ecran.cle')` (`frontend/src/i18n/`). Un nouveau texte s'ajoute d'abord à `locales/fr.ts`,
-  puis à chaque autre langue — TypeScript refuse de compiler tant qu'il en manque une, et
-  `i18n.test.ts` vérifie que les valeurs insérées (`{n}`, `{nom}`…) sont les mêmes partout. Les
-  écrans pas encore migrés gardent leurs textes en dur jusqu'à leur lot (§ BL.2).
-- **Ajouter une langue** : une ligne dans `frontend/src/i18n/langues.ts`, un fichier
-  `locales/<code>.ts`, son chargeur dans `i18n/index.ts`, et le code dans `LANGUES_DISPONIBLES`
-  (`backend/app/services/preferences_service.py`).
+  `t('espace.cle')` (`frontend/src/i18n/`). Un dictionnaire français par composant
+  (`locales/fr/<espace>.ts`), ses traductions dans `locales/<langue>/<espace>.ts` —
+  TypeScript refuse de compiler tant qu'une clé manque dans une langue, et `i18n.test.ts`
+  vérifie que les valeurs insérées (`{n}`, `{nom}`…) sont les mêmes partout. Un nouvel espace
+  s'enregistre avec `node scripts/i18n-agreger.mjs` ; `node scripts/i18n-extraire.mjs <fichier>
+  <espace>` fait le gros de l'extraction d'un composant. Pas de « (s) » : un pluriel s'écrit
+  `{ one, other }`. Pas de texte dans une constante de module : un accesseur ou une fonction,
+  sinon il se fige dans la langue du chargement.
+- **Côté serveur, un message montré à l'utilisateur reste écrit en français** là où il est levé
+  (`HTTPException(detail="...")`, `raise ValueError("...")`) ; avec des variables, il passe par
+  `tr("... {x}", x=...)` (`backend/app/i18n/`), jamais par une f-string. Sa traduction s'ajoute
+  aux catalogues `app/i18n/<langue>.py` : `tests/test_i18n_serveur.py` relève tous ces textes
+  dans le code et échoue s'il en manque un. Un texte enregistré en base hors requête (tâche
+  planifiée) se marque `a_traduire(...)` et se traduit à l'envoi (`traduire_message`).
+- **Ajouter une langue** : une ligne dans `frontend/src/i18n/langues.ts`, un dossier
+  `locales/<code>/` (un fichier par espace, puis `i18n-agreger.mjs`), le fichier racine
+  `locales/<code>.ts` et son chargeur dans `i18n/index.ts` ; côté serveur, le code dans
+  `LANGUES_DISPONIBLES` (`backend/app/services/preferences_service.py`), un catalogue
+  `app/i18n/<code>.py` enregistré dans `CATALOGUES`, ses formats dans `app/i18n/formats.py`, et
+  les noms des catégories de budget et des comptes par défaut
+  (`budget_categories_service.CATEGORIES_PAR_DEFAUT`, `transaction_import._NOMS_COMPTE_TRADUITS`).

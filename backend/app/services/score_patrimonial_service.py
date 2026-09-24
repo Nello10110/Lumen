@@ -23,6 +23,7 @@ score consolidé de tout le foyer)."""
 
 from sqlalchemy.orm import Session
 
+from ..i18n import tr
 from . import analysis_service, patrimoine_service
 
 POIDS_DIVERSIFICATION = 40
@@ -95,20 +96,26 @@ def compute_score_patrimonial(db: Session, user_id: int) -> dict:
     sous_scores = [
         {
             "id": "diversification",
-            "label": "Diversification par classe d'actif",
+            "label": tr("Diversification par classe d'actif"),
             "score": s_diversification,
             "poids_pct": POIDS_DIVERSIFICATION,
-            "explication": "Basé sur l'indice de Herfindahl-Hirschman appliqué à la répartition de "
-            "tout le patrimoine par classe d'actif (immobilier, actions, épargne...) — un score bas "
-            "signale qu'une seule classe domine.",
+            "explication": tr(
+                "Basé sur l'indice de Herfindahl-Hirschman appliqué à la répartition de "
+                "tout le patrimoine par classe d'actif (immobilier, actions, épargne...) — un score bas "
+                "signale qu'une seule classe domine."
+            ),
         },
         {
             "id": "endettement",
-            "label": "Endettement",
+            "label": tr("Endettement"),
             "score": s_endettement,
             "poids_pct": POIDS_ENDETTEMENT,
-            "explication": f"100 si les emprunts représentent moins de {int(SEUIL_ENDETTEMENT_SAIN * 100)} % "
-            f"du patrimoine brut, 0 à partir de {int(SEUIL_ENDETTEMENT_ELEVE * 100)} %, interpolé entre les deux.",
+            "explication": tr(
+                "100 si les emprunts représentent moins de {sain} % du patrimoine brut, 0 à partir de {eleve} %, "
+                "interpolé entre les deux.",
+                sain=int(SEUIL_ENDETTEMENT_SAIN * 100),
+                eleve=int(SEUIL_ENDETTEMENT_ELEVE * 100),
+            ),
         },
     ]
     poids_total = POIDS_DIVERSIFICATION + POIDS_ENDETTEMENT
@@ -118,11 +125,13 @@ def compute_score_patrimonial(db: Session, user_id: int) -> dict:
             1,
             {
                 "id": "qualite_donnees",
-                "label": "Qualité des données du portefeuille financier",
+                "label": tr("Qualité des données du portefeuille financier"),
                 "score": s_qualite,
                 "poids_pct": POIDS_QUALITE_DONNEES,
-                "explication": "Part du portefeuille financier dont la géographie est mesurée "
-                "(composition réelle ou estimée par indice) plutôt que non catégorisée ou sans cotation.",
+                "explication": tr(
+                    "Part du portefeuille financier dont la géographie est mesurée "
+                    "(composition réelle ou estimée par indice) plutôt que non catégorisée ou sans cotation."
+                ),
             },
         )
         poids_total += POIDS_QUALITE_DONNEES

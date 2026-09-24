@@ -14,6 +14,7 @@ const expositionConsolideeCard = {
   repartitionGeographiqueConsolidee: "Répartition géographique consolidée",
   repartitionParClasseDActif: "Répartition par classe d'actif",
   partDeclaree: "{pct}% de cette valeur (immobilier/épargne saisis manuellement) a une zone géographique déclarée, pas mesurée.",
+  pctDuPatrimoine: "{pct} du patrimoine",
 } as const
 
 export default expositionConsolideeCard

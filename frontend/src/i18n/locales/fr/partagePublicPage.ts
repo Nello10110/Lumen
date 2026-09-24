@@ -25,6 +25,7 @@ const partagePublicPage = {
   sorties: "Sorties",
   disponible: "Disponible",
   vueEnLectureSeuleGeneree: "Vue en lecture seule, générée par Lumen.",
+  budgetPeriode: "Budget ({debut} au {fin})",
 } as const
 
 export default partagePublicPage

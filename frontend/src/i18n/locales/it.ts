@@ -9,7 +9,7 @@ const it: Dictionnaire = {
     titre: 'Lingua',
     choixAria: "Lingua dell'interfaccia",
     reglagesDescription:
-      "Lingua dell'app per tutto il nucleo familiare: ogni membro la vede in questa lingua, con numeri e date nel formato corrispondente. La traduzione dell'app è in corso: alcune schermate restano in francese per ora.",
+      "Lingua dell'app per tutto il nucleo familiare: ogni membro la vede in questa lingua, con numeri e date nel formato corrispondente.",
     etapeTexte: "In quale lingua vuoi usare l'app? Potrai cambiarla in qualsiasi momento in Impostazioni → Generale.",
   },
   nav: {

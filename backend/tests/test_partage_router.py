@@ -83,7 +83,7 @@ def test_meta_lien_valide(client):
     reponse = client.get(f"/api/partage-public/{token}/meta")
 
     assert reponse.status_code == 200
-    assert reponse.json() == {"nom_lien": "Test", "code_requis": False}
+    assert reponse.json() == {"nom_lien": "Test", "code_requis": False, "langue": "fr"}
 
 
 def test_meta_lien_avec_code(client):

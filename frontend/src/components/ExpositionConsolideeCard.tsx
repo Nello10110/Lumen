@@ -9,7 +9,7 @@ import PieChartCard from './PieChartCard'
 import StatTile from './StatTile'
 import { SkeletonGraphique } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro } from '../utils/format'
+import { formatEuro, formatPourcent } from '../utils/format'
 import { t } from '../i18n'
 import { libelleDonnee } from '../i18n/donnees'
 
@@ -78,13 +78,13 @@ export default function ExpositionConsolideeCard() {
           <StatTile
             label={t('expositionConsolideeCard.plusGrosseLigne')}
             value={plusGrosseLigneTicker ?? '—'}
-            sub={plusGrosseLignePct !== null ? `${plusGrosseLignePct}% du patrimoine` : undefined}
+            sub={plusGrosseLignePct !== null ? t('expositionConsolideeCard.pctDuPatrimoine', { pct: formatPourcent(plusGrosseLignePct) }) : undefined}
           />
-          <StatTile label={t('expositionConsolideeCard.top5Lignes')} value={top5LignesPct !== null ? `${top5LignesPct}%` : '—'} sub={t('expositionConsolideeCard.duPatrimoineTotal')} />
+          <StatTile label={t('expositionConsolideeCard.top5Lignes')} value={top5LignesPct !== null ? formatPourcent(top5LignesPct) : '—'} sub={t('expositionConsolideeCard.duPatrimoineTotal')} />
           <StatTile
             label={t('expositionConsolideeCard.premiereZoneGeographique')}
             value={premiereZoneGeo ? libelleDonnee(premiereZoneGeo) : '—'}
-            sub={premiereZoneGeoPct !== null ? `${premiereZoneGeoPct}% du patrimoine` : undefined}
+            sub={premiereZoneGeoPct !== null ? t('expositionConsolideeCard.pctDuPatrimoine', { pct: formatPourcent(premiereZoneGeoPct) }) : undefined}
           />
         </div>
         <p className="mt-4 text-xs text-texte-attenue">{t('expositionConsolideeCard.valeurTotaleConsolidee')}{enNet ? t('expositionConsolideeCard.netteDesEmpruntsRattachesA') : t('expositionConsolideeCard.valeurBrute')} :{' '}

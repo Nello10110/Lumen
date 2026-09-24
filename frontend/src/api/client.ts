@@ -86,7 +86,7 @@ import type {
   ValuationHistoryPoint,
   ZoneGeographiqueInfo,
 } from './types'
-import { t } from '../i18n'
+import { langueActive, t } from '../i18n'
 
 // Messages génériques (LOT 6.8) : utilisés seulement quand l'API ne fournit aucun
 // `detail` textuel exploitable — sinon on garde toujours celui du backend tel quel,
@@ -126,6 +126,9 @@ async function fetchApi(path: string, options?: RequestInit): Promise<Response> 
   const token = getToken()
   const headers: Record<string, string> = options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
+  // Langue des messages du serveur (§ BL.4) avant connexion ; une fois connecté, le
+  // serveur répond de toute façon dans la langue du foyer.
+  headers['X-Langue'] = langueActive()
   try {
     res = await fetch(`/api${path}`, { headers, ...options })
   } catch {

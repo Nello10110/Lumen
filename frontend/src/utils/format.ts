@@ -66,7 +66,7 @@ export function formatQuantite(value: number): string {
 /** Part ou taux en pourcentage, sans signe (`12,5 %` en français, `12.5%` en
  * anglais) — `value` est déjà un pourcentage. Remplace les `toFixed(1) + ' %'` écrits à
  * la main, qui gardaient le point décimal dans toutes les langues (§ BL). */
-export function formatPourcent(value: number, decimales: 1 | 2 = 1): string {
+export function formatPourcent(value: number, decimales: 0 | 1 | 2 = 1): string {
   return formatteurNombre(`pct${decimales}`, {
     style: 'percent',
     minimumFractionDigits: decimales,

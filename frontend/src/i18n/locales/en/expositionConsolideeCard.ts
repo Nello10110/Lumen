@@ -16,6 +16,7 @@ const expositionConsolideeCard: Structure<typeof fr> = {
   repartitionGeographiqueConsolidee: "Consolidated geographic allocation",
   repartitionParClasseDActif: "Allocation by asset class",
   partDeclaree: "{pct}% of this value (real estate/savings entered manually) has a declared, not measured, geographic area.",
+  pctDuPatrimoine: "{pct} of total wealth",
 }
 
 export default expositionConsolideeCard

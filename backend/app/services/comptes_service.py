@@ -11,6 +11,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO
+from ..i18n import tr
 from ..models import (
     TYPES_ACTIF_SANS_ETABLISSEMENT,
     Compte,
@@ -36,7 +37,7 @@ def _verifier_nom_etablissement_libre(db: Session, user_id: int, nom: str, id_ex
     if id_exclu is not None:
         requete = requete.filter(Etablissement.id != id_exclu)
     if requete.first() is not None:
-        raise ValueError(f"Un établissement nommé « {nom} » existe déjà.")
+        raise ValueError(tr("Un établissement nommé « {nom} » existe déjà.", nom=nom))
 
 
 def _verifier_nom_compte_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
@@ -45,7 +46,7 @@ def _verifier_nom_compte_libre(db: Session, user_id: int, nom: str, id_exclu: in
     if id_exclu is not None:
         requete = requete.filter(Compte.id != id_exclu)
     if requete.first() is not None:
-        raise ValueError(f"Un compte nommé « {nom} » existe déjà.")
+        raise ValueError(tr("Un compte nommé « {nom} » existe déjà.", nom=nom))
 
 
 def list_etablissements(db: Session, user_id: int) -> list[Etablissement]:

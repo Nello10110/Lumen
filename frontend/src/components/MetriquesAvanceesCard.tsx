@@ -9,7 +9,7 @@ import { Label, Select } from './Field'
 import LabelAdaptatif from './LabelAdaptatif'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatDate, formatPct } from '../utils/format'
+import { formatDate, formatPct, formatPourcent } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { POINTILLES_REPERE, STYLE_INFOBULLE, STYLE_LEGENDE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 import { t } from '../i18n'
@@ -123,7 +123,7 @@ export default function MetriquesAvanceesCard() {
                 <LabelAdaptatif simple={t('metriquesAvanceesCard.regulariteDuParcours')} technique={t('metriquesAvanceesCard.volatiliteAnnualisee')} />
               </Label>
               <p className="mt-1 text-xl font-semibold text-texte">
-                {metriques.volatilite_annualisee_pct !== null ? `${metriques.volatilite_annualisee_pct}%` : '—'}
+                {metriques.volatilite_annualisee_pct !== null ? formatPourcent(metriques.volatilite_annualisee_pct, 2) : '—'}
               </p>
             </div>
             <div>
@@ -131,7 +131,7 @@ export default function MetriquesAvanceesCard() {
                 <LabelAdaptatif simple={t('metriquesAvanceesCard.pireChuteEssuyee')} technique={t('metriquesAvanceesCard.perteMaximaleDrawdown')} />
               </Label>
               <p className="mt-1 text-xl font-semibold text-negatif">
-                {metriques.max_drawdown_pct !== null ? `${metriques.max_drawdown_pct}%` : '—'}
+                {metriques.max_drawdown_pct !== null ? formatPourcent(metriques.max_drawdown_pct, 2) : '—'}
               </p>
               {metriques.max_drawdown_pct !== 0 && (
                 <p className="text-xs text-texte-attenue">
@@ -172,7 +172,7 @@ export default function MetriquesAvanceesCard() {
                 <LineChart data={donneesGraphique} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                   <XAxis dataKey="date" hide />
                   <YAxis hide domain={['dataMin', 'dataMax']} />
-                  <Tooltip formatter={(value) => `${value}%`} labelFormatter={(date) => formatDate(String(date))} {...STYLE_INFOBULLE} />
+                  <Tooltip formatter={(value) => formatPourcent(Number(value), 2)} labelFormatter={(date) => formatDate(String(date))} {...STYLE_INFOBULLE} />
                   <Legend wrapperStyle={STYLE_LEGENDE} />
                   <Line
                     type="monotone"

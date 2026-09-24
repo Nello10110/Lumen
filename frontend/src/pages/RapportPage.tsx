@@ -93,7 +93,7 @@ export default function RapportPage() {
       ? libelleMois(moisSelectionne)
       : mode === 'annuel'
         ? String(anneeSelectionnee)
-        : `${formatDate(dateDebutPerso)} au ${formatDate(dateFinPerso)}`
+        : t('rapportPage.periodeDuAu', { debut: formatDate(dateDebutPerso), fin: formatDate(dateFinPerso) })
 
   // Colonnes du bloc « D'où vient l'évolution ? ». `hauteurPct` est proportionnelle
   // au plus grand montant de la série : sans ce dénominateur commun, quatre colonnes

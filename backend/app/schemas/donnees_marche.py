@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime  # noqa: F401
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator  # noqa: F401
+
+from ..i18n import traduire_message
 
 
 class MarketDataOut(BaseModel):
@@ -17,6 +19,12 @@ class MarketDataOut(BaseModel):
     region: str | None = None
     erreur: str | None = None
     derniere_maj: datetime
+
+    @field_serializer("erreur")
+    def _erreur_traduite(self, erreur: str | None) -> str | None:
+        # Enregistrée en français par la tâche de rafraîchissement (hors requête, donc
+        # sans langue) : traduite à l'envoi, dans la langue du foyer (§ BL.4).
+        return traduire_message(erreur) if erreur else erreur
 
 
 class EtatRafraichissement(BaseModel):
@@ -34,6 +42,11 @@ class EtatRafraichissement(BaseModel):
     termine_le: datetime | None = None
     statut: str | None = None  # "ok" | "erreur" | None (jamais terminé, ou en cours)
     message: str | None = None
+
+    @field_serializer("message")
+    def _message_traduit(self, message: str | None) -> str | None:
+        # Écrit par le fil de rafraîchissement, hors requête : traduit à l'envoi (§ BL.4).
+        return traduire_message(message) if message else message
 
 
 class DerniereActualisationResponse(BaseModel):

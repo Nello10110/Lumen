@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_token, get_current_user, require_role
 from ..database import get_db
+from ..i18n import tr, traduire
 from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, AuthToken, Detenteur, PerimetreInvite, User
 from ..schemas import (
     AccessLogEntryOut,
@@ -86,7 +87,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         auth_service.journaliser_acces(db, payload.username, None, ip, "echec", "compte_verrouille")
         raise HTTPException(
             status_code=429,
-            detail=f"Trop de tentatives. Réessayez après {verrouille_jusqua.strftime('%H:%M UTC')}.",
+            detail=tr("Trop de tentatives. Réessayez après {heure}.", heure=verrouille_jusqua.strftime("%H:%M UTC")),
         )
     user = auth_service.utilisateur_par_username(db, payload.username)
     if user is None:
@@ -148,12 +149,12 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
 
     erreur_fournisseur = request.query_params.get("error")
     if erreur_fournisseur:
-        return _redirection_erreur(f"Connexion SSO refusée ({erreur_fournisseur}).")
+        return _redirection_erreur(tr("Connexion SSO refusée ({cause}).", cause=erreur_fournisseur))
 
     code = request.query_params.get("code")
     state_recu = request.query_params.get("state")
     if not code or not state_recu:
-        return _redirection_erreur("Réponse du fournisseur SSO incomplète. Réessayez.")
+        return _redirection_erreur(tr("Réponse du fournisseur SSO incomplète. Réessayez."))
 
     ip = _adresse_client(request)
     try:
@@ -163,12 +164,12 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
         user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims)
     except oidc_service.OidcError as err:
         auth_service.journaliser_acces(db, "?", None, ip, "echec", "oidc_echec")
-        return _redirection_erreur(str(err))
+        return _redirection_erreur(traduire(str(err)))
 
     verrouille_jusqua = auth_service.verrouillage_actif(db, user.username)
     if verrouille_jusqua is not None:
         auth_service.journaliser_acces(db, user.username, user.id, ip, "echec", "compte_verrouille")
-        return _redirection_erreur(f"Trop de tentatives. Réessayez après {verrouille_jusqua.strftime('%H:%M UTC')}.")
+        return _redirection_erreur(tr("Trop de tentatives. Réessayez après {heure}.", heure=verrouille_jusqua.strftime("%H:%M UTC")))
 
     token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "oidc")

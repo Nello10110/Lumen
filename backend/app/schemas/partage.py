@@ -4,6 +4,7 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
+from ..i18n import tr
 from ..services.partage_service import DUREE_MAX_JOURS
 
 # ---------------------------------------------------------------------------
@@ -34,7 +35,7 @@ class LienPartageCreate(BaseModel):
     @classmethod
     def _valider_duree(cls, v: int) -> int:
         if v <= 0 or v > DUREE_MAX_JOURS:
-            raise ValueError(f"La durée doit être comprise entre 1 et {DUREE_MAX_JOURS} jours")
+            raise ValueError(tr("La durée doit être comprise entre 1 et {maximum} jours", maximum=DUREE_MAX_JOURS))
         return v
 
     @field_validator("code")

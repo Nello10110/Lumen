@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO
+from ..i18n import tr
 from ..models import TYPES_EPARGNE, BudgetCible, CategorieBudget, Holding, MouvementBancaire
 from . import budget_categories_service
 
@@ -101,7 +102,7 @@ def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str) -
     repartition_items = [
         {
             "categorie_id": cle,
-            "categorie_nom": categories[cle].nom if cle is not None and cle in categories else "Non catégorisé",
+            "categorie_nom": categories[cle].nom if cle is not None and cle in categories else tr("Non catégorisé"),
             "montant": round(montant, 2),
             "cible_mensuelle": cibles.get(cle) if cle is not None else None,
         }

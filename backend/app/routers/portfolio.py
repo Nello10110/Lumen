@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
+from ..i18n import tr, traduire
 from ..models import (
     ORIGINE_MANUEL,
     ROLE_INVITE,
@@ -117,7 +118,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     if colonnes_absentes:
         raise HTTPException(
             status_code=400,
-            detail=f"Colonne(s) introuvable(s) dans le fichier : {', '.join(colonnes_absentes)}",
+            detail=tr("Colonne(s) introuvable(s) dans le fichier : {colonnes}", colonnes=", ".join(colonnes_absentes)),
         )
 
     imported = 0
@@ -157,7 +158,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
                 # création) — un compte déjà existant, lui, garde son établissement
                 # actuel sans qu'on l'exige ici (pas de régression sur les imports
                 # qui ne mappaient pas de colonne Établissement avant ce lot).
-                raise ValueError(f"Établissement requis pour créer le compte « {nom} ».")
+                raise ValueError(tr("Établissement requis pour créer le compte « {nom} ».", nom=nom))
             # `_sans_commit` : cette boucle est dans la transaction « tout ou rien »
             # de l'import (rollback possible plus bas) — jamais de commit intermédiaire.
             comptes_cache[nom] = comptes_service.get_or_create_compte_sans_commit(db, user_id, nom, etablissement_id).id
@@ -183,7 +184,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
 
             if not ticker or qty_val is None:
                 skipped += 1
-                errors.append(f"Ligne {row.numero}: ticker ou quantité invalide")
+                errors.append(tr("Ligne {numero} : ticker ou quantité invalide", numero=row.numero))
                 continue
 
             db.add(
@@ -207,7 +208,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
         db.rollback()
         raise HTTPException(
             status_code=400,
-            detail=f"Échec de l'import, le portefeuille n'a pas été modifié : {exc}",
+            detail=tr("Échec de l'import, le portefeuille n'a pas été modifié : {cause}", cause=traduire(str(exc))),
         ) from exc
     except Exception as exc:
         # Toute autre erreur — de base de données notamment — resterait illisible pour
@@ -547,7 +548,9 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     ):
         raise HTTPException(
             status_code=400,
-            detail=f"Une ligne « {payload.ticker} » existe déjà sur ce compte. Modifiez-la plutôt que d'en créer une seconde.",
+            detail=tr(
+                "Une ligne « {ticker} » existe déjà sur ce compte. Modifiez-la plutôt que d'en créer une seconde.", ticker=payload.ticker
+            ),
         )
     # `date_valeur_estimee` (immobilier/SCPI/assurance-vie/PER, Phase 1 de
     # `docs/BACKLOG.md` § 4.2) n'est jamais saisie par le client (cf. `HoldingBase`) : posée

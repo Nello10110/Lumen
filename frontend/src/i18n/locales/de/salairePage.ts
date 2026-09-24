@@ -61,6 +61,7 @@ const salairePage: Structure<typeof fr> = {
   anneeS: "Jahr(e):",
   tauxImposition: "Steuersatz {taux} %",
   nSalaires: { one: "{n} Gehalt", other: "{n} Gehälter" },
+  salairesAnnee: "Gehälter — {annee}",
 }
 
 export default salairePage

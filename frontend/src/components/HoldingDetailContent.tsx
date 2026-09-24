@@ -225,7 +225,7 @@ export default function HoldingDetailContent({
                 <div>
                   <p className="text-xs text-texte-attenue">{t('holdingDetailContent.fraisDeGestionAnnuels')}</p>
                   <p className="font-medium text-texte">
-                    {detail.frais_gestion_pct !== null ? `${detail.frais_gestion_pct}%` : '—'}
+                    {detail.frais_gestion_pct !== null ? formatPourcent(detail.frais_gestion_pct, 2) : '—'}
                   </p>
                 </div>
                 <div>

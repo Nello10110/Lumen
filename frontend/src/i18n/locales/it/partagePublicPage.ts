@@ -27,6 +27,7 @@ const partagePublicPage: Structure<typeof fr> = {
   sorties: "Uscite",
   disponible: "Disponibile",
   vueEnLectureSeuleGeneree: "Vista in sola lettura, generata da Lumen.",
+  budgetPeriode: "Budget (dal {debut} al {fin})",
 }
 
 export default partagePublicPage

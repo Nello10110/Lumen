@@ -2,7 +2,7 @@ import type { PerformanceSummary } from '../api/types'
 import Card from './Card'
 import { Label } from './Field'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro, formatPct } from '../utils/format'
+import { formatDate, formatEuro, formatPct } from '../utils/format'
 import { t } from '../i18n'
 
 export default function PerformanceCard({ performance }: { performance: PerformanceSummary }) {
@@ -23,7 +23,7 @@ export default function PerformanceCard({ performance }: { performance: Performa
             {formatEuro(performance.cout_total_investi, 0, montantsMasques)}
           </p>
           {performance.premiere_transaction && (
-            <p className="text-xs text-texte-attenue">{t('performanceCard.depuisLe')}{' '}{performance.premiere_transaction}</p>
+            <p className="text-xs text-texte-attenue">{t('performanceCard.depuisLe')}{' '}{formatDate(performance.premiere_transaction)}</p>
           )}
         </div>
         <div>

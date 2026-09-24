@@ -13,6 +13,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from ..i18n import tr
 from ..models import MouvementBancaire
 from . import budget_categories_service
 from .csv_import import to_float
@@ -82,7 +83,7 @@ def mouvements_depuis_lignes(
     ignorees = 0
     for row in lignes:
         date = _parser_date_flexible(str(row.get(date_col, "")))
-        libelle = str(row.get(libelle_col, "")).strip() or "(sans libellé)"
+        libelle = str(row.get(libelle_col, "")).strip() or tr("(sans libellé)")
 
         if montant_col:
             montant = to_float(row.get(montant_col))
@@ -130,7 +131,7 @@ def parse_ofx(content: bytes) -> list[MouvementBrut]:
             montant = float(montant_brut)
         except ValueError:
             continue
-        libelle = champs.get("NAME") or champs.get("MEMO") or "(sans libellé)"
+        libelle = champs.get("NAME") or champs.get("MEMO") or tr("(sans libellé)")
         fitid = champs.get("FITID") or None
         mouvements.append(MouvementBrut(date=date, libelle=libelle, montant=montant, transaction_id=fitid))
     return mouvements
@@ -150,7 +151,7 @@ def parse_qif(content: bytes) -> list[MouvementBrut]:
 
     def _cloturer():
         if date is not None and montant is not None:
-            mouvements.append(MouvementBrut(date=date, montant=montant, libelle=" ".join(libelle_parts) or "(sans libellé)"))
+            mouvements.append(MouvementBrut(date=date, montant=montant, libelle=" ".join(libelle_parts) or tr("(sans libellé)")))
 
     for ligne_brute in texte.splitlines():
         ligne = ligne_brute.strip()

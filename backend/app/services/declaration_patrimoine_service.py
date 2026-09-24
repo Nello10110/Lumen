@@ -18,36 +18,24 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
+from ..i18n import formats, tr
 from ..models import Detenteur, Holding, Loan
 from . import analysis_service, budget_service, detenteurs_service, loan_service, patrimoine_service, preferences_service
-from .csv_export import formater_nombre
 from .pdf_watermark import dessiner_filigrane
 
 _COULEUR_FILET = colors.HexColor("#e2e8f0")
 
 
-def _avec_separateurs_milliers(nombre: str) -> str:
-    signe, chiffres = ("-", nombre[1:]) if nombre.startswith("-") else ("", nombre)
-    groupes = []
-    while len(chiffres) > 3:
-        groupes.insert(0, chiffres[-3:])
-        chiffres = chiffres[:-3]
-    groupes.insert(0, chiffres)
-    return signe + " ".join(groupes)
-
-
 def _euros(valeur: float | None) -> str:
-    formate = formater_nombre(valeur, 0)
-    return f"{_avec_separateurs_milliers(formate)} €" if formate else "—"
+    return formats.euros(valeur, 0)
 
 
 def _pourcentage(valeur: float | None) -> str:
-    formate = formater_nombre(valeur, 1)
-    return f"{formate} %" if formate else "—"
+    return formats.pourcentage(valeur, 1)
 
 
-def _date_fr(d: datetime | date | None) -> str:
-    return d.strftime("%d/%m/%Y") if d else "date inconnue"
+def _date(d: datetime | date | None) -> str:
+    return formats.date_courte(d) if d else tr("date inconnue")
 
 
 def _methode_valorisation(v: analysis_service.ValuedHolding) -> str:
@@ -55,11 +43,11 @@ def _methode_valorisation(v: analysis_service.ValuedHolding) -> str:
     document : jamais un chiffre présenté sans dire d'où il vient)."""
     h = v.holding
     if h.valeur_estimee is not None:
-        return f"Valeur estimée déclarée le {_date_fr(h.date_valeur_estimee)}"
+        return tr("Valeur estimée déclarée le {date}", date=_date(h.date_valeur_estimee))
     if v.a_des_donnees:
         md = h.market_data
-        return f"Cours de marché au {_date_fr(md.derniere_maj if md else None)}"
-    return "Prix de revient (non coté)"
+        return tr("Cours de marché au {date}", date=_date(md.derniere_maj if md else None))
+    return tr("Prix de revient (non coté)")
 
 
 def _table(lignes: list[tuple[str, str]] | list[tuple[str, str, str]], largeurs: list[float]) -> Table:
@@ -89,8 +77,8 @@ def _pied_de_page(canvas, doc) -> None:
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawString(2 * cm, 1.3 * cm, f"Généré le {date.today().strftime('%d/%m/%Y')} par Lumen")
-    canvas.drawRightString(A4[0] - 2 * cm, 1.3 * cm, f"Page {doc.page}")
+    canvas.drawString(2 * cm, 1.3 * cm, tr("Généré le {date} par Lumen", date=formats.date_courte(date.today())))
+    canvas.drawRightString(A4[0] - 2 * cm, 1.3 * cm, tr("Page {numero}", numero=doc.page))
     canvas.restoreState()
 
 
@@ -179,39 +167,39 @@ def generer_pdf_declaration(
     doc = SimpleDocTemplate(tampon, pagesize=A4, topMargin=2 * cm, bottomMargin=2.2 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
     elements = []
 
-    elements.append(Paragraph("Déclaration de patrimoine", styles["Title"]))
-    elements.append(Paragraph(f"Situation au {date.today().strftime('%d/%m/%Y')}", styles["Normal"]))
+    elements.append(Paragraph(tr("Déclaration de patrimoine"), styles["Title"]))
+    elements.append(Paragraph(tr("Situation au {date}", date=formats.date_courte(date.today())), styles["Normal"]))
     if destinataire:
-        elements.append(Paragraph(f"Destinataire : {destinataire}", styles["Normal"]))
+        elements.append(Paragraph(tr("Destinataire : {destinataire}", destinataire=destinataire), styles["Normal"]))
     if detenteur:
-        elements.append(Paragraph(f"Détenteur : {detenteur.nom}", styles["Normal"]))
+        elements.append(Paragraph(tr("Détenteur : {nom}", nom=detenteur.nom), styles["Normal"]))
     elements.append(Spacer(1, 0.6 * cm))
 
-    elements.append(Paragraph("Actifs déclarés", styles["Heading2"]))
+    elements.append(Paragraph(tr("Actifs déclarés"), styles["Heading2"]))
     if lignes_actifs:
-        entetes = [("Actif", "Méthode de valorisation", "Valeur")]
+        entetes = [(tr("Actif"), tr("Méthode de valorisation"), tr("Valeur"))]
         lignes = entetes + [(h.nom or h.ticker, methode, _euros(valeur)) for h, valeur, methode in lignes_actifs]
         elements.append(_table(lignes, [6, 6, 3.5]))
     else:
-        elements.append(Paragraph("Aucun actif sélectionné.", styles["Normal"]))
+        elements.append(Paragraph(tr("Aucun actif sélectionné."), styles["Normal"]))
     elements.append(Spacer(1, 0.5 * cm))
 
-    elements.append(Paragraph("Passifs déclarés", styles["Heading2"]))
+    elements.append(Paragraph(tr("Passifs déclarés"), styles["Heading2"]))
     if lignes_passifs:
-        entetes = [("Emprunt", "Capital restant dû")]
+        entetes = [(tr("Emprunt"), tr("Capital restant dû"))]
         lignes = entetes + [(loan.libelle, _euros(valeur)) for loan, valeur in lignes_passifs]
         elements.append(_table(lignes, [10, 5.5]))
     else:
-        elements.append(Paragraph("Aucun passif déclaré.", styles["Normal"]))
+        elements.append(Paragraph(tr("Aucun passif déclaré."), styles["Normal"]))
     elements.append(Spacer(1, 0.5 * cm))
 
-    elements.append(Paragraph("Synthèse", styles["Heading2"]))
+    elements.append(Paragraph(tr("Synthèse"), styles["Heading2"]))
     elements.append(
         _table(
             [
-                ("Actifs déclarés", _euros(total_actifs)),
-                ("Passifs déclarés", _euros(total_passifs)),
-                ("Patrimoine net déclaré", _euros(total_actifs - total_passifs)),
+                (tr("Actifs déclarés"), _euros(total_actifs)),
+                (tr("Passifs déclarés"), _euros(total_passifs)),
+                (tr("Patrimoine net déclaré"), _euros(total_actifs - total_passifs)),
             ],
             [10, 5.5],
         )
@@ -219,7 +207,7 @@ def generer_pdf_declaration(
 
     if inclure_profil:
         elements.append(Spacer(1, 0.5 * cm))
-        elements.append(Paragraph("Profil emprunteur", styles["Heading2"]))
+        elements.append(Paragraph(tr("Profil emprunteur"), styles["Heading2"]))
         indicateurs = patrimoine_service.compute_indicateurs_situation(db, user_id)
         aujourdhui = date.today()
         jonction = budget_service.compute_jonction_patrimoine(
@@ -229,12 +217,12 @@ def generer_pdf_declaration(
         elements.append(
             _table(
                 [
-                    ("Revenus nets mensuels moyens (3 derniers mois)", _euros(indicateurs["revenus_nets_mensuels_moyens"])),
-                    ("Dépenses mensuelles moyennes (3 derniers mois)", _euros(indicateurs["depenses_mensuelles_moyennes"])),
-                    ("Mensualités d'emprunt totales", _euros(indicateurs["mensualites_totales"])),
-                    ("Taux d'endettement", _pourcentage(indicateurs["taux_endettement_pct"])),
-                    ("Reste à vivre (mois en cours)", _euros(jonction["reste_a_vivre"])),
-                    ("Taux d'imposition déclaré", _pourcentage(taux_imposition)),
+                    (tr("Revenus nets mensuels moyens (3 derniers mois)"), _euros(indicateurs["revenus_nets_mensuels_moyens"])),
+                    (tr("Dépenses mensuelles moyennes (3 derniers mois)"), _euros(indicateurs["depenses_mensuelles_moyennes"])),
+                    (tr("Mensualités d'emprunt totales"), _euros(indicateurs["mensualites_totales"])),
+                    (tr("Taux d'endettement"), _pourcentage(indicateurs["taux_endettement_pct"])),
+                    (tr("Reste à vivre (mois en cours)"), _euros(jonction["reste_a_vivre"])),
+                    (tr("Taux d'imposition déclaré"), _pourcentage(taux_imposition)),
                 ],
                 [10, 5.5],
             )
@@ -242,7 +230,7 @@ def generer_pdf_declaration(
         elements.append(Spacer(1, 0.2 * cm))
         elements.append(
             Paragraph(
-                "Taux d'imposition saisi par l'utilisateur, repris tel quel — l'application ne réalise aucun calcul fiscal.",
+                tr("Taux d'imposition saisi par l'utilisateur, repris tel quel — l'application ne réalise aucun calcul fiscal."),
                 styles["Normal"],
             )
         )

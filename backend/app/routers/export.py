@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
+from ..i18n import a_traduire, formats, tr, traduire
 from ..models import Detenteur, Holding, Transaction, User
 from ..schemas import DeclarationPatrimoineRequest
 from ..services import (
@@ -42,14 +43,13 @@ def _reponse_csv(contenu: str, nom_fichier: str) -> Response:
     )
 
 
-def _formater_date_fr(date_iso: str | None) -> str:
+def _formater_date(date_iso: str | None) -> str:
     """`Transaction.date`/`premiere_transaction` sont stockées en 'AAAA-MM-JJ' :
-    reformatées en 'JJ/MM/AAAA', seul format qu'Excel FR et un utilisateur français
-    lisent sans ambiguïté."""
+    reformatées au format court de la langue du foyer (`JJ/MM/AAAA` en français),
+    le seul qu'un tableur et un lecteur de cette langue lisent sans ambiguïté."""
     if not date_iso:
         return ""
-    annee, mois, jour = date_iso.split("-")
-    return f"{jour}/{mois}/{annee}"
+    return formats.date_courte(date_.fromisoformat(date_iso))
 
 
 @router.get("/positions")
@@ -65,19 +65,19 @@ def export_positions(db: Session = Depends(get_db), current_user: User = Depends
 
     en_tetes = [
         "Ticker",
-        "Nom",
-        "Type d'actif",
-        "Compte",
-        "Origine",
-        "Quantité",
-        "Prix de revient",
-        "Prix actuel",
-        "Valeur",
-        "Rendement depuis achat (%)",
-        "Rendement annualisé (%)",
-        "Secteur",
-        "Pays",
-        "Dernière mise à jour du cours",
+        tr("Nom"),
+        tr("Type d'actif"),
+        tr("Compte"),
+        tr("Origine"),
+        tr("Quantité"),
+        tr("Prix de revient"),
+        tr("Prix actuel"),
+        tr("Valeur"),
+        tr("Rendement depuis achat (%)"),
+        tr("Rendement annualisé (%)"),
+        tr("Secteur"),
+        tr("Pays"),
+        tr("Dernière mise à jour du cours"),
     ]
     lignes = []
     for h in holdings:
@@ -114,22 +114,22 @@ def export_transactions(db: Session = Depends(get_db), current_user: User = Depe
     )
 
     en_tetes = [
-        "Date",
-        "Catégorie",
-        "Type",
-        "Classe d'actif",
-        "Symbole",
-        "Nom",
-        "Quantité",
-        "Prix",
-        "Montant",
-        "Frais",
-        "Taxe",
-        "Description",
+        tr("Date"),
+        tr("Catégorie"),
+        tr("Type"),
+        tr("Classe d'actif"),
+        tr("Symbole"),
+        tr("Nom"),
+        tr("Quantité"),
+        tr("Prix"),
+        tr("Montant"),
+        tr("Frais"),
+        tr("Taxe"),
+        tr("Description"),
     ]
     lignes = [
         [
-            _formater_date_fr(tx.date),
+            _formater_date(tx.date),
             tx.category,
             tx.type,
             tx.asset_class or "",
@@ -150,23 +150,23 @@ def export_transactions(db: Session = Depends(get_db), current_user: User = Depe
 # Libellés (ordre d'affichage) des indicateurs de `performance_service.compute_performance`,
 # et la façon de mettre en forme chacun : la plupart sont des montants/pourcentages
 # (`formater_nombre`), à l'exception du nombre de transactions (entier brut) et de la
-# date de première transaction (déjà une chaîne 'AAAA-MM-JJ', reformatée en 'JJ/MM/AAAA').
+# date de première transaction (déjà une chaîne 'AAAA-MM-JJ', reformatée au format court de la langue).
 _LIBELLES_PERFORMANCE = [
-    ("valeur_positions", "Valeur des positions"),
-    ("valeur_totale", "Valeur totale"),
-    ("cout_total_investi", "Coût total investi"),
-    ("gain_perte_total", "Gain / perte total"),
-    ("rendement_simple_pct", "Rendement simple (%)"),
-    ("rendement_annualise_pct", "Rendement annualisé (%)"),
-    ("dividendes_percus", "Dividendes perçus"),
-    ("interets_percus", "Intérêts perçus"),
-    ("autres_revenus", "Autres revenus"),
-    ("frais_payes", "Frais payés"),
-    ("impots_preleves", "Impôts prélevés"),
-    ("gains_realises", "Gains réalisés"),
-    ("gains_latents", "Gains latents"),
-    ("nombre_transactions", "Nombre de transactions"),
-    ("premiere_transaction", "Date de la première transaction"),
+    ("valeur_positions", a_traduire("Valeur des positions")),
+    ("valeur_totale", a_traduire("Valeur totale")),
+    ("cout_total_investi", a_traduire("Coût total investi")),
+    ("gain_perte_total", a_traduire("Gain / perte total")),
+    ("rendement_simple_pct", a_traduire("Rendement simple (%)")),
+    ("rendement_annualise_pct", a_traduire("Rendement annualisé (%)")),
+    ("dividendes_percus", a_traduire("Dividendes perçus")),
+    ("interets_percus", a_traduire("Intérêts perçus")),
+    ("autres_revenus", a_traduire("Autres revenus")),
+    ("frais_payes", a_traduire("Frais payés")),
+    ("impots_preleves", a_traduire("Impôts prélevés")),
+    ("gains_realises", a_traduire("Gains réalisés")),
+    ("gains_latents", a_traduire("Gains latents")),
+    ("nombre_transactions", a_traduire("Nombre de transactions")),
+    ("premiere_transaction", a_traduire("Date de la première transaction")),
 ]
 
 
@@ -180,12 +180,12 @@ def export_performance(db: Session = Depends(get_db), current_user: User = Depen
         if cle == "nombre_transactions":
             texte = str(valeur)
         elif cle == "premiere_transaction":
-            texte = _formater_date_fr(valeur)
+            texte = _formater_date(valeur)
         else:
             texte = formater_nombre(valeur)
-        lignes.append([libelle, texte])
+        lignes.append([traduire(libelle), texte])
 
-    return _reponse_csv(construire_csv(["Libellé", "Valeur"], lignes), _nom_fichier("performance"))
+    return _reponse_csv(construire_csv([tr("Libellé"), tr("Valeur")], lignes), _nom_fichier("performance"))
 
 
 @router.get("/patrimoine.pdf")

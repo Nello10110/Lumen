@@ -7,9 +7,16 @@ L'encodage UTF-8 avec BOM (`utf-8-sig`) — nécessaire pour qu'Excel FR détect
 plutôt que d'interpréter les accents en Latin-1 — est posé par le routeur au moment de
 l'encodage de la réponse HTTP (`str.encode("utf-8-sig")`), jamais ici : ce module ne
 manipule que du texte, et dupliquer le BOM (un octet ajouté ici, un second posé par
-l'encodage du routeur) casserait le fichier produit."""
+l'encodage du routeur) casserait le fichier produit.
+
+**Selon la langue du foyer** (§ BL.4) : ce qui précède vaut pour le français, l'allemand,
+l'espagnol et l'italien (Excel y attend lui aussi `;` et la virgule décimale). En anglais,
+séparateur `,` et point décimal — les réglages d'un Excel anglophone, qui importerait
+sinon chaque nombre comme du texte. Dates : format court de la langue."""
 
 from datetime import datetime
+
+from ..i18n import formats, langue_courante
 
 
 def formater_nombre(valeur: float | int | None, decimales: int = 2) -> str:
@@ -18,9 +25,11 @@ def formater_nombre(valeur: float | int | None, decimales: int = 2) -> str:
     donnée manquante (pas de cotation, pas de rendement calculable...) doit rester
     silencieuse dans le fichier, pas se traduire par un texte qu'Excel refuserait de
     traiter comme un nombre de toute façon."""
-    if valeur is None:
-        return ""
-    return f"{valeur:.{decimales}f}".replace(".", ",")
+    return formats.nombre(valeur, decimales, milliers=False)
+
+
+def separateur_colonnes() -> str:
+    return "," if langue_courante() == "en" else ";"
 
 
 def echapper_cellule(valeur: str) -> str:
@@ -28,7 +37,7 @@ def echapper_cellule(valeur: str) -> str:
     fichier (RFC 4180 suppose `,` mais la règle d'échappement — guillemets autour
     d'une cellule contenant le séparateur, un guillemet ou un retour à la ligne, et
     guillemets internes doublés — se transpose telle quelle)."""
-    if any(caractere in valeur for caractere in (";", '"', "\n", "\r")):
+    if any(caractere in valeur for caractere in (separateur_colonnes(), '"', "\n", "\r")):
         return '"' + valeur.replace('"', '""') + '"'
     return valeur
 
@@ -39,7 +48,8 @@ def construire_csv(en_tetes: list[str], lignes: list[list[str]]) -> str:
     n'est pas déjà du texte) : l'échappement RFC 4180 est appliqué ici, uniformément,
     plutôt que laissé à la charge de chaque appelant."""
     toutes_les_lignes = [en_tetes, *lignes]
-    corps = "\r\n".join(";".join(echapper_cellule(cellule) for cellule in ligne) for ligne in toutes_les_lignes)
+    separateur = separateur_colonnes()
+    corps = "\r\n".join(separateur.join(echapper_cellule(cellule) for cellule in ligne) for ligne in toutes_les_lignes)
     return corps + "\r\n"
 
 
@@ -52,6 +62,4 @@ def formater_horodatage(valeur: datetime | None) -> str:
     (SQLite ne conserve pas le fuseau horaire des valeurs stockées, cf.
     `services/historique_cache.py`) : affichés tels quels, sans conversion de
     fuseau — il n'existe pas de notion d'heure locale côté serveur."""
-    if valeur is None:
-        return ""
-    return valeur.strftime("%d/%m/%Y %H:%M")
+    return formats.date_heure(valeur)

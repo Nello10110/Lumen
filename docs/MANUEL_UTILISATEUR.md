@@ -482,10 +482,15 @@ Général — utile pour redécouvrir les réglages de départ, sans effet sur l
   aussi de phrase de confirmation pour réinitialiser le foyer (voir « Sauvegarde » ci-dessous).
 - **Langue** : français, English, Español, Deutsch ou Italiano, pour **tout le foyer** — chaque
   membre voit l'application dans cette langue, avec les nombres et les dates dans le format
-  correspondant (en anglais : 1,234.56 € et 09/23/2026). La devise reste l'euro. L'application
-  se réaffiche aussitôt dans la langue choisie. La traduction est en cours : pour l'instant, la
-  navigation, la barre de contrôles, l'écran de connexion et l'assistant sont traduits, les autres
-  écrans restent en français.
+  correspondant (en anglais : €1,234.56 et 09/23/2026). La devise reste l'euro. L'application
+  se réaffiche aussitôt dans la langue choisie. Tout est traduit : écrans, aide, messages d'erreur,
+  relevé et déclaration de patrimoine et bilan annuel en PDF, exports CSV (en anglais, séparateur
+  `,` et point décimal, comme l'attend un Excel anglophone). Les catégories de budget par défaut que
+  vous n'avez pas renommées prennent le nom de la nouvelle langue ; un nom que vous avez choisi
+  n'est jamais changé. Un lien de partage s'ouvre dans la langue du foyer qui partage. Les
+  produits propres à la France (PEA, Livret A, PER, calcul du salaire net, comparaison INSEE) sont
+  traduits mot à mot, pas adaptés à un autre pays. Les traductions ont été faites par Claude ; une
+  relecture par des locuteurs natifs reste à faire.
 - **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
 - **Déclaration de patrimoine — taux d'imposition** : une valeur saisie ici, jamais calculée par l'application — reprise telle quelle dans la déclaration de patrimoine (ci-dessous) quand son profil emprunteur est inclus. Laisser vide si non pertinent.
 - **Comparaison patrimoniale — année de naissance** : sert uniquement à choisir la tranche d'âge de la comparaison au patrimoine médian français (écran Analyse, onglet Diagnostic). Sans elle, cette carte ne s'affiche pas.

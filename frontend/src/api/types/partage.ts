@@ -31,6 +31,8 @@ export interface LienPartageInput {
 export interface PartageMeta {
   nom_lien: string
   code_requis: boolean
+  /** Langue du foyer qui partage (§ BL.4) : la page publique s'affiche dans cette langue. */
+  langue?: string
 }
 
 export interface PartageRepartitionItem {

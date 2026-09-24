@@ -186,7 +186,7 @@ export default function SalairePage() {
       </div>
 
       <Card
-        title={`Salaires — ${annee}`}
+        title={t('salairePage.salairesAnnee', { annee })}
         headerActions={
           !formulaireOuvert && (
             <button type="button" onClick={ouvrirAjout} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white">{t('salairePage.ajouterUnSalaire')}</button>

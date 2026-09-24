@@ -134,8 +134,8 @@ describe('ExpositionConsolideeCard', () => {
     renderCard('brut')
 
     await screen.findByText('AAA')
-    expect(screen.getByText('60% du patrimoine')).toBeInTheDocument()
-    expect(screen.getByText('95%')).toBeInTheDocument()
+    expect(screen.getByText('60,0 % du patrimoine')).toBeInTheDocument()
+    expect(screen.getByText('95,0 %')).toBeInTheDocument()
     expect(screen.getAllByText('Europe').length).toBeGreaterThan(0)
     expect(screen.getByText('Répartition géographique consolidée')).toBeInTheDocument()
     expect(screen.getByText("Répartition par classe d'actif")).toBeInTheDocument()

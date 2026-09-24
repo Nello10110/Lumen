@@ -10,6 +10,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO, en_decimal
+from ..i18n import tr
 from ..models import (
     Detenteur,
     Holding,
@@ -49,7 +50,7 @@ def _verifier_nom_detenteur_libre(db: Session, user_id: int, nom: str, id_exclu:
     if id_exclu is not None:
         requete = requete.filter(Detenteur.id != id_exclu)
     if requete.first() is not None:
-        raise ValueError(f"Un détenteur nommé « {nom} » existe déjà.")
+        raise ValueError(tr("Un détenteur nommé « {nom} » existe déjà.", nom=nom))
 
 
 def create_detenteur(db: Session, user_id: int, nom: str) -> Detenteur:
@@ -113,7 +114,7 @@ def _valider_quotites(db: Session, user_id: int, quotites: list[tuple[int, float
 
     total = sum(pct for _, pct in quotites)
     if abs(total - 100) > TOLERANCE_SOMME_PCT:
-        raise ValueError(f"La somme des quotités doit être égale à 100 % (actuellement {total:.2f} %)")
+        raise ValueError(tr("La somme des quotités doit être égale à 100 % (actuellement {total} %)", total=f"{total:.2f}"))
 
 
 def set_quotites_holding(
