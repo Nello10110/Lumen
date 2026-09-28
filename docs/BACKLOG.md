@@ -7302,6 +7302,12 @@ Points à regarder en priorité : les termes financiers propres à chaque march�
 PER traduits mot à mot), le registre (il suit le texte français, tutoiement ou vouvoiement selon
 l'écran — un relecteur voudra peut-être l'unifier), et les textes longs de l'aide.
 
+Défaut déjà repéré (28/09/2026), à corriger à la relecture : les durées composées par phrase
+(`simulateurProjectionSection.dansDuree` + `nAns`/`nMois`, encart FIRE) donnent en allemand « in 5
+Jahre », alors que la préposition exige le datif (« in 5 Jahren und 3 Monaten »). Le mécanisme de
+pluriel (`one`/`other`) ne connaît pas les cas : il faudra des clés de durée au datif pour
+l'allemand, ou une tournure qui s'en passe.
+
 ---
 
 ## 6. Étude d'opportunité — comparaison avec l'offre du marché

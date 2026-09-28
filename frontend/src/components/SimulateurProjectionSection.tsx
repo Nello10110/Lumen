@@ -505,7 +505,7 @@ export default function SimulateurProjectionSection() {
         )}
 
         <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">{t('simulateurProjectionSection.duree')}<SegmentedControl
-            options={DUREES.map((d) => ({ valeur: String(d), libelle: `${d} ans` }))}
+            options={DUREES.map((d) => ({ valeur: String(d), libelle: t('simulateurProjectionSection.nAns', { n: d }) }))}
             valeur={String(duree)}
             onChange={(v) => setDuree(Number(v))}
             ariaLabel={t('simulateurProjectionSection.dureeDeLaProjection')}
@@ -752,7 +752,9 @@ export default function SimulateurProjectionSection() {
                   {anneeCalendairePlusMois(fire.moisAvantIndependance)}
                 </span>
                 <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[13px] font-semibold text-accent">
-                  {fire.moisAvantIndependance === 0 ? t('simulateurProjectionSection.dejaAtteinte') : `dans ${formatDureeFire(fire.moisAvantIndependance)}`}
+                  {fire.moisAvantIndependance === 0
+                    ? t('simulateurProjectionSection.dejaAtteinte')
+                    : t('simulateurProjectionSection.dansDuree', { duree: formatDureeFire(fire.moisAvantIndependance) })}
                 </span>
               </div>
             )}
@@ -766,10 +768,10 @@ export default function SimulateurProjectionSection() {
               label={t('simulateurProjectionSection.independanceFinanciere')}
               value={
                 fire.moisAvantIndependance === null
-                  ? 'Non atteinte (60 ans)'
+                  ? t('simulateurProjectionSection.nonAtteinte60Ans')
                   : fire.moisAvantIndependance === 0
-                    ? 'Déjà atteinte'
-                    : `Dans ${formatDureeFire(fire.moisAvantIndependance)}`
+                    ? t('simulateurProjectionSection.dejaAtteinteMaj')
+                    : t('simulateurProjectionSection.dansDureeMaj', { duree: formatDureeFire(fire.moisAvantIndependance) })
               }
               tone={fire.moisAvantIndependance === null ? 'warning' : 'good'}
             />
