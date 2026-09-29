@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) traité le 29/09/2026, en attente de la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), BK.2b (invitations) en premier |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) prochain lot |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -99,8 +99,8 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
 
 - **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : `traité (29/09/2026)`, vérifié par la CI ;
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
-  partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) traité, en attente de la CI
-  Postgres ; BK.2b à BK.2e à venir** (§ BK.2, point 9).
+  partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) `traité (30/09/2026)`, vérifié par la CI
+  Postgres ; prochain lot BK.2b, puis BK.2c à BK.2e** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7075,8 +7075,8 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 
 #### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
 
-**État au 29/09/2026 : conception validée par l'utilisateur ; lot BK.2a traité** (objet foyer, invisible —
-détail en fin de section, « Lot BK.2a — réalisé »), **en attente de la CI Postgres** ; BK.2b à BK.2e à venir (§ 9).
+**État au 29/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
+détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; prochain lot **BK.2b**, puis BK.2c à BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7483,7 +7483,9 @@ Validées par l'utilisateur le 29/09/2026 (recommandations de la fiche acceptée
 9. **Création directe d'un compte par le propriétaire** (avec mot de passe) : conservée, limitée à un
    compte qui n'appartient qu'à ce foyer.
 
-##### Lot BK.2a — réalisé (29/09/2026, en attente de la CI Postgres)
+##### Lot BK.2a — réalisé (29/09/2026), `traité (30/09/2026)`
+
+**Vérification (30/09/2026).** CI verte sur la pull request n° 7 : les six jobs, dont `backend-postgres` (séparation des foyers : compte membre de deux foyers, auto-inscription dans un autre foyer refusée, opérateur sans accès au patrimoine ; migration sur base remplie), `e2e-postgres` (81 tests) et `deploiement-postgres`. Le premier passage a révélé huit tests qui insérait des données pour un foyer inexistant (clé étrangère vers `foyers`, non vérifiée par SQLite) : corrigés, et la base SQLite des tests active désormais `PRAGMA foreign_keys` pour que ce défaut se voie aussi en local.
 
 **Ce qui change, sans rien de visible** sur une installation à un foyer :
 
