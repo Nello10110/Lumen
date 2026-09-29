@@ -5,7 +5,7 @@ réapplication des règles."""
 from app.models import MouvementBancaire
 from app.services import budget_categories_service, budget_import_service
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_UTILISATEUR_TEST, make_compte
 
 
 def test_mouvements_depuis_lignes_colonne_montant_signee():
@@ -126,6 +126,7 @@ def test_ofx_et_qif_windows_1252_gardent_leurs_accents():
 
 
 def test_importer_mouvements_deduplique_et_categorise_automatiquement(db):
+    compte = make_compte(db)
     c = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Transport", None)
     budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "sncf", c.id)
 
@@ -133,7 +134,7 @@ def test_importer_mouvements_deduplique_et_categorise_automatiquement(db):
         budget_import_service.MouvementBrut(date="2026-02-01", libelle="SNCF Connect", montant=-50.0),
         budget_import_service.MouvementBrut(date="2026-02-02", libelle="Boulangerie", montant=-5.0),
     ]
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements)
+    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id)
 
     assert resultat.importees == 2
     assert resultat.doublons_ignores == 0
@@ -142,20 +143,22 @@ def test_importer_mouvements_deduplique_et_categorise_automatiquement(db):
     lignes = db.query(MouvementBancaire).order_by(MouvementBancaire.date).all()
     assert lignes[0].categorie_id == c.id
     assert lignes[1].categorie_id is None
+    assert {ligne.compte_id for ligne in lignes} == {compte.id}
 
     # Ré-importer exactement le même relevé : tout doit être détecté comme doublon.
-    resultat2 = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements)
+    resultat2 = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id)
     assert resultat2.importees == 0
     assert resultat2.doublons_ignores == 2
 
 
 def test_importer_mouvements_avec_transaction_id_fourni_deduplique_dessus(db):
+    compte = make_compte(db)
     m1 = budget_import_service.MouvementBrut(date="2026-02-01", libelle="A", montant=-1.0, transaction_id="FIXE-1")
-    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, [m1])
+    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, [m1], compte_id=compte.id)
     # Même transaction_id, libellé/montant différents (ex. re-export corrigé par la
     # banque) : doit tout de même être vu comme le même mouvement.
     m2 = budget_import_service.MouvementBrut(date="2026-02-01", libelle="A corrigé", montant=-1.0, transaction_id="FIXE-1")
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, [m2])
+    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, [m2], compte_id=compte.id)
 
     assert resultat.doublons_ignores == 1
 

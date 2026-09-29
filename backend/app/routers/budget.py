@@ -3,13 +3,17 @@ QIF), catégories et règles de catégorisation, écran Budget (indicateurs, ré
 budget cible). Routeur enregistré `_pas_invite` dans `main.py` : le budget ne fait
 pas partie des trois écrans ouverts à l'invité (backlog 2.L.2)."""
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
 from ..i18n import tr
-from ..models import SOURCE_IMPORT_BANCAIRE, User
+from ..models import SOURCE_IMPORT_BANCAIRE, Compte, Etablissement, User
 from ..schemas import (
     BudgetCibleOut,
     BudgetCibleUpdate,
@@ -19,6 +23,8 @@ from ..schemas import (
     CategorieBudgetCreate,
     CategorieBudgetOut,
     CategorieBudgetUpdate,
+    CompteImportBancaire,
+    CompteOut,
     ImportPreviewResponse,
     JonctionPatrimoine,
     MouvementBancaireOut,
@@ -34,6 +40,7 @@ from ..services import (
     budget_import_service,
     budget_recurrences_service,
     budget_service,
+    comptes_service,
     csv_import,
     journal_import_service,
     upload_limits,
@@ -151,11 +158,34 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
     mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(
         tableau.lignes, mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col
     )
+    compte_id = _resoudre_compte(db, user_id, mapping)
     resultat = budget_import_service.importer_mouvements(
-        db, user_id, mouvements, lignes_ignorees=ignorees, compte=mapping.compte
+        db, user_id, mouvements, compte_id=compte_id, lignes_ignorees=ignorees
     )
     csv_import.clear_pending(mapping.file_token)
     return _resultat_et_trace(db, user_id, resultat)
+
+
+def _resoudre_compte(db: Session, user_id: int, choix: CompteImportBancaire) -> int:
+    """Compte du relevé (§ BM.1), même résolution que les imports courtier
+    (`routers/portfolio.py::import_confirm`) : un id fourni doit appartenir au foyer
+    (IDOR), un nom retrouve le compte existant ou le crée. Sans commit : le compte créé
+    n'est enregistré qu'avec les mouvements, par `importer_mouvements`."""
+    if choix.compte_id is not None:
+        compte = db.get(Compte, choix.compte_id)
+        if compte is None or compte.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Compte introuvable")
+        return compte.id
+    if choix.etablissement_id is not None:
+        etablissement = db.get(Etablissement, choix.etablissement_id)
+        if etablissement is None or etablissement.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Établissement introuvable")
+        etablissement_id = etablissement.id
+    else:
+        etablissement_id = comptes_service.get_or_create_etablissement(
+            db, user_id, choix.etablissement_nom, choix.etablissement_logo_key
+        ).id
+    return comptes_service.get_or_create_compte_sans_commit(db, user_id, choix.compte_nom, etablissement_id).id
 
 
 def _resultat_et_trace(db: Session, user_id: int, resultat) -> BudgetImportResult:
@@ -183,19 +213,55 @@ async def _import_fichier_structure(file: UploadFile, parseur) -> tuple[list, in
     return mouvements, 0
 
 
+def _compte_du_formulaire(
+    compte_id: Annotated[int | None, Form()] = None,
+    compte_nom: Annotated[str | None, Form()] = None,
+    etablissement_id: Annotated[int | None, Form()] = None,
+    etablissement_nom: Annotated[str | None, Form()] = None,
+    etablissement_logo_key: Annotated[str | None, Form()] = None,
+) -> CompteImportBancaire:
+    """Compte d'un import OFX/QIF, envoyé en champs de formulaire à côté du fichier.
+    Un modèle `Form()` ne se combine pas à un `UploadFile` : les champs sont lus un à
+    un, puis validés comme le JSON de l'import CSV."""
+    try:
+        return CompteImportBancaire(
+            compte_id=compte_id,
+            compte_nom=compte_nom,
+            etablissement_id=etablissement_id,
+            etablissement_nom=etablissement_nom,
+            etablissement_logo_key=etablissement_logo_key,
+        )
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors()) from exc
+
+
 @router.post("/import/ofx", response_model=BudgetImportResult)
-async def import_ofx(file: UploadFile, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def import_ofx(
+    file: UploadFile,
+    compte: CompteImportBancaire = Depends(_compte_du_formulaire),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     user_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = await _import_fichier_structure(file, budget_import_service.parse_ofx)
-    resultat = budget_import_service.importer_mouvements(db, user_id, mouvements, lignes_ignorees=ignorees)
+    resultat = budget_import_service.importer_mouvements(
+        db, user_id, mouvements, compte_id=_resoudre_compte(db, user_id, compte), lignes_ignorees=ignorees
+    )
     return _resultat_et_trace(db, user_id, resultat)
 
 
 @router.post("/import/qif", response_model=BudgetImportResult)
-async def import_qif(file: UploadFile, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def import_qif(
+    file: UploadFile,
+    compte: CompteImportBancaire = Depends(_compte_du_formulaire),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     user_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = await _import_fichier_structure(file, budget_import_service.parse_qif)
-    resultat = budget_import_service.importer_mouvements(db, user_id, mouvements, lignes_ignorees=ignorees)
+    resultat = budget_import_service.importer_mouvements(
+        db, user_id, mouvements, compte_id=_resoudre_compte(db, user_id, compte), lignes_ignorees=ignorees
+    )
     return _resultat_et_trace(db, user_id, resultat)
 
 
@@ -204,17 +270,27 @@ async def import_qif(file: UploadFile, db: Session = Depends(get_db), current_us
 # ---------------------------------------------------------------------------
 
 
+@router.get("/comptes", response_model=list[CompteOut])
+def list_comptes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return budget_service.list_comptes_avec_mouvements(db, auth_service.id_foyer(current_user))
+
+
 @router.get("/mouvements", response_model=list[MouvementBancaireOut])
 def list_mouvements(
     date_debut: str | None = None,
     date_fin: str | None = None,
     categorie_id: int | None = None,
-    compte: str | None = None,
+    compte_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return budget_service.list_mouvements(
-        db, auth_service.id_foyer(current_user), date_debut=date_debut, date_fin=date_fin, categorie_id=categorie_id, compte=compte
+        db,
+        auth_service.id_foyer(current_user),
+        date_debut=date_debut,
+        date_fin=date_fin,
+        categorie_id=categorie_id,
+        compte_id=compte_id,
     )
 
 
@@ -257,8 +333,14 @@ def delete_cible(categorie_id: int, db: Session = Depends(get_db), current_user:
 
 
 @router.get("/summary", response_model=BudgetSummary)
-def summary(date_debut: str, date_fin: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return budget_service.compute_summary(db, auth_service.id_foyer(current_user), date_debut, date_fin)
+def summary(
+    date_debut: str,
+    date_fin: str,
+    compte_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return budget_service.compute_summary(db, auth_service.id_foyer(current_user), date_debut, date_fin, compte_id)
 
 
 # ---------------------------------------------------------------------------
@@ -267,12 +349,16 @@ def summary(date_debut: str, date_fin: str, db: Session = Depends(get_db), curre
 
 
 @router.get("/recurrences", response_model=list[RecurrenceDetecteeOut])
-def recurrences(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return budget_recurrences_service.detect_recurrences(db, auth_service.id_foyer(current_user))
+def recurrences(compte_id: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return budget_recurrences_service.detect_recurrences(db, auth_service.id_foyer(current_user), compte_id=compte_id)
 
 
 @router.get("/jonction-patrimoine", response_model=JonctionPatrimoine)
 def jonction_patrimoine(
-    date_debut: str, date_fin: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    date_debut: str,
+    date_fin: str,
+    compte_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return budget_service.compute_jonction_patrimoine(db, auth_service.id_foyer(current_user), date_debut, date_fin)
+    return budget_service.compute_jonction_patrimoine(db, auth_service.id_foyer(current_user), date_debut, date_fin, compte_id)

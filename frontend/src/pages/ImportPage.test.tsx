@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { BudgetImportResult, DernierImport, Etablissement, ImportPreview } from '../api/types'
+import type { BudgetImportResult, Compte, DernierImport, Etablissement, ImportPreview } from '../api/types'
 import ImportPage from './ImportPage'
 
 // Refonte de l'écran Import du 22/09/2026 : la page n'est plus une pile de cartes
@@ -23,6 +23,7 @@ vi.mock('../api/client', () => ({
     importBudgetCsvPreview: vi.fn(),
     importBudgetCsvConfirm: vi.fn(),
     listEtablissements: vi.fn().mockResolvedValue([]),
+    listComptes: vi.fn().mockResolvedValue([]),
     getLogosEtablissements: vi.fn().mockResolvedValue({}),
     getLogosCatalogue: vi.fn().mockResolvedValue({}),
     importLedgerApercu: vi.fn(),
@@ -41,6 +42,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.getDerniersImports).mockResolvedValue([])
   vi.mocked(api.listEtablissements).mockResolvedValue([])
+  vi.mocked(api.listComptes).mockResolvedValue([compteCourant])
 })
 
 /** Zone de dépôt d'une tuile — `Dropzone` nomme son input d'après son `ariaLabel`,
@@ -55,6 +57,20 @@ function deposer(nomSource: string, f: File) {
 
 function etablissement(overrides: Partial<Etablissement> = {}): Etablissement {
   return { id: 1, nom: 'Boursorama', logo_key: null, a_un_logo: false, logo_source: null, logo_maj_le: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+}
+
+const compteCourant: Compte = {
+  id: 5,
+  nom: 'Compte courant',
+  etablissement: etablissement({ id: 1, nom: 'Boursorama' }),
+  created_at: '2026-01-01T00:00:00',
+  updated_at: '2026-01-01T00:00:00',
+}
+
+/** Choisit le compte existant du relevé bancaire puis confirme l'import (§ BM.1). */
+async function confirmerSurLeCompteCourant() {
+  fireEvent.change(await screen.findByLabelText('Compte *'), { target: { value: '5' } })
+  fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
 }
 
 function previewPositions(overrides: Partial<ImportPreview> = {}): ImportPreview {
@@ -167,14 +183,16 @@ describe('ImportPage — grille des sources (refonte du 22/09/2026)', () => {
 })
 
 describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
-  it('un fichier .ofx appelle importBudgetOfx (pas importBudgetQif)', async () => {
+  it('un fichier .ofx appelle importBudgetOfx (pas importBudgetQif) avec le compte choisi', async () => {
     vi.mocked(api.importBudgetOfx).mockResolvedValue(resultat({ importees: 3 }))
     renderImportPage()
 
-    deposer('Mouvements bancaires', fichier('releve.ofx'))
+    const releve = fichier('releve.ofx')
+    deposer('Mouvements bancaires', releve)
+    await confirmerSurLeCompteCourant()
 
     await screen.findByText(/3 mouvements importés/)
-    expect(api.importBudgetOfx).toHaveBeenCalledTimes(1)
+    expect(api.importBudgetOfx).toHaveBeenCalledWith(releve, { compte_id: 5 })
     expect(api.importBudgetQif).not.toHaveBeenCalled()
   })
 
@@ -183,6 +201,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     renderImportPage()
 
     deposer('Mouvements bancaires', fichier('releve.qif'))
+    await confirmerSurLeCompteCourant()
 
     await screen.findByText(/2 mouvements importés/)
     expect(api.importBudgetQif).toHaveBeenCalledTimes(1)
@@ -205,6 +224,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     renderImportPage()
 
     deposer('Mouvements bancaires', fichier('r.ofx'))
+    await confirmerSurLeCompteCourant()
 
     await screen.findByText(/1 mouvement importé, 2 déjà présents, 1 ligne illisible ignorée\./)
   })
@@ -214,6 +234,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     renderImportPage()
 
     deposer('Mouvements bancaires', fichier('r.ofx'))
+    await confirmerSurLeCompteCourant()
 
     await screen.findByText('format invalide')
   })
@@ -229,7 +250,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     fireEvent.change(screen.getByLabelText('Colonne Date *'), { target: { value: 'Date' } })
     fireEvent.change(screen.getByLabelText('Colonne Libellé *'), { target: { value: 'Libellé' } })
     fireEvent.change(screen.getByLabelText('Colonne Montant *'), { target: { value: 'Montant' } })
-    fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
+    await confirmerSurLeCompteCourant()
 
     await screen.findByText(/5 mouvements importés/)
     expect(api.importBudgetCsvConfirm).toHaveBeenCalledWith({
@@ -239,7 +260,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
       montant_col: 'Montant',
       debit_col: null,
       credit_col: null,
-      compte: null,
+      compte_id: 5,
     })
   })
 
@@ -256,7 +277,7 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     fireEvent.click(screen.getByLabelText('Deux colonnes débit/crédit séparées'))
     fireEvent.change(screen.getByLabelText('Colonne Débit'), { target: { value: 'Débit' } })
     fireEvent.change(screen.getByLabelText('Colonne Crédit'), { target: { value: 'Crédit' } })
-    fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
+    await confirmerSurLeCompteCourant()
 
     await screen.findByText(/mouvements? importés?/)
     expect(api.importBudgetCsvConfirm).toHaveBeenCalledWith(
@@ -272,6 +293,88 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     await screen.findByRole('columnheader', { name: 'Date' })
 
     expect(screen.getByRole('button', { name: "Confirmer l'import" })).toBeDisabled()
+  })
+})
+
+describe('ImportPage — compte du relevé bancaire (§ BM.1)', () => {
+  it("un OFX n'est pas envoyé tant qu'aucun compte n'est choisi", async () => {
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.ofx'))
+
+    await screen.findByText("Choisis le compte bancaire de ce relevé, puis confirme l'import.")
+    expect(screen.getByRole('button', { name: "Confirmer l'import" })).toBeDisabled()
+    expect(api.importBudgetOfx).not.toHaveBeenCalled()
+  })
+
+  it('propose les comptes existants regroupés par établissement', async () => {
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.ofx'))
+
+    const choix = await screen.findByLabelText('Compte *')
+    const groupe = within(choix).getByRole('group', { name: 'Boursorama' })
+    expect(within(groupe).getByRole('option', { name: 'Compte courant' })).toBeInTheDocument()
+    expect(within(choix).getByRole('option', { name: '+ Nouveau compte...' })).toBeInTheDocument()
+  })
+
+  it('un CSV mappé reste non confirmable sans compte choisi', async () => {
+    vi.mocked(api.importBudgetCsvPreview).mockResolvedValue(preview())
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.csv'))
+    await screen.findByRole('columnheader', { name: 'Date' })
+    fireEvent.change(screen.getByLabelText('Colonne Date *'), { target: { value: 'Date' } })
+    fireEvent.change(screen.getByLabelText('Colonne Libellé *'), { target: { value: 'Libellé' } })
+    fireEvent.change(screen.getByLabelText('Colonne Montant *'), { target: { value: 'Montant' } })
+
+    expect(screen.getByRole('button', { name: "Confirmer l'import" })).toBeDisabled()
+  })
+
+  it('nouveau compte sur un établissement existant : nom et établissement exigés, puis envoyés', async () => {
+    vi.mocked(api.listEtablissements).mockResolvedValue([etablissement({ id: 7, nom: 'Caisse d’Épargne' })])
+    vi.mocked(api.importBudgetQif).mockResolvedValue(resultat({ importees: 2 }))
+    renderImportPage()
+
+    const releve = fichier('releve.qif')
+    deposer('Mouvements bancaires', releve)
+    fireEvent.change(await screen.findByLabelText('Compte *'), { target: { value: '__nouveau_compte__' } })
+    const confirmer = screen.getByRole('button', { name: "Confirmer l'import" })
+    expect(confirmer).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Nom du nouveau compte *'), { target: { value: '  Livret A  ' } })
+    expect(confirmer).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Établissement du nouveau compte'), { target: { value: '7' } })
+    fireEvent.click(confirmer)
+
+    await screen.findByText(/2 mouvements importés/)
+    expect(api.importBudgetQif).toHaveBeenCalledWith(releve, {
+      compte_nom: 'Livret A',
+      etablissement_id: 7,
+      etablissement_nom: null,
+      etablissement_logo_key: null,
+    })
+  })
+
+  it("nouveau compte et nouvel établissement choisi dans le catalogue : nom et logo de l'établissement envoyés", async () => {
+    vi.mocked(api.importBudgetOfx).mockResolvedValue(resultat({ importees: 1 }))
+    renderImportPage()
+
+    const releve = fichier('releve.ofx')
+    deposer('Mouvements bancaires', releve)
+    fireEvent.change(await screen.findByLabelText('Compte *'), { target: { value: '__nouveau_compte__' } })
+    fireEvent.change(screen.getByLabelText('Nom du nouveau compte *'), { target: { value: 'Compte joint' } })
+    fireEvent.change(screen.getByLabelText('Établissement du nouveau compte'), { target: { value: '__nouveau__' } })
+    fireEvent.click(screen.getByRole('button', { name: /Boursorama Banque/ }))
+    fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
+
+    await screen.findByText(/1 mouvement importé/)
+    expect(api.importBudgetOfx).toHaveBeenCalledWith(releve, {
+      compte_nom: 'Compte joint',
+      etablissement_id: null,
+      etablissement_nom: 'Boursorama Banque',
+      etablissement_logo_key: 'boursorama',
+    })
   })
 })
 
@@ -342,6 +445,7 @@ describe('ImportPage — rafraîchissement des pastilles après un import', () =
     renderImportPage()
 
     deposer('Mouvements bancaires', fichier('releve.ofx'))
+    await confirmerSurLeCompteCourant()
 
     await screen.findByText(/22\/09\/2026 · 3 lignes/)
   })

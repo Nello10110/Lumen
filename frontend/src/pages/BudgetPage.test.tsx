@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
+import type { BudgetSummary, CategorieBudget, Compte, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
 import BudgetPage from './BudgetPage'
 
 vi.mock('../api/client', () => ({
@@ -19,6 +19,7 @@ vi.mock('../api/client', () => ({
     reappliquerReglesCategorisation: vi.fn(),
     getBudgetRecurrences: vi.fn(),
     getJonctionPatrimoine: vi.fn(),
+    listComptesBudget: vi.fn(),
   },
 }))
 
@@ -43,10 +44,23 @@ function mouvement(overrides: Partial<MouvementBancaire> = {}): MouvementBancair
     date: '2026-02-01',
     libelle: 'SNCF Connect',
     montant: -50,
-    compte: null,
+    compte_id: null,
     categorie_id: 1,
     categorise_manuellement: false,
     ...overrides,
+  }
+}
+
+function compte(id: number, nom: string, etablissement: string | null): Compte {
+  const date = '2026-01-01T00:00:00'
+  return {
+    id,
+    nom,
+    etablissement: etablissement
+      ? { id: id * 10, nom: etablissement, logo_key: null, a_un_logo: false, logo_source: null, logo_maj_le: null, created_at: date, updated_at: date }
+      : null,
+    created_at: date,
+    updated_at: date,
   }
 }
 
@@ -92,6 +106,7 @@ function mockChargement(overrides: {
   regles?: RegleCategorisation[]
   recurrences?: RecurrenceDetectee[]
   jonction?: JonctionPatrimoine
+  comptes?: Compte[]
 } = {}) {
   vi.mocked(api.getBudgetSummary).mockResolvedValue(overrides.summary ?? summary())
   vi.mocked(api.listMouvementsBancaires).mockResolvedValue(overrides.mouvements ?? [mouvement()])
@@ -101,6 +116,7 @@ function mockChargement(overrides: {
   vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
     overrides.jonction ?? jonction({ taux_epargne_reel_pct: null, reste_a_vivre: null }),
   )
+  vi.mocked(api.listComptesBudget).mockResolvedValue(overrides.comptes ?? [])
 }
 
 describe('BudgetPage — indicateurs et répartition (backlog 2.N.2)', () => {
@@ -182,20 +198,47 @@ describe('BudgetPage — mouvements (backlog 2.N.1)', () => {
     expect(screen.queryByText('Ciné')).not.toBeInTheDocument()
   })
 
-  it('le filtre par compte masque les mouvements des autres comptes', async () => {
-    mockChargement({
-      mouvements: [
-        mouvement({ id: 1, libelle: 'Courant A', compte: 'Compte A' }),
-        mouvement({ id: 2, libelle: 'Courant B', compte: 'Compte B' }),
-      ],
-    })
+})
+
+describe('BudgetPage — filtre par compte (§ BM.1)', () => {
+  const COMPTES = [compte(1, 'Compte joint', 'Boursorama'), compte(2, 'Compte courant', 'Caisse d\'Épargne'), compte(3, 'Livret', null)]
+
+  it('propose les comptes regroupés par établissement, sans établissement en dernier', async () => {
+    mockChargement({ comptes: COMPTES })
     render(<BudgetPage />)
 
-    await screen.findByText('Courant A')
-    fireEvent.change(screen.getByDisplayValue('Tous les comptes'), { target: { value: 'Compte A' } })
+    const filtre = await screen.findByRole('combobox', { name: 'Compte' })
+    const groupes = within(filtre).getAllByRole('group')
+    expect(groupes.map((g) => g.getAttribute('label'))).toEqual(['Boursorama', "Caisse d'Épargne", 'Sans établissement'])
+    expect(within(groupes[0]).getByRole('option', { name: 'Compte joint' })).toBeInTheDocument()
+    expect(filtre).toHaveValue('')
+  })
 
-    expect(screen.getByText('Courant A')).toBeInTheDocument()
-    expect(screen.queryByText('Courant B')).not.toBeInTheDocument()
+  it("choisir un compte recharge tout l'écran filtré sur ce compte, puis « Tous les comptes » le retire", async () => {
+    mockChargement({ comptes: COMPTES })
+    render(<BudgetPage />)
+
+    const filtre = await screen.findByRole('combobox', { name: 'Compte' })
+    expect(api.getBudgetSummary).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), null)
+
+    fireEvent.change(filtre, { target: { value: '2' } })
+
+    await waitFor(() => expect(api.getBudgetSummary).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), 2))
+    expect(api.listMouvementsBancaires).toHaveBeenLastCalledWith(expect.objectContaining({ compteId: 2 }))
+    expect(api.getBudgetRecurrences).toHaveBeenLastCalledWith(2)
+    expect(api.getJonctionPatrimoine).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), 2)
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Compte' }), { target: { value: '' } })
+
+    await waitFor(() => expect(api.getBudgetSummary).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), null))
+  })
+
+  it("n'affiche pas le filtre quand un seul compte porte des mouvements", async () => {
+    mockChargement({ comptes: [COMPTES[0]] })
+    render(<BudgetPage />)
+
+    await screen.findByText('SNCF Connect')
+    expect(screen.queryByRole('combobox', { name: 'Compte' })).not.toBeInTheDocument()
   })
 })
 

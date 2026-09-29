@@ -450,7 +450,7 @@ class Compte(Base):
     compte peut exister sans établissement rattaché (« Sans établissement » à
     l'écran). Suppression (revue du 16/09/2026, demande directe) : les `Holding`
     rattachés sont supprimés EN CASCADE, avec les transactions du grand livre qui
-    leur donnent naissance — contrairement à `Etablissement`, qui reste une simple
+    leur donnent naissance et les mouvements bancaires du compte — contrairement à `Etablissement`, qui reste une simple
     donnée de regroupement (ses comptes retombent à `etablissement_id = None`, cf.
     `services/comptes_service.delete_compte`/`delete_etablissement`)."""
 
@@ -989,7 +989,11 @@ class MouvementBancaire(Base):
     quand il en fournit un (OFX `FITID`) ; pour un CSV sans identifiant stable, un
     hash déterministe de (date, montant, libellé normalisé) en tient lieu — c'est
     exactement la clé de déduplication demandée par le backlog, portée directement
-    par la contrainte d'unicité plutôt que recalculée à chaque import."""
+    par la contrainte d'unicité plutôt que recalculée à chaque import.
+
+    `compte_id` (§ BM.1) : le `Compte` du relevé, choisi ou créé à l'import. Supprimé
+    avec son compte, comme les transactions du grand livre
+    (`services/comptes_service.delete_compte`)."""
 
     __tablename__ = "mouvements_bancaires"
     __table_args__ = (UniqueConstraint("user_id", "transaction_id", name="uq_mouvement_bancaire_user_txid"),)
@@ -1000,7 +1004,7 @@ class MouvementBancaire(Base):
     date: Mapped[str] = mapped_column(String, index=True)  # "YYYY-MM-DD"
     libelle: Mapped[str] = mapped_column(String)
     montant: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
-    compte: Mapped[str | None] = mapped_column(String, nullable=True)
+    compte_id: Mapped[int | None] = mapped_column(ForeignKey("comptes.id"), nullable=True, index=True)
     categorie_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
     # Distingue une catégorisation posée par une règle (`RegleCategorisation`, jamais
     # une garantie définitive) d'une correction manuelle de l'utilisateur — sans ce

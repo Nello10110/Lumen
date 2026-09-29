@@ -31,6 +31,7 @@ const compteDetailContent: Structure<typeof fr> = {
   pourMettreAJourLa: "Um den Wert dieser Zeile zu aktualisieren (Immobilie...), öffne oben ihre Detailansicht.",
   supprimerCeCompte: "Dieses Konto löschen",
   aucuneLigneNEstRattachee: "Diesem Konto ist keine Zeile zugeordnet; die noch zugehörigen importierten Transaktionen (etwa eine vollständig verkaufte Position) werden mit ihm gelöscht.",
+  mouvementsBancairesSupprimes: "Die in dieses Konto importierten Bankbewegungen (Budget) werden ebenfalls gelöscht.",
   unEmpruntRattacheEstConserve: "Ein verknüpfter Kredit bleibt erhalten, er wird nur gelöst. Endgültige Löschung: Exportieren Sie im Zweifel zuerst eine Sicherung (Einstellungen).",
   suppression: "Wird gelöscht...",
   annuler: "Abbrechen",

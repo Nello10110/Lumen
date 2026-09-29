@@ -6,6 +6,8 @@ const budgetPage: Structure<typeof fr> = {
   nonDepense: "No gastado",
   budget: "Presupuesto",
   periode: "Periodo",
+  filtreCompte: "Cuenta",
+  tousLesComptes: "Todas las cuentas",
   au: "al",
   laDateDeFinDoit: "La fecha de fin debe ser igual o posterior a la de inicio.",
   aucunMouvementBancaireImportePour: "Ningún movimiento bancario importado para este periodo.",

@@ -5,12 +5,12 @@ au budget cible."""
 from datetime import date as date_cls
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO
 from ..i18n import tr
-from ..models import TYPES_EPARGNE, BudgetCible, CategorieBudget, Holding, MouvementBancaire
+from ..models import TYPES_EPARGNE, BudgetCible, CategorieBudget, Compte, Holding, MouvementBancaire
 from . import budget_categories_service
 
 
@@ -20,7 +20,7 @@ def list_mouvements(
     date_debut: str | None = None,
     date_fin: str | None = None,
     categorie_id: int | None = None,
-    compte: str | None = None,
+    compte_id: int | None = None,
 ) -> list[MouvementBancaire]:
     q = db.query(MouvementBancaire).filter(MouvementBancaire.user_id == user_id)
     if date_debut:
@@ -29,9 +29,16 @@ def list_mouvements(
         q = q.filter(MouvementBancaire.date <= date_fin)
     if categorie_id is not None:
         q = q.filter(MouvementBancaire.categorie_id == categorie_id)
-    if compte:
-        q = q.filter(MouvementBancaire.compte == compte)
+    if compte_id is not None:
+        q = q.filter(MouvementBancaire.compte_id == compte_id)
     return q.order_by(MouvementBancaire.date.desc(), MouvementBancaire.id.desc()).all()
+
+
+def list_comptes_avec_mouvements(db: Session, user_id: int) -> list[Compte]:
+    """Comptes proposés par le filtre de l'écran Budget (§ BM.1) : ceux qui portent au
+    moins un mouvement bancaire — un PEA ou un bien immobilier n'y aurait rien à montrer."""
+    comptes_utilises = select(MouvementBancaire.compte_id).where(MouvementBancaire.user_id == user_id)
+    return db.query(Compte).filter(Compte.user_id == user_id, Compte.id.in_(comptes_utilises)).order_by(Compte.nom).all()
 
 
 def categoriser_mouvement(db: Session, user_id: int, mouvement_id: int, categorie_id: int | None) -> MouvementBancaire:
@@ -61,14 +68,14 @@ def _mois_precedents(date_reference: str, n: int) -> str:
     return date_cls(annee, mois, 1).isoformat()
 
 
-def compute_depenses_recurrentes_mensuelles(db: Session, user_id: int, date_fin: str) -> float:
+def compute_depenses_recurrentes_mensuelles(db: Session, user_id: int, date_fin: str, compte_id: int | None = None) -> float:
     """Heuristique légère (backlog 2.N.2) : un couple (libellé normalisé, montant
     arrondi à l'euro) qui revient sur au moins 2 des 3 mois précédant `date_fin` est
     considéré comme une charge récurrente ; leur somme approxime la charge fixe
     mensuelle. Détection plus poussée (hausse de prix, abonnement inutilisé) laissée
     à N.3, qui réutilisera cette même clé de correspondance."""
     depuis = _mois_precedents(date_fin, 3)
-    mouvements = list_mouvements(db, user_id, date_debut=depuis, date_fin=date_fin)
+    mouvements = list_mouvements(db, user_id, date_debut=depuis, date_fin=date_fin, compte_id=compte_id)
     mois_vus: dict[tuple[str, float], set[str]] = {}
     dernier_montant: dict[tuple[str, float], float] = {}
     for m in mouvements:
@@ -84,8 +91,8 @@ def _categorie_racine_id(categorie: CategorieBudget) -> int:
     return categorie.parent_id if categorie.parent_id is not None else categorie.id
 
 
-def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str) -> dict:
-    mouvements = list_mouvements(db, user_id, date_debut=date_debut, date_fin=date_fin)
+def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str, compte_id: int | None = None) -> dict:
+    mouvements = list_mouvements(db, user_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
     entrees = sum(m.montant for m in mouvements if m.montant > 0)
     sorties = sum(-m.montant for m in mouvements if m.montant < 0)
 
@@ -113,7 +120,7 @@ def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str) -
         "entrees": round(entrees, 2),
         "sorties": round(sorties, 2),
         "disponible": round(entrees - sorties, 2),
-        "depenses_recurrentes_mensuelles": compute_depenses_recurrentes_mensuelles(db, user_id, date_fin),
+        "depenses_recurrentes_mensuelles": compute_depenses_recurrentes_mensuelles(db, user_id, date_fin, compte_id),
         "repartition_sorties": repartition_items,
     }
 
@@ -154,7 +161,9 @@ def _nombre_mois_periode(date_debut: str, date_fin: str) -> int:
     return max(1, (d2.year - d1.year) * 12 + (d2.month - d1.month) + 1)
 
 
-def compute_jonction_patrimoine(db: Session, user_id: int, date_debut: str, date_fin: str) -> dict:
+def compute_jonction_patrimoine(
+    db: Session, user_id: int, date_debut: str, date_fin: str, compte_id: int | None = None
+) -> dict:
     """Taux d'épargne réel, reste à vivre, et suggestion de versement mensuel pour
     le Simulateur (backlog 2.N.4) — dérivés du budget réellement observé plutôt que
     d'une hypothèse saisie à la main."""
@@ -162,7 +171,7 @@ def compute_jonction_patrimoine(db: Session, user_id: int, date_debut: str, date
     # ce module pour `list_mouvements`.
     from . import budget_recurrences_service
 
-    summary = compute_summary(db, user_id, date_debut, date_fin)
+    summary = compute_summary(db, user_id, date_debut, date_fin, compte_id)
     entrees = summary["entrees"]
 
     # Repli `ZERO` (Decimal), pas `0.0` : une catégorie présente mais sans mouvement
@@ -189,7 +198,9 @@ def compute_jonction_patrimoine(db: Session, user_id: int, date_debut: str, date
         # glissants depuis "aujourd'hui" réel, non pertinents pour une période révolue).
         charges_recurrentes_mensuelles = sum(
             r.montant_actuel
-            for r in budget_recurrences_service.detect_recurrences(db, user_id, aujourdhui=date_cls.fromisoformat(date_fin))
+            for r in budget_recurrences_service.detect_recurrences(
+                db, user_id, aujourdhui=date_cls.fromisoformat(date_fin), compte_id=compte_id
+            )
             if r.periodicite == "mensuelle"
         )
         reste_a_vivre = round(entrees - montant_logement - charges_recurrentes_mensuelles, 2)

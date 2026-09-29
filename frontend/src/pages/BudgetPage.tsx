@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
+import type { BudgetSummary, CategorieBudget, Compte, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
 import CategoriesEtReglesSection from '../components/CategoriesEtReglesSection'
 import Card from '../components/Card'
 import { GlassPanel } from '../components/GlassPanel'
@@ -10,6 +10,7 @@ import EtatVide from '../components/EtatVide'
 import MouvementsSection from '../components/MouvementsSection'
 import RecurrencesSection from '../components/RecurrencesSection'
 import RepartitionSection from '../components/RepartitionSection'
+import { OptionsComptesParEtablissement } from '../components/SelecteurCompte'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -57,6 +58,10 @@ export default function BudgetPage() {
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear())
   const [dateDebutPerso, setDateDebutPerso] = useState(`${moisCourant()}-01`)
   const [dateFinPerso, setDateFinPerso] = useState(aujourdhuiISO())
+  // Filtre par compte (§ BM.1) : `null` = tous les comptes. Il porte sur tout l'écran
+  // — indicateurs, répartition, récurrences, mouvements — pas seulement sur la liste.
+  const [compteId, setCompteId] = useState<number | null>(null)
+  const [comptesBudget, setComptesBudget] = useState<Compte[]>([])
 
   const [summary, setSummary] = useState<BudgetSummary | null>(null)
   const [mouvements, setMouvements] = useState<MouvementBancaire[]>([])
@@ -79,29 +84,33 @@ export default function BudgetPage() {
     setLoading(true)
     setError(null)
     Promise.all([
-      api.getBudgetSummary(bornes.dateDebut, bornes.dateFin),
-      api.listMouvementsBancaires({ dateDebut: bornes.dateDebut, dateFin: bornes.dateFin }),
+      api.getBudgetSummary(bornes.dateDebut, bornes.dateFin, compteId),
+      api.listMouvementsBancaires({ dateDebut: bornes.dateDebut, dateFin: bornes.dateFin, compteId }),
       api.listCategoriesBudget(),
       api.listReglesCategorisation(),
       // Récurrences (backlog 2.N.3) et jonction patrimoine (2.N.4) : la première ne
       // dépend pas de la période affichée (fenêtre glissante propre), la seconde si
       // (taux d'épargne/reste à vivre calculés sur la période sélectionnée).
-      api.getBudgetRecurrences(),
-      api.getJonctionPatrimoine(bornes.dateDebut, bornes.dateFin),
+      api.getBudgetRecurrences(compteId),
+      api.getJonctionPatrimoine(bornes.dateDebut, bornes.dateFin, compteId),
+      api.listComptesBudget(),
     ])
-      .then(([s, m, c, r, rec, j]) => {
+      .then(([s, m, c, r, rec, j, comptesAvecMouvements]) => {
         setSummary(s)
         setMouvements(m)
         setCategories(c)
         setRegles(r)
         setRecurrences(rec)
         setJonction(j)
+        setComptesBudget(comptesAvecMouvements)
+        // Compte filtré supprimé entre-temps : retour à « tous les comptes ».
+        if (compteId !== null && !comptesAvecMouvements.some((compte) => compte.id === compteId)) setCompteId(null)
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
-  useEffect(chargerTout, [mode, moisSelectionne, anneeSelectionnee, dateDebutPerso, dateFinPerso, bornes.dateDebut, bornes.dateFin, periodeInvalide])
+  useEffect(chargerTout, [mode, moisSelectionne, anneeSelectionnee, dateDebutPerso, dateFinPerso, bornes.dateDebut, bornes.dateFin, periodeInvalide, compteId])
 
   const libellePeriode =
     mode === 'mensuel'
@@ -133,6 +142,18 @@ export default function BudgetPage() {
           <p className="mt-0.5 text-[13px] text-ink3">{libellePeriode}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {/* Un seul compte : rien à filtrer, le sélecteur n'apparaît pas. */}
+          {comptesBudget.length > 1 && (
+            <select
+              value={compteId ?? ''}
+              onChange={(e) => setCompteId(e.target.value ? Number(e.target.value) : null)}
+              aria-label={t('budgetPage.filtreCompte')}
+              className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+            >
+              <option value="">{t('budgetPage.tousLesComptes')}</option>
+              <OptionsComptesParEtablissement comptes={comptesBudget} />
+            </select>
+          )}
           <SegmentedControl
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
             valeur={mode}

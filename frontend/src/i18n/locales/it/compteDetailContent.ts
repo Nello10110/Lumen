@@ -31,6 +31,7 @@ const compteDetailContent: Structure<typeof fr> = {
   pourMettreAJourLa: "Per aggiornare il valore di questa riga (immobile...), apri la sua scheda dettagliata qui sopra.",
   supprimerCeCompte: "Elimina questo conto",
   aucuneLigneNEstRattachee: "Nessuna riga è collegata a questo conto; le operazioni importate ancora associate (una posizione interamente venduta, per esempio) saranno eliminate con esso.",
+  mouvementsBancairesSupprimes: "Anche i movimenti bancari importati su questo conto (Budget) vengono eliminati.",
   unEmpruntRattacheEstConserve: "Un prestito collegato viene conservato, solo scollegato. Eliminazione definitiva: in caso di dubbio, esporti prima un backup (Impostazioni).",
   suppression: "Eliminazione...",
   annuler: "Annulla",

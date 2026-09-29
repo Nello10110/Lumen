@@ -4,6 +4,8 @@ const budgetPage = {
   nonDepense: "Non dépensé",
   budget: "Budget",
   periode: "Période",
+  filtreCompte: "Compte",
+  tousLesComptes: "Tous les comptes",
   au: "au",
   laDateDeFinDoit: "La date de fin doit être postérieure ou égale à la date de début.",
   aucunMouvementBancaireImportePour: "Aucun mouvement bancaire importé pour cette période.",

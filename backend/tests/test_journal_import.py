@@ -89,8 +89,11 @@ def test_import_annule_par_un_rollback_ne_laisse_aucune_trace(client, db, monkey
     assert client.get("/api/imports/derniers").json() == []
 
 
+COMPTE_BANCAIRE = {"compte_nom": "Compte courant", "etablissement_nom": "Banque Test"}
+
+
 def test_import_bancaire_ofx_trace_sa_propre_source(client):
-    reponse = client.post("/api/budget/import/ofx", files={"file": ("releve.ofx", OFX_MINIMAL, "application/x-ofx")})
+    reponse = client.post("/api/budget/import/ofx", files={"file": ("releve.ofx", OFX_MINIMAL, "application/x-ofx")}, data=COMPTE_BANCAIRE)
     assert reponse.status_code == 200, reponse.text
 
     sources = {trace["source"] for trace in client.get("/api/imports/derniers").json()}
@@ -99,7 +102,7 @@ def test_import_bancaire_ofx_trace_sa_propre_source(client):
 
 def test_deux_sources_differentes_coexistent(client):
     _importer_releve(client)
-    client.post("/api/budget/import/ofx", files={"file": ("releve.ofx", OFX_MINIMAL, "application/x-ofx")})
+    client.post("/api/budget/import/ofx", files={"file": ("releve.ofx", OFX_MINIMAL, "application/x-ofx")}, data=COMPTE_BANCAIRE)
 
     sources = {trace["source"] for trace in client.get("/api/imports/derniers").json()}
     assert sources == {"releve", "bancaire"}

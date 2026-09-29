@@ -1,12 +1,23 @@
 """Verrouille `routers/budget.py` : catégories, règles, import CSV/OFX/QIF,
-mouvements, cibles, résumé — et l'isolation entre utilisateurs (IDOR)."""
+mouvements, cibles, résumé, compte du relevé et filtre par compte (§ BM.1) — et
+l'isolation entre utilisateurs (IDOR)."""
 
 import calendar
 from datetime import date
 
-from app.services import budget_categories_service
+import pytest
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur
+from app.models import Compte, Etablissement, MouvementBancaire
+from app.services import budget_categories_service, comptes_service
+
+from .conftest import (
+    ID_UTILISATEUR_B,
+    ID_UTILISATEUR_TEST,
+    NOM_UTILISATEUR_B,
+    NOM_UTILISATEUR_TEST,
+    basculer_utilisateur,
+    make_compte,
+)
 
 
 def _mois_precedent(d: date, n: int) -> date:
@@ -54,6 +65,10 @@ def test_regles_create_reappliquer_delete(client, db):
     assert reponse.status_code == 204
 
 
+# Compte du relevé (§ BM.1), obligatoire à chaque import : créé au premier import,
+# retrouvé par son nom aux suivants.
+NOUVEAU_COMPTE = {"compte_nom": "Compte courant", "etablissement_nom": "Banque Test"}
+
 CSV_BANCAIRE = "Date;Libellé;Montant\n01/02/2026;Salaire;2000,00\n02/02/2026;Loyer;-800,00\n"
 
 
@@ -73,6 +88,7 @@ def test_import_csv_preview_puis_confirm(client):
             "date_col": "Date",
             "libelle_col": "Libellé",
             "montant_col": "Montant",
+            **NOUVEAU_COMPTE,
         },
     )
     assert reponse.status_code == 200, reponse.text
@@ -90,7 +106,13 @@ def test_import_csv_confirm_colonne_inconnue_renvoie_400(client):
 
     reponse = client.post(
         "/api/budget/import/csv/confirm",
-        json={"file_token": file_token, "date_col": "Date", "libelle_col": "Colonne inexistante", "montant_col": "Montant"},
+        json={
+            "file_token": file_token,
+            "date_col": "Date",
+            "libelle_col": "Colonne inexistante",
+            "montant_col": "Montant",
+            **NOUVEAU_COMPTE,
+        },
     )
     assert reponse.status_code == 400
 
@@ -101,21 +123,25 @@ def test_import_ofx(client):
         b"<STMTTRN><DTPOSTED>20260201<TRNAMT>-42.50<FITID>OFX-1<NAME>ACHAT</STMTTRN>"
         b"</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"
     )
-    reponse = client.post("/api/budget/import/ofx", files={"file": ("releve.ofx", contenu, "application/x-ofx")})
+    reponse = client.post("/api/budget/import/ofx", files={"file": ("releve.ofx", contenu, "application/x-ofx")}, data=NOUVEAU_COMPTE)
     assert reponse.status_code == 200, reponse.text
     assert reponse.json()["importees"] == 1
 
 
 def test_import_qif(client):
     contenu = b"!Type:Bank\nD02/01/2026\nT-42.50\nPACHAT\n^\n"
-    reponse = client.post("/api/budget/import/qif", files={"file": ("releve.qif", contenu, "text/plain")})
+    reponse = client.post("/api/budget/import/qif", files={"file": ("releve.qif", contenu, "text/plain")}, data=NOUVEAU_COMPTE)
     assert reponse.status_code == 200, reponse.text
     assert reponse.json()["importees"] == 1
 
 
 def test_mouvements_list_et_categoriser(client, db):
     categorie = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Santé", None)
-    client.post("/api/budget/import/qif", files={"file": ("r.qif", b"D01/02/2026\nT-10.00\nPPharmacie\n^\n", "text/plain")})
+    client.post(
+        "/api/budget/import/qif",
+        files={"file": ("r.qif", b"D01/02/2026\nT-10.00\nPPharmacie\n^\n", "text/plain")},
+        data=NOUVEAU_COMPTE,
+    )
 
     reponse = client.get("/api/budget/mouvements")
     assert reponse.status_code == 200
@@ -146,6 +172,7 @@ def test_summary_indicateurs(client):
     client.post(
         "/api/budget/import/qif",
         files={"file": ("r.qif", b"D02/01/2026\nT2000.00\nPSalaire\n^\nD02/02/2026\nT-800.00\nPLoyer\n^\n", "text/plain")},
+        data=NOUVEAU_COMPTE,
     )
     reponse = client.get("/api/budget/summary", params={"date_debut": "2026-02-01", "date_fin": "2026-02-28"})
     assert reponse.status_code == 200
@@ -160,7 +187,9 @@ def test_isolation_entre_utilisateurs(client, db):
     règles, ni les cibles créées par le premier — même pattern que
     `tests/test_isolation_utilisateurs.py`."""
     categorie = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Perso", None)
-    client.post("/api/budget/import/qif", files={"file": ("r.qif", b"D01/02/2026\nT-10.00\nPAchat\n^\n", "text/plain")})
+    client.post(
+        "/api/budget/import/qif", files={"file": ("r.qif", b"D01/02/2026\nT-10.00\nPAchat\n^\n", "text/plain")}, data=NOUVEAU_COMPTE
+    )
 
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
@@ -188,7 +217,7 @@ def test_recurrences(client):
         f"D{il_y_a_2_mois.month:02d}/{il_y_a_2_mois.day:02d}/{il_y_a_2_mois.year}\nT-12.99\nPNetflix\n^\n"
         f"D{il_y_a_1_mois.month:02d}/{il_y_a_1_mois.day:02d}/{il_y_a_1_mois.year}\nT-12.99\nPNetflix\n^\n"
     ).encode("utf-8")
-    client.post("/api/budget/import/qif", files={"file": ("r.qif", qif, "text/plain")})
+    client.post("/api/budget/import/qif", files={"file": ("r.qif", qif, "text/plain")}, data=NOUVEAU_COMPTE)
     reponse = client.get("/api/budget/recurrences")
     assert reponse.status_code == 200
     body = reponse.json()
@@ -202,6 +231,7 @@ def test_jonction_patrimoine(client, db):
     client.post(
         "/api/budget/import/qif",
         files={"file": ("r.qif", b"D01/02/2026\nT2000.00\nPSalaire\n^\n", "text/plain")},
+        data=NOUVEAU_COMPTE,
     )
     mouvement_id = client.get("/api/budget/mouvements").json()[0]["id"]
     client.patch(f"/api/budget/mouvements/{mouvement_id}", json={"categorie_id": epargne.id})
@@ -212,3 +242,199 @@ def test_jonction_patrimoine(client, db):
     assert "taux_epargne_reel_pct" in body
     assert "reste_a_vivre" in body
     assert "versement_mensuel_suggere" in body
+
+
+# ---------------------------------------------------------------------------
+# Compte du relevé et filtre par compte (§ BM.1)
+# ---------------------------------------------------------------------------
+
+QIF_UN_ACHAT = b"D02/01/2026\nT-42.50\nPACHAT\n^\n"
+OFX_UN_ACHAT = (
+    b"<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>"
+    b"<STMTTRN><DTPOSTED>20260201<TRNAMT>-42.50<FITID>OFX-1<NAME>ACHAT</STMTTRN>"
+    b"</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"
+)
+FORMATS = ["csv", "ofx", "qif"]
+
+
+def _importer(client, format_: str, champs_compte: dict, contenu: bytes | None = None):
+    """Importe un petit relevé au format donné, sur le compte décrit par `champs_compte`
+    (JSON pour le CSV, champs de formulaire pour OFX/QIF)."""
+    if format_ == "csv":
+        apercu = client.post(
+            "/api/budget/import/csv/preview", files={"file": ("releve.csv", CSV_BANCAIRE.encode("utf-8"), "text/csv")}
+        ).json()
+        return client.post(
+            "/api/budget/import/csv/confirm",
+            json={
+                "file_token": apercu["file_token"],
+                "date_col": "Date",
+                "libelle_col": "Libellé",
+                "montant_col": "Montant",
+                **champs_compte,
+            },
+        )
+    contenu = contenu or (OFX_UN_ACHAT if format_ == "ofx" else QIF_UN_ACHAT)
+    return client.post(f"/api/budget/import/{format_}", files={"file": (f"releve.{format_}", contenu, "text/plain")}, data=champs_compte)
+
+
+def _mouvements(db) -> list[MouvementBancaire]:
+    db.expire_all()
+    return db.query(MouvementBancaire).all()
+
+
+@pytest.mark.parametrize("format_", FORMATS)
+def test_import_sur_un_compte_existant(client, db, format_):
+    compte = make_compte(db, nom="Compte courant")
+
+    reponse = _importer(client, format_, {"compte_id": compte.id})
+
+    assert reponse.status_code == 200, reponse.text
+    mouvements = _mouvements(db)
+    assert mouvements and {m.compte_id for m in mouvements} == {compte.id}
+    assert db.query(Compte).count() == 1
+    assert client.get("/api/budget/mouvements").json()[0]["compte_id"] == compte.id
+
+
+@pytest.mark.parametrize("format_", FORMATS)
+def test_import_cree_le_compte_et_l_etablissement_du_catalogue(client, db, format_):
+    champs = {"compte_nom": "Compte joint", "etablissement_nom": "Boursorama", "etablissement_logo_key": "boursorama"}
+
+    assert _importer(client, format_, champs).status_code == 200
+
+    compte = db.query(Compte).one()
+    assert compte.nom == "Compte joint"
+    assert compte.etablissement.nom == "Boursorama"
+    assert compte.etablissement.logo_key == "boursorama"
+    assert {m.compte_id for m in _mouvements(db)} == {compte.id}
+
+    # Un second import sous le même nom retrouve le compte au lieu d'en créer un autre.
+    assert _importer(client, format_, champs).status_code == 200
+    assert db.query(Compte).count() == 1
+    assert db.query(Etablissement).count() == 1
+
+
+@pytest.mark.parametrize("format_", FORMATS)
+def test_import_cree_le_compte_sur_un_etablissement_existant(client, db, format_):
+    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Caisse d'Épargne")
+
+    reponse = _importer(client, format_, {"compte_nom": "Livret A", "etablissement_id": etablissement.id})
+
+    assert reponse.status_code == 200, reponse.text
+    compte = db.query(Compte).one()
+    assert (compte.nom, compte.etablissement_id) == ("Livret A", etablissement.id)
+    assert db.query(Etablissement).count() == 1
+
+
+@pytest.mark.parametrize("format_", FORMATS)
+def test_import_sans_compte_refuse(client, db, format_):
+    reponse = _importer(client, format_, {})
+
+    assert reponse.status_code == 400
+    assert reponse.json()["detail"] == "Choisissez le compte bancaire de ce relevé."
+    assert _mouvements(db) == []
+
+
+@pytest.mark.parametrize("format_", FORMATS)
+def test_nouveau_compte_sans_etablissement_refuse(client, db, format_):
+    reponse = _importer(client, format_, {"compte_nom": "Compte courant"})
+
+    assert reponse.status_code == 400
+    assert reponse.json()["detail"] == "Un établissement est obligatoire pour créer le compte."
+    assert db.query(Compte).count() == 0
+
+
+def test_message_de_refus_traduit(client):
+    reponse = client.post(
+        "/api/budget/import/qif",
+        files={"file": ("releve.qif", QIF_UN_ACHAT, "text/plain")},
+        headers={"X-Langue": "en"},
+    )
+
+    assert reponse.status_code == 400
+    assert reponse.json()["detail"] == "Choose the bank account for this statement."
+
+
+@pytest.mark.parametrize("format_", FORMATS)
+def test_import_sur_le_compte_ou_l_etablissement_d_un_autre_foyer_refuse(client, db, format_):
+    """IDOR : un identifiant d'un autre foyer est introuvable, comme partout ailleurs."""
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+    etablissement_b = client.post("/api/comptes/etablissements", json={"nom": "Banque B"}).json()
+    compte_b = client.post("/api/comptes", json={"nom": "Compte B", "etablissement_id": etablissement_b["id"]}).json()
+    basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
+
+    reponse = _importer(client, format_, {"compte_id": compte_b["id"]})
+    assert reponse.status_code == 404
+    assert reponse.json()["detail"] == "Compte introuvable"
+
+    reponse = _importer(client, format_, {"compte_nom": "Mon compte", "etablissement_id": etablissement_b["id"]})
+    assert reponse.status_code == 404
+    assert reponse.json()["detail"] == "Établissement introuvable"
+
+    assert _mouvements(db) == []
+    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).count() == 0
+
+
+def _deux_comptes_avec_mouvements(client, db) -> tuple[Compte, Compte]:
+    courant = make_compte(db, nom="Compte courant")
+    joint = make_compte(db, nom="Compte joint")
+    make_compte(db, nom="PEA")  # sans mouvement bancaire : jamais proposé au filtre
+    _importer(client, "qif", {"compte_id": courant.id}, b"D02/01/2026\nT2000.00\nPSalaire\n^\nD02/02/2026\nT-800.00\nPLoyer\n^\n")
+    _importer(client, "qif", {"compte_id": joint.id}, b"D02/03/2026\nT-120.00\nPCourses\n^\n")
+    return courant, joint
+
+
+def test_filtre_des_mouvements_et_du_resume_par_compte(client, db):
+    courant, joint = _deux_comptes_avec_mouvements(client, db)
+    periode = {"date_debut": "2026-02-01", "date_fin": "2026-02-28"}
+
+    tous = client.get("/api/budget/mouvements").json()
+    assert len(tous) == 3
+    du_joint = client.get("/api/budget/mouvements", params={"compte_id": joint.id}).json()
+    assert [m["libelle"] for m in du_joint] == ["Courses"]
+
+    resume_tous = client.get("/api/budget/summary", params=periode).json()
+    assert (resume_tous["entrees"], resume_tous["sorties"]) == (2000.0, 920.0)
+    resume_courant = client.get("/api/budget/summary", params={**periode, "compte_id": courant.id}).json()
+    assert (resume_courant["entrees"], resume_courant["sorties"]) == (2000.0, 800.0)
+
+    jonction = client.get("/api/budget/jonction-patrimoine", params={**periode, "compte_id": joint.id}).json()
+    assert jonction["versement_mensuel_suggere"] == -120.0
+
+
+def test_recurrences_filtrees_par_compte(client, db):
+    courant = make_compte(db, nom="Compte courant")
+    joint = make_compte(db, nom="Compte joint")
+    aujourdhui = date.today()
+    dates = (_mois_precedent(aujourdhui, 2), _mois_precedent(aujourdhui, 1))
+    qif = "".join(f"D{d.month:02d}/{d.day:02d}/{d.year}\nT-12.99\nPNetflix\n^\n" for d in dates).encode()
+    _importer(client, "qif", {"compte_id": courant.id}, qif)
+
+    assert len(client.get("/api/budget/recurrences", params={"compte_id": courant.id}).json()) == 1
+    assert client.get("/api/budget/recurrences", params={"compte_id": joint.id}).json() == []
+
+
+def test_comptes_proposes_au_filtre(client, db):
+    courant, joint = _deux_comptes_avec_mouvements(client, db)
+
+    reponse = client.get("/api/budget/comptes")
+
+    assert reponse.status_code == 200
+    assert [c["id"] for c in reponse.json()] == [courant.id, joint.id]
+
+
+def test_comptes_proposes_au_filtre_isoles_par_foyer(client, db):
+    _deux_comptes_avec_mouvements(client, db)
+
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    assert client.get("/api/budget/comptes").json() == []
+
+
+def test_supprimer_un_compte_supprime_ses_mouvements_bancaires(client, db):
+    courant, joint = _deux_comptes_avec_mouvements(client, db)
+
+    assert client.delete(f"/api/comptes/{joint.id}").status_code == 200
+
+    assert {m.libelle for m in _mouvements(db)} == {"Salaire", "Loyer"}
+    assert {m.compte_id for m in _mouvements(db)} == {courant.id}

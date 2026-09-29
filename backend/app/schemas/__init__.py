@@ -45,6 +45,7 @@ from .budget import (  # noqa: F401
     CategorieBudgetCreate,
     CategorieBudgetOut,
     CategorieBudgetUpdate,
+    CompteImportBancaire,
     JonctionPatrimoine,
     MouvementBancaireOut,
     MouvementCategorisationUpdate,

@@ -3,7 +3,6 @@
 const mouvementsSection = {
   toutesCategories: "Toutes catégories",
   nonCategorise: "Non catégorisé",
-  tousLesComptes: "Tous les comptes",
   mouvements: "Mouvements",
   aucunMouvementSurCettePeriode: "Aucun mouvement sur cette période.",
   importeUnReleveBancaireDepuis: "Importe un relevé bancaire depuis l'écran Import.",

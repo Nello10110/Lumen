@@ -7,7 +7,7 @@ contenu utile est repris ici (§ 4 et annexe A).
 
 **Mode d'emploi.** Pour savoir où en est le produit : § 1. Pour savoir ce qui reste à faire : § 2 —
 c'est la seule liste à tenir à jour, tout le reste est de la trace. Le détail de chaque point, avec
-le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BL), dans
+le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BM), dans
 l'ordre où les sujets sont apparus.
 
 **Conventions d'un point** : `#### X.n — sévérité · effort · statut · priorité — titre`.
@@ -36,8 +36,8 @@ au § 4.2.
   réglementée, assurance-vie, PER, comptes courants, emprunts (capital restant dû calculé) ;
 - **foyer** : détenteurs et quotités (qui possède quoi, part nette de chacun), comptes et
   établissements, comptes utilisateurs propriétaire/membre/invité, liens de partage révocables ;
-- **budget** : import CSV/OFX/QIF, catégorisation par règles explicites, récurrences, taux
-  d'épargne ;
+- **budget** : import CSV/OFX/QIF rattaché à un compte du foyer, filtre par compte, catégorisation
+  par règles explicites, récurrences, taux d'épargne ;
 - **analyse et projection** : historique du patrimoine, métriques avancées, simulateur et
   indépendance financière, rapports périodiques, relevé PDF ;
 - **exploitation** : sauvegarde chiffrée planifiée, export/import complet des données du foyer,
@@ -248,6 +248,7 @@ l'usage réel a fait remonter.
 | BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine, avertissement de suppression d'un compte | 23/09 |
 | BK | Version hébergée : déploiement Postgres et gestion des foyers (ouverts) | 23/09 |
 | BL | Application multilingue (FR, EN, ES, DE, IT) — cadrage et lots | 23/09 |
+| BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte | 28/09 |
 
 ---
 
@@ -7307,6 +7308,75 @@ Défaut déjà repéré (28/09/2026), à corriger à la relecture : les durées 
 Jahre », alors que la préposition exige le datif (« in 5 Jahren und 3 Monaten »). Le mécanisme de
 pluriel (`one`/`other`) ne connaît pas les cas : il faudra des clés de durée au datif pour
 l'allemand, ou une tournure qui s'en passe.
+
+### BM. Budget : chaque mouvement bancaire rattaché à un vrai compte (28/09/2026)
+
+#### BM.1 — `majeur` · `M` · `traité` (28/09/2026) · `P1` — Compte du relevé choisi ou créé à l'import, filtre par compte
+
+**Demande** : rattacher chaque mouvement bancaire à un vrai compte du foyer (un `Compte`, rattaché à
+un établissement), le choisir ou le créer au moment de l'import, et filtrer l'écran Budget par
+compte.
+
+**Avant** : `mouvements_bancaires.compte` était un texte libre facultatif, saisi seulement pour un
+CSV (OFX et QIF n'en avaient pas), sans lien avec l'écran Comptes ; le filtre par compte de la liste
+des mouvements lisait ce texte côté navigateur et ne touchait pas aux indicateurs.
+
+**Décisions de l'utilisateur** : retrait complet de l'ancienne colonne, sans reprise — aucune donnée
+à migrer ; suppression d'un compte = suppression de ses mouvements bancaires, comme ses lignes et
+ses transactions (§ AK.2).
+
+**Ce qui change** :
+
+- **Modèle** : `MouvementBancaire.compte_id`, clé étrangère vers `comptes`, indexée ; la colonne
+  texte `compte` disparaît (migration `e3b7c5a9d1f2`, mode batch, descente comprise). Les mouvements
+  déjà en base restent sans compte. `compte_id` reste nullable en base pour eux ; tout nouvel import
+  en pose un.
+- **Import** (`/api/budget/import/csv/confirm`, `/ofx`, `/qif`) : compte **obligatoire**, comme pour
+  les imports courtier — `compte_id` d'un compte existant, ou `compte_nom` avec un établissement
+  (`etablissement_id` existant, ou `etablissement_nom` + clé du catalogue). Même résolution que
+  l'import de positions : établissement retrouvé ou créé, compte retrouvé par son nom ou créé sans
+  commit, enregistré avec les mouvements. OFX et QIF reçoivent le compte en champs de formulaire à
+  côté du fichier. Refus explicites et traduits : « Choisissez le compte bancaire de ce relevé. »,
+  « Un établissement est obligatoire pour créer le compte. ».
+- **Filtre** : `compte_id` accepté par `/mouvements`, `/summary`, `/recurrences` et
+  `/jonction-patrimoine` ; `GET /api/budget/comptes` liste les comptes qui portent au moins un
+  mouvement. À l'écran, un menu « Tous les comptes » (comptes regroupés par établissement) filtre
+  **tout** l'écran Budget, dès que deux comptes au moins portent des mouvements. Le filtre texte de
+  la liste des mouvements, devenu sans objet, est retiré.
+- **Écran Import** : le fichier OFX/QIF n'est plus envoyé au dépôt — le compte se choisit d'abord
+  (`SelecteurCompte` : comptes existants par établissement, ou « + Nouveau compte... » avec
+  `SelecteurEtablissement` et le catalogue), puis « Confirmer l'import ». Même choix sous le mapping
+  d'un CSV.
+- **Suppression d'un compte** (`comptes_service.delete_compte`) : ses mouvements bancaires sont
+  supprimés explicitement, comme ses transactions — la fiche du compte l'annonce avant la
+  confirmation.
+- **Export/import du foyer** : `mouvements_bancaires.compte_id` remappé vers le nouvel id du compte
+  importé, comme `transactions`. Un ancien export portant la colonne `compte` s'importe toujours (la
+  colonne inconnue est ignorée).
+
+**Sécurité** : un `compte_id` ou un `etablissement_id` d'un autre foyer est refusé en 404
+(« Compte introuvable », « Établissement introuvable »), sans rien créer ni importer — même garde que
+les imports courtier. Sous Postgres, la politique de séparation des foyers de `mouvements_bancaires`
+porte sur `user_id` (migration `c3a8e1f0b6d2`) : la nouvelle colonne n'y change rien, et la
+suppression d'un compte efface ses mouvements avant lui, ce que la clé étrangère exige. Le filtre
+par `compte_id` s'ajoute au filtre par foyer, jamais à sa place : un id étranger ne renvoie rien.
+
+**Hors périmètre, signalé** : la déduplication reste par foyer (`transaction_id` unique par foyer,
+pas par compte) — un même mouvement calculé (date, montant, libellé identiques) sur deux comptes
+serait vu comme un doublon. Cas rare, contrainte inchangée.
+
+**Tests** : serveur 25 (import sur un compte existant, avec création du compte et de son
+établissement du catalogue, sur un établissement existant, refus sans compte ou sans établissement,
+refus d'un compte ou d'un établissement d'un autre foyer — pour chacun des trois formats ; filtre
+des mouvements, du résumé, de la jonction et des récurrences ; comptes proposés au filtre et leur
+isolation ; suppression en cascade ; aller-retour export/import ; migration montée et descente ;
+message de refus traduit) ; interface 9 (choix d'un compte existant, création d'un
+compte sur un établissement existant et sur un établissement du catalogue, confirmation bloquée sans
+compte, filtre de l'écran Budget, avertissement de suppression). Suites complètes : serveur 1 544
+verts (9 ignorés, propres à Postgres ; un échec préexistant et sans rapport,
+`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`, échoue aussi sur le
+code d'avant), interface 891. Données E2E adaptées (`seed_e2e.py` : relevé importé sur « Compte
+courant E2E », établissement « Banque courante E2E ») ; suite Playwright à rejouer.
 
 ---
 

@@ -21,19 +21,28 @@ export interface MouvementBancaire {
   date: string
   libelle: string
   montant: number
-  compte: string | null
+  compte_id: number | null
   categorie_id: number | null
   categorise_manuellement: boolean
 }
 
-export interface BudgetColumnMapping {
+// Compte du relevé importé (§ BM.1), obligatoire : un compte existant, ou un nouveau
+// compte avec son établissement (existant ou créé à la volée). L'id prime sur le nom.
+export interface CompteImportBancaire {
+  compte_id?: number | null
+  compte_nom?: string | null
+  etablissement_id?: number | null
+  etablissement_nom?: string | null
+  etablissement_logo_key?: string | null
+}
+
+export interface BudgetColumnMapping extends CompteImportBancaire {
   file_token: string
   date_col: string
   libelle_col: string
   montant_col?: string | null
   debit_col?: string | null
   credit_col?: string | null
-  compte?: string | null
 }
 
 export interface BudgetImportResult {

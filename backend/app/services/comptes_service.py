@@ -20,6 +20,7 @@ from ..models import (
     HoldingImmobilierDetail,
     HoldingValuationHistory,
     Loan,
+    MouvementBancaire,
     QuotiteHolding,
     QuotiteLoan,
     Transaction,
@@ -143,7 +144,8 @@ def delete_compte(db: Session, compte: Compte) -> None:
     (`routers/portfolio.py::_detacher_references_avant_suppression`) : quotités et
     historique de valorisation/fiche immobilier disparaissent avec la ligne, un
     `Loan` rattaché SURVIT (détaché seulement, un emprunt reste dû même si le bien
-    qu'il finançait sort du patrimoine)."""
+    qu'il finançait sort du patrimoine). Les mouvements bancaires du compte (§ BM.1)
+    partent avec lui, comme ses transactions : un relevé n'a pas de sens sans son compte."""
     holdings = db.query(Holding).filter(Holding.compte_id == compte.id).all()
     holding_ids = [h.id for h in holdings]
     if holding_ids:
@@ -157,6 +159,7 @@ def delete_compte(db: Session, compte: Compte) -> None:
         db.query(Loan).filter(Loan.holding_id.in_(holding_ids)).update({"holding_id": None}, synchronize_session=False)
         db.query(Holding).filter(Holding.id.in_(holding_ids)).delete(synchronize_session=False)
     db.query(Transaction).filter(Transaction.compte_id == compte.id).delete(synchronize_session=False)
+    db.query(MouvementBancaire).filter(MouvementBancaire.compte_id == compte.id).delete(synchronize_session=False)
     db.delete(compte)
     db.commit()
     historique_cache.invalider_historiques_patrimoine(db)

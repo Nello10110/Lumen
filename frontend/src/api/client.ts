@@ -10,6 +10,7 @@ import type {
   BudgetImportResult,
   BudgetSummary,
   CategorieBudget,
+  CompteImportBancaire,
   CategoryCompositionResponse,
   ColumnMapping,
   Compte,
@@ -200,6 +201,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 async function requestBlob(path: string, options?: RequestInit): Promise<Blob> {
   const res = await fetchApi(path, options)
   return res.blob()
+}
+
+// Import OFX/QIF (§ BM.1) : le compte du relevé voyage en champs de formulaire à côté
+// du fichier ; un champ absent n'est pas envoyé plutôt qu'envoyé vide.
+function formulaireImportBancaire(file: File, compte: CompteImportBancaire): FormData {
+  const form = new FormData()
+  form.append('file', file)
+  for (const [cle, valeur] of Object.entries(compte)) {
+    if (valeur != null) form.append(cle, String(valeur))
+  }
+  return form
+}
+
+function filtreCompte(compteId?: number | null): string {
+  return compteId != null ? `&compte_id=${compteId}` : ''
 }
 
 export const api = {
@@ -613,23 +629,20 @@ export const api = {
   },
   importBudgetCsvConfirm: (mapping: BudgetColumnMapping) =>
     request<BudgetImportResult>('/budget/import/csv/confirm', { method: 'POST', body: JSON.stringify(mapping) }),
-  importBudgetOfx: (file: File) => {
-    const form = new FormData()
-    form.append('file', file)
-    return request<BudgetImportResult>('/budget/import/ofx', { method: 'POST', body: form })
-  },
-  importBudgetQif: (file: File) => {
-    const form = new FormData()
-    form.append('file', file)
-    return request<BudgetImportResult>('/budget/import/qif', { method: 'POST', body: form })
-  },
+  importBudgetOfx: (file: File, compte: CompteImportBancaire) =>
+    request<BudgetImportResult>('/budget/import/ofx', { method: 'POST', body: formulaireImportBancaire(file, compte) }),
+  importBudgetQif: (file: File, compte: CompteImportBancaire) =>
+    request<BudgetImportResult>('/budget/import/qif', { method: 'POST', body: formulaireImportBancaire(file, compte) }),
 
-  listMouvementsBancaires: (params?: { dateDebut?: string; dateFin?: string; categorieId?: number | null; compte?: string }) => {
+  // Comptes portant au moins un mouvement bancaire : ceux que propose le filtre de
+  // l'écran Budget (§ BM.1).
+  listComptesBudget: () => request<Compte[]>('/budget/comptes'),
+  listMouvementsBancaires: (params?: { dateDebut?: string; dateFin?: string; categorieId?: number | null; compteId?: number | null }) => {
     const q = new URLSearchParams()
     if (params?.dateDebut) q.set('date_debut', params.dateDebut)
     if (params?.dateFin) q.set('date_fin', params.dateFin)
     if (params?.categorieId != null) q.set('categorie_id', String(params.categorieId))
-    if (params?.compte) q.set('compte', params.compte)
+    if (params?.compteId != null) q.set('compte_id', String(params.compteId))
     const suffixe = q.toString() ? `?${q.toString()}` : ''
     return request<MouvementBancaire[]>(`/budget/mouvements${suffixe}`)
   },
@@ -641,13 +654,14 @@ export const api = {
     request<BudgetCible>(`/budget/cibles/${categorieId}`, { method: 'PUT', body: JSON.stringify({ montant_mensuel: montantMensuel }) }),
   deleteBudgetCible: (categorieId: number) => request<void>(`/budget/cibles/${categorieId}`, { method: 'DELETE' }),
 
-  getBudgetSummary: (dateDebut: string, dateFin: string) =>
-    request<BudgetSummary>(`/budget/summary?date_debut=${dateDebut}&date_fin=${dateFin}`),
+  getBudgetSummary: (dateDebut: string, dateFin: string, compteId?: number | null) =>
+    request<BudgetSummary>(`/budget/summary?date_debut=${dateDebut}&date_fin=${dateFin}${filtreCompte(compteId)}`),
 
   // Récurrences et jonction patrimoine (backlog 2.N.3/2.N.4)
-  getBudgetRecurrences: () => request<RecurrenceDetectee[]>('/budget/recurrences'),
-  getJonctionPatrimoine: (dateDebut: string, dateFin: string) =>
-    request<JonctionPatrimoine>(`/budget/jonction-patrimoine?date_debut=${dateDebut}&date_fin=${dateFin}`),
+  getBudgetRecurrences: (compteId?: number | null) =>
+    request<RecurrenceDetectee[]>(`/budget/recurrences${compteId != null ? `?compte_id=${compteId}` : ''}`),
+  getJonctionPatrimoine: (dateDebut: string, dateFin: string, compteId?: number | null) =>
+    request<JonctionPatrimoine>(`/budget/jonction-patrimoine?date_debut=${dateDebut}&date_fin=${dateFin}${filtreCompte(compteId)}`),
 
   // Indicateurs de situation (backlog 2.O.2) — matelas de sécurité, taux
   // d'endettement, part immobilisée. Anciennement rattachés à Objectifs.

@@ -74,7 +74,7 @@ class MouvementBancaireOut(BaseModel):
     date: str
     libelle: str
     montant: float
-    compte: str | None = None
+    compte_id: int | None = None
     categorie_id: int | None = None
     categorise_manuellement: bool
 
@@ -83,14 +83,43 @@ class MouvementCategorisationUpdate(BaseModel):
     categorie_id: int | None = None
 
 
-class BudgetColumnMapping(BaseModel):
+class CompteImportBancaire(BaseModel):
+    """Compte du relevé importé (§ BM.1), obligatoire comme pour les imports courtier :
+    un compte existant du foyer (`compte_id`, appartenance vérifiée par le routeur), ou
+    un nouveau compte (`compte_nom`) avec son établissement, existant ou créé à la
+    volée. `compte_id` prime sur `compte_nom`, `etablissement_id` sur `etablissement_nom`."""
+
+    compte_id: int | None = None
+    compte_nom: str | None = None
+    etablissement_id: int | None = None
+    etablissement_nom: str | None = None
+    etablissement_logo_key: str | None = None
+
+    @field_validator("compte_nom", "etablissement_nom")
+    @classmethod
+    def _nettoyer_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
+
+    @model_validator(mode="after")
+    def _valider_compte(self) -> CompteImportBancaire:
+        if self.compte_id is None:
+            if not self.compte_nom:
+                raise ValueError("Choisissez le compte bancaire de ce relevé.")
+            if self.etablissement_id is None and not self.etablissement_nom:
+                raise ValueError("Un établissement est obligatoire pour créer le compte.")
+        return self
+
+
+class BudgetColumnMapping(CompteImportBancaire):
     file_token: str
     date_col: str
     libelle_col: str
     montant_col: str | None = None
     debit_col: str | None = None
     credit_col: str | None = None
-    compte: str | None = None
 
     @field_validator("date_col", "libelle_col")
     @classmethod

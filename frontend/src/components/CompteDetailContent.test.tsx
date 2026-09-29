@@ -475,4 +475,10 @@ describe('CompteDetailContent — suppression du compte (paquet de design)', () 
 
     expect(await screen.findByText(/transactions importées qui s'y rattachent encore/)).toBeInTheDocument()
   })
+
+  it('annonce que les mouvements bancaires du compte partent avec lui (§ BM.1)', async () => {
+    renderContent(compte({ id: 42, nom: 'Compte courant' }), [], vi.fn(), vi.fn())
+
+    expect(await screen.findByText(/mouvements bancaires importés sur ce compte \(Budget\) sont supprimés aussi/)).toBeInTheDocument()
+  })
 })

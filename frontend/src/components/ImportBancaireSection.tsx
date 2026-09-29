@@ -1,14 +1,24 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { BudgetImportResult, ImportPreview } from '../api/types'
+import type { BudgetImportResult, Compte, CompteImportBancaire, Etablissement, ImportPreview } from '../api/types'
 import { useFichierPilote } from '../hooks/useFichierPilote'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
 import CsvPreviewTable from './CsvPreviewTable'
-import { Field, Input, Select } from './Field'
+import { Field, Select } from './Field'
 import { IconFlecheDroite } from './icons'
+import SelecteurCompte, { NOUVEAU_COMPTE, type ChoixCompte } from './SelecteurCompte'
+import { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { t } from '../i18n'
+
+const AUCUN_COMPTE_CHOISI: ChoixCompte = {
+  compteId: '',
+  compteNom: '',
+  etablissementId: '',
+  etablissementNom: '',
+  etablissementLogoKey: null,
+}
 
 /** Import de mouvements bancaires (backlog 2.N.1), extrait de `ImportPage.tsx` lors
  * de la refonte de l'écran Import (22/09/2026).
@@ -19,10 +29,14 @@ import { t } from '../i18n'
  * été une décision de l'utilisateur — son fichier EST déjà dans un format, le lui
  * faire désigner deux fois n'apportait rien.
  *
- * OFX/QIF n'ont pas besoin de mapping (structure fixe, cf. `budget_import_service.py`)
- * et s'importent donc directement. Un CSV de banque varie d'un établissement à
- * l'autre : mapping manuel comme pour le relevé de positions, avec une bascule
- * montant signé / débit+crédit séparés (les deux formats existent selon les banques). */
+ * OFX/QIF n'ont pas besoin de mapping (structure fixe, cf. `budget_import_service.py`).
+ * Un CSV de banque varie d'un établissement à l'autre : mapping manuel comme pour le
+ * relevé de positions, avec une bascule montant signé / débit+crédit séparés (les deux
+ * formats existent selon les banques).
+ *
+ * Dans les trois cas, le compte du relevé est choisi avant l'import (§ BM.1) : un
+ * compte existant, ou un nouveau compte avec son établissement — obligatoire, comme
+ * pour les imports courtier. */
 export default function ImportBancaireSection({
   fichier,
   onImported,
@@ -37,13 +51,18 @@ export default function ImportBancaireSection({
   const [result, setResult] = useState<BudgetImportResult | null>(null)
 
   const [preview, setPreview] = useState<ImportPreview | null>(null)
+  // Fichier OFX/QIF en attente du choix de son compte : il n'est envoyé qu'à la
+  // confirmation, avec le compte.
+  const [fichierStructure, setFichierStructure] = useState<File | null>(null)
   const [dateCol, setDateCol] = useState('')
   const [libelleCol, setLibelleCol] = useState('')
   const [modeMontant, setModeMontant] = useState<'signe' | 'debit_credit'>('signe')
   const [montantCol, setMontantCol] = useState('')
   const [debitCol, setDebitCol] = useState('')
   const [creditCol, setCreditCol] = useState('')
-  const [compte, setCompte] = useState('')
+  const [comptes, setComptes] = useState<Compte[]>([])
+  const [etablissements, setEtablissements] = useState<Etablissement[]>([])
+  const [choixCompte, setChoixCompte] = useState<ChoixCompte>(AUCUN_COMPTE_CHOISI)
   const [confirming, setConfirming] = useState(false)
 
   const onImportedRef = useRef(onImported)
@@ -59,18 +78,27 @@ export default function ImportBancaireSection({
     setError(null)
     setResult(null)
     setPreview(null)
+    setFichierStructure(null)
     setUploading(true)
     const nom = file.name.toLowerCase()
+    const structure = nom.endsWith('.ofx') || nom.endsWith('.qif')
     try {
-      if (nom.endsWith('.ofx') || nom.endsWith('.qif')) {
-        afficherResultat(nom.endsWith('.qif') ? await api.importBudgetQif(file) : await api.importBudgetOfx(file))
-      } else {
-        setPreview(await api.importBudgetCsvPreview(file))
+      const [cs, es, apercu] = await Promise.all([
+        api.listComptes(),
+        api.listEtablissements(),
+        structure ? null : api.importBudgetCsvPreview(file),
+      ])
+      setComptes(cs)
+      setEtablissements(es)
+      if (apercu) {
+        setPreview(apercu)
         setDateCol('')
         setLibelleCol('')
         setMontantCol('')
         setDebitCol('')
         setCreditCol('')
+      } else {
+        setFichierStructure(file)
       }
     } catch (err) {
       setError((err as Error).message)
@@ -81,22 +109,50 @@ export default function ImportBancaireSection({
 
   useFichierPilote(fichier, traiterFichier)
 
-  async function handleCsvConfirm() {
-    if (!preview || !dateCol || !libelleCol) return
+  const nouveauCompte = choixCompte.compteId === NOUVEAU_COMPTE
+  const nouvelEtablissement = choixCompte.etablissementId === NOUVEAU_ETABLISSEMENT
+  const etablissementValide = nouvelEtablissement ? choixCompte.etablissementNom.trim() !== '' : choixCompte.etablissementId !== ''
+  const compteValide = nouveauCompte ? choixCompte.compteNom.trim() !== '' && etablissementValide : choixCompte.compteId !== ''
+
+  function compteDuReleve(): CompteImportBancaire {
+    if (!nouveauCompte) return { compte_id: Number(choixCompte.compteId) }
+    return {
+      compte_nom: choixCompte.compteNom.trim(),
+      etablissement_id: nouvelEtablissement ? null : Number(choixCompte.etablissementId),
+      etablissement_nom: nouvelEtablissement ? choixCompte.etablissementNom.trim() : null,
+      etablissement_logo_key: nouvelEtablissement ? choixCompte.etablissementLogoKey : null,
+    }
+  }
+
+  async function handleConfirm() {
+    if (!compteValide) return
     setConfirming(true)
     setError(null)
     try {
-      const res = await api.importBudgetCsvConfirm({
-        file_token: preview.file_token,
-        date_col: dateCol,
-        libelle_col: libelleCol,
-        montant_col: modeMontant === 'signe' ? montantCol || null : null,
-        debit_col: modeMontant === 'debit_credit' ? debitCol || null : null,
-        credit_col: modeMontant === 'debit_credit' ? creditCol || null : null,
-        compte: compte || null,
-      })
+      const compte = compteDuReleve()
+      let res: BudgetImportResult
+      if (preview) {
+        res = await api.importBudgetCsvConfirm({
+          file_token: preview.file_token,
+          date_col: dateCol,
+          libelle_col: libelleCol,
+          montant_col: modeMontant === 'signe' ? montantCol || null : null,
+          debit_col: modeMontant === 'debit_credit' ? debitCol || null : null,
+          credit_col: modeMontant === 'debit_credit' ? creditCol || null : null,
+          ...compte,
+        })
+      } else if (fichierStructure) {
+        res = fichierStructure.name.toLowerCase().endsWith('.qif')
+          ? await api.importBudgetQif(fichierStructure, compte)
+          : await api.importBudgetOfx(fichierStructure, compte)
+      } else {
+        return
+      }
       afficherResultat(res)
       setPreview(null)
+      setFichierStructure(null)
+      // Le compte créé existe désormais : le prochain relevé le choisira dans la liste.
+      if (nouveauCompte) setChoixCompte(AUCUN_COMPTE_CHOISI)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -104,11 +160,24 @@ export default function ImportBancaireSection({
     }
   }
 
-  const csvPret = Boolean(
-    preview && dateCol && libelleCol && (modeMontant === 'signe' ? montantCol : debitCol || creditCol),
+  const mappingPret = Boolean(dateCol && libelleCol && (modeMontant === 'signe' ? montantCol : debitCol || creditCol))
+  const confirmable = compteValide && (fichierStructure !== null || (preview !== null && mappingPret))
+
+  const choixDuCompte = (
+    <SelecteurCompte
+      comptes={comptes}
+      etablissements={etablissements}
+      choix={choixCompte}
+      onChange={(patch) => setChoixCompte((courant) => ({ ...courant, ...patch }))}
+    />
+  )
+  const boutonConfirmer = (
+    <PrimaryButton onClick={handleConfirm} disabled={!confirmable || confirming}>
+      {confirming ? t('importBancaireSection.importEnCours') : t('importBancaireSection.confirmerLImport')}
+    </PrimaryButton>
   )
 
-  if (!uploading && !error && !preview && !result) return null
+  if (!uploading && !error && !preview && !fichierStructure && !result) return null
 
   return (
     <Card>
@@ -139,9 +208,6 @@ export default function ImportBancaireSection({
                   </option>
                 ))}
               </Select>
-            </Field>
-            <Field label={t('importBancaireSection.compteOptionnelAnnotationLibre')}>
-              <Input value={compte} onChange={(e) => setCompte(e.target.value)} placeholder={t('importBancaireSection.compteCourant')} />
             </Field>
           </div>
 
@@ -195,9 +261,16 @@ export default function ImportBancaireSection({
             </div>
           )}
 
-          <PrimaryButton onClick={handleCsvConfirm} disabled={!csvPret || confirming}>
-            {confirming ? t('importBancaireSection.importEnCours') : t('importBancaireSection.confirmerLImport')}
-          </PrimaryButton>
+          {choixDuCompte}
+          {boutonConfirmer}
+        </div>
+      )}
+
+      {fichierStructure && (
+        <div className="space-y-4">
+          <p className="text-sm text-texte">{t('importBancaireSection.choisisLeCompteDuReleve')}</p>
+          {choixDuCompte}
+          {boutonConfirmer}
         </div>
       )}
 

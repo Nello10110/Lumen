@@ -93,6 +93,7 @@ import revenusSection from './revenusSection'
 import salairePage from './salairePage'
 import sauvegardeDonneesCard from './sauvegardeDonneesCard'
 import scorePatrimonialCard from './scorePatrimonialCard'
+import selecteurCompte from './selecteurCompte'
 import selecteurEtablissement from './selecteurEtablissement'
 import sessionsCard from './sessionsCard'
 import simulateurAchatLocationCard from './simulateurAchatLocationCard'
@@ -196,6 +197,7 @@ const espaces = {
   salairePage,
   sauvegardeDonneesCard,
   scorePatrimonialCard,
+  selecteurCompte,
   selecteurEtablissement,
   sessionsCard,
   simulateurAchatLocationCard,

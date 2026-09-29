@@ -135,8 +135,10 @@ vérifier le fichier, et le détail technique reste dans le journal du serveur p
 
 Source indépendante du portefeuille boursier — alimente l'écran **Budget**. Une seule tuile accepte les trois formats, et le traitement bifurque selon l'extension du fichier déposé :
 
-- **OFX ou QIF** : importés directement, aucun mapping à faire (structure fixe).
-- **CSV** : un aperçu s'affiche pour associer les colonnes du fichier (Date et Libellé obligatoires) — au choix une seule colonne Montant signée (+/-), ou deux colonnes Débit/Crédit séparées selon ce que la banque exporte. Un champ « Compte » optionnel annote toutes les lignes importées (utile si plusieurs comptes sont importés séparément, pour les filtrer ensuite dans Budget).
+- **OFX ou QIF** : aucun mapping à faire (structure fixe) ; il ne reste qu'à choisir le compte.
+- **CSV** : un aperçu s'affiche pour associer les colonnes du fichier (Date et Libellé obligatoires) — au choix une seule colonne Montant signée (+/-), ou deux colonnes Débit/Crédit séparées selon ce que la banque exporte.
+
+**Le compte du relevé est obligatoire** (§ BM.1), comme pour les imports de courtier : tous les mouvements du fichier y sont rattachés. La liste propose les comptes existants du foyer, regroupés par établissement ; **« + Nouveau compte... »** fait saisir son nom et son établissement — un établissement existant, ou un nouveau, à choisir dans le catalogue des établissements connus ou à nommer librement. Un nouveau compte apparaît ensuite dans l'écran Comptes comme les autres. Réimporter un relevé sous le nom d'un compte existant le retrouve au lieu d'en créer un second.
 
 Le résumé affiché après import indique : mouvements importés, doublons déjà présents ignorés (ré-import sans risque), lignes illisibles ignorées (date ou montant non reconnu — jamais fondues silencieusement dans le total), et combien ont été catégorisés automatiquement par les règles déjà déclarées.
 
@@ -238,7 +240,8 @@ un CTO avec plusieurs titres), ou n'en contenir qu'une (ex. une assurance-vie, u
   elle-même cliquable, était trop facile à toucher par erreur. **La suppression emporte ce que le
   compte contient** (depuis le 16/09/2026) : ses lignes, et les transactions importées qui s'y
   rattachent — sans quoi une position reconstruite depuis l'historique réapparaîtrait au prochain
-  import. Seul un emprunt rattaché est conservé, détaché de son bien. La fiche l'annonce avant la
+  import —, ainsi que les mouvements bancaires importés sur ce compte (écran Budget, § BM.1). Seul
+  un emprunt rattaché est conservé, détaché de son bien. La fiche l'annonce avant la
   confirmation ; en cas de doute, faites d'abord une sauvegarde (Réglages → Général). Un
   établissement supprimé, lui, ne supprime rien : ses comptes retombent dans « Sans établissement ».
 - **Deux comptes (ou deux établissements, ou deux détenteurs) ne peuvent pas porter le même nom** :
@@ -415,10 +418,12 @@ Projette un capital dans le temps — une **hypothèse**, pas une promesse : les
 
 Suivi des mouvements bancaires importés depuis l'écran Import — indépendant du portefeuille boursier. Sélecteur de période en haut (Mensuel/Annuel/Personnalisé, même fonctionnement que l'écran Rapport ci-dessous).
 
+**Filtre par compte** (§ BM.1) : dès que des mouvements ont été importés sur au moins deux comptes, un menu **« Tous les comptes »** apparaît à côté du sélecteur de période, avec les comptes regroupés par établissement. Choisir un compte restreint **tout l'écran** à ce compte : indicateurs, taux d'épargne et reste à vivre, répartition des sorties, charges récurrentes et liste des mouvements. Seuls les comptes qui portent au moins un mouvement bancaire y figurent (un PEA n'y a rien à montrer).
+
 - **Quatre indicateurs** : Entrées, Sorties, Disponible (entrées − sorties), et Dépenses récurrentes/mois — estimées sur les 3 derniers mois glissants (un mouvement qui revient à l'identique, même libellé et même montant à l'euro près, sur au moins deux de ces trois mois compte comme récurrent).
 - **Taux d'épargne réel et reste à vivre** (backlog § N.4) : affichés dès qu'une catégorie « Épargne » (respectivement « Logement ») existe — le taux d'épargne est le rapport entre les sorties classées dans cette catégorie et les entrées de la période ; le reste à vivre retranche des entrées le logement et les charges récurrentes détectées ci-dessous. Un message explicite remplace l'indicateur si la catégorie correspondante a été renommée ou supprimée.
 - **Répartition des sorties** : un tableau par catégorie (les sous-catégories sont regroupées avec leur catégorie parente), avec un champ **Budget cible** éditable directement dans le tableau (Entrée valide, ou clic ailleurs) et l'**écart** qui en découle (vert si le budget est respecté, rouge sinon).
-- **Mouvements** : liste de la période, filtrable par catégorie et par compte (menus au-dessus du tableau) ; chaque ligne a son propre sélecteur de catégorie pour corriger une catégorisation automatique ou catégoriser une ligne restée sans catégorie.
+- **Mouvements** : liste de la période, filtrable par catégorie (menu au-dessus du tableau ; le compte se choisit en haut de l'écran) ; chaque ligne a son propre sélecteur de catégorie pour corriger une catégorisation automatique ou catégoriser une ligne restée sans catégorie.
 - **Charges récurrentes et abonnements** (backlog § N.3) : liste des mouvements qui reviennent régulièrement (12 derniers mois, encore vus dans les 45 derniers jours), avec leur périodicité (mensuelle ou irrégulière) et un badge **« Hausse de prix »** si le dernier montant dépasse le précédent de plus de 5 %. Indépendante de la période sélectionnée en haut de l'écran — reste visible même si le mois affiché n'a aucun mouvement.
 - **Catégories et règles de catégorisation** (section dépliable en bas de l'écran) : ajouter/supprimer une catégorie ; déclarer une règle (« le libellé contient tel motif → telle catégorie »), appliquée aux futurs imports et réappliquable en masse aux mouvements déjà importés via le bouton dédié — une correction manuelle n'est jamais écrasée par une réapplication.
 

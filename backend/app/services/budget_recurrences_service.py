@@ -38,10 +38,14 @@ class RecurrenceDetectee:
     periodicite: str  # "mensuelle" | "irreguliere"
 
 
-def detect_recurrences(db: Session, user_id: int, aujourdhui: date | None = None) -> list[RecurrenceDetectee]:
+def detect_recurrences(
+    db: Session, user_id: int, aujourdhui: date | None = None, compte_id: int | None = None
+) -> list[RecurrenceDetectee]:
     aujourdhui = aujourdhui or date.today()
     depuis = (aujourdhui - timedelta(days=FENETRE_OBSERVATION_JOURS)).isoformat()
-    mouvements = budget_service.list_mouvements(db, user_id, date_debut=depuis, date_fin=aujourdhui.isoformat())
+    mouvements = budget_service.list_mouvements(
+        db, user_id, date_debut=depuis, date_fin=aujourdhui.isoformat(), compte_id=compte_id
+    )
 
     # Regroupé par libellé SEUL (pas (libellé, montant) comme l'heuristique plus
     # légère de `compute_depenses_recurrentes_mensuelles`, backlog 2.N.2) : une

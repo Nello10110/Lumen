@@ -328,7 +328,7 @@ export default function CompteDetailContent({
  * fait le bouton rouge doit dire ce qu'il fait vraiment. Les transactions sont
  * nommées même pour un compte sans ligne : une position entièrement vendue n'a
  * plus de ligne, mais son historique d'achats et de ventes reste rattaché au
- * compte. */
+ * compte. Les mouvements bancaires du compte (§ BM.1) partent aussi avec lui. */
 function ZoneSuppression({
   compte,
   nombreLignes,
@@ -360,7 +360,7 @@ function ZoneSuppression({
       <p className="mt-1 text-xs text-texte-attenue">
         {nombreLignes > 0
           ? t('compteDetailContent.suppressionLignes', { n: nombreLignes })
-          : t('compteDetailContent.aucuneLigneNEstRattachee')}{' '}{t('compteDetailContent.unEmpruntRattacheEstConserve')}</p>
+          : t('compteDetailContent.aucuneLigneNEstRattachee')}{' '}{t('compteDetailContent.mouvementsBancairesSupprimes')}{' '}{t('compteDetailContent.unEmpruntRattacheEstConserve')}</p>
       {erreur && (
         <div className="mt-3">
           <EtatErreur message={erreur} />

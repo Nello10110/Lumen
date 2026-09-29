@@ -5,7 +5,6 @@ import type { Structure } from '../../types'
 const mouvementsSection: Structure<typeof fr> = {
   toutesCategories: "Todas las categorías",
   nonCategorise: "Sin categorizar",
-  tousLesComptes: "Todas las cuentas",
   mouvements: "Movimientos",
   aucunMouvementSurCettePeriode: "Ningún movimiento en este periodo.",
   importeUnReleveBancaireDepuis: "Importa un extracto bancario desde la pantalla Importar.",

@@ -31,6 +31,7 @@ const compteDetailContent: Structure<typeof fr> = {
   pourMettreAJourLa: "To update the value of this line (real estate...), open its detail sheet above.",
   supprimerCeCompte: "Delete this account",
   aucuneLigneNEstRattachee: "No line is linked to this account; the imported transactions still attached to it (a fully sold position, for example) will be deleted with it.",
+  mouvementsBancairesSupprimes: "Bank transactions imported into this account (Budget) are deleted too.",
   unEmpruntRattacheEstConserve: "A linked loan is kept, only unlinked. Permanent deletion: if in doubt, export a backup first (Settings).",
   suppression: "Deleting...",
   annuler: "Cancel",

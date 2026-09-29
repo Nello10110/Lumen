@@ -40,7 +40,7 @@ const guidesExport = {
     intro: "Le relevé de ton compte courant, qui alimente l'écran Budget — indépendant du portefeuille boursier.",
     etape1: "Depuis ton espace bancaire, exporte les mouvements du compte au format OFX, QIF ou CSV.",
     etape2: "Dépose le fichier sur cette tuile.",
-    etape3: "Un OFX ou un QIF est importé directement. Un CSV demande d'associer au moins une colonne Date, une colonne Libellé et la ou les colonnes de montant.",
+    etape3: "Choisis le compte du relevé : un compte existant, ou un nouveau avec son établissement. Un OFX ou un QIF n'a rien d'autre à préciser ; un CSV demande aussi d'associer au moins une colonne Date, une colonne Libellé et la ou les colonnes de montant.",
   },
 } as const
 

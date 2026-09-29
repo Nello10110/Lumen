@@ -31,6 +31,7 @@ const compteDetailContent: Structure<typeof fr> = {
   pourMettreAJourLa: "Para actualizar el valor de esta línea (inmueble...), abre su ficha detallada arriba.",
   supprimerCeCompte: "Eliminar esta cuenta",
   aucuneLigneNEstRattachee: "Ninguna línea está vinculada a esta cuenta; las operaciones importadas que aún se le asocian (una posición vendida por completo, por ejemplo) se eliminarán con ella.",
+  mouvementsBancairesSupprimes: "Los movimientos bancarios importados en esta cuenta (Presupuesto) también se eliminan.",
   unEmpruntRattacheEstConserve: "Un préstamo vinculado se conserva, solo se desvincula. Eliminación definitiva: en caso de duda, exporte antes una copia de seguridad (Ajustes).",
   suppression: "Eliminando...",
   annuler: "Cancelar",

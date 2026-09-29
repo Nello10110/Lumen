@@ -299,16 +299,16 @@ def _csv_mouvements_bancaires() -> bytes:
     libellé identique revu au moins deux fois, dont la dernière occurrence dans les
     45 derniers jours — figer des dates calendaires casserait ce test dès que la
     suite tournerait plus de 45 jours après avoir été écrite."""
-    lignes = ["date,libelle,montant,compte"]
+    lignes = ["date,libelle,montant"]
     for mois_offset in (0, 1, 2):
         jour_salaire = _iso_il_y_a(mois_offset * 30 + 2)
         jour_loyer = _iso_il_y_a(mois_offset * 30 + 3)
         jour_epargne = _iso_il_y_a(mois_offset * 30 + 4)
         jour_courses = _iso_il_y_a(mois_offset * 30 + 10)
-        lignes.append(f"{jour_salaire},Virement salaire,2500.00,Compte courant")
-        lignes.append(f"{jour_loyer},Loyer appartement,-1200.00,Compte courant")
-        lignes.append(f"{jour_epargne},Virement vers Livret A,-200.00,Compte courant")
-        lignes.append(f"{jour_courses},Supermarche Leclerc,-85.30,Compte courant")
+        lignes.append(f"{jour_salaire},Virement salaire,2500.00")
+        lignes.append(f"{jour_loyer},Loyer appartement,-1200.00")
+        lignes.append(f"{jour_epargne},Virement vers Livret A,-200.00")
+        lignes.append(f"{jour_courses},Supermarche Leclerc,-85.30")
     return ("\n".join(lignes) + "\n").encode("utf-8")
 
 
@@ -325,7 +325,10 @@ def _importer_budget(client: httpx.Client) -> None:
             "date_col": "date",
             "libelle_col": "libelle",
             "montant_col": "montant",
-            "compte": "Compte courant",
+            # Compte du relevé (§ BM.1), sous son propre établissement : le groupe
+            # « Banque E2E » de l'écran Comptes reste celui qu'attendent ses tests.
+            "compte_nom": "Compte courant E2E",
+            "etablissement_nom": "Banque courante E2E",
         },
     )
     confirm.raise_for_status()

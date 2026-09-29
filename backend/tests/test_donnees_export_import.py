@@ -12,7 +12,19 @@ from datetime import datetime
 
 import pytest
 
-from app.models import Compte, Detenteur, Etablissement, Holding, LienPartage, Loan, PerimetreInvite, QuotiteHolding, Salaire, User
+from app.models import (
+    Compte,
+    Detenteur,
+    Etablissement,
+    Holding,
+    LienPartage,
+    Loan,
+    MouvementBancaire,
+    PerimetreInvite,
+    QuotiteHolding,
+    Salaire,
+    User,
+)
 from app.services import donnees_service
 
 from .conftest import (
@@ -83,6 +95,11 @@ def _peupler_foyer(client, db) -> dict:
         },
     )
     make_transaction(db, symbol="AAA")
+    client.post(
+        "/api/budget/import/qif",
+        files={"file": ("releve.qif", b"D02/01/2026\nT-42.50\nPBoulangerie\n^\n", "text/plain")},
+        data={"compte_nom": "Compte courant", "etablissement_id": etablissement["id"]},
+    )
     client.put("/api/settings/preferences", json={"methode_cout": "fifo"})
 
     return {"compte": compte, "etablissement": etablissement, "alice": alice, "action": action, "maison": maison, "loan": loan}
@@ -96,7 +113,7 @@ def test_export_produit_un_document_complet_et_versionne(client, db):
     assert document["format"] == donnees_service.FORMAT
     assert document["version"] == donnees_service.VERSION
     contenu = donnees_service.resume(document)
-    for table in ("etablissements", "comptes", "detenteurs", "holdings", "loans", "salaires", "transactions"):
+    for table in ("etablissements", "comptes", "detenteurs", "holdings", "loans", "salaires", "transactions", "mouvements_bancaires"):
         assert contenu.get(table, 0) > 0, f"{table} absente de l'export"
 
 
@@ -167,6 +184,13 @@ def test_aller_retour_preserve_les_relations_entre_tables(client, db):
     assert action.compte.etablissement is not None
     assert action.compte.etablissement.nom == "Banque Test"
 
+    # Mouvement bancaire → son compte (§ BM.1)
+    mouvement = db.query(MouvementBancaire).one()
+    compte_courant = db.get(Compte, mouvement.compte_id)
+    assert compte_courant is not None
+    assert compte_courant.nom == "Compte courant"
+    assert compte_courant.etablissement.nom == "Banque Test"
+
     # Quotités → bonnes personnes, bons pourcentages
     detail = client.get(f"/api/portfolio/holdings/{action.id}/detail").json()
     assert {(q["detenteur_nom"], q["quotite_pct"]) for q in detail["quotites"]} == {("Alice", 60.0), ("Bob", 40.0)}
@@ -207,7 +231,8 @@ def test_import_ne_duplique_pas_en_cas_dimports_successifs(client, db):
     donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
 
     assert len(client.get("/api/portfolio/holdings").json()) == apres_un
-    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).count() == 1
+    # PEA et compte courant du relevé bancaire, chacun une seule fois.
+    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).count() == 2
 
 
 def test_import_ne_touche_jamais_les_donnees_dun_autre_foyer(client, db):

@@ -163,7 +163,11 @@ TABLES: list[TableExportee] = [
     # `parent_id` est auto-référent (sous-catégories) : l'import fait deux passes,
     # cf. `_importer_table`.
     TableExportee("categories_budget", CategorieBudget, references={"parent_id": "categories_budget"}),
-    TableExportee("mouvements_bancaires", MouvementBancaire, references={"categorie_id": "categories_budget"}),
+    TableExportee(
+        "mouvements_bancaires",
+        MouvementBancaire,
+        references={"categorie_id": "categories_budget", "compte_id": "comptes"},
+    ),
     TableExportee("regles_categorisation", RegleCategorisation, references={"categorie_id": "categories_budget"}),
     TableExportee("budget_cibles", BudgetCible, references={"categorie_id": "categories_budget"}),
     TableExportee("user_parametres", UserParametre),

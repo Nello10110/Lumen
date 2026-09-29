@@ -29,6 +29,7 @@ const compteDetailContent = {
   pourMettreAJourLa: "Pour mettre à jour la valeur de cette ligne (immobilier...), ouvre sa fiche détaillée ci-dessus.",
   supprimerCeCompte: "Supprimer ce compte",
   aucuneLigneNEstRattachee: "Aucune ligne n'est rattachée à ce compte ; les transactions importées qui s'y rattachent encore (une position entièrement vendue, par exemple) seront supprimées avec lui.",
+  mouvementsBancairesSupprimes: "Les mouvements bancaires importés sur ce compte (Budget) sont supprimés aussi.",
   unEmpruntRattacheEstConserve: "Un emprunt rattaché est conservé, seulement détaché. Suppression définitive : en cas de doute, exportez d'abord une sauvegarde (Réglages).",
   suppression: "Suppression...",
   annuler: "Annuler",
