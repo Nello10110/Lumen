@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { BudgetSummary, CategorieBudget, Compte, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
+import type { BudgetSummary, CategorieBudget, Compte, JonctionPatrimoine, MouvementBancaire, RecurrencesBudget, RegleCategorisation } from '../api/types'
 import CategoriesEtReglesSection from '../components/CategoriesEtReglesSection'
 import Card from '../components/Card'
 import { GlassPanel } from '../components/GlassPanel'
@@ -67,7 +67,7 @@ export default function BudgetPage() {
   const [mouvements, setMouvements] = useState<MouvementBancaire[]>([])
   const [categories, setCategories] = useState<CategorieBudget[]>([])
   const [regles, setRegles] = useState<RegleCategorisation[]>([])
-  const [recurrences, setRecurrences] = useState<RecurrenceDetectee[]>([])
+  const [recurrences, setRecurrences] = useState<RecurrencesBudget | null>(null)
   const [jonction, setJonction] = useState<JonctionPatrimoine | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -300,7 +300,7 @@ export default function BudgetPage() {
             </>
           )}
 
-          <RecurrencesSection recurrences={recurrences} categories={categories} />
+          {recurrences && <RecurrencesSection recurrences={recurrences} categories={categories} />}
           <CategoriesEtReglesSection categories={categories} regles={regles} onChanged={chargerTout} />
         </>
       )}

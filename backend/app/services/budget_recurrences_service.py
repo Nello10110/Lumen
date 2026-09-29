@@ -205,3 +205,9 @@ def detect_recurrences(
 
     resultats.sort(key=lambda r: r.montant_actuel, reverse=True)
     return resultats
+
+
+def cout_annuel_total(recurrences: list[RecurrenceDetectee]) -> Decimal:
+    """Ce que coûtent par an les charges périodiques détectées. Les séries irrégulières (achats
+    fréquents) n'ont pas de coût annuel estimé : elles ne comptent pas ici."""
+    return round(sum((r.cout_annuel_estime for r in recurrences if r.cout_annuel_estime is not None), Decimal(0)), 2)

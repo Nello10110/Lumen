@@ -10,6 +10,18 @@ export interface CategorieBudget {
   exclue_des_totaux: boolean
 }
 
+/** Ce qu'une fusion de catégories déplace (§ BM.4), montré avant de confirmer. */
+export interface ApercuFusionCategorie {
+  mouvements: number
+  regles: number
+  sous_categories_deplacees: number
+  sous_categories_fusionnees: number
+  budget_transfere: boolean
+  budget_abandonne: boolean
+  // La source et la cible ne sont pas exclues des totaux toutes les deux, ou aucune des deux.
+  exclusion_differente: boolean
+}
+
 export interface RegleCategorisation {
   id: number
   motif: string
@@ -106,6 +118,14 @@ export interface RecurrenceDetectee {
   cout_annuel_estime: number | null
   // Somme des occurrences de la fenêtre observée.
   total_periode: number
+}
+
+export interface RecurrencesBudget {
+  recurrences: RecurrenceDetectee[]
+  // Somme des coûts annuels estimés des séries périodiques (§ BM.4), et sa part mensuelle :
+  // calculées par le serveur, l'écran ne fait que les afficher.
+  cout_annuel_periodique: number
+  cout_mensuel_periodique: number
 }
 
 export interface JonctionPatrimoine {

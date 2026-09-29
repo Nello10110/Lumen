@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { CategorieBudget, RegleCategorisation } from '../api/types'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import { Field, Input, Select } from './Field'
+import FusionCategorieModale from './FusionCategorieModale'
 import { IconChevron } from './icons'
 import { t } from '../i18n'
 import { categoriesEnArbre } from '../utils/categoriesBudget'
@@ -13,11 +14,13 @@ function LigneCategorie({
   categorie,
   exclueParSaCategorie,
   onBasculerExclusion,
+  onFusionner,
   onSupprimer,
 }: {
   categorie: CategorieBudget
   exclueParSaCategorie: boolean
   onBasculerExclusion: () => void
+  onFusionner: () => void
   onSupprimer: () => void
 }) {
   return (
@@ -34,6 +37,13 @@ function LigneCategorie({
           />
           {exclueParSaCategorie ? t('categoriesEtReglesSection.exclueAvecSaCategorie') : t('categoriesEtReglesSection.exclueDesTotaux')}
         </label>
+        <button
+          onClick={onFusionner}
+          aria-label={t('categoriesEtReglesSection.fusionnerLaCategorie', { nom: categorie.nom })}
+          className="inline-flex min-h-11 items-center text-xs text-ink3 hover:text-ink md:min-h-0"
+        >
+          {t('categoriesEtReglesSection.fusionnerDans')}
+        </button>
         <button
           onClick={onSupprimer}
           aria-label={t('categoriesEtReglesSection.supprimerLaCategorie', { nom: categorie.nom })}
@@ -60,6 +70,7 @@ export default function CategoriesEtReglesSection({
   const [categorieRegle, setCategorieRegle] = useState<number | ''>('')
   const [reapplicationEnCours, setReapplicationEnCours] = useState(false)
   const [messageReapplication, setMessageReapplication] = useState<string | null>(null)
+  const [aFusionner, setAFusionner] = useState<CategorieBudget | null>(null)
 
   const categoriesRacines = categories.filter((c) => c.parent_id === null)
 
@@ -128,6 +139,7 @@ export default function CategoriesEtReglesSection({
                     categorie={racine}
                     exclueParSaCategorie={false}
                     onBasculerExclusion={() => basculerExclusion(racine)}
+                    onFusionner={() => setAFusionner(racine)}
                     onSupprimer={() => supprimerCategorie(racine.id)}
                   />
                   {sousCategories.length > 0 && (
@@ -138,6 +150,7 @@ export default function CategoriesEtReglesSection({
                             categorie={sous}
                             exclueParSaCategorie={racine.exclue_des_totaux}
                             onBasculerExclusion={() => basculerExclusion(sous)}
+                            onFusionner={() => setAFusionner(sous)}
                             onSupprimer={() => supprimerCategorie(sous.id)}
                           />
                         </li>
@@ -199,6 +212,17 @@ export default function CategoriesEtReglesSection({
           </div>
         </div>
       </div>
+      {aFusionner && (
+        <FusionCategorieModale
+          source={aFusionner}
+          categories={categories}
+          onClose={() => setAFusionner(null)}
+          onFusionnee={() => {
+            setAFusionner(null)
+            onChanged()
+          }}
+        />
+      )}
     </details>
   )
 }

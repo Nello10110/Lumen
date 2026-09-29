@@ -19,6 +19,7 @@ const recurrencesSection: Structure<typeof fr> = {
   achatsFrequents: "Acquisti frequenti",
   achatsFrequentsAide: "Esercenti o bonifici che si ripetono senza un ritmo regolare: non sono conteggiati tra le spese ricorrenti.",
   totalObserve: "Totale nel periodo osservato",
+  totalAbonnements: "Abbonamenti e addebiti: {annuel}/anno · {mensuel}/mese",
 }
 
 export default recurrencesSection

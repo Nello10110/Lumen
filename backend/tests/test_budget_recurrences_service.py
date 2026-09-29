@@ -5,7 +5,7 @@ import itertools
 from datetime import date
 from decimal import Decimal
 
-from app.models import MouvementBancaire
+from app.models import CategorieBudget, MouvementBancaire
 from app.services import budget_recurrences_service
 
 from .conftest import ID_UTILISATEUR_TEST, make_compte
@@ -335,3 +335,54 @@ def test_trop_de_prelevements_sautes_n_est_plus_un_rythme(db):
         make_mouvement(db, date=jour, libelle="Achat espace", montant=-30.0)
 
     assert [r.periodicite for r in _detecter(db)] == ["irreguliere"]
+
+
+# ---------------------------------------------------------------------------
+# Total annuel des abonnements et prélèvements (§ BM.4)
+# ---------------------------------------------------------------------------
+
+
+def _foyer_a_deux_abonnements_et_un_achat_frequent(db, **compte):
+    for jour in ("2026-09-05", "2026-10-05"):
+        make_mouvement(db, date=jour, libelle="Abonnement mensuel", montant=-12.99, **compte)
+    for jour in ("2026-01-05", "2026-04-06", "2026-07-06", "2026-10-05"):
+        make_mouvement(db, date=jour, libelle="Cotisation trimestrielle", montant=-45.0, **compte)
+    for jour in ("2026-07-05", "2026-08-05", "2026-08-12", "2026-09-05", "2026-10-05"):
+        make_mouvement(db, date=jour, libelle="Achat frequent", montant=-9.0, **compte)
+
+
+def test_total_annuel_somme_les_series_periodiques_sans_les_achats_frequents(db):
+    _foyer_a_deux_abonnements_et_un_achat_frequent(db)
+
+    detectees = _detecter(db)
+
+    assert {r.periodicite for r in detectees} == {"mensuelle", "trimestrielle", "irreguliere"}
+    # 12,99 x 12 + 45 x 4 : l'achat fréquent, sans coût annuel estimé, n'y est pas.
+    assert budget_recurrences_service.cout_annuel_total(detectees) == Decimal("335.88")
+
+
+def test_total_annuel_sans_serie_periodique_est_nul(db):
+    assert budget_recurrences_service.cout_annuel_total(_detecter(db)) == Decimal("0")
+
+
+def test_total_annuel_suit_le_filtre_par_compte(db):
+    courant = make_compte(db, nom="Courant")
+    joint = make_compte(db, nom="Joint")
+    _foyer_a_deux_abonnements_et_un_achat_frequent(db, compte_id=courant.id)
+    for jour in ("2026-09-08", "2026-10-08"):
+        make_mouvement(db, date=jour, libelle="Salle de sport", montant=-30.0, compte_id=joint.id)
+
+    assert budget_recurrences_service.cout_annuel_total(_detecter(db, compte_id=courant.id)) == Decimal("335.88")
+    assert budget_recurrences_service.cout_annuel_total(_detecter(db, compte_id=joint.id)) == Decimal("360.00")
+    assert budget_recurrences_service.cout_annuel_total(_detecter(db)) == Decimal("695.88")
+
+
+def test_total_annuel_ignore_les_categories_exclues_des_totaux(db):
+    exclue = CategorieBudget(user_id=ID_UTILISATEUR_TEST, nom="Virements internes", exclue_des_totaux=True)
+    db.add(exclue)
+    db.commit()
+    for jour in ("2026-09-05", "2026-10-05"):
+        make_mouvement(db, date=jour, libelle="VIR PERMANENT PEA", montant=-200.0, categorie_id=exclue.id)
+        make_mouvement(db, date=jour, libelle="Abonnement mensuel", montant=-10.0)
+
+    assert budget_recurrences_service.cout_annuel_total(_detecter(db)) == Decimal("120.00")

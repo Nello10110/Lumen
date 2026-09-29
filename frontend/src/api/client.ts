@@ -66,7 +66,8 @@ import type {
   ScorePatrimonial,
   AlerteFraicheurItem,
   ComparaisonInsee,
-  RecurrenceDetectee,
+  ApercuFusionCategorie,
+  RecurrencesBudget,
   RegleCategorisation,
   RegleReapplicationResult,
   SalaireDonnees,
@@ -617,6 +618,10 @@ export const api = {
   modifierCategorieBudget: (id: number, champs: { nom?: string; exclue_des_totaux?: boolean }) =>
     request<CategorieBudget>(`/budget/categories/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
   deleteCategorieBudget: (id: number) => request<void>(`/budget/categories/${id}`, { method: 'DELETE' }),
+  apercuFusionCategorieBudget: (id: number, cibleId: number) =>
+    request<ApercuFusionCategorie>(`/budget/categories/${id}/fusion?cible_id=${cibleId}`),
+  fusionnerCategorieBudget: (id: number, cibleId: number) =>
+    request<ApercuFusionCategorie>(`/budget/categories/${id}/fusion`, { method: 'POST', body: JSON.stringify({ cible_id: cibleId }) }),
 
   listReglesCategorisation: () => request<RegleCategorisation[]>('/budget/regles'),
   createRegleCategorisation: (motif: string, categorieId: number) =>
@@ -661,7 +666,7 @@ export const api = {
 
   // Récurrences et jonction patrimoine (backlog 2.N.3/2.N.4)
   getBudgetRecurrences: (compteId?: number | null) =>
-    request<RecurrenceDetectee[]>(`/budget/recurrences${compteId != null ? `?compte_id=${compteId}` : ''}`),
+    request<RecurrencesBudget>(`/budget/recurrences${compteId != null ? `?compte_id=${compteId}` : ''}`),
   getJonctionPatrimoine: (dateDebut: string, dateFin: string, compteId?: number | null) =>
     request<JonctionPatrimoine>(`/budget/jonction-patrimoine?date_debut=${dateDebut}&date_fin=${dateFin}${filtreCompte(compteId)}`),
 

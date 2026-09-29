@@ -1,4 +1,4 @@
-import type { CategorieBudget, RecurrenceDetectee } from '../api/types'
+import type { CategorieBudget, RecurrenceDetectee, RecurrencesBudget } from '../api/types'
 import Card from './Card'
 import { IconChevron } from './icons'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -22,10 +22,14 @@ const estPeriodique = (r: RecurrenceDetectee): r is Periodique => r.periodicite 
  * Seules les séries périodiques (mensuelle, trimestrielle, annuelle) forment la liste
  * principale. Les commerces fréquentés sans rythme (§ BM.2) — grande surface,
  * pharmacie, virements ponctuels — vont dans un bloc replié « Achats fréquents » : ce
- * ne sont pas des charges, et les mêler aux abonnements noierait ceux-ci. */
-export default function RecurrencesSection({ recurrences, categories }: { recurrences: RecurrenceDetectee[]; categories: CategorieBudget[] }) {
+ * ne sont pas des charges, et les mêler aux abonnements noierait ceux-ci.
+ *
+ * En tête de la liste, le total annuel des séries périodiques (§ BM.4) : calculé par le serveur, à partir
+ * des seules séries affichées — celles du compte filtré, hors catégories exclues des totaux. */
+export default function RecurrencesSection({ recurrences: donnees, categories }: { recurrences: RecurrencesBudget; categories: CategorieBudget[] }) {
   const { montantsMasques } = usePreferencesAffichage()
 
+  const recurrences = donnees.recurrences
   if (recurrences.length === 0) return null
 
   const periodiques = recurrences.filter(estPeriodique)
@@ -35,6 +39,14 @@ export default function RecurrencesSection({ recurrences, categories }: { recurr
   return (
     <Card title={t('recurrencesSection.chargesRecurrentesEtAbonnements')}>
       <p className="mb-3 text-xs text-texte-attenue">{t('recurrencesSection.detecteAutomatiquement')}</p>
+      {periodiques.length > 0 && (
+        <p className="mb-2 text-sm font-medium text-texte">
+          {t('recurrencesSection.totalAbonnements', {
+            annuel: formatEuro(donnees.cout_annuel_periodique, 2, montantsMasques),
+            mensuel: formatEuro(donnees.cout_mensuel_periodique, 2, montantsMasques),
+          })}
+        </p>
+      )}
       {periodiques.length > 0 && (
         <table className="w-full text-sm">
           <thead>

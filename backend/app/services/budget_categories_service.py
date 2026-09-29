@@ -5,7 +5,9 @@ réapplication en masse."""
 
 import re
 import unicodedata
+from dataclasses import dataclass
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..models import BudgetCible, CategorieBudget, MouvementBancaire, RegleCategorisation
@@ -185,6 +187,144 @@ def ids_categories_exclues(db: Session, user_id: int) -> set[int]:
     categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
     marquees = {c.id for c in categories if c.exclue_des_totaux}
     return marquees | {c.id for c in categories if c.parent_id in marquees}
+
+
+def alias_de(categorie: CategorieBudget) -> list[str]:
+    return [a for a in categorie.alias.split("\n") if a]
+
+
+def categorie_de_meme_nom(candidates: list[CategorieBudget], nom: str) -> CategorieBudget | None:
+    """Catégorie qui porte ce nom (normalisé) ou l'a absorbé par une fusion (§ BM.4). Le nom
+    exact l'emporte : une catégorie recréée sous un nom jadis fusionné n'est pas court-circuitée."""
+    cle = normaliser(nom)
+    exacte = next((c for c in candidates if normaliser(c.nom) == cle), None)
+    return exacte or next((c for c in candidates if cle in alias_de(c)), None)
+
+
+class FusionImpossibleError(ValueError):
+    """Fusion refusée (400) : distincte de « introuvable » (404), qui reste un `ValueError` simple."""
+
+
+@dataclass
+class ApercuFusion:
+    mouvements: int
+    regles: int
+    sous_categories_deplacees: int
+    sous_categories_fusionnees: int
+    budget_transfere: bool
+    budget_abandonne: bool
+    # Les mouvements changent de côté par rapport aux totaux : la cible ne suit pas la source.
+    exclusion_differente: bool
+
+
+@dataclass
+class _PlanFusion:
+    paires: list[tuple[CategorieBudget, CategorieBudget]]  # (absorbée, absorbante), racine de la fusion en tête
+    deplacees: list[tuple[CategorieBudget, CategorieBudget]]  # (sous-catégorie, nouveau parent)
+    apercu: ApercuFusion
+
+
+def _planifier_fusion(db: Session, user_id: int, source_id: int, cible_id: int) -> _PlanFusion:
+    categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
+    par_id = {c.id: c for c in categories}
+    source, cible = par_id.get(source_id), par_id.get(cible_id)
+    if source is None or cible is None:
+        raise ValueError("Catégorie introuvable")
+    if source is cible:
+        raise FusionImpossibleError("Une catégorie ne peut pas être fusionnée dans elle-même")
+    ancetre, vus = cible, set()
+    while ancetre.parent_id is not None and ancetre.id not in vus:
+        vus.add(ancetre.id)
+        if ancetre.parent_id == source.id:
+            raise FusionImpossibleError("Une catégorie ne peut pas être fusionnée dans l'une de ses sous-catégories")
+        ancetre = par_id[ancetre.parent_id]
+    if cible.parent_id is not None and any(c.parent_id == source.id for c in categories):
+        # L'arbre n'a que deux niveaux (`CategorieBudget`) : ses sous-catégories iraient au troisième.
+        raise FusionImpossibleError("Une catégorie qui a des sous-catégories ne peut pas être fusionnée dans une sous-catégorie")
+
+    paires = [(source, cible)]
+    deplacees: list[tuple[CategorieBudget, CategorieBudget]] = []
+    absorbees = {source.id}
+    i = 0
+    while i < len(paires):
+        absorbee, absorbante = paires[i]
+        i += 1
+        deja_la = [c for c in categories if c.parent_id == absorbante.id and c.id not in absorbees]
+        for enfant in (c for c in categories if c.parent_id == absorbee.id):
+            homologue = categorie_de_meme_nom(deja_la, enfant.nom)
+            if homologue is None:
+                deplacees.append((enfant, absorbante))
+            else:
+                paires.append((enfant, homologue))
+                absorbees.add(enfant.id)
+
+    ids = [s.id for s, _ in paires]
+    budgets = {b.categorie_id for b in db.query(BudgetCible).filter(BudgetCible.user_id == user_id)}
+    exclues = ids_categories_exclues(db, user_id)
+    apercu = ApercuFusion(
+        mouvements=db.query(func.count(MouvementBancaire.id))
+        .filter(
+            MouvementBancaire.user_id == user_id,
+            or_(MouvementBancaire.categorie_id.in_(ids), MouvementBancaire.categorie_banque_id.in_(ids)),
+        )
+        .scalar(),
+        regles=db.query(func.count(RegleCategorisation.id))
+        .filter(RegleCategorisation.user_id == user_id, RegleCategorisation.categorie_id.in_(ids))
+        .scalar(),
+        sous_categories_deplacees=len(deplacees),
+        sous_categories_fusionnees=len(paires) - 1,
+        budget_transfere=any(s.id in budgets and c.id not in budgets for s, c in paires),
+        budget_abandonne=any(s.id in budgets and c.id in budgets for s, c in paires),
+        exclusion_differente=(source.id in exclues) != (cible.id in exclues),
+    )
+    return _PlanFusion(paires, deplacees, apercu)
+
+
+def apercu_fusion(db: Session, user_id: int, source_id: int, cible_id: int) -> ApercuFusion:
+    """Ce que la fusion déplacerait, sans rien modifier — de quoi confirmer en connaissance de cause."""
+    return _planifier_fusion(db, user_id, source_id, cible_id).apercu
+
+
+def fusionner_categories(db: Session, user_id: int, source_id: int, cible_id: int) -> ApercuFusion:
+    """Absorbe la source dans la cible : mouvements (catégorie ET catégorie de la banque), règles,
+    budget cible et sous-catégories passent à la cible, puis la source disparaît. Une
+    sous-catégorie de même nom des deux côtés est fusionnée à son tour. La cible garde son budget
+    cible, son drapeau d'exclusion et son nom ; la source lui laisse son nom et ses alias, pour
+    que le prochain import ne la recrée pas. Une catégorisation manuelle reste manuelle."""
+    plan = _planifier_fusion(db, user_id, source_id, cible_id)
+    budgets = {b.categorie_id: b for b in db.query(BudgetCible).filter(BudgetCible.user_id == user_id)}
+    for absorbee, absorbante in plan.paires:
+        for colonne in (MouvementBancaire.categorie_id, MouvementBancaire.categorie_banque_id):
+            db.query(MouvementBancaire).filter(MouvementBancaire.user_id == user_id, colonne == absorbee.id).update(
+                {colonne: absorbante.id}, synchronize_session=False
+            )
+        db.query(RegleCategorisation).filter(
+            RegleCategorisation.user_id == user_id, RegleCategorisation.categorie_id == absorbee.id
+        ).update({"categorie_id": absorbante.id}, synchronize_session=False)
+        budget = budgets.get(absorbee.id)
+        if budget is not None:
+            if absorbante.id in budgets:
+                db.delete(budget)
+            else:
+                budget.categorie_id = absorbante.id
+                budgets[absorbante.id] = budget
+        alias = alias_de(absorbante)
+        for nom in [normaliser(absorbee.nom), *alias_de(absorbee)]:
+            if nom != normaliser(absorbante.nom) and nom not in alias:
+                alias.append(nom)
+        absorbante.alias = "\n".join(alias)
+        # Le code repère la catégorie des indicateurs (épargne, logement) : elle ne doit pas
+        # le perdre en changeant de nom. Seule une racine en porte un (`categorie_racine_par_code`).
+        if absorbante.parent_id is None and absorbante.code is None:
+            absorbante.code = absorbee.code
+    for enfant, parent in plan.deplacees:
+        enfant.parent_id = parent.id
+    db.flush()
+    for absorbee, _ in reversed(plan.paires):
+        db.delete(absorbee)
+        db.flush()
+    db.commit()
+    return plan.apercu
 
 
 def delete_categorie(db: Session, user_id: int, categorie_id: int) -> None:

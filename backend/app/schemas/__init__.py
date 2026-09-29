@@ -37,6 +37,7 @@ from .authentification import (  # noqa: F401
     UserOut,
 )
 from .budget import (  # noqa: F401
+    ApercuFusionOut,
     BudgetCibleOut,
     BudgetCibleUpdate,
     BudgetColumnMapping,
@@ -48,10 +49,12 @@ from .budget import (  # noqa: F401
     CategorieBudgetUpdate,
     CompteImportBancaire,
     FormatBancaireOut,
+    FusionCategorieRequest,
     JonctionPatrimoine,
     MouvementBancaireOut,
     MouvementCategorisationUpdate,
     RecurrenceDetecteeOut,
+    RecurrencesOut,
     RegleCategorisationCreate,
     RegleCategorisationOut,
     RegleReapplicationResult,

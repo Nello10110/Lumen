@@ -33,6 +33,22 @@ class CategorieBudgetCreate(BaseModel):
         return v
 
 
+class FusionCategorieRequest(BaseModel):
+    cible_id: int
+
+
+class ApercuFusionOut(BaseModel):
+    """Ce qu'une fusion de catégories déplace (§ BM.4), montré avant confirmation."""
+
+    mouvements: int
+    regles: int
+    sous_categories_deplacees: int
+    sous_categories_fusionnees: int
+    budget_transfere: bool
+    budget_abandonne: bool
+    exclusion_differente: bool
+
+
 class CategorieBudgetUpdate(BaseModel):
     """Renommage et/ou exclusion des totaux (§ BM.3) : un champ absent reste inchangé."""
 
@@ -221,6 +237,14 @@ class RecurrenceDetecteeOut(BaseModel):
     # pas combien de fois par an elle reviendra.
     cout_annuel_estime: float | None
     total_periode: float  # somme des occurrences de la fenêtre observée
+
+
+class RecurrencesOut(BaseModel):
+    recurrences: list[RecurrenceDetecteeOut]
+    # Somme des `cout_annuel_estime` des séries périodiques renvoyées (§ BM.4), et sa part
+    # mensuelle : calculées ici pour que l'écran n'additionne pas des montants.
+    cout_annuel_periodique: float
+    cout_mensuel_periodique: float
 
 
 class JonctionPatrimoine(BaseModel):

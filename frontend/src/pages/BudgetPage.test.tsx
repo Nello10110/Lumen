@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { BudgetSummary, CategorieBudget, Compte, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
+import type { ApercuFusionCategorie, BudgetSummary, CategorieBudget, Compte, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
 import BudgetPage from './BudgetPage'
 
 vi.mock('../api/client', () => ({
@@ -15,6 +15,8 @@ vi.mock('../api/client', () => ({
     createCategorieBudget: vi.fn(),
     modifierCategorieBudget: vi.fn(),
     deleteCategorieBudget: vi.fn(),
+    apercuFusionCategorieBudget: vi.fn(),
+    fusionnerCategorieBudget: vi.fn(),
     createRegleCategorisation: vi.fn(),
     deleteRegleCategorisation: vi.fn(),
     reappliquerReglesCategorisation: vi.fn(),
@@ -110,6 +112,8 @@ function mockChargement(overrides: {
   categories?: CategorieBudget[]
   regles?: RegleCategorisation[]
   recurrences?: RecurrenceDetectee[]
+  // Total renvoyé par le serveur ; à défaut, la somme des coûts annuels des séries fournies.
+  totalRecurrences?: { annuel: number; mensuel: number }
   jonction?: JonctionPatrimoine
   comptes?: Compte[]
 } = {}) {
@@ -117,7 +121,13 @@ function mockChargement(overrides: {
   vi.mocked(api.listMouvementsBancaires).mockResolvedValue(overrides.mouvements ?? [mouvement()])
   vi.mocked(api.listCategoriesBudget).mockResolvedValue(overrides.categories ?? [categorie()])
   vi.mocked(api.listReglesCategorisation).mockResolvedValue(overrides.regles ?? [regle()])
-  vi.mocked(api.getBudgetRecurrences).mockResolvedValue(overrides.recurrences ?? [])
+  const recurrences = overrides.recurrences ?? []
+  const annuel = overrides.totalRecurrences?.annuel ?? recurrences.reduce((somme, r) => somme + (r.cout_annuel_estime ?? 0), 0)
+  vi.mocked(api.getBudgetRecurrences).mockResolvedValue({
+    recurrences,
+    cout_annuel_periodique: annuel,
+    cout_mensuel_periodique: overrides.totalRecurrences?.mensuel ?? annuel / 12,
+  })
   vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
     overrides.jonction ?? jonction({ taux_epargne_reel_pct: null, reste_a_vivre: null }),
   )
@@ -456,6 +466,137 @@ describe('BudgetPage — récurrences et abonnements (backlog 2.N.3)', () => {
 
     await screen.findByText('Aucun mouvement bancaire importé pour cette période.')
     expect(screen.getByText('Charges récurrentes et abonnements')).toBeInTheDocument()
+  })
+})
+
+describe('BudgetPage — total annuel des abonnements (§ BM.4)', () => {
+  const texteTotal = async () => (await screen.findByText(/Abonnements et prélèvements/)).textContent?.replace(/\s/g, ' ')
+
+  it('affiche en tête de la liste le total par an et par mois donné par le serveur', async () => {
+    mockChargement({
+      recurrences: [recurrence(), recurrence({ libelle: 'Cotisation', periodicite: 'trimestrielle', cout_annuel_estime: 180 })],
+      totalRecurrences: { annuel: 335.88, mensuel: 27.99 },
+    })
+    render(<BudgetPage />)
+
+    expect(await texteTotal()).toBe('Abonnements et prélèvements : 335,88 €/an · 27,99 €/mois')
+    const total = screen.getByText(/Abonnements et prélèvements/)
+    const liste = screen.getByText('Netflix').closest('table') as HTMLElement
+    expect(total.compareDocumentPosition(liste) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("n'affiche pas de total quand seuls des achats fréquents sont détectés", async () => {
+    mockChargement({ recurrences: [recurrence({ libelle: 'Supermarché', periodicite: 'irreguliere', cout_annuel_estime: null })] })
+    render(<BudgetPage />)
+
+    await screen.findByText(/Achats fréquents/)
+    expect(screen.queryByText(/Abonnements et prélèvements/)).not.toBeInTheDocument()
+  })
+})
+
+describe('BudgetPage — fusion de catégories (§ BM.4)', () => {
+  beforeEach(() => {
+    vi.mocked(api.fusionnerCategorieBudget).mockClear()
+  })
+
+  const transports = () => categorie({ id: 2, nom: 'Transports' })
+  const train = () => categorie({ id: 3, nom: 'Train', parent_id: 2 })
+  const apercu = (surcharges: Partial<ApercuFusionCategorie> = {}): ApercuFusionCategorie => ({
+    mouvements: 12,
+    regles: 2,
+    sous_categories_deplacees: 1,
+    sous_categories_fusionnees: 0,
+    budget_transfere: false,
+    budget_abandonne: false,
+    exclusion_differente: false,
+    ...surcharges,
+  })
+
+  async function ouvrirLaFusion() {
+    await screen.findByPlaceholderText('Nouvelle catégorie')
+    fireEvent.click(screen.getByRole('button', { name: 'Fusionner Transports dans une autre catégorie' }))
+    return await screen.findByRole('dialog')
+  }
+
+  it('propose les autres catégories seulement, récapitule ce qui sera déplacé puis fusionne après confirmation', async () => {
+    mockChargement({ categories: [categorie(), transports(), train()] })
+    vi.mocked(api.apercuFusionCategorieBudget).mockResolvedValue(apercu({ budget_abandonne: true }))
+    vi.mocked(api.fusionnerCategorieBudget).mockResolvedValue(apercu())
+    render(<BudgetPage />)
+
+    const dialogue = await ouvrirLaFusion()
+    const liste = within(dialogue).getByRole('combobox', { name: 'Catégorie qui absorbe « Transports »' })
+    // Ni elle-même, ni sa sous-catégorie.
+    expect(within(liste).getAllByRole('option').map((o) => o.textContent)).toEqual(['— Choisir la catégorie —', 'Transport'])
+    expect(within(dialogue).getByRole('button', { name: 'Fusionner' })).toBeDisabled()
+
+    fireEvent.change(liste, { target: { value: '1' } })
+
+    expect(await within(dialogue).findByText('12 mouvements passeront dans « Transport ».')).toBeInTheDocument()
+    expect(api.apercuFusionCategorieBudget).toHaveBeenCalledWith(2, 1)
+    expect(within(dialogue).getByText('2 règles de catégorisation seront redirigées vers « Transport ».')).toBeInTheDocument()
+    expect(within(dialogue).getByText('1 sous-catégorie sera rattachée à « Transport ».')).toBeInTheDocument()
+    expect(within(dialogue).getByText('« Transport » a déjà un budget cible : il est conservé, celui de « Transports » est abandonné.')).toBeInTheDocument()
+    expect(within(dialogue).getByText(/Aux prochains imports de relevé, ce que la banque appelle « Transports » sera rangé dans « Transport »/)).toBeInTheDocument()
+    expect(within(dialogue).getByText('Cette fusion est définitive.')).toBeInTheDocument()
+    expect(api.fusionnerCategorieBudget).not.toHaveBeenCalled()
+
+    const appelsAvant = vi.mocked(api.getBudgetSummary).mock.calls.length
+    fireEvent.click(within(dialogue).getByRole('button', { name: 'Fusionner' }))
+
+    await waitFor(() => expect(api.fusionnerCategorieBudget).toHaveBeenCalledWith(2, 1))
+    await waitFor(() => expect(vi.mocked(api.getBudgetSummary).mock.calls.length).toBeGreaterThan(appelsAvant))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it("n'annonce le budget, les sous-catégories et l'exclusion que lorsqu'ils sont concernés", async () => {
+    mockChargement({ categories: [categorie(), transports()] })
+    vi.mocked(api.apercuFusionCategorieBudget).mockResolvedValue(
+      apercu({ sous_categories_deplacees: 0, budget_transfere: true, exclusion_differente: true }),
+    )
+    render(<BudgetPage />)
+
+    const dialogue = await ouvrirLaFusion()
+    fireEvent.change(within(dialogue).getByRole('combobox'), { target: { value: '1' } })
+
+    expect(await within(dialogue).findByText('Le budget cible de « Transports » sera repris par « Transport ».')).toBeInTheDocument()
+    expect(within(dialogue).getByText(/ne sont pas traitées pareil pour les totaux/)).toBeInTheDocument()
+    expect(within(dialogue).queryByText(/sous-catégorie/)).not.toBeInTheDocument()
+  })
+
+  it('annuler ne fusionne rien', async () => {
+    mockChargement({ categories: [categorie(), transports()] })
+    render(<BudgetPage />)
+
+    const dialogue = await ouvrirLaFusion()
+    fireEvent.click(within(dialogue).getByRole('button', { name: 'Annuler' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.fusionnerCategorieBudget).not.toHaveBeenCalled()
+  })
+
+  it('une catégorie qui a des sous-catégories ne peut pas être fusionnée dans une sous-catégorie', async () => {
+    mockChargement({ categories: [categorie(), categorie({ id: 4, nom: 'Sorties', parent_id: 1 }), transports(), train()] })
+    render(<BudgetPage />)
+
+    const dialogue = await ouvrirLaFusion()
+
+    expect(within(dialogue).getAllByRole('option').map((o) => o.textContent)).toEqual(['— Choisir la catégorie —', 'Transport'])
+  })
+
+  it('affiche le refus du serveur sans fermer la fenêtre', async () => {
+    mockChargement({ categories: [categorie(), transports()] })
+    vi.mocked(api.apercuFusionCategorieBudget).mockResolvedValue(apercu())
+    vi.mocked(api.fusionnerCategorieBudget).mockRejectedValue(new Error('Catégorie introuvable'))
+    render(<BudgetPage />)
+
+    const dialogue = await ouvrirLaFusion()
+    fireEvent.change(within(dialogue).getByRole('combobox'), { target: { value: '1' } })
+    await within(dialogue).findByText('Cette fusion est définitive.')
+    fireEvent.click(within(dialogue).getByRole('button', { name: 'Fusionner' }))
+
+    expect(await within(dialogue).findByRole('alert')).toHaveTextContent('Catégorie introuvable')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })
 

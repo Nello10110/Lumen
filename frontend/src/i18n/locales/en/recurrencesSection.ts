@@ -19,6 +19,7 @@ const recurrencesSection: Structure<typeof fr> = {
   achatsFrequents: "Frequent purchases",
   achatsFrequentsAide: "Merchants or transfers that recur without a regular rhythm: they are not counted as recurring charges.",
   totalObserve: "Total over the observed period",
+  totalAbonnements: "Subscriptions and direct debits: {annuel}/year · {mensuel}/month",
 }
 
 export default recurrencesSection

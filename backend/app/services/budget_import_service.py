@@ -241,7 +241,8 @@ def parse_qif(content: bytes) -> list[MouvementBrut]:
 class _CategoriesDeLaBanque:
     """Arborescence de la banque reportée dans les catégories du foyer, au fil de
     l'import : une catégorie de même nom normalisé au même niveau est réutilisée
-    (« Logement » par défaut de Lumen, ou celle d'un import précédent), sinon créée
+    (« Logement » par défaut de Lumen, celle d'un import précédent, ou celle qui a absorbé ce
+    nom par une fusion, § BM.4), sinon créée
     sous le nom que lui donne la banque. `categories_exclues` : racines créées exclues
     des totaux — une catégorie déjà présente garde le choix de l'utilisateur."""
 
@@ -252,15 +253,14 @@ class _CategoriesDeLaBanque:
         self._categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).order_by(CategorieBudget.id).all()
 
     def _trouver_ou_creer(self, nom: str, parent_id: int | None) -> CategorieBudget:
-        cle = normaliser(nom)
-        existante = next((c for c in self._categories if c.parent_id == parent_id and normaliser(c.nom) == cle), None)
+        existante = budget_categories_service.categorie_de_meme_nom([c for c in self._categories if c.parent_id == parent_id], nom)
         if existante is not None:
             return existante
         creee = CategorieBudget(
             user_id=self._user_id,
             nom=nom,
             parent_id=parent_id,
-            exclue_des_totaux=parent_id is None and cle in self._categories_exclues,
+            exclue_des_totaux=parent_id is None and normaliser(nom) in self._categories_exclues,
         )
         self._db.add(creee)
         self._db.flush()  # id nécessaire à la sous-catégorie et au mouvement

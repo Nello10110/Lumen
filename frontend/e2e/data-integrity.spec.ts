@@ -65,7 +65,7 @@ test.describe('Cohérence des agrégats (API directe)', () => {
 
   test('3 récurrences détectées (loyer, épargne, courses)', async ({ request }) => {
     const res = await request.get('/api/budget/recurrences', { headers })
-    const recurrences = await res.json()
+    const { recurrences } = await res.json()
     const libelles = recurrences.map((r: { libelle: string }) => r.libelle).sort()
     expect(libelles).toEqual(['Loyer appartement', 'Supermarche Leclerc', 'Virement vers Livret A'])
     for (const r of recurrences) expect(r.periodicite).toBe('mensuelle')

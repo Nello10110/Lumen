@@ -15,6 +15,7 @@ from ..database import get_db
 from ..i18n import tr
 from ..models import SOURCE_IMPORT_BANCAIRE, Compte, Etablissement, User
 from ..schemas import (
+    ApercuFusionOut,
     BudgetCibleOut,
     BudgetCibleUpdate,
     BudgetColumnMapping,
@@ -27,10 +28,11 @@ from ..schemas import (
     CompteImportBancaire,
     CompteOut,
     FormatBancaireOut,
+    FusionCategorieRequest,
     JonctionPatrimoine,
     MouvementBancaireOut,
     MouvementCategorisationUpdate,
-    RecurrenceDetecteeOut,
+    RecurrencesOut,
     RegleCategorisationCreate,
     RegleCategorisationOut,
     RegleReapplicationResult,
@@ -81,6 +83,28 @@ def modifier_categorie(
             nom=payload.nom,
             exclue_des_totaux=payload.exclue_des_totaux,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/categories/{categorie_id}/fusion", response_model=ApercuFusionOut)
+def apercu_fusion(categorie_id: int, cible_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        return budget_categories_service.apercu_fusion(db, auth_service.id_foyer(current_user), categorie_id, cible_id)
+    except budget_categories_service.FusionImpossibleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/categories/{categorie_id}/fusion", response_model=ApercuFusionOut)
+def fusionner_categorie(
+    categorie_id: int, payload: FusionCategorieRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    try:
+        return budget_categories_service.fusionner_categories(db, auth_service.id_foyer(current_user), categorie_id, payload.cible_id)
+    except budget_categories_service.FusionImpossibleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -386,9 +410,15 @@ def summary(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/recurrences", response_model=list[RecurrenceDetecteeOut])
+@router.get("/recurrences", response_model=RecurrencesOut)
 def recurrences(compte_id: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return budget_recurrences_service.detect_recurrences(db, auth_service.id_foyer(current_user), compte_id=compte_id)
+    detectees = budget_recurrences_service.detect_recurrences(db, auth_service.id_foyer(current_user), compte_id=compte_id)
+    cout_annuel = budget_recurrences_service.cout_annuel_total(detectees)
+    return {
+        "recurrences": detectees,
+        "cout_annuel_periodique": cout_annuel,
+        "cout_mensuel_periodique": round(cout_annuel / 12, 2),
+    }
 
 
 @router.get("/jonction-patrimoine", response_model=JonctionPatrimoine)

@@ -38,8 +38,9 @@ au § 4.2.
   établissements, comptes utilisateurs propriétaire/membre/invité, liens de partage révocables ;
 - **budget** : import CSV/OFX/QIF rattaché à un compte du foyer (paiements identiques conservés),
   relevé Caisse d'Épargne reconnu et ses catégories reprises, virements internes exclus des totaux,
-  filtre par compte, catégorisation par règles explicites,
-  abonnements mensuels, trimestriels et annuels avec leur coût annuel et l'évolution de leur prix,
+  filtre par compte, catégorisation par règles explicites, fusion de deux catégories,
+  abonnements mensuels, trimestriels et annuels avec leur coût annuel, son total et l'évolution
+  de leur prix,
   taux d'épargne ;
 - **analyse et projection** : historique du patrimoine, métriques avancées, simulateur et
   indépendance financière, rapports périodiques, relevé PDF ;
@@ -7537,6 +7538,80 @@ dans chaque indicateur, héritage, marquage/démarquage, IDOR, export/import, mi
 sous-catégorie exclue avec sa catégorie, mouvement marqué). Suites : serveur 1 617 verts (9 ignorés ;
 l'échec préexistant `test_fraicheur_donnees_service` toujours présent), interface 903, Playwright
 budget/import/intégrité/sauvegarde 14 verts.
+
+
+#### BM.4 — `majeur` · `M` · `traité` (29/09/2026) · `P2` — Fusionner deux catégories, total annuel des abonnements
+
+**Constat** : au premier import d'un relevé, les catégories de la banque (« Transports », « Loisirs et
+vacances ») cohabitent avec celles par défaut de Lumen (« Transport », « Loisirs ») : deux catégories
+pour un même sens, sans moyen de les réunir. Et la liste des abonnements montrait chaque coût annuel,
+sans dire ce que l'ensemble coûte.
+
+**Fusion de catégories**
+
+- **Action** « Fusionner dans… » sur chaque catégorie et sous-catégorie de la section « Catégories et
+  règles » du Budget (`FusionCategorieModale`). Une fenêtre demande la catégorie qui absorbe (jamais
+  elle-même, ni une de ses sous-catégories ; une catégorie qui a des sous-catégories ne se propose pas
+  la fusion dans une sous-catégorie), récapitule ce qui va bouger — nombre de mouvements, de règles, de
+  sous-catégories déplacées ou fusionnées, budget cible repris ou abandonné, écart d'exclusion des
+  totaux — et rappelle que la fusion est définitive. Patron de confirmation : la `Modale` déjà
+  utilisée pour supprimer une ligne du portefeuille. L'aperçu (`GET /api/budget/categories/{id}/fusion
+  ?cible_id=`) et l'exécution (`POST` au même chemin, corps `{cible_id}`) partagent le même calcul
+  (`budget_categories_service._planifier_fusion`) : le récapitulatif est exactement ce qui sera fait.
+- **Ce qui passe à la cible** : les mouvements (`categorie_id` ET `categorie_banque_id`, sans toucher
+  au drapeau « catégorisé manuellement » : une correction manuelle reste manuelle), les règles de
+  catégorisation, le budget cible, les sous-catégories. Budget cible : repris si la cible n'en a pas ;
+  si elle en a un, **celui de la cible est gardé et celui de la source abandonné** (annoncé dans la
+  confirmation). Sous-catégories : rattachées à la cible ; une sous-catégorie de même nom normalisé (ou
+  déjà absorbée sous ce nom) des deux côtés est **fusionnée** à son tour, récursivement. Le drapeau
+  « exclue des totaux » de la cible est conservé (la confirmation le signale si source et cible
+  n'étaient pas traitées pareil, puisque les mouvements changent alors de côté). Le code d'une
+  catégorie par défaut (`epargne`, `logement`), qui repère celle des indicateurs, passe à la cible si
+  celle-ci est une racine sans code : « Épargne » fusionnée dans « Placements » reste la catégorie du
+  taux d'épargne.
+- **Refus** (400) : fusion dans elle-même, dans l'une de ses descendantes, ou création d'un troisième
+  niveau (catégorie à sous-catégories fusionnée dans une sous-catégorie). Une catégorie inconnue ou
+  d'un autre foyer : 404, sans rien modifier.
+- **Piège de l'import : les noms absorbés sont mémorisés.** L'import (BM.3) réutilise une catégorie de
+  même nom normalisé, sinon crée celle de la banque : « Transports » fusionnée dans « Transport »
+  aurait été recréée au relevé suivant. La catégorie absorbante garde donc, en **alias**, le nom
+  normalisé de la source et tous les alias qu'avait déjà la source ; l'import cherche d'abord le nom
+  exact, puis les alias, au même niveau de l'arbre. Chaîne : A fusionnée dans B, puis B dans C → A et B
+  sont alias de C. Le nom exact l'emporte : une catégorie recréée à la main sous un ancien nom fusionné
+  n'est pas court-circuitée. Un nom identique à celui de la cible (à la casse et aux accents près) n'est
+  pas stocké.
+- **Stockage des alias** : colonne `categories_budget.alias` (texte, un nom normalisé par ligne), plutôt
+  qu'une table dédiée. Une table aurait exigé sa propre politique de séparation des foyers (§ BI.5),
+  son entrée dans l'export/import et son remappage d'identifiants ; la colonne suit sa catégorie —
+  ligne de foyer déjà protégée, exportée telle quelle. Texte simple plutôt que JSON : un export édité à
+  la main ne peut pas la corrompre. Migration `a5d9f3b7c2e4` (mode batch, descente testée) ; un ancien
+  export sans la colonne s'importe (alias vides).
+- **Limite assumée** : l'alias vaut au niveau où la catégorie a été absorbée. Une sous-catégorie fusionnée
+  dans une catégorie d'un autre niveau (ou d'un autre parent) ne fait pas barrage à la recréation
+  de la sous-catégorie de la banque au prochain import.
+
+**Total annuel des abonnements**
+
+`GET /api/budget/recurrences` renvoie désormais `{recurrences, cout_annuel_periodique,
+cout_mensuel_periodique}` (et non plus la liste seule) : la somme des `cout_annuel_estime` des séries
+périodiques (mensuelles, trimestrielles, annuelles), en `Decimal` arrondi au centime, et sa part mensuelle
+(/ 12). Les achats fréquents irréguliers n'ont pas de coût annuel : ils n'y comptent pas. Le total suit
+le même jeu de mouvements que la liste — filtre par compte, catégories exclues des totaux écartées
+(`mouvements_comptabilises`). L'écran l'affiche en tête de la liste : « Abonnements et prélèvements :
+X €/an · Y €/mois » ; rien sans série périodique.
+
+**Sécurité** : source et cible sont cherchées dans le seul foyer courant (404 sinon, y compris pour
+l'aperçu) ; toutes les mises à jour de mouvements, règles et budgets sont bornées par `user_id`. Aucune
+nouvelle table, donc rien à ajouter à la séparation des foyers sous Postgres.
+
+**Tests** : serveur 26 (`test_budget_fusion_categories.py` : mouvements des deux colonnes, manuel
+conservé, règles, budget cible dans les deux cas, sous-catégories rattachées et fusionnées, exclusion,
+code hérité, aperçu sans effet, refus soi-même / descendante / troisième niveau / introuvable, ré-import
+qui ne recrée pas la catégorie de la banque, alias en chaîne, nom exact prioritaire, export/import,
+ancien export, routes, IDOR, migration montée et descente) et 6 pour le total (somme, filtre par compte,
+exclusion, irréguliers écartés, route) ; interface 7 (action, liste des cibles, récapitulatif,
+confirmation puis appel, annulation, refus du serveur, total affiché et absent). L'écran Budget
+n'a pas d'étape dans l'assistant de bienvenue : la fusion n'a de sens qu'après un premier import.
 
 ---
 

@@ -17,6 +17,7 @@ const recurrencesSection = {
   achatsFrequents: "Achats fréquents",
   achatsFrequentsAide: "Commerces ou virements qui reviennent sans rythme régulier : ils ne sont pas comptés dans les charges récurrentes.",
   totalObserve: "Total sur la période observée",
+  totalAbonnements: "Abonnements et prélèvements : {annuel}/an · {mensuel}/mois",
 } as const
 
 export default recurrencesSection

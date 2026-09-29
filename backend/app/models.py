@@ -982,6 +982,11 @@ class CategorieBudget(Base):
     # comptent dans aucun total du budget (virements entre ses propres comptes, qui
     # gonfleraient sinon entrées ET sorties).
     exclue_des_totaux: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # § BM.4 : noms (normalisés, un par ligne) de catégories fusionnées dans celle-ci. L'import
+    # d'un relevé y range les mouvements que la banque étiquette de ce nom, au lieu de recréer
+    # la catégorie absorbée. Une colonne de texte plutôt qu'une table : rien à ajouter à la
+    # séparation des foyers ni à l'export, et un fichier édité à la main ne peut pas la casser.
+    alias: Mapped[str] = mapped_column(Text, default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

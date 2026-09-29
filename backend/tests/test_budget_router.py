@@ -220,7 +220,7 @@ def test_recurrences(client):
     client.post("/api/budget/import/qif", files={"file": ("r.qif", qif, "text/plain")}, data=NOUVEAU_COMPTE)
     reponse = client.get("/api/budget/recurrences")
     assert reponse.status_code == 200
-    body = reponse.json()
+    body = reponse.json()["recurrences"]
     assert len(body) == 1
     assert body[0]["libelle"] == "Netflix"
     assert body[0]["occurrences"] == 2
@@ -410,8 +410,8 @@ def test_recurrences_filtrees_par_compte(client, db):
     qif = "".join(f"D{d.month:02d}/{d.day:02d}/{d.year}\nT-12.99\nPNetflix\n^\n" for d in dates).encode()
     _importer(client, "qif", {"compte_id": courant.id}, qif)
 
-    assert len(client.get("/api/budget/recurrences", params={"compte_id": courant.id}).json()) == 1
-    assert client.get("/api/budget/recurrences", params={"compte_id": joint.id}).json() == []
+    assert len(client.get("/api/budget/recurrences", params={"compte_id": courant.id}).json()["recurrences"]) == 1
+    assert client.get("/api/budget/recurrences", params={"compte_id": joint.id}).json()["recurrences"] == []
 
 
 def test_comptes_proposes_au_filtre(client, db):
@@ -484,7 +484,7 @@ def test_recurrences_exposent_periodicite_cout_annuel_et_evolution_du_prix(clien
     ).encode()
     client.post("/api/budget/import/qif", files={"file": ("r.qif", qif, "text/plain")}, data=NOUVEAU_COMPTE)
 
-    (recurrence,) = client.get("/api/budget/recurrences").json()
+    (recurrence,) = client.get("/api/budget/recurrences").json()["recurrences"]
 
     assert recurrence["periodicite"] == "mensuelle"
     assert recurrence["occurrences"] == 3
@@ -494,3 +494,21 @@ def test_recurrences_exposent_periodicite_cout_annuel_et_evolution_du_prix(clien
     assert recurrence["hausse_prix"] is True
     assert recurrence["cout_annuel_estime"] == 130.8
     assert recurrence["total_periode"] == 31.2
+
+
+def test_recurrences_exposent_le_total_annuel_et_mensuel_des_series_periodiques(client):
+    aujourdhui = date.today()
+    dates = (_mois_precedent(aujourdhui, 2), _mois_precedent(aujourdhui, 1))
+    qif = "".join(f"D{d.month:02d}/{d.day:02d}/{d.year}\nT-12.99\nPNetflix\n^\n" for d in dates).encode()
+    client.post("/api/budget/import/qif", files={"file": ("r.qif", qif, "text/plain")}, data=NOUVEAU_COMPTE)
+
+    corps = client.get("/api/budget/recurrences").json()
+
+    assert corps["cout_annuel_periodique"] == 155.88
+    assert corps["cout_mensuel_periodique"] == 12.99
+
+
+def test_recurrences_sans_serie_periodique_totalisent_zero(client):
+    corps = client.get("/api/budget/recurrences").json()
+
+    assert corps == {"recurrences": [], "cout_annuel_periodique": 0.0, "cout_mensuel_periodique": 0.0}

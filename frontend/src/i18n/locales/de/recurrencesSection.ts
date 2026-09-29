@@ -19,6 +19,7 @@ const recurrencesSection: Structure<typeof fr> = {
   achatsFrequents: "Häufige Käufe",
   achatsFrequentsAide: "Händler oder Überweisungen, die ohne festen Rhythmus wiederkehren: Sie zählen nicht zu den wiederkehrenden Kosten.",
   totalObserve: "Summe im beobachteten Zeitraum",
+  totalAbonnements: "Abos und Lastschriften: {annuel}/Jahr · {mensuel}/Monat",
 }
 
 export default recurrencesSection
