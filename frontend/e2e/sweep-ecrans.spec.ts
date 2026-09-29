@@ -78,11 +78,25 @@ for (const { chemin, titre } of ROUTES_A_BALAYER) {
   })
 }
 
-test('les fiches détaillées (position, compte) s\'affichent sans erreur console', async ({ page }) => {
-  const { holdings, comptes } = seedData()
+test('les fiches détaillées (position, compte) s\'affichent sans erreur console', async ({ page, request }) => {
+  const { username, password, holdings, comptes } = seedData()
+  // Identifiants relus MAINTENANT, pas ceux écrits par le seed : `sauvegarde-donnees`
+  // (exécuté avant) réimporte tout le foyer avec des identifiants remappés. SQLite
+  // réattribue les mêmes valeurs, mais une séquence Postgres continue — l'identifiant
+  // du seed n'existe alors plus et la fiche affiche « Ligne introuvable ».
+  const login = await request.post('/api/auth/login', { data: { username, password } })
+  expect(login.ok()).toBeTruthy()
+  const { token } = await login.json()
+  const headers = { Authorization: `Bearer ${token}` }
+  const lignes: { id: number; ticker: string }[] = await (await request.get('/api/portfolio/holdings', { headers })).json()
+  const comptesActuels: { id: number; nom: string }[] = await (await request.get('/api/comptes', { headers })).json()
+  const appartement = lignes.find((l) => l.ticker === holdings.appartement.ticker)
+  const pea = comptesActuels.find((c) => c.nom === comptes.pea.nom)
+  expect(appartement, `ligne ${holdings.appartement.ticker} absente de l'API`).toBeDefined()
+  expect(pea, `compte ${comptes.pea.nom} absent de l'API`).toBeDefined()
   const erreurs = collecterErreursConsole(page)
 
-  await page.goto(`/patrimoine/${holdings.appartement.id}`)
+  await page.goto(`/patrimoine/${appartement!.id}`)
   await expect(page.getByRole('heading', { name: holdings.appartement.ticker })).toBeVisible()
   // Les trois onglets de la fiche, chacun montant des composants distincts.
   for (const onglet of ['Analyse', 'Paramètres', 'Aperçu']) {
@@ -90,7 +104,7 @@ test('les fiches détaillées (position, compte) s\'affichent sans erreur consol
     await expect(page.getByRole('tab', { name: onglet })).toHaveAttribute('aria-selected', 'true')
   }
 
-  await page.goto(`/comptes/${comptes.pea.id}`)
+  await page.goto(`/comptes/${pea!.id}`)
   await expect(page.getByRole('heading', { name: comptes.pea.nom }).first()).toBeVisible()
 
   expect(erreurs, `Erreurs console sur les fiches détaillées :\n${erreurs.join('\n')}`).toEqual([])
