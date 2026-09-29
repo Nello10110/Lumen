@@ -84,7 +84,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | La conception : une installation ne sait créer qu'un foyer | **Atelier avec l'utilisateur** sur les questions du § BK.2, avant tout code |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; aucun lot livré — une installation ne sait toujours créer qu'un foyer | Réalisation par lots : **BK.2a** (objet `Foyer`, invisible) à venir en premier, puis BK.2b à BK.2e (§ BK.2, point 9) |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -98,7 +98,7 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
 
 - **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : `traité (29/09/2026)`, vérifié par la CI ;
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
-  partagée. **À concevoir avec l'utilisateur avant tout code** — c'est le vrai sujet.
+  partagée. **Conception validée le 29/09/2026, premier lot BK.2a à venir** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -109,7 +109,7 @@ Et, au-delà de ces deux points :
 - **remplacer `yfinance`**, indépendamment de la licence : environ 200 Mo de l'image (§ BI.2) —
   **reporté par l'utilisateur** le 23/09/2026 ;
 - **les réglages d'installation** (`parametres`, `scheduled_job_config`, logo SSO) deviennent des
-  réglages d'opérateur, à sortir de l'écran Réglages des clients — lié à BK.2 (question 2).
+  réglages d'opérateur, à sortir de l'écran Réglages des clients — lié à BK.2 (lot BK.2d).
 
 ### 2.3 Côté installation de l'utilisateur (hors code)
 
@@ -7071,7 +7071,9 @@ profil en SQLite). Ce premier passage a aussi révélé deux défauts, corrigés
 
 Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'un foyer.
 
-#### BK.2 — `majeur` · `L` · `en attente d'arbitrage` · `P3` — Gestion des foyers sur une installation partagée
+#### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
+
+**État au 29/09/2026 : conception validée par l'utilisateur ; le premier lot est BK.2a** (§ 9). Aucun lot n'est encore livré.
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7114,9 +7116,369 @@ le repenser, et ces choix touchent le produit, pas seulement le code.
    croît avec le nombre de foyers. S'il y a monétisation, l'abonnement se rattache au foyer
    (cf. BF.1b pour la licence).
 
-**Démarche proposée** : un atelier sur ces sept questions, une fiche de conception validée
-(ajoutée ici), puis seulement le code — probablement un vrai objet `Foyer` en base, auquel
-`user_id` renverrait, plutôt que l'identifiant du propriétaire.
+**Fiche de conception — validée le 29/09/2026.** Elle reprend les décisions de l'atelier, les
+confronte au code réel et fixe un découpage ; les points que le code ne tranchait pas ont été
+arbitrés par l'utilisateur (§ 10, « Décisions »).
+
+##### Décisions de l'atelier du 29/09/2026
+
+1. **Usage** : homelab d'abord (plusieurs familles ou amis sur le serveur de l'utilisateur), version
+   hébergée publique possible plus tard — tout reste réglable par l'opérateur.
+2. **Naissance d'un foyer** : mode réglable par l'opérateur (fermé / sur invitation / inscription
+   libre avec e-mail vérifié). Le premier lot ne livre que « fermé » et « invitation » (lien à
+   transmettre soi-même, aucun serveur mail) ; l'inscription libre viendra avec la version hébergée.
+3. **Opérateur** : un rôle à part, hors de tout foyer ; il crée, suspend et supprime des foyers et
+   règle l'installation (tâches planifiées, SSO, logos…) sans jamais pouvoir voir un patrimoine.
+4. **Identifiant** : connexion par nom d'utilisateur, unique sur toute l'installation.
+5. **SSO** : un nouveau compte arrivant par SSO crée toujours son propre foyer.
+6. **Un même compte peut appartenir à plusieurs foyers**, avec un sélecteur de foyer.
+7. **Vie du foyer** : transférer la propriété ; faire partir un membre (les données restent au
+   foyer) ; supprimer un foyer entièrement (patrimoine, comptes, sessions, journal d'accès), par son
+   propriétaire ou par l'opérateur. Fusion de deux foyers : différée.
+8. Quotas, facturation, limitation d'abus : hors périmètre tant qu'il n'y a pas de version publique.
+
+##### 1. État actuel, relevé dans le code
+
+- **Un foyer n'est qu'un identifiant de compte.** `auth_service.id_foyer` renvoie
+  `user.owner_user_id or user.id` (`services/auth_service.py:62-67`), appelé 129 fois dans `app/`.
+  `User` porte `role` et `owner_user_id` (`models.py:884-921`) ; un propriétaire est son propre foyer.
+  `ROLES_ASSIGNABLES` exclut `proprietaire` (`models.py:875-881`) : il naît du premier compte.
+- **Naissance** : `register` refuse dès qu'un compte existe (`routers/auth.py:69`). Les autres comptes
+  sont créés par le propriétaire, mot de passe compris (`routers/auth.py:300-316`,
+  `owner_user_id=current_user.id`), listés, renommés, changés de rôle ou supprimés dans
+  `GestionFoyerCard.tsx` (routes `household-members`, contrôle IDOR par
+  `membre.owner_user_id != current_user.id`, lignes 359 et 375). Supprimer un membre supprime son
+  COMPTE, ses périmètres et ses sessions, et détache son journal (lignes 377-388).
+- **Invités** : `perimetres_invites (user_id = l'invité, detenteur_id)`, lu par
+  `detenteurs_service.perimetre_invite` (ligne 33) sans filtre de foyer — suffisant tant qu'un compte
+  n'a qu'un foyer.
+- **SSO** : `oidc_service.resoudre_ou_provisionner_utilisateur` (lignes 245-290) retrouve le compte
+  par `oidc_subject`, sinon **lie automatiquement un compte local du même nom d'utilisateur**
+  (lignes 273-278), sinon crée un compte : propriétaire s'il n'y en a aucun, sinon membre du foyer de
+  `db.query(User).filter(User.role == ROLE_PROPRIETAIRE).first()` (lignes 280-282). Sur une
+  installation à deux foyers, ce `.first()` rattacherait tout nouveau venu SSO au patrimoine d'un
+  foyer arbitraire. La liaison automatique par nom d'utilisateur permettrait, elle, une prise de
+  contrôle si le fournisseur SSO laissait choisir le nom : faille **connue, non exploitable avec le
+  fournisseur SSO actuel de l'installation** (ni inscription libre, ni choix du nom), corrigée avec le
+  lot BK.2d.
+- **Périmètre de la base** (`database.py:161-211`) : `set_config('app.foyer_id' / 'app.utilisateur_id'
+  / 'app.tous_foyers', …, true)` reposé à chaque transaction ; trois états (aucun, un foyer, tous).
+  Politiques (`alembic/versions/c3a8e1f0b6d2`) : 13 tables où `user_id` est le foyer (`holdings`,
+  `transactions`, `comptes`, `etablissements`, `detenteurs`, `loans`, `salaires`, `categories_budget`,
+  `mouvements_bancaires`, `regles_categorisation`, `budget_cibles`, `liens_partage`, `journal_import`),
+  6 tables filles par leur parent (`holding_valuation_history`, `holding_immobilier_details`,
+  `quotites_holdings`, `quotites_loans`, `partage_acces`, `perimetres_invites`), `user_parametres`
+  (foyer OU utilisateur connecté), `historique_cache` (par la clé). **Non filtrées** : `users`,
+  `auth_tokens`, `access_log_entries`.
+- **Journal d'accès** : `lister_journal_acces` est global (`auth_service.py:240-246`) — sur deux foyers,
+  chaque propriétaire verrait les connexions (et les noms d'utilisateur) de l'autre.
+- **Réglages** : d'installation dans `parametres` (`version_calcul_portefeuille`, logo SSO via
+  `logo_oidc_service`) et `scheduled_job_config` ; configuration SSO en variables d'environnement
+  (`PATRIMOINE_OIDC_*`). Du foyer dans `user_parametres` sous l'id du foyer (`methode_cout`,
+  `taux_imposition_pct`, `annee_naissance_foyer`, `budget_categories_initialisees`, `foyer_nom`,
+  `langue`), **mêlés** à une clé personnelle, `onboarding_termine`, sous l'id du compte
+  (`preferences_service.py:20-26`) — pour le propriétaire, les deux ids sont le même. Côté interface,
+  l'onglet Sécurité de Réglages mêle foyer et installation (`ReglagesPage.tsx:213-237` :
+  `GestionFoyerCard`, `LogoConnexionSsoCard`, sessions, journal), l'onglet Automatisations est de
+  l'installation.
+- **Liens de partage** : la route publique cherche le jeton sur tous les foyers puis se restreint au
+  foyer du lien, `fixer_foyer(db, lien.user_id, lien.user_id)` (`partage_service.py:87-92`).
+- **Tâches de fond** : `session_tous_foyers()` (planificateur, rafraîchissement des cours, démarrage).
+  Elles portent sur les données de marché, dont le volume dépend du nombre de titres distincts, pas
+  du nombre de foyers. Exception : `startup_maintenance` parcourt `User.id` pour reconstruire les
+  portefeuilles (ligne 97) — c'est une boucle sur les foyers qui s'ignore.
+- **Remise à zéro** : `donnees_service.reinitialiser_foyer` (lignes 300-336) efface le patrimoine, les
+  liens et les périmètres, jamais `users` / `auth_tokens` / `access_log_entries` ; la route calcule les
+  comptes du foyer par `User.id == foyer | User.owner_user_id == foyer` (`routers/donnees.py:131-134`).
+- **Export JSON** : `user_id` en est exclu (`donnees_service.py:178`) — le format ne dépend pas du nom
+  de la colonne de rattachement.
+
+##### 2. Modèle cible
+
+**`foyers`** : `id`, `nom`, `langue` (§ BL : réglage du foyer, défaut `fr`), `statut`
+(`actif` | `suspendu`), `cree_le`, `suspendu_le`, `derniere_activite` (affichée à l'opérateur).
+**`appartenances`** : `id`, `user_id`, `foyer_id`, `role` (`proprietaire` | `membre` | `invite`),
+`cree_le`, `assistant_termine_le` (l'assistant de bienvenue devient propre à chaque appartenance : le
+propriétaire d'un deuxième foyer doit le revoir), `derniere_utilisation` (foyer rouvert à la
+connexion). Contraintes : `UNIQUE (user_id, foyer_id)` ; **un seul propriétaire par foyer**, par un
+index unique partiel `ON appartenances (foyer_id) WHERE role = 'proprietaire'` (SQLite et Postgres le
+savent). Le périmètre d'un invité reste `perimetres_invites (user_id, detenteur_id)` : le détenteur
+désigne déjà le foyer ; `perimetre_invite` filtre en plus sur le foyer courant.
+**`foyer_parametres`** `(foyer_id, cle, valeur)` reçoit les réglages du foyer ; `user_parametres`
+disparaît (sa seule clé personnelle passe sur l'appartenance). **`users`** perd `role` et
+`owner_user_id`, gagne `est_operateur`.
+
+**Que devient `user_id` sur les 13 tables de données.** Trois options :
+
+| | A. Garder `user_id`, clé étrangère vers `foyers.id` | B. Renommer en `foyer_id` | C. A, puis B dans un lot à part |
+| --- | --- | --- | --- |
+| Données | Aucune valeur réécrite si `foyers.id` = id de l'ancien propriétaire | Idem | Idem |
+| Migration | 13 clés étrangères repointées (sous SQLite : reconstruction `batch` des 13 tables) | + 13 colonnes et contraintes `uq_*_user_*` renommées, 21 politiques recréées | A, puis B seule |
+| Code | ~680 occurrences de `user_id` dans 48 fichiers, ~290 dans les tests : inchangées | Toutes touchées, mêlées au changement de modèle | Deux diffs relisibles séparément |
+| Risque | Le nom ment : un `current_user.id` passé pour un foyer passe à la relecture | Gros diff mécanique qui masque les vraies modifications | Le nom ment le temps d'un lot |
+
+**Recommandation : C.** La vraie protection contre la confusion compte/foyer n'est pas le nom mais
+un test : dans la fixture de base, les ids de foyer sont **décalés** des ids de compte (un foyer
+fantôme créé d'abord), si bien qu'un `current_user.id` employé comme foyer échoue aussitôt.
+
+**Le rôle opérateur.** Un compte `est_operateur` à part, **sans aucune appartenance** (refusé par le
+service, et sous Postgres par une politique `WITH CHECK` sur `appartenances`), connexion par mot de
+passe local seulement (jamais provisionné par SSO). Sa session pose un quatrième état de périmètre,
+`app.operateur = on`, avec `app.foyer_id` vide : les politiques des 19 tables de patrimoine ne
+mentionnent pas `app.operateur`, **la base ne lui montre donc aucune ligne de patrimoine** quel que
+soit le code. Il voit `foyers`, `appartenances`, les métadonnées de `users` et le journal d'accès.
+Ses routes vivent dans un routeur à part (`/api/operateur`, dépendance `require_operateur`), et toutes
+les routes de foyer le refusent (403). Seule exception, la suppression d'un foyer, qui doit effacer
+des lignes de patrimoine : un service dédié ouvre le périmètre de CE foyer le temps d'une transaction
+qui n'exécute que des `DELETE` et ne renvoie que des compteurs (variante à vérifier sous Postgres :
+`ON DELETE CASCADE` depuis `foyers`, les actions référentielles contournant la RLS — l'opérateur
+n'ouvrirait alors jamais le périmètre ; sans effet sous SQLite, qui ne vérifie pas les clés).
+
+**Rôles par foyer.** Le rôle n'est plus un attribut du compte mais de l'appartenance au foyer
+courant. Pour limiter le diff, l'authentification pose deux attributs transitoires sur l'instance
+`User` : `foyer_courant_id` (lu par `id_foyer`, qui lève une erreur au lieu de retomber sur `user.id`)
+et `role` (lu tel quel par `require_role` et les 38 usages actuels).
+
+##### 3. Authentification et foyer courant
+
+- **Le foyer courant voyage avec la session**, côté serveur : `auth_tokens.foyer_id`. À la connexion,
+  il vaut le foyer de la dernière appartenance utilisée, ou `NULL` si le compte n'en a aucun. Changer
+  de foyer : `PUT /api/auth/foyer-courant {foyer_id}` met à jour la session ; l'interface recharge
+  alors tout son état. Écarté : un en-tête `X-Foyer` par requête (un identifiant fourni par le client
+  à chaque appel, donc une surface IDOR permanente, et rien de plus qu'un onglet par foyer).
+  Conséquence assumée : tous les onglets d'un navigateur partagent le même foyer.
+- **Vérification à chaque requête** : `get_current_user` joint `appartenances` et `foyers` sur
+  `(user, auth_tokens.foyer_id)` avec `statut = actif`. Appartenance retirée ou foyer suspendu : la
+  session repasse sans foyer immédiatement, sans attendre son expiration.
+- **Trois dépendances** au lieu d'une : `get_current_user` (compte authentifié, foyer facultatif —
+  routes `/api/auth/*`), `get_membre_foyer` (foyer courant exigé, branché sur tous les routeurs de
+  données à la place de `get_current_user` dans `main.py`) et `require_operateur`.
+- **Compte sans foyer** : `/api/auth/me` renvoie `foyers: []`, les routes de données répondent 403
+  avec un code dédié ; l'interface affiche un écran « Vous n'appartenez à aucun foyer » (coller un
+  lien d'invitation, créer un foyer si le mode l'autorise, supprimer son compte).
+- **Pour la RLS** : `fixer_foyer(db, foyer_courant, user.id)` inchangé ; `app.utilisateur_id` ne sert
+  plus à `user_parametres` mais aux politiques des nouvelles tables (§ 7).
+- **Liens de partage** : `lien.user_id` désigne déjà le foyer ; la route publique pose
+  `fixer_foyer(db, lien.user_id, "")` (plus de faux utilisateur) et répond 404 si le foyer est suspendu.
+- **Tâches de fond** : inchangées. `startup_maintenance` parcourt `foyers.id` au lieu de `User.id`.
+  Les titres des foyers suspendus peuvent être exclus du rafraîchissement (économie, sans enjeu).
+
+##### 4. Invitations
+
+Table `invitations` : `foyer_id` (`NULL` pour une invitation à **créer** un foyer), `role` proposé,
+`nom_foyer_propose`, `libelle` (pour qui, texte libre), `jeton_hash`, `cree_par`, `cree_le`,
+`expire_le`, `utilisee_le`, `utilisee_par`, `revoquee_le` ; périmètre d'invité dans
+`invitations_perimetres (invitation_id, detenteur_id)`, effacé avec le détenteur (même règle que
+`perimetres_invites` depuis § BI.4).
+
+- **Jeton** : `secrets.token_urlsafe(32)`, montré une seule fois ; en base, son **SHA-256** seulement
+  (un jeton aléatoire de 256 bits n'a pas besoin d'un hachage lent, et la recherche doit être
+  déterministe). Lien `…/invitation#<jeton>` : le fragment n'est envoyé ni au serveur ni dans le
+  `Referer`, il ne finit dans aucun journal de proxy ; la page le lit puis l'envoie en `POST`.
+- **Usage unique** : acceptation par un `UPDATE … SET utilisee_le = … WHERE jeton_hash = :h AND
+  utilisee_le IS NULL AND revoquee_le IS NULL AND expire_le > :maintenant`, qui doit toucher une ligne
+  — deux acceptations simultanées ne peuvent pas réussir toutes les deux. Réponse 404 identique pour
+  absent, expiré, révoqué ou déjà utilisé. Expiration au choix 1, 7 (défaut) ou 30 jours.
+- **Vers un nouveau compte** : la page propose de créer un compte (nom d'utilisateur, mot de passe,
+  langue de l'appareil) ou de passer par le SSO. **Vers un compte existant** : « J'ai déjà un compte »,
+  connexion, puis acceptation — l'appartenance s'ajoute, le sélecteur apparaît. Un compte déjà membre
+  du foyer : refus explicite. Un compte opérateur : refus.
+- **SSO et invitation** : le `state` signé (HMAC, `oidc_service`) porte un drapeau « ne pas créer de
+  foyer » ; au retour, l'interface accepte l'invitation qu'elle a gardée en `sessionStorage`. Sans ce
+  drapeau, la décision 5 créerait un foyer vide avant l'acceptation.
+- **Qui invite** : le propriétaire, vers SON foyer, en `membre` ou `invite` (jamais `proprietaire`).
+  L'opérateur, pour créer un foyer : invitation `foyer_id = NULL, role = proprietaire`, le foyer naît
+  à l'acceptation. Le rôle est figé à la création, côté serveur. Le propriétaire voit les invitations
+  en attente, les révoque, et voit qui a accepté.
+- **Création directe conservée** : le propriétaire peut toujours créer un compte avec un mot de passe
+  (utile pour un enfant sans e-mail ni SSO), membre de son seul foyer.
+
+##### 5. Cycle de vie
+
+- **Transfert de propriété** : le propriétaire choisit un membre ; en une transaction, l'ancien
+  propriétaire devient membre et l'autre propriétaire. Les données sont ancrées au foyer, plus au
+  compte : **aucune ligne à ré-ancrer**, ce qui lève l'obstacle relevé au § L.2 (16 tables à
+  réécrire). L'opérateur peut désigner un nouveau propriétaire parmi les membres si le propriétaire a
+  disparu (il ne voit pour cela que des noms de comptes).
+- **Départ d'un membre** (il part, ou le propriétaire le retire) : suppression de l'appartenance, de
+  ses `perimetres_invites` dans ce foyer, remise à `NULL` de `auth_tokens.foyer_id` pour ce foyer. Les
+  données restent au foyer. Le propriétaire ne peut pas partir sans transférer ; seul compte du foyer,
+  partir revient à supprimer le foyer. Le renommage d'un nom d'utilisateur par le propriétaire
+  (`routers/auth.py:361-364`) n'est plus permis que pour un compte qui n'appartient qu'à son foyer.
+- **Compte qui n'appartient plus à aucun foyer** : supprimé avec ses sessions (comportement actuel de
+  `delete_household_member`), sauf choix contraire de l'utilisateur (§ 10).
+- **Suspension** (opérateur) : `statut = suspendu` ; le foyer n'est plus sélectionnable, ses sessions
+  repassent sans foyer, ses liens de partage et invitations répondent 404, les données restent.
+  Réactivation symétrique.
+- **Suppression complète d'un foyer** (propriétaire avec confirmation par le nom, comme la remise à
+  zéro ; ou opérateur), une transaction, dans cet ordre :
+  1. `partage_acces`, `liens_partage`, `invitations_perimetres`, `invitations`, `perimetres_invites` ;
+  2. le patrimoine : `reinitialiser_foyer` existant (`holding_valuation_history`,
+     `holding_immobilier_details`, `quotites_holdings`, `quotites_loans`, puis les 13 tables) ;
+  3. `historique_cache` (clés `historique_portefeuille:{foyer}` et `historique_patrimoine:{foyer}:…`),
+     `foyer_parametres` ;
+  4. comptes dont c'était le seul foyer : `auth_tokens`, `access_log_entries` (par `user_id`, et les
+     lignes sans `user_id` dont `username_saisi` est le leur), puis `users` ;
+  5. autres comptes : `auth_tokens.foyer_id` remis à `NULL` ;
+  6. `appartenances`, puis `foyers`.
+  Non touchés : données de marché, `parametres`, `scheduled_job_config`. **Limite à documenter** : le
+  foyer effacé survit dans les sauvegardes chiffrées jusqu'à leur rotation. L'export JSON (§ Y.1) est
+  proposé avant la confirmation.
+- **Suppression de son propre compte** : retire toutes ses appartenances (refusée s'il est propriétaire
+  d'un foyer qui a d'autres membres, tant qu'il n'a pas transféré), puis le compte, ses sessions et son
+  journal.
+
+##### 6. Migration d'une installation existante, et installation neuve
+
+Une révision Alembic, données comprises, jouée sous les deux moteurs :
+
+1. **Foyers** : tout `user_id` présent dans l'une des 13 tables, et tout compte propriétaire, devient
+   un foyer **de même id** (`nom` et `langue` repris de `user_parametres`, `cree_le` = création du
+   compte). Aucune ligne de patrimoine n'est réécrite, aucune clé de cache ne change ; sous Postgres,
+   la séquence de `foyers` est recalée au plus grand id.
+2. **Appartenances** : `owner_user_id` non nul → `(compte, owner_user_id, role)` ; propriétaire →
+   `(compte, son id, proprietaire)`. Cas résiduel du défaut corrigé au § L.3 (compte SSO `membre` sans
+   `owner_user_id`) : s'il ne possède aucune donnée et qu'il existe un seul foyer, il en devient
+   membre ; sinon il reste sans foyer. Chaque cas est journalisé.
+3. `user_parametres` → `foyer_parametres`, `foyers.nom` / `langue`, et `appartenances.assistant_termine_le`
+   (la clé `onboarding_termine` de chaque compte) ; la table est supprimée.
+4. `auth_tokens.foyer_id` ← le foyer du compte : **les sessions ouvertes restent valides**, personne
+   n'est déconnecté.
+5. Clés étrangères des 13 tables vers `foyers.id` ; `users.role` et `owner_user_id` supprimés,
+   `est_operateur` ajouté ; politiques des nouvelles tables (Postgres).
+
+La descente reconstruit `role` / `owner_user_id` depuis les appartenances ; elle refuse, message
+clair, dès qu'un compte a plusieurs appartenances ou qu'un opérateur existe. Vérification : une base
+construite à la révision précédente (propriétaire, membre, invité avec périmètre, compte SSO, compte
+du défaut L.3, lien de partage, sessions) doit, après montée, rendre les mêmes réponses d'API avec les
+mêmes jetons.
+
+**Amorçage de l'opérateur.** Après migration, il n'y en a pas : l'installation fonctionne comme
+aujourd'hui (mode `fermé`, un foyer, ses réglages d'installation restent dans Réglages du
+propriétaire). Deux voies de création : un bandeau dans Réglages, visible du propriétaire tant
+qu'aucun opérateur n'existe et que l'installation n'a qu'un foyer ; et une commande
+`python -m app.cli operateur creer <nom>` (mot de passe demandé, jamais en argument), qui sert aussi
+à réinitialiser un mot de passe d'opérateur perdu — il n'y a pas de serveur mail. Écartée : une
+variable d'environnement contenant un mot de passe. Dès qu'un opérateur existe, les réglages
+d'installation quittent l'écran du propriétaire.
+
+**Installation neuve.** Premier écran inchangé : créer son compte et son foyer, dans la langue de
+l'appareil (`register`, ouvert tant qu'aucun compte n'existe). L'assistant de bienvenue propose ensuite
+une étape facultative « Administration de l'installation » (créer le compte opérateur maintenant ou
+plus tard). Une future version hébergée créerait au contraire l'opérateur par la commande et
+laisserait `register` fermé.
+
+##### 7. Séparation des foyers par la base
+
+**Politiques à ajouter** (Postgres, `FORCE` comme les autres) :
+
+- `foyers` : `tous OR operateur OR id = foyer OR id IN (SELECT foyer_id FROM appartenances)` ;
+- `appartenances` : `tous OR operateur OR user_id = utilisateur OR foyer_id = foyer` (sans renvoi à
+  `foyers` : pas de récursion entre politiques) ; `WITH CHECK` interdit un compte opérateur ;
+- `foyer_parametres`, `invitations`, `invitations_perimetres` : par le foyer (l'acceptation d'une
+  invitation, qui précède l'appartenance, passe par une phase d'authentification, ci-dessous) ;
+- `users`, `auth_tokens`, `access_log_entries` (lot BK.2e) : la connexion doit les lire avant de
+  savoir qui se connecte. Proposition : un état explicite `app.authentification = on`, posé seulement
+  par `login`, le rappel SSO, la lecture du jeton de session et l'acceptation d'une invitation, et levé
+  aussitôt l'identité connue ; hors de cet état, `users` n'est visible que pour soi-même, les membres du
+  foyer courant et l'opérateur ; `auth_tokens` pour soi-même ; `access_log_entries` en lecture pour les
+  comptes du foyer courant (propriétaire) et l'opérateur, en écriture pour tous (un échec sur un
+  identifiant inconnu doit être journalisé). Les tentatives sur un identifiant inconnu ne sont plus
+  visibles que de l'opérateur.
+
+**Tests à prévoir** : fixture à ids de foyer décalés (§ 2) ; `test_separation_foyers.py` étendu à deux
+foyers et à un compte membre des deux, filtre retiré ; un test **générique** qui parcourt toutes les
+routes de `app.routes` avec un jeton d'opérateur (403 attendu hors `/api/operateur` et `/api/auth`)
+et qui vérifie qu'aucune réponse d'opérateur ne contient de montant ; un test générique de suppression
+qui parcourt `Base.metadata` et exige zéro ligne rattachée au foyer supprimé, table par table (une
+table ajoutée plus tard est couverte d'office) ; tout sous SQLite et sous Postgres, rôle ordinaire.
+
+**Menaces et parades** :
+
+| Menace | Parade |
+| --- | --- |
+| IDOR sur l'identifiant de foyer (bascule vers un foyer dont on n'est pas membre) | Appartenance et statut vérifiés en base à la bascule ET à chaque requête ; 404 uniforme ; politique sur `appartenances` |
+| Escalade membre → propriétaire | Rôle lu dans l'appartenance du foyer courant ; `proprietaire` jamais assignable par `PATCH` ni par invitation de foyer existant ; index unique partiel ; transfert par route dédiée réservée au propriétaire |
+| Opérateur lisant un patrimoine | Compte sans appartenance (contrainte) ; périmètre sans foyer, que les politiques de patrimoine ignorent ; test générique des routes |
+| Invitation rejouée ou devinée | 256 bits, hachée, usage unique atomique, expiration, révocation, fragment d'URL |
+| Compte SSO usurpant un foyer | Plus de rattachement par `.first()` (`oidc_service.py:280-282`) ; plus de liaison automatique par nom d'utilisateur (lignes 273-278 : une identité du fournisseur au même nom qu'un compte local d'un autre foyer en prendrait le contrôle ; faille connue, non exploitable avec le fournisseur SSO actuel de l'installation, corrigée en BK.2d), remplacée par une liaison faite depuis le compte connecté |
+| Journal d'accès d'un autre foyer | Filtré par foyer dès BK.2a (`auth_service.py:240-246`), puis par la base en BK.2e |
+| Propriétaire agissant sur un compte partagé avec un autre foyer | Retrait d'appartenance seulement ; pas de renommage ni de suppression du compte |
+
+Remarque hors périmètre : les jetons de session (`auth_tokens.token`) et de partage
+(`liens_partage.token`) sont stockés en clair ; une fuite de la base donnerait des sessions valides.
+Les hacher comme les invitations est un durcissement simple, à glisser en BK.2e.
+
+##### 8. Interface
+
+- **Sélecteur de foyer** en tête de la barre latérale (`Sidebar.tsx`, où figure le nom du foyer),
+  visible à partir de deux foyers : nom et rôle de chacun.
+- **Réglages du foyer** : `GestionFoyerCard` devient « Membres et invitations » (inviter : rôle,
+  périmètre d'invité, durée, libellé → lien à copier ; invitations en attente, révocation ; création
+  directe d'un compte conservée ; transfert de propriété). Une zone « Supprimer le foyer » rejoint la
+  remise à zéro. « Quitter ce foyer » pour un membre ou un invité.
+- **Console de l'opérateur** (`/operateur`, seule page qu'il voie) : liste des foyers (nom, statut,
+  date de création, propriétaire, nombre de comptes, dernière activité) ; créer un foyer (lien
+  propriétaire) ; suspendre, réactiver, supprimer (confirmation par le nom) ; désigner un nouveau
+  propriétaire ; comptes sans foyer ; réglages d'installation : mode de naissance des foyers, création
+  de foyer par SSO, tâches planifiées (onglet Automatisations déplacé), logo SSO
+  (`LogoConnexionSsoCard` déplacé), journal d'accès complet, état des sauvegardes. Sous SQLite, un
+  avertissement permanent : « la séparation des foyers n'est assurée que par l'application ».
+- **Pages publiques** : `/invitation` (hors `AuthProvider`, comme `/partage/:token`) ; écran « aucun
+  foyer ».
+- **Assistant de bienvenue** : il se rejoue pour chaque nouvelle appartenance de propriétaire ; nouvelle
+  étape facultative « Inviter les membres du foyer » après « Comptes » ; étape « Administration de
+  l'installation » pour le premier compte d'une installation neuve (§ 6). Un membre ou un invité qui
+  rejoint un foyer voit un accueil court (nom du foyer, son rôle), pas l'assistant.
+- **Langues** : tout nouveau texte dans les 5 langues (TypeScript refuse une clé manquante) et les
+  messages serveur dans le catalogue ; un foyer créé par invitation prend la langue de l'appareil de
+  son créateur ; la console de l'opérateur suit la langue de son appareil (il n'a pas de foyer).
+
+##### 9. Découpage en lots
+
+Chaque lot se déploie seul, sous SQLite comme sous Postgres, sans rien changer pour une installation
+à un foyer ; chaque lot passe la CI complète (dont `backend-postgres`, `e2e-postgres`,
+`deploiement-postgres`), plus un job de **montée de version** : base créée par l'image publiée
+précédente, puis montée par la nouvelle.
+
+| Lot | Contenu | Migration | Risques | Tests |
+| --- | --- | --- | --- | --- |
+| **BK.2a** — Objet `Foyer`, invisible | `foyers`, `appartenances`, `foyer_parametres`, `auth_tokens.foyer_id` ; `id_foyer` et `require_role` lisent le foyer courant ; `startup_maintenance` par foyer ; journal d'accès filtré ; SSO : rattachement au foyer unique au lieu de `.first()` | § 6 complète, descente comprise | Migration sur la vraie base : sauvegarde préalable ; `current_user.id` pris pour un foyer | Fixture à ids décalés, test de montée sur base d'avant, suite entière deux moteurs, E2E inchangés |
+| **BK.2b** — Invitations et appartenance multiple | Invitations vers un foyer existant (nouveau compte ou compte existant), sélecteur, bascule, écran « aucun foyer », « Quitter ce foyer », étape d'assistant « Inviter » | `invitations`, `invitations_perimetres` + politiques | Jeton ; bascule mal vérifiée | Unicité sous concurrence, rejeu, expiration, IDOR de bascule ; E2E invitation puis bascule |
+| **BK.2c** — Cycle de vie côté foyer | Transfert de propriété, retrait d'un membre, suppression d'un foyer par son propriétaire, suppression de son compte | Aucune | Suppression incomplète ou trop large | Test générique par `Base.metadata` ; E2E suppression puis reconnexion refusée |
+| **BK.2d** — Opérateur et naissance des foyers | Compte opérateur (bandeau, commande), console, création de foyer par lien propriétaire, suspension, suppression, nouveau propriétaire, modes `fermé` / `invitation`, SSO qui crée son foyer, **correction de la faille de liaison SSO par nom d'utilisateur** (`resoudre_ou_provisionner_utilisateur`, lignes 273-278 : liaison retirée, remplacée par « Lier mon compte SSO » depuis Réglages), réglages d'installation déplacés | `users.est_operateur` déjà là ; état `app.operateur` dans les politiques | Opérateur qui voit un patrimoine ; SSO | Test générique des routes avec jeton d'opérateur ; RLS : zéro ligne de patrimoine sous périmètre opérateur ; E2E console |
+| **BK.2e** — Durcissement | RLS sur `users`, `auth_tokens`, `access_log_entries` (état « authentification ») ; jetons de session et de partage hachés ; renommage `user_id` → `foyer_id` (option C) | Politiques ; hachage des jetons existants (sessions conservées) ; renommage | Connexion cassée sous Postgres | Suite Postgres ; test d'intrusion : lister `users` d'un autre foyer, filtre retiré |
+
+L'installation de l'utilisateur ne peut accueillir une autre famille qu'**après BK.2d** ; BK.2e est
+recommandé avant, obligatoire avant toute version publique.
+
+##### 10. Décisions
+
+Validées par l'utilisateur le 29/09/2026 (recommandations de la fiche acceptées telles quelles).
+
+1. **« Fermé » et « sur invitation »** : fermé = seul l'opérateur crée un foyer (lien propriétaire) ;
+   invitation = un propriétaire peut aussi générer un lien « créer votre foyer » pour un proche
+   (parrainage). Défaut après migration : fermé.
+2. **SSO en mode fermé** : réglage d'opérateur distinct, « un nouveau compte SSO crée son foyer »,
+   autorisé par défaut dans tous les modes (le fournisseur d'identité est déjà tenu par l'opérateur) ;
+   à « non », le compte est créé sans foyer et attend une invitation.
+3. **L'opérateur est un compte distinct** du compte du propriétaire, créé par un bandeau ou par la
+   commande : c'est ce qui permet à la base de garantir qu'il ne voit rien.
+4. **Compte sans aucun foyer** : supprimé, comme aujourd'hui (moins de données, droit à l'effacement) ;
+   un compte SSO se recrée à la connexion suivante, avec son propre foyer.
+5. **Propriétaire disparu** : l'opérateur peut désigner un nouveau propriétaire parmi les membres (il
+   ne voit que des noms de comptes) ; le propriétaire lui-même ne part qu'après un transfert.
+6. **Rôles d'un foyer à l'autre** : un invité d'un foyer peut être propriétaire d'un autre (le rôle
+   appartient à l'appartenance) ; un seul propriétaire par foyer, pas de copropriété ; un conjoint est
+   membre, avec transfert possible.
+7. **Plusieurs foyers sous SQLite** : permis pour le homelab, avec l'avertissement permanent de la
+   console ; Postgres exigé pour une version publique. (Passer l'installation actuelle sous Postgres
+   reste manuel : § 14.4 du manuel, sans les comptes.)
+8. **Liaison automatique d'un compte SSO à un compte local du même nom** : retirée en BK.2d (vecteur
+   d'usurpation entre foyers), remplacée par « Lier mon compte SSO » depuis Réglages, compte connecté ;
+   les comptes déjà liés ne changent pas.
+9. **Création directe d'un compte par le propriétaire** (avec mot de passe) : conservée, limitée à un
+   compte qui n'appartient qu'à ce foyer.
 
 
 ### BL. Application multilingue (cadrée le 23/09/2026)
