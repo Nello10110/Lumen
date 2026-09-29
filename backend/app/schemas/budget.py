@@ -4,6 +4,8 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
+from .commun import ImportPreviewResponse
+
 # ---------------------------------------------------------------------------
 # Budget (backlog 2.N.1/2.N.2)
 # ---------------------------------------------------------------------------
@@ -15,6 +17,7 @@ class CategorieBudgetOut(BaseModel):
     id: int
     nom: str
     parent_id: int | None = None
+    exclue_des_totaux: bool = False
 
 
 class CategorieBudgetCreate(BaseModel):
@@ -31,11 +34,16 @@ class CategorieBudgetCreate(BaseModel):
 
 
 class CategorieBudgetUpdate(BaseModel):
-    nom: str
+    """Renommage et/ou exclusion des totaux (§ BM.3) : un champ absent reste inchangé."""
+
+    nom: str | None = None
+    exclue_des_totaux: bool | None = None
 
     @field_validator("nom")
     @classmethod
-    def _valider_nom(cls, v: str) -> str:
+    def _valider_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
         v = v.strip()
         if not v:
             raise ValueError("Le nom de la catégorie ne peut pas être vide")
@@ -120,6 +128,9 @@ class BudgetColumnMapping(CompteImportBancaire):
     montant_col: str | None = None
     debit_col: str | None = None
     credit_col: str | None = None
+    # Catégorie et sous-catégorie données par la banque (§ BM.3), reprises telles quelles.
+    categorie_col: str | None = None
+    sous_categorie_col: str | None = None
 
     @field_validator("date_col", "libelle_col")
     @classmethod
@@ -141,6 +152,20 @@ class BudgetImportResult(BaseModel):
     doublons_ignores: int
     lignes_ignorees: int
     categorisees_automatiquement: int
+    categorisees_par_la_banque: int
+
+
+class FormatBancaireOut(BaseModel):
+    code: str
+    nom: str
+
+
+class BudgetImportPreviewResponse(ImportPreviewResponse):
+    """Aperçu d'un relevé CSV, avec le format reconnu (§ BM.3) et le mapping qu'il
+    suggère (champ du mapping → en-tête exact du fichier) ; `None` et vide sinon."""
+
+    format_detecte: FormatBancaireOut | None = None
+    mapping_suggere: dict[str, str] = {}
 
 
 class BudgetCibleOut(BaseModel):

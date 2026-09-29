@@ -21,6 +21,7 @@ const resultatImport: Structure<typeof fr> = {
   operationsHorsAchatVenteIgnorees: { one: "{n} operazione diversa da acquisto/vendita ignorata", other: "{n} operazioni diverse da acquisto/vendita ignorate" },
   mouvementsHorsBourseExclus: { one: "{n} movimento fuori dal monitoraggio di borsa escluso.", other: "{n} movimenti fuori dal monitoraggio di borsa esclusi." },
   categorisesAutomatiquement: { one: "{n} classificato automaticamente dalle tue regole.", other: "{n} classificati automaticamente dalle tue regole." },
+  categorisesParLaBanque: { one: "{n} classificato nella categoria indicata dalla banca.", other: "{n} classificati nelle categorie indicate dalla banca." },
   biensDetectes: { one: "{n} immobile rilevato, {montant} investiti in totale", other: "{n} immobili rilevati, {montant} investiti in totale" },
   lignesHorsInvestissementNonImportees: { one: "{n} riga fuori dal monitoraggio degli investimenti non importata (accredito, ritenuta alla fonte, bonus...)", other: "{n} righe fuori dal monitoraggio degli investimenti non importate (accredito, ritenuta alla fonte, bonus...)" },
   lignesImportees: { one: "{n} riga importata", other: "{n} righe importate" },

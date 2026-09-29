@@ -18,6 +18,11 @@ const importBancaireSection: Structure<typeof fr> = {
   importEnCours: "Importando...",
   confirmerLImport: "Confirmar la importación",
   voirLeBudget: "Ver el presupuesto",
+  formatReconnu: "Formato reconocido: {banque}",
+  mappingPreRempli: "Columnas rellenadas según este formato; puedes cambiarlas.",
+  colonneCategorie: "Columna Categoría",
+  colonneSousCategorie: "Columna Subcategoría",
+  categoriesDeLaBanque: "Opcional: las categorías del banco se añaden tal cual a tus categorías. Tus reglas de categorización siguen teniendo prioridad.",
 }
 
 export default importBancaireSection

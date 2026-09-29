@@ -19,6 +19,11 @@ const categoriesEtReglesSection: Structure<typeof fr> = {
   reapplicationEnCours: "Wird erneut angewendet...",
   reappliquerLesReglesEnMasse: "Regeln gesammelt erneut anwenden",
   mouvementsRecategorises: { one: "{n} Bewegung neu kategorisiert.", other: "{n} Bewegungen neu kategorisiert." },
+  exclueDesTotaux: "Von den Summen ausgeschlossen",
+  exclueDesTotauxAide: "Buchungen einer von den Summen ausgeschlossenen Kategorie (etwa Überweisungen zwischen deinen eigenen Konten) bleiben in der Liste, zählen aber weder bei den Einnahmen noch bei den Ausgaben noch in einer Budgetkennzahl. Eine Unterkategorie folgt ihrer Kategorie.",
+  exclueAvecSaCategorie: "Mit ihrer Kategorie ausgeschlossen",
+  supprimerLaCategorie: "{nom} löschen",
+  exclureDesTotaux: "{nom} von den Summen ausschließen",
 }
 
 export default categoriesEtReglesSection

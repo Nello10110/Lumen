@@ -16,6 +16,11 @@ const importBancaireSection = {
   importEnCours: "Import en cours...",
   confirmerLImport: "Confirmer l'import",
   voirLeBudget: "Voir le budget",
+  formatReconnu: "Format reconnu : {banque}",
+  mappingPreRempli: "Colonnes pré-remplies d'après ce format ; tu peux les modifier.",
+  colonneCategorie: "Colonne Catégorie",
+  colonneSousCategorie: "Colonne Sous-catégorie",
+  categoriesDeLaBanque: "Facultatif : les catégories de la banque sont reprises telles quelles dans tes catégories. Tes règles de catégorisation restent prioritaires.",
 } as const
 
 export default importBancaireSection

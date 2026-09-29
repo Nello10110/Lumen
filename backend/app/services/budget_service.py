@@ -34,6 +34,17 @@ def list_mouvements(
     return q.order_by(MouvementBancaire.date.desc(), MouvementBancaire.id.desc()).all()
 
 
+def mouvements_comptabilises(
+    db: Session, user_id: int, date_debut: str | None = None, date_fin: str | None = None, compte_id: int | None = None
+) -> list[MouvementBancaire]:
+    """Mouvements qui entrent dans les totaux du budget : tous, sauf ceux d'une
+    catégorie exclue des totaux (§ BM.3). Tout calcul qui somme des mouvements part
+    d'ici ; la liste affichée (`list_mouvements`) les montre tous."""
+    exclues = budget_categories_service.ids_categories_exclues(db, user_id)
+    mouvements = list_mouvements(db, user_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
+    return [m for m in mouvements if m.categorie_id not in exclues]
+
+
 def list_comptes_avec_mouvements(db: Session, user_id: int) -> list[Compte]:
     """Comptes proposés par le filtre de l'écran Budget (§ BM.1) : ceux qui portent au
     moins un mouvement bancaire — un PEA ou un bien immobilier n'y aurait rien à montrer."""
@@ -63,7 +74,7 @@ def compute_depenses_recurrentes_mensuelles(db: Session, user_id: int, date_fin:
     périodiques — mensuelles, trimestrielles, annuelles — que détecte
     `budget_recurrences_service` à `date_fin` (§ BM.2). Les achats fréquents sans rythme
     (« irrégulières ») n'en font pas partie : un supermarché n'est pas une charge fixe."""
-    # Import différé : `budget_recurrences_service` importe ce module pour `list_mouvements`.
+    # Import différé : `budget_recurrences_service` importe ce module pour `mouvements_comptabilises`.
     from . import budget_recurrences_service
 
     recurrences = budget_recurrences_service.detect_recurrences(
@@ -77,7 +88,7 @@ def _categorie_racine_id(categorie: CategorieBudget) -> int:
 
 
 def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str, compte_id: int | None = None) -> dict:
-    mouvements = list_mouvements(db, user_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
+    mouvements = mouvements_comptabilises(db, user_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
     entrees = sum(m.montant for m in mouvements if m.montant > 0)
     sorties = sum(-m.montant for m in mouvements if m.montant < 0)
 
@@ -153,7 +164,7 @@ def compute_jonction_patrimoine(
     le Simulateur (backlog 2.N.4) — dérivés du budget réellement observé plutôt que
     d'une hypothèse saisie à la main."""
     # Import différé : évite un cycle avec `budget_recurrences_service`, qui importe
-    # ce module pour `list_mouvements`.
+    # ce module pour `mouvements_comptabilises`.
     from . import budget_recurrences_service
 
     summary = compute_summary(db, user_id, date_debut, date_fin, compte_id)

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { BudgetImportResult, Compte, DernierImport, Etablissement, ImportPreview } from '../api/types'
+import type { BudgetImportPreview, BudgetImportResult, Compte, DernierImport, Etablissement, ImportPreview } from '../api/types'
 import ImportPage from './ImportPage'
 
 // Refonte de l'écran Import du 22/09/2026 : la page n'est plus une pile de cartes
@@ -87,18 +87,28 @@ function fichier(nom: string, contenu = 'contenu'): File {
   return new File([contenu], nom, { type: 'text/plain' })
 }
 
-function preview(overrides: Partial<ImportPreview> = {}): ImportPreview {
+function preview(overrides: Partial<BudgetImportPreview> = {}): BudgetImportPreview {
   return {
     file_token: 'token-1',
     columns: ['Date', 'Libellé', 'Montant'],
     rows: [{ Date: '01/02/2026', Libellé: 'Salaire', Montant: '2000' }],
     total_rows: 1,
+    format_detecte: null,
+    mapping_suggere: {},
     ...overrides,
   }
 }
 
 function resultat(overrides: Partial<BudgetImportResult> = {}): BudgetImportResult {
-  return { lignes_lues: 1, importees: 1, doublons_ignores: 0, lignes_ignorees: 0, categorisees_automatiquement: 0, ...overrides }
+  return {
+    lignes_lues: 1,
+    importees: 1,
+    doublons_ignores: 0,
+    lignes_ignorees: 0,
+    categorisees_automatiquement: 0,
+    categorisees_par_la_banque: 0,
+    ...overrides,
+  }
 }
 
 function trace(overrides: Partial<DernierImport> = {}): DernierImport {
@@ -260,8 +270,22 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
       montant_col: 'Montant',
       debit_col: null,
       credit_col: null,
+      categorie_col: null,
+      sous_categorie_col: null,
       compte_id: 5,
     })
+  })
+
+  it('CSV sans format reconnu : aucune mention de format, mapping vide', async () => {
+    vi.mocked(api.importBudgetCsvPreview).mockResolvedValue(preview())
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.csv'))
+    await screen.findByRole('columnheader', { name: 'Date' })
+
+    expect(screen.queryByText(/Format reconnu/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Colonne Date *')).toHaveValue('')
+    expect(screen.getByLabelText('Colonne Sous-catégorie')).toBeDisabled()
   })
 
   it('CSV : bascule débit/crédit envoie les bonnes colonnes, montant_col à null', async () => {
@@ -293,6 +317,65 @@ describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
     await screen.findByRole('columnheader', { name: 'Date' })
 
     expect(screen.getByRole('button', { name: "Confirmer l'import" })).toBeDisabled()
+  })
+})
+
+describe('ImportPage — relevé Caisse d’Épargne reconnu (§ BM.3)', () => {
+  const COLONNES_CE = ['Date de comptabilisation', 'Libelle simplifie', 'Libelle operation', 'Categorie', 'Sous categorie', 'Debit', 'Credit']
+  const apercuCaisseEpargne = () =>
+    preview({
+      columns: COLONNES_CE,
+      rows: [],
+      format_detecte: { code: 'caisse_epargne', nom: "Caisse d'Épargne" },
+      mapping_suggere: {
+        date_col: 'Date de comptabilisation',
+        libelle_col: 'Libelle operation',
+        debit_col: 'Debit',
+        credit_col: 'Credit',
+        categorie_col: 'Categorie',
+        sous_categorie_col: 'Sous categorie',
+      },
+    })
+
+  it('annonce le format et pré-remplit le mapping, en mode débit/crédit', async () => {
+    vi.mocked(api.importBudgetCsvPreview).mockResolvedValue(apercuCaisseEpargne())
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.csv'))
+
+    await screen.findByText("Format reconnu : Caisse d'Épargne")
+    expect(screen.getByLabelText('Colonne Date *')).toHaveValue('Date de comptabilisation')
+    expect(screen.getByLabelText('Colonne Libellé *')).toHaveValue('Libelle operation')
+    expect(screen.getByLabelText('Deux colonnes débit/crédit séparées')).toBeChecked()
+    expect(screen.getByLabelText('Colonne Débit')).toHaveValue('Debit')
+    expect(screen.getByLabelText('Colonne Crédit')).toHaveValue('Credit')
+    expect(screen.getByLabelText('Colonne Catégorie')).toHaveValue('Categorie')
+    expect(screen.getByLabelText('Colonne Sous-catégorie')).toHaveValue('Sous categorie')
+  })
+
+  it('le mapping pré-rempli reste modifiable et part tel que choisi', async () => {
+    vi.mocked(api.importBudgetCsvPreview).mockResolvedValue(apercuCaisseEpargne())
+    vi.mocked(api.importBudgetCsvConfirm).mockResolvedValue(resultat({ importees: 4, categorisees_par_la_banque: 3 }))
+    renderImportPage()
+
+    deposer('Mouvements bancaires', fichier('releve.csv'))
+    await screen.findByText("Format reconnu : Caisse d'Épargne")
+    fireEvent.change(screen.getByLabelText('Colonne Libellé *'), { target: { value: 'Libelle simplifie' } })
+    fireEvent.change(screen.getByLabelText('Colonne Catégorie'), { target: { value: '' } })
+    await confirmerSurLeCompteCourant()
+
+    await screen.findByText('3 classés dans les catégories données par la banque.')
+    expect(api.importBudgetCsvConfirm).toHaveBeenCalledWith({
+      file_token: 'token-1',
+      date_col: 'Date de comptabilisation',
+      libelle_col: 'Libelle simplifie',
+      montant_col: null,
+      debit_col: 'Debit',
+      credit_col: 'Credit',
+      categorie_col: null,
+      sous_categorie_col: null,
+      compte_id: 5,
+    })
   })
 })
 

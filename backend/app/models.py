@@ -978,6 +978,10 @@ class CategorieBudget(Base):
     # le nom se traduit et se renomme, le code reste — c'est lui que le taux d'épargne
     # et le reste à vivre recherchent. `None` pour une catégorie créée par l'utilisateur.
     code: Mapped[str | None] = mapped_column(String, nullable=True)
+    # § BM.3 : ses mouvements — et ceux de ses sous-catégories — restent listés mais ne
+    # comptent dans aucun total du budget (virements entre ses propres comptes, qui
+    # gonfleraient sinon entrées ET sorties).
+    exclue_des_totaux: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -1012,6 +1016,10 @@ class MouvementBancaire(Base):
     # drapeau, "réappliquer les règles en masse" écraserait silencieusement les
     # corrections déjà faites à la main.
     categorise_manuellement: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Catégorie donnée par la banque dans son relevé (§ BM.3), gardée à part de
+    # `categorie_id` : c'est le repli quand aucune règle ne s'applique, y compris
+    # quand `reappliquer_regles` recatégorise après coup.
+    categorie_banque_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

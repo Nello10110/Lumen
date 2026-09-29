@@ -13,6 +13,7 @@ vi.mock('../api/client', () => ({
     setBudgetCible: vi.fn(),
     categoriserMouvement: vi.fn(),
     createCategorieBudget: vi.fn(),
+    modifierCategorieBudget: vi.fn(),
     deleteCategorieBudget: vi.fn(),
     createRegleCategorisation: vi.fn(),
     deleteRegleCategorisation: vi.fn(),
@@ -65,7 +66,7 @@ function compte(id: number, nom: string, etablissement: string | null): Compte {
 }
 
 function categorie(overrides: Partial<CategorieBudget> = {}): CategorieBudget {
-  return { id: 1, nom: 'Transport', parent_id: null, ...overrides }
+  return { id: 1, nom: 'Transport', parent_id: null, exclue_des_totaux: false, ...overrides }
 }
 
 function regle(overrides: Partial<RegleCategorisation> = {}): RegleCategorisation {
@@ -292,6 +293,64 @@ describe('BudgetPage — catégories et règles (backlog 2.N.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer Transport' }))
 
     await waitFor(() => expect(api.deleteCategorieBudget).toHaveBeenCalledWith(1))
+  })
+})
+
+describe('BudgetPage — catégories exclues des totaux (§ BM.3)', () => {
+  const exclue = () => categorie({ id: 9, nom: 'Transaction exclue', exclue_des_totaux: true })
+  const virementInterne = () => categorie({ id: 10, nom: 'Virement interne', parent_id: 9 })
+
+  it('marquer une catégorie « exclue des totaux » appelle modifierCategorieBudget puis recharge', async () => {
+    mockChargement()
+    vi.mocked(api.modifierCategorieBudget).mockResolvedValue(categorie({ exclue_des_totaux: true }))
+    render(<BudgetPage />)
+
+    await screen.findByPlaceholderText('Nouvelle catégorie')
+    const appelsAvant = vi.mocked(api.getBudgetSummary).mock.calls.length
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Exclure Transport des totaux' }))
+
+    await waitFor(() => expect(api.modifierCategorieBudget).toHaveBeenCalledWith(1, { exclue_des_totaux: true }))
+    await waitFor(() => expect(vi.mocked(api.getBudgetSummary).mock.calls.length).toBeGreaterThan(appelsAvant))
+  })
+
+  it('démarquer une catégorie exclue envoie exclue_des_totaux: false', async () => {
+    mockChargement({ categories: [exclue()] })
+    vi.mocked(api.modifierCategorieBudget).mockResolvedValue(categorie())
+    render(<BudgetPage />)
+
+    await screen.findByPlaceholderText('Nouvelle catégorie')
+    const caseExclue = screen.getByRole('checkbox', { name: 'Exclure Transaction exclue des totaux' })
+    expect(caseExclue).toBeChecked()
+    fireEvent.click(caseExclue)
+
+    await waitFor(() => expect(api.modifierCategorieBudget).toHaveBeenCalledWith(9, { exclue_des_totaux: false }))
+  })
+
+  it('une sous-catégorie est listée sous sa catégorie, exclue avec elle', async () => {
+    mockChargement({ categories: [exclue(), virementInterne()] })
+    render(<BudgetPage />)
+
+    await screen.findByPlaceholderText('Nouvelle catégorie')
+    const caseSous = screen.getByRole('checkbox', { name: 'Exclue avec sa catégorie' })
+    expect(caseSous).toBeChecked()
+    expect(caseSous).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Supprimer Virement interne' })).toBeInTheDocument()
+  })
+
+  it('un mouvement exclu reste listé, marqué « Exclu des totaux »', async () => {
+    mockChargement({
+      categories: [categorie(), exclue(), virementInterne()],
+      mouvements: [
+        mouvement({ id: 1, libelle: 'VIR INTERNE VERS LIVRET A', montant: -2000, categorie_id: 10 }),
+        mouvement({ id: 2, libelle: 'SNCF Connect', categorie_id: 1 }),
+      ],
+    })
+    render(<BudgetPage />)
+
+    const ligneExclue = (await screen.findByText('VIR INTERNE VERS LIVRET A')).closest('tr') as HTMLElement
+    expect(within(ligneExclue).getByText('Exclu des totaux')).toBeInTheDocument()
+    const ligneComptee = screen.getByText('SNCF Connect').closest('tr') as HTMLElement
+    expect(within(ligneComptee).queryByText('Exclu des totaux')).not.toBeInTheDocument()
   })
 })
 

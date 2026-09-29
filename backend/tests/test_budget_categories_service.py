@@ -27,7 +27,7 @@ def test_create_rename_delete_categorie(db):
     c = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Vacances", None)
     assert c.id is not None
 
-    renommee = budget_categories_service.rename_categorie(db, ID_UTILISATEUR_TEST, c.id, "Voyages")
+    renommee = budget_categories_service.modifier_categorie(db, ID_UTILISATEUR_TEST, c.id, nom="Voyages")
     assert renommee.nom == "Voyages"
 
     budget_categories_service.delete_categorie(db, ID_UTILISATEUR_TEST, c.id)

@@ -13,6 +13,7 @@ const mouvementsSection: Structure<typeof fr> = {
   libelle: "Buchungstext",
   montant: "Betrag",
   categorie: "Kategorie",
+  exclu: "Von den Summen ausgeschlossen",
 }
 
 export default mouvementsSection

@@ -18,6 +18,7 @@ from ..schemas import (
     BudgetCibleOut,
     BudgetCibleUpdate,
     BudgetColumnMapping,
+    BudgetImportPreviewResponse,
     BudgetImportResult,
     BudgetSummary,
     CategorieBudgetCreate,
@@ -25,7 +26,7 @@ from ..schemas import (
     CategorieBudgetUpdate,
     CompteImportBancaire,
     CompteOut,
-    ImportPreviewResponse,
+    FormatBancaireOut,
     JonctionPatrimoine,
     MouvementBancaireOut,
     MouvementCategorisationUpdate,
@@ -37,6 +38,7 @@ from ..schemas import (
 from ..services import (
     auth_service,
     budget_categories_service,
+    budget_formats_service,
     budget_import_service,
     budget_recurrences_service,
     budget_service,
@@ -68,11 +70,17 @@ def create_categorie(payload: CategorieBudgetCreate, db: Session = Depends(get_d
 
 
 @router.patch("/categories/{categorie_id}", response_model=CategorieBudgetOut)
-def rename_categorie(
+def modifier_categorie(
     categorie_id: int, payload: CategorieBudgetUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
-        return budget_categories_service.rename_categorie(db, auth_service.id_foyer(current_user), categorie_id, payload.nom)
+        return budget_categories_service.modifier_categorie(
+            db,
+            auth_service.id_foyer(current_user),
+            categorie_id,
+            nom=payload.nom,
+            exclue_des_totaux=payload.exclue_des_totaux,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -122,7 +130,7 @@ def reappliquer_regles(db: Session = Depends(get_db), current_user: User = Depen
 # ---------------------------------------------------------------------------
 
 
-@router.post("/import/csv/preview", response_model=ImportPreviewResponse)
+@router.post("/import/csv/preview", response_model=BudgetImportPreviewResponse)
 async def import_csv_preview(file: UploadFile):
     content = await file.read()
     try:
@@ -133,8 +141,14 @@ async def import_csv_preview(file: UploadFile):
         parsed = csv_import.parse_upload(file.filename or "upload", content)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ImportPreviewResponse(
-        file_token=parsed.token, columns=parsed.columns, rows=parsed.preview_rows, total_rows=parsed.total_rows
+    format_ = budget_formats_service.detecter_format(parsed.columns)
+    return BudgetImportPreviewResponse(
+        file_token=parsed.token,
+        columns=parsed.columns,
+        rows=parsed.preview_rows,
+        total_rows=parsed.total_rows,
+        format_detecte=FormatBancaireOut(code=format_.code, nom=format_.nom) if format_ else None,
+        mapping_suggere=budget_formats_service.mapping_suggere(format_, parsed.columns) if format_ else {},
     )
 
 
@@ -152,6 +166,8 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
         mapping.montant_col,
         mapping.debit_col,
         mapping.credit_col,
+        mapping.categorie_col,
+        mapping.sous_categorie_col,
     }
     colonnes_absentes = [c for c in colonnes_attendues if c and c not in colonnes]
     if colonnes_absentes:
@@ -161,6 +177,9 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
         )
 
     user_id = auth_service.id_foyer(current_user)
+    # Le format est reconnu à nouveau sur le fichier déposé, jamais cru sur parole :
+    # c'est lui qui dit quelles catégories de la banque sont d'attente ou exclues.
+    format_ = budget_formats_service.detecter_format(tableau.colonnes)
     mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(
         tableau.lignes,
         mapping.date_col,
@@ -168,10 +187,18 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
         mapping.montant_col,
         mapping.debit_col,
         mapping.credit_col,
+        categorie_col=mapping.categorie_col,
+        sous_categorie_col=mapping.sous_categorie_col,
+        prefixes_a_categoriser=format_.prefixes_a_categoriser if format_ else (),
     )
     compte_id = _resoudre_compte(db, user_id, mapping)
     resultat = budget_import_service.importer_mouvements(
-        db, user_id, mouvements, compte_id=compte_id, lignes_ignorees=ignorees
+        db,
+        user_id,
+        mouvements,
+        compte_id=compte_id,
+        lignes_ignorees=ignorees,
+        categories_exclues=format_.categories_exclues if format_ else frozenset(),
     )
     csv_import.clear_pending(mapping.file_token)
     return _resultat_et_trace(db, user_id, resultat)

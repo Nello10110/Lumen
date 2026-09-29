@@ -55,7 +55,7 @@ def test_categorie_epargne_renommee_reste_reconnue(db):
     """Limite levée par le code : renommer « Épargne » ne fait plus disparaître le taux
     d'épargne."""
     categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST)}
-    budget_categories_service.rename_categorie(db, ID_UTILISATEUR_TEST, categories["epargne"].id, "Placements du mois")
+    budget_categories_service.modifier_categorie(db, ID_UTILISATEUR_TEST, categories["epargne"].id, nom="Placements du mois")
     make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=1000.0)
     make_mouvement(db, date="2026-02-05", libelle="Virement", montant=-100.0, categorie_id=categories["epargne"].id)
 
@@ -80,7 +80,7 @@ def test_categorie_recreee_a_la_main_sans_code_reste_reconnue_par_son_nom(db):
 
 def test_changer_la_langue_renomme_les_categories_non_personnalisees(client, db):
     categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST)}
-    budget_categories_service.rename_categorie(db, ID_UTILISATEUR_TEST, categories["loisirs"].id, "Sorties")
+    budget_categories_service.modifier_categorie(db, ID_UTILISATEUR_TEST, categories["loisirs"].id, nom="Sorties")
 
     reponse = client.patch("/api/auth/foyer/langue", json={"langue": "de"})
 

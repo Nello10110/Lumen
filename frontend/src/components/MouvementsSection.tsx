@@ -5,13 +5,17 @@ import Card from './Card'
 import EtatVide from './EtatVide'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro } from '../utils/format'
+import { categorieExclue, categoriesEnArbre } from '../utils/categoriesBudget'
 import { t } from '../i18n'
 
 /** Filtre par catégorie (backlog 2.N.2) — appliqué côté client sur la liste déjà
  * chargée pour la période : le volume d'un budget personnel reste modeste, et ça
  * évite un aller-retour réseau supplémentaire à chaque changement de filtre (même
  * logique que le filtrage par catégorie de `PortefeuillePage`). Le filtre par compte,
- * lui, vit au niveau de la page (§ BM.1) : il porte aussi sur les indicateurs. */
+ * lui, vit au niveau de la page (§ BM.1) : il porte aussi sur les indicateurs.
+ *
+ * Un mouvement d'une catégorie exclue des totaux (§ BM.3) reste listé, marqué comme tel,
+ * et atténué : il ne compte dans aucun indicateur de l'écran. */
 export default function MouvementsSection({
   mouvementsPeriode,
   categories,
@@ -24,6 +28,7 @@ export default function MouvementsSection({
   const { montantsMasques } = usePreferencesAffichage()
   const [filtreCategorieId, setFiltreCategorieId] = useState<number | 'TOUTES' | 'NON_CATEGORISE'>('TOUTES')
 
+  const categoriesTriees = categoriesEnArbre(categories)
   const mouvements = mouvementsPeriode.filter((m) => {
     if (filtreCategorieId === 'NON_CATEGORISE' && m.categorie_id !== null) return false
     if (typeof filtreCategorieId === 'number' && m.categorie_id !== filtreCategorieId) return false
@@ -38,7 +43,7 @@ export default function MouvementsSection({
     >
       <option value="TOUTES">{t('mouvementsSection.toutesCategories')}</option>
       <option value="NON_CATEGORISE">{t('mouvementsSection.nonCategorise')}</option>
-      {categories.map((c) => (
+      {categoriesTriees.map((c) => (
         <option key={c.id} value={c.id}>
           {c.parent_id !== null ? '↳ ' : ''}
           {c.nom}
@@ -71,10 +76,19 @@ export default function MouvementsSection({
               </tr>
             </thead>
             <tbody className="divide-y divide-bordure">
-              {mouvements.map((m) => (
-                <tr key={m.id}>
+              {mouvements.map((m) => {
+                const exclu = categorieExclue(m.categorie_id, categories)
+                return (
+                <tr key={m.id} className={exclu ? 'opacity-60' : undefined}>
                   <td className="py-2 pr-4 text-texte-attenue">{formatDate(m.date)}</td>
-                  <td className="py-2 pr-4 text-texte">{m.libelle}</td>
+                  <td className="py-2 pr-4 text-texte">
+                    {m.libelle}
+                    {exclu && (
+                      <span className="ml-2 whitespace-nowrap rounded-chip bg-chip px-2 py-0.5 text-[11px] text-ink3">
+                        {t('mouvementsSection.exclu')}
+                      </span>
+                    )}
+                  </td>
                   <td className={`py-2 pr-4 text-right font-medium ${m.montant >= 0 ? 'text-positif' : 'text-texte'}`}>
                     {formatEuro(m.montant, 2, montantsMasques)}
                   </td>
@@ -85,7 +99,7 @@ export default function MouvementsSection({
                       className="rounded-control border border-bordure bg-surface px-2 py-1 text-xs text-texte"
                     >
                       <option value="">{t('mouvementsSection.nonCategorise')}</option>
-                      {categories.map((c) => (
+                      {categoriesTriees.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.parent_id !== null ? '↳ ' : ''}
                           {c.nom}
@@ -94,7 +108,8 @@ export default function MouvementsSection({
                     </select>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

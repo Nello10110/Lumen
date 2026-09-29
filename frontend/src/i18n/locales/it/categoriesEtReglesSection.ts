@@ -19,6 +19,11 @@ const categoriesEtReglesSection: Structure<typeof fr> = {
   reapplicationEnCours: "Riapplicazione in corso...",
   reappliquerLesReglesEnMasse: "Riapplica le regole in blocco",
   mouvementsRecategorises: { one: "{n} movimento riclassificato.", other: "{n} movimenti riclassificati." },
+  exclueDesTotaux: "Esclusa dai totali",
+  exclueDesTotauxAide: "I movimenti di una categoria esclusa dai totali (bonifici tra i tuoi conti, per esempio) restano nell'elenco, ma non contano né nelle entrate, né nelle uscite, né in alcun indicatore del budget. Una sottocategoria segue la sua categoria.",
+  exclueAvecSaCategorie: "Esclusa con la sua categoria",
+  supprimerLaCategorie: "Elimina {nom}",
+  exclureDesTotaux: "Escludi {nom} dai totali",
 }
 
 export default categoriesEtReglesSection

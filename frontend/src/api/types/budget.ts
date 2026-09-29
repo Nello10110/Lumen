@@ -1,9 +1,13 @@
 // Budget (backlog 2.N.1/2.N.2)
 
+import type { ImportPreview } from './import_donnees'
+
 export interface CategorieBudget {
   id: number
   nom: string
   parent_id: number | null
+  // § BM.3 : ses mouvements (et ceux de ses sous-catégories) ne comptent dans aucun total.
+  exclue_des_totaux: boolean
 }
 
 export interface RegleCategorisation {
@@ -43,6 +47,16 @@ export interface BudgetColumnMapping extends CompteImportBancaire {
   montant_col?: string | null
   debit_col?: string | null
   credit_col?: string | null
+  // Catégorie et sous-catégorie données par la banque (§ BM.3), reprises telles quelles.
+  categorie_col?: string | null
+  sous_categorie_col?: string | null
+}
+
+// Aperçu d'un relevé CSV (§ BM.3) : format de banque reconnu, et le mapping qu'il
+// suggère (champ du mapping → en-tête exact du fichier) ; `null` et vide sinon.
+export interface BudgetImportPreview extends ImportPreview {
+  format_detecte: { code: string; nom: string } | null
+  mapping_suggere: Partial<Record<'date_col' | 'libelle_col' | 'montant_col' | 'debit_col' | 'credit_col' | 'categorie_col' | 'sous_categorie_col', string>>
 }
 
 export interface BudgetImportResult {
@@ -51,6 +65,7 @@ export interface BudgetImportResult {
   doublons_ignores: number
   lignes_ignorees: number
   categorisees_automatiquement: number
+  categorisees_par_la_banque: number
 }
 
 export interface BudgetCible {

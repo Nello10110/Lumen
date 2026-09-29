@@ -163,14 +163,28 @@ def create_categorie(db: Session, user_id: int, nom: str, parent_id: int | None)
     return categorie
 
 
-def rename_categorie(db: Session, user_id: int, categorie_id: int, nom: str) -> CategorieBudget:
+def modifier_categorie(
+    db: Session, user_id: int, categorie_id: int, *, nom: str | None = None, exclue_des_totaux: bool | None = None
+) -> CategorieBudget:
     categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.user_id == user_id).first()
     if categorie is None:
         raise ValueError("Catégorie introuvable")
-    categorie.nom = nom.strip()
+    if nom is not None:
+        categorie.nom = nom.strip()
+    if exclue_des_totaux is not None:
+        categorie.exclue_des_totaux = exclue_des_totaux
     db.commit()
     db.refresh(categorie)
     return categorie
+
+
+def ids_categories_exclues(db: Session, user_id: int) -> set[int]:
+    """Catégories dont les mouvements ne comptent dans aucun total (§ BM.3) : celles
+    marquées, et les sous-catégories d'une racine marquée — exclure « Transaction
+    exclue » exclut « Virement interne » qu'elle contient."""
+    categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
+    marquees = {c.id for c in categories if c.exclue_des_totaux}
+    return marquees | {c.id for c in categories if c.parent_id in marquees}
 
 
 def delete_categorie(db: Session, user_id: int, categorie_id: int) -> None:
@@ -186,6 +200,11 @@ def delete_categorie(db: Session, user_id: int, categorie_id: int) -> None:
 
     db.query(MouvementBancaire).filter(MouvementBancaire.categorie_id.in_(ids), MouvementBancaire.user_id == user_id).update(
         {"categorie_id": None}, synchronize_session=False
+    )
+    # La catégorie de la banque disparaît avec elle : `reappliquer_regles` ne doit pas
+    # y reclasser les mouvements que l'utilisateur vient d'en sortir.
+    db.query(MouvementBancaire).filter(MouvementBancaire.categorie_banque_id.in_(ids), MouvementBancaire.user_id == user_id).update(
+        {"categorie_banque_id": None}, synchronize_session=False
     )
     db.query(BudgetCible).filter(BudgetCible.categorie_id.in_(ids), BudgetCible.user_id == user_id).delete(synchronize_session=False)
     db.query(RegleCategorisation).filter(RegleCategorisation.categorie_id.in_(ids), RegleCategorisation.user_id == user_id).delete(

@@ -159,7 +159,7 @@ def detect_recurrences(
 ) -> list[RecurrenceDetectee]:
     aujourdhui = aujourdhui or date.today()
     depuis = (aujourdhui - timedelta(days=FENETRE_CHARGEMENT_JOURS)).isoformat()
-    mouvements = budget_service.list_mouvements(
+    mouvements = budget_service.mouvements_comptabilises(
         db, user_id, date_debut=depuis, date_fin=aujourdhui.isoformat(), compte_id=compte_id
     )
 

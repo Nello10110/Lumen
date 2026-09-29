@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { BudgetImportResult, Compte, CompteImportBancaire, Etablissement, ImportPreview } from '../api/types'
+import type { BudgetImportPreview, BudgetImportResult, Compte, CompteImportBancaire, Etablissement } from '../api/types'
 import { useFichierPilote } from '../hooks/useFichierPilote'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
@@ -32,7 +32,9 @@ const AUCUN_COMPTE_CHOISI: ChoixCompte = {
  * OFX/QIF n'ont pas besoin de mapping (structure fixe, cf. `budget_import_service.py`).
  * Un CSV de banque varie d'un établissement à l'autre : mapping manuel comme pour le
  * relevé de positions, avec une bascule montant signé / débit+crédit séparés (les deux
- * formats existent selon les banques).
+ * formats existent selon les banques). Un format de banque reconnu (§ BM.3) pré-remplit
+ * ce mapping, qui reste modifiable ; les colonnes catégorie et sous-catégorie, facultatives,
+ * reprennent le classement de la banque.
  *
  * Dans les trois cas, le compte du relevé est choisi avant l'import (§ BM.1) : un
  * compte existant, ou un nouveau compte avec son établissement — obligatoire, comme
@@ -50,7 +52,7 @@ export default function ImportBancaireSection({
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<BudgetImportResult | null>(null)
 
-  const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [preview, setPreview] = useState<BudgetImportPreview | null>(null)
   // Fichier OFX/QIF en attente du choix de son compte : il n'est envoyé qu'à la
   // confirmation, avec le compte.
   const [fichierStructure, setFichierStructure] = useState<File | null>(null)
@@ -60,6 +62,8 @@ export default function ImportBancaireSection({
   const [montantCol, setMontantCol] = useState('')
   const [debitCol, setDebitCol] = useState('')
   const [creditCol, setCreditCol] = useState('')
+  const [categorieCol, setCategorieCol] = useState('')
+  const [sousCategorieCol, setSousCategorieCol] = useState('')
   const [comptes, setComptes] = useState<Compte[]>([])
   const [etablissements, setEtablissements] = useState<Etablissement[]>([])
   const [choixCompte, setChoixCompte] = useState<ChoixCompte>(AUCUN_COMPTE_CHOISI)
@@ -91,12 +95,16 @@ export default function ImportBancaireSection({
       setComptes(cs)
       setEtablissements(es)
       if (apercu) {
+        const suggere = apercu.mapping_suggere
         setPreview(apercu)
-        setDateCol('')
-        setLibelleCol('')
-        setMontantCol('')
-        setDebitCol('')
-        setCreditCol('')
+        setDateCol(suggere.date_col ?? '')
+        setLibelleCol(suggere.libelle_col ?? '')
+        setModeMontant(!suggere.montant_col && (suggere.debit_col || suggere.credit_col) ? 'debit_credit' : 'signe')
+        setMontantCol(suggere.montant_col ?? '')
+        setDebitCol(suggere.debit_col ?? '')
+        setCreditCol(suggere.credit_col ?? '')
+        setCategorieCol(suggere.categorie_col ?? '')
+        setSousCategorieCol(suggere.sous_categorie_col ?? '')
       } else {
         setFichierStructure(file)
       }
@@ -139,6 +147,8 @@ export default function ImportBancaireSection({
           montant_col: modeMontant === 'signe' ? montantCol || null : null,
           debit_col: modeMontant === 'debit_credit' ? debitCol || null : null,
           credit_col: modeMontant === 'debit_credit' ? creditCol || null : null,
+          categorie_col: categorieCol || null,
+          sous_categorie_col: categorieCol ? sousCategorieCol || null : null,
           ...compte,
         })
       } else if (fichierStructure) {
@@ -186,6 +196,12 @@ export default function ImportBancaireSection({
 
       {preview && (
         <div className="space-y-4">
+          {preview.format_detecte && (
+            <div className="rounded-control bg-chip px-3 py-2 text-sm">
+              <p className="font-medium text-ink">{t('importBancaireSection.formatReconnu', { banque: preview.format_detecte.nom })}</p>
+              <p className="text-ink3">{t('importBancaireSection.mappingPreRempli')}</p>
+            </div>
+          )}
           <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -261,6 +277,32 @@ export default function ImportBancaireSection({
             </div>
           )}
 
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label={t('importBancaireSection.colonneCategorie')}>
+                <Select value={categorieCol} onChange={(e) => setCategorieCol(e.target.value)}>
+                  <option value="">{t('importBancaireSection.aucune')}</option>
+                  {preview.columns.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t('importBancaireSection.colonneSousCategorie')}>
+                <Select value={sousCategorieCol} onChange={(e) => setSousCategorieCol(e.target.value)} disabled={!categorieCol}>
+                  <option value="">{t('importBancaireSection.aucune')}</option>
+                  {preview.columns.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <p className="text-xs text-texte-attenue">{t('importBancaireSection.categoriesDeLaBanque')}</p>
+          </div>
+
           {choixDuCompte}
           {boutonConfirmer}
         </div>
@@ -282,6 +324,9 @@ export default function ImportBancaireSection({
           </p>
           {result.categorisees_automatiquement > 0 && (
             <p className="mt-1">{t('resultatImport.categorisesAutomatiquement', { n: result.categorisees_automatiquement })}</p>
+          )}
+          {result.categorisees_par_la_banque > 0 && (
+            <p className="mt-1">{t('resultatImport.categorisesParLaBanque', { n: result.categorisees_par_la_banque })}</p>
           )}
           <button onClick={() => navigate('/budget')} className="mt-2 inline-flex items-center gap-1 font-medium underline">{t('importBancaireSection.voirLeBudget')}{' '}<IconFlecheDroite className="h-3.5 w-3.5" />
           </button>

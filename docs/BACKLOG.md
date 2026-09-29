@@ -37,6 +37,7 @@ au § 4.2.
 - **foyer** : détenteurs et quotités (qui possède quoi, part nette de chacun), comptes et
   établissements, comptes utilisateurs propriétaire/membre/invité, liens de partage révocables ;
 - **budget** : import CSV/OFX/QIF rattaché à un compte du foyer (paiements identiques conservés),
+  relevé Caisse d'Épargne reconnu et ses catégories reprises, virements internes exclus des totaux,
   filtre par compte, catégorisation par règles explicites,
   abonnements mensuels, trimestriels et annuels avec leur coût annuel et l'évolution de leur prix,
   taux d'épargne ;
@@ -250,7 +251,7 @@ l'usage réel a fait remonter.
 | BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine, avertissement de suppression d'un compte | 23/09 |
 | BK | Version hébergée : déploiement Postgres et gestion des foyers (ouverts) | 23/09 |
 | BL | Application multilingue (FR, EN, ES, DE, IT) — cadrage et lots | 23/09 |
-| BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte ; import fiable (doublons légitimes, libellés de carte, périodicités) | 28-29/09 |
+| BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte ; import fiable (doublons légitimes, libellés de carte, périodicités) ; relevé Caisse d'Épargne reconnu, catégories de la banque, exclusion des totaux | 28-29/09 |
 
 ---
 
@@ -7470,6 +7471,72 @@ coût suivant un changement de prix, intervalle trop court, trop de prélèvemen
 « dépenses récurrentes/mois » limité aux séries périodiques) ; interface (coût annuel, périodicités,
 ampleur de la hausse, bloc « Achats fréquents » replié avec occurrences et total, seul présenté quand
 aucune série périodique). Suites : serveur 1 586 verts (9 ignorés ; l'échec préexistant `test_fraicheur_donnees_service` toujours présent), interface 896, Playwright budget/import/intégrité 11 verts.
+
+
+#### BM.3 — `majeur` · `M` · `traité` (29/09/2026) · `P1` — Relevé Caisse d'Épargne reconnu, catégories de la banque reprises, virements internes exclus
+
+**Constat** (vrai relevé Caisse d'Épargne, CSV `;` en Windows-1252) : chaque colonne se mappait à la
+main ; les colonnes `Categorie` / `Sous categorie` étaient ignorées, si bien que presque toutes les
+dépenses restaient « Non catégorisé » ; 121 virements internes (~85 500 € sur deux ans) gonflaient à
+la fois les entrées et les sorties.
+
+**Ce qui change** :
+
+- **Formats reconnus** (`budget_formats_service`) : un format = une signature (en-têtes
+  caractéristiques, comparés sans casse, accents ni espaces multiples) → un mapping suggéré, plus ce
+  que la banque appelle « à catégoriser » et les catégories à créer exclues. Premier format :
+  « Caisse d'Épargne » (probablement commun à d'autres banques du groupe BPCE, non vérifié — donc
+  pas annoncé). `POST /api/budget/import/csv/preview` renvoie `format_detecte` et `mapping_suggere`
+  (en-têtes exacts du fichier) ; l'écran de mapping l'annonce (« Format reconnu : Caisse d'Épargne »)
+  et pré-remplit les colonnes, toujours modifiables. Un CSV quelconque n'est pas reconnu. À la
+  confirmation, le format est redétecté sur le fichier déposé, jamais cru sur parole.
+- **Colonne libellé retenue : `Libelle operation`** (« CB ANTHROPIC CLAU FACT 180826 »), pas
+  `Libelle simplifie`. L'identifiant de déduplication est un hash qui inclut le libellé : c'est la
+  colonne que l'utilisateur mappait jusqu'ici, un ré-import ne double donc pas les mouvements déjà
+  en base ; la clé de regroupement de § BM.2 sait déjà en retirer les dates ; les règles existantes,
+  écrites sur ce texte, s'appliquent toujours. Le libellé simplifié fondrait deux magasins d'une même
+  enseigne. Date retenue : `Date de comptabilisation` (toujours remplie), même raison de stabilité.
+- **Catégories de la banque** : champs facultatifs `categorie_col` et `sous_categorie_col` au mapping
+  (tout CSV, reconnu ou non). L'arborescence est créée dans les catégories du foyer (racine +
+  sous-catégorie), en réutilisant une catégorie de même nom normalisé au même niveau (« Logement »
+  par défaut) — aucun doublon au ré-import. Noms gardés tels que la banque les donne (pas traduits).
+  Catégories d'attente (« A categoriser - … ») = non catégorisé. Priorité : **règle de l'utilisateur
+  > catégorie de la banque > rien** ; une catégorisation manuelle n'est jamais écrasée. Un mouvement
+  déjà présent, réimporté avec les catégories, reçoit celle de la banque s'il n'en avait aucune.
+- **Stockage** : `MouvementBancaire.categorie_banque_id` (clé étrangère vers `categories_budget`),
+  à côté de `categorie_id`. Schéma le plus simple : `reappliquer_regles` retombe dessus quand aucune
+  règle ne correspond, au lieu d'effacer la catégorie ; supprimer la catégorie efface aussi ce repli
+  (elle ne revient pas à la réapplication). Garder le texte de la banque aurait obligé à recréer des
+  catégories supprimées par l'utilisateur.
+- **Exclusion des totaux**, mécanisme général : `CategorieBudget.exclue_des_totaux`, hérité par les
+  sous-catégories. Tout calcul part de `budget_service.mouvements_comptabilises` : entrées, sorties,
+  disponible et répartition (`compute_summary`), récurrences et dépenses récurrentes/mois
+  (`detect_recurrences`), taux d'épargne, reste à vivre et versement suggéré
+  (`compute_jonction_patrimoine`), et par eux les indicateurs de situation (O.2), le profil
+  emprunteur de la déclaration de patrimoine et le budget d'un lien de partage. Les mouvements
+  exclus restent listés (`list_mouvements`), marqués « Exclu des totaux » à l'écran. « Transaction
+  exclue » est créée exclue ; une catégorie existante garde le choix de l'utilisateur. Case
+  « Exclue des totaux » sur chaque catégorie et sous-catégorie de l'écran Budget, via
+  `PATCH /api/budget/categories/{id}` (`nom` et/ou `exclue_des_totaux`) ; les sous-catégories y
+  sont désormais listées sous leur catégorie, et les listes déroulantes rangées en arbre.
+- **Migration** `f4c8d2a6b9e1` (mode batch, descente testée). **Export/import du foyer** :
+  `categorie_banque_id` remappée ; un ancien export sans les nouvelles colonnes s'importe.
+- **Assistant de bienvenue** : pas d'étape — le format se reconnaît seul, et l'exclusion n'a de sens
+  qu'après un premier import.
+
+**Sécurité** : le marquage passe par la même garde de foyer que le renommage (404 sur une catégorie
+d'un autre foyer) ; les catégories réutilisées à l'import sont cherchées dans le seul foyer courant.
+Sous Postgres, les politiques de `categories_budget` et `mouvements_bancaires` portent sur `user_id` :
+les nouvelles colonnes n'y changent rien.
+
+**Tests** : serveur 31 (`test_budget_import_banque.py` : détection et non-détection, mapping
+pré-rempli, débit/crédit, arborescence et réutilisation, pas de doublon, catégories d'attente,
+priorité règle > banque, réapplication, manuel intact, rangement au ré-import, suppression, exclusion
+dans chaque indicateur, héritage, marquage/démarquage, IDOR, export/import, migration) ; interface 8
+(format annoncé et mapping pré-rempli, mapping modifié envoyé, CSV sans format, marquage et démarquage,
+sous-catégorie exclue avec sa catégorie, mouvement marqué). Suites : serveur 1 617 verts (9 ignorés ;
+l'échec préexistant `test_fraicheur_donnees_service` toujours présent), interface 903, Playwright
+budget/import/intégrité/sauvegarde 14 verts.
 
 ---
 

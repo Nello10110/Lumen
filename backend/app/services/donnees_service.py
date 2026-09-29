@@ -166,7 +166,7 @@ TABLES: list[TableExportee] = [
     TableExportee(
         "mouvements_bancaires",
         MouvementBancaire,
-        references={"categorie_id": "categories_budget", "compte_id": "comptes"},
+        references={"categorie_id": "categories_budget", "categorie_banque_id": "categories_budget", "compte_id": "comptes"},
     ),
     TableExportee("regles_categorisation", RegleCategorisation, references={"categorie_id": "categories_budget"}),
     TableExportee("budget_cibles", BudgetCible, references={"categorie_id": "categories_budget"}),

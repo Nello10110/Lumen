@@ -19,6 +19,11 @@ const categoriesEtReglesSection: Structure<typeof fr> = {
   reapplicationEnCours: "Reapplying...",
   reappliquerLesReglesEnMasse: "Reapply the rules in bulk",
   mouvementsRecategorises: { one: "{n} transaction recategorized.", other: "{n} transactions recategorized." },
+  exclueDesTotaux: "Excluded from totals",
+  exclueDesTotauxAide: "Transactions in a category excluded from totals (transfers between your own accounts, for example) stay listed, but count neither as money in nor as money out, nor in any budget indicator. A subcategory follows its category.",
+  exclueAvecSaCategorie: "Excluded with its category",
+  supprimerLaCategorie: "Delete {nom}",
+  exclureDesTotaux: "Exclude {nom} from totals",
 }
 
 export default categoriesEtReglesSection

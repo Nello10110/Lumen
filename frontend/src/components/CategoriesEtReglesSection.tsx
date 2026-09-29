@@ -5,6 +5,46 @@ import { PrimaryButton, SecondaryButton } from './Controls'
 import { Field, Input, Select } from './Field'
 import { IconChevron } from './icons'
 import { t } from '../i18n'
+import { categoriesEnArbre } from '../utils/categoriesBudget'
+
+/** Une catégorie de la liste, avec son marquage « exclue des totaux » (§ BM.3). Une
+ * sous-catégorie d'une catégorie exclue l'est aussi : sa case est cochée et figée. */
+function LigneCategorie({
+  categorie,
+  exclueParSaCategorie,
+  onBasculerExclusion,
+  onSupprimer,
+}: {
+  categorie: CategorieBudget
+  exclueParSaCategorie: boolean
+  onBasculerExclusion: () => void
+  onSupprimer: () => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+      <span className={categorie.parent_id === null ? 'font-medium text-ink' : 'text-ink2'}>{categorie.nom}</span>
+      <span className="flex items-center gap-3">
+        <label className="flex min-h-11 items-center gap-1.5 text-xs text-ink3 md:min-h-0">
+          <input
+            type="checkbox"
+            checked={exclueParSaCategorie || categorie.exclue_des_totaux}
+            disabled={exclueParSaCategorie}
+            aria-label={exclueParSaCategorie ? undefined : t('categoriesEtReglesSection.exclureDesTotaux', { nom: categorie.nom })}
+            onChange={onBasculerExclusion}
+          />
+          {exclueParSaCategorie ? t('categoriesEtReglesSection.exclueAvecSaCategorie') : t('categoriesEtReglesSection.exclueDesTotaux')}
+        </label>
+        <button
+          onClick={onSupprimer}
+          aria-label={t('categoriesEtReglesSection.supprimerLaCategorie', { nom: categorie.nom })}
+          className="inline-flex min-h-11 items-center text-ink4 hover:text-neg md:min-h-0"
+        >
+          {t('categoriesEtReglesSection.texte')}
+        </button>
+      </span>
+    </div>
+  )
+}
 
 export default function CategoriesEtReglesSection({
   categories,
@@ -27,6 +67,11 @@ export default function CategoriesEtReglesSection({
     if (!nouvelleCategorie.trim()) return
     await api.createCategorieBudget(nouvelleCategorie.trim())
     setNouvelleCategorie('')
+    onChanged()
+  }
+
+  async function basculerExclusion(categorie: CategorieBudget) {
+    await api.modifierCategorieBudget(categorie.id, { exclue_des_totaux: !categorie.exclue_des_totaux })
     onChanged()
   }
 
@@ -73,13 +118,35 @@ export default function CategoriesEtReglesSection({
       <div className="space-y-6 p-5">
         <div>
           <h4 className="mb-2 text-sm font-medium text-ink">{t('categoriesEtReglesSection.categories')}</h4>
-          <ul className="mb-3 flex flex-wrap gap-2">
-            {categoriesRacines.map((c) => (
-              <li key={c.id} className="flex items-center gap-1.5 rounded-chip bg-chip px-3 py-1 text-sm text-ink2">
-                {c.nom}
-                <button onClick={() => supprimerCategorie(c.id)} aria-label={`Supprimer ${c.nom}`} className="text-ink4 hover:text-neg">{t('categoriesEtReglesSection.texte')}</button>
-              </li>
-            ))}
+          <p className="mb-2 text-xs text-ink3">{t('categoriesEtReglesSection.exclueDesTotauxAide')}</p>
+          <ul className="mb-3 divide-y divide-hairline">
+            {categoriesRacines.map((racine) => {
+              const sousCategories = categories.filter((c) => c.parent_id === racine.id)
+              return (
+                <li key={racine.id} className="py-1.5">
+                  <LigneCategorie
+                    categorie={racine}
+                    exclueParSaCategorie={false}
+                    onBasculerExclusion={() => basculerExclusion(racine)}
+                    onSupprimer={() => supprimerCategorie(racine.id)}
+                  />
+                  {sousCategories.length > 0 && (
+                    <ul className="ml-5 mt-1 space-y-1">
+                      {sousCategories.map((sous) => (
+                        <li key={sous.id}>
+                          <LigneCategorie
+                            categorie={sous}
+                            exclueParSaCategorie={racine.exclue_des_totaux}
+                            onBasculerExclusion={() => basculerExclusion(sous)}
+                            onSupprimer={() => supprimerCategorie(sous.id)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
           </ul>
           <div className="flex flex-wrap items-end gap-2">
             <Field label={t('categoriesEtReglesSection.nouvelleCategorie')} className="w-48">
@@ -114,7 +181,7 @@ export default function CategoriesEtReglesSection({
             <Field label={t('categoriesEtReglesSection.categorie')} className="w-44">
               <Select value={categorieRegle} onChange={(e) => setCategorieRegle(e.target.value ? Number(e.target.value) : '')}>
                 <option value="">{t('categoriesEtReglesSection.categorie2')}</option>
-                {categories.map((c) => (
+                {categoriesEnArbre(categories).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.parent_id !== null ? '↳ ' : ''}
                     {c.nom}

@@ -7,6 +7,7 @@ import type {
   AuthUser,
   BudgetCible,
   BudgetColumnMapping,
+  BudgetImportPreview,
   BudgetImportResult,
   BudgetSummary,
   CategorieBudget,
@@ -612,8 +613,9 @@ export const api = {
   listCategoriesBudget: () => request<CategorieBudget[]>('/budget/categories'),
   createCategorieBudget: (nom: string, parentId?: number | null) =>
     request<CategorieBudget>('/budget/categories', { method: 'POST', body: JSON.stringify({ nom, parent_id: parentId ?? null }) }),
-  renameCategorieBudget: (id: number, nom: string) =>
-    request<CategorieBudget>(`/budget/categories/${id}`, { method: 'PATCH', body: JSON.stringify({ nom }) }),
+  // Un champ absent reste inchangé (renommage, exclusion des totaux — § BM.3).
+  modifierCategorieBudget: (id: number, champs: { nom?: string; exclue_des_totaux?: boolean }) =>
+    request<CategorieBudget>(`/budget/categories/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
   deleteCategorieBudget: (id: number) => request<void>(`/budget/categories/${id}`, { method: 'DELETE' }),
 
   listReglesCategorisation: () => request<RegleCategorisation[]>('/budget/regles'),
@@ -625,7 +627,7 @@ export const api = {
   importBudgetCsvPreview: (file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return request<ImportPreview>('/budget/import/csv/preview', { method: 'POST', body: form })
+    return request<BudgetImportPreview>('/budget/import/csv/preview', { method: 'POST', body: form })
   },
   importBudgetCsvConfirm: (mapping: BudgetColumnMapping) =>
     request<BudgetImportResult>('/budget/import/csv/confirm', { method: 'POST', body: JSON.stringify(mapping) }),

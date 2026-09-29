@@ -11,6 +11,7 @@ const mouvementsSection = {
   libelle: "Libellé",
   montant: "Montant",
   categorie: "Catégorie",
+  exclu: "Exclu des totaux",
 } as const
 
 export default mouvementsSection
