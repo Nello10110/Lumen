@@ -9,6 +9,10 @@
 # Toute la configuration vit dans le `.env` voisin, JAMAIS ici : ce fichier est
 # versionné, un secret collé dedans partirait sur le dépôt au commit suivant.
 # Mode d'emploi complet : docs/MANUEL_EXPLOITATION.md § 13.
+#
+# Base : SQLite par défaut (un fichier, rien à administrer). Le profil `postgres`
+# (COMPOSE_PROFILES=postgres dans le `.env`, cf. .env.exemple et manuel § 14) ajoute
+# un serveur Postgres 16 ; rien à décommenter ici. Docker Compose 2.23.1 minimum.
 
 services:
   backend:
@@ -16,6 +20,13 @@ services:
     restart: unless-stopped
     environment:
       PATRIMOINE_DB: /app/data/patrimoine.db
+
+      # Profil `postgres` : l'URL n'existe que si le mot de passe du rôle applicatif
+      # est posé dans le `.env` — vide, l'application reste sur SQLite. Le mot de
+      # passe passe par PGPASSWORD, que lisent le pilote comme pg_dump : il
+      # n'apparaît dans aucune URL, aucun journal.
+      PATRIMOINE_DATABASE_URL: ${LUMEN_POSTGRES_APP_PASSWORD:+postgresql+psycopg://lumen_app@postgres:5432/lumen}
+      PGPASSWORD: ${LUMEN_POSTGRES_APP_PASSWORD:-}
 
       # OBLIGATOIRE — chiffre les sauvegardes ; la perdre les rend irrécupérables.
       PATRIMOINE_BACKUP_KEY: ${PATRIMOINE_BACKUP_KEY:?à définir dans .env — voir .env.exemple}
@@ -35,6 +46,20 @@ services:
       PATRIMOINE_OIDC_CLAIM_USERNAME: ${PATRIMOINE_OIDC_CLAIM_USERNAME:-}
       PATRIMOINE_OIDC_CLAIM_EMAIL: ${PATRIMOINE_OIDC_CLAIM_EMAIL:-}
       PATRIMOINE_OIDC_CLAIM_NOM: ${PATRIMOINE_OIDC_CLAIM_NOM:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        # Hors profil `postgres`, ce service n'existe pas : la dépendance est alors
+        # ignorée au lieu de rendre le projet invalide (Compose 2.20 minimum).
+        required: false
+    healthcheck:
+      # L'image n'a pas curl : Python, déjà là, interroge la route de santé.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Premier démarrage : les migrations passent avant que l'API ne réponde.
+      start_period: 120s
     volumes:
       # Deux volumes distincts : les sauvegardes sont déposées à la racine du code
       # backend, jamais à côté de la base (cf. manuel § 13).
@@ -49,12 +74,77 @@ services:
     image: ghcr.io/nello10110/lumen-frontend:${LUMEN_VERSION:-latest}
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        # Migrations terminées avant d'ouvrir l'interface : pas de page d'erreur
+        # 502 pendant le premier démarrage.
+        condition: service_healthy
     ports:
       # 127.0.0.1 : joignable depuis cette machine seule. LUMEN_BIND=0.0.0.0 dans
       # le .env l'ouvre au réseau local.
       - "${LUMEN_BIND:-127.0.0.1}:8080:80"
 
+  postgres:
+    image: postgres:16
+    profiles: [postgres]
+    restart: unless-stopped
+    environment:
+      # Superutilisateur de l'image : initialisation et administration seulement.
+      # L'application ne s'y connecte JAMAIS — il échappe à la séparation des foyers
+      # (§ BI.5). Pas de `:?` ici : Compose l'évaluerait même hors profil, et
+      # l'installation SQLite refuserait de démarrer. Vide, l'image refuse de
+      # s'initialiser, en le disant.
+      POSTGRES_PASSWORD: ${LUMEN_POSTGRES_ADMIN_PASSWORD:-}
+      # Lu par le script d'initialisation ci-dessous, au premier démarrage.
+      LUMEN_POSTGRES_APP_PASSWORD: ${LUMEN_POSTGRES_APP_PASSWORD:-}
+    # Sans mot de passe applicatif, refus AVANT toute initialisation : l'image ne
+    # rejoue jamais ses scripts sur un volume déjà initialisé, la base resterait
+    # sans rôle applicatif jusqu'à la suppression du volume.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ -z "$${LUMEN_POSTGRES_APP_PASSWORD:-}" ]; then
+          echo "LUMEN_POSTGRES_APP_PASSWORD est vide : à définir dans .env (voir .env.exemple)" >&2
+          exit 1
+        fi
+        exec docker-entrypoint.sh "$$@"
+      - docker-entrypoint.sh
+    command: [postgres]
+    configs:
+      - source: lumen_postgres_init
+        target: /docker-entrypoint-initdb.d/10-lumen.sh
+    volumes:
+      - patrimoine_postgres:/var/lib/postgresql/data
+    # Aucun port publié : seul le backend, sur le réseau Docker, joint la base.
+    healthcheck:
+      # En TCP : pendant l'initialisation, l'image fait tourner un serveur provisoire
+      # sur le seul socket local, que le backend ne doit pas prendre pour le vrai.
+      # `psql` vérifie que la base `lumen` existe : si le script d'initialisation a
+      # échoué, l'image redémarre SANS le rejouer — la base se dirait « prête » sans
+      # rôle applicatif ni base ; elle reste ici « malade », et le backend l'attend.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d lumen && psql -U postgres -d lumen -tAc 'SELECT 1' > /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+configs:
+  # Rôle applicatif NOSUPERUSER NOBYPASSRLS, propriétaire de la base `lumen` : il
+  # joue les migrations et reste soumis à la séparation des foyers (FORCE ROW LEVEL
+  # SECURITY). Écrit ici plutôt que dans un fichier du dépôt monté : le déploiement
+  # reste un seul fichier à télécharger (README). Aucun secret dedans — le mot de
+  # passe est lu dans l'environnement du conteneur, jamais sur une ligne de commande
+  # (`\getenv`) ; `$$` échappe le `$` pour Compose.
+  lumen_postgres_init:
+    content: |
+      psql -v ON_ERROR_STOP=1 --no-psqlrc --username "$$POSTGRES_USER" --dbname postgres <<'SQL'
+      \getenv mot_de_passe LUMEN_POSTGRES_APP_PASSWORD
+      CREATE ROLE lumen_app LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD :'mot_de_passe';
+      CREATE DATABASE lumen OWNER lumen_app;
+      REVOKE ALL ON DATABASE lumen FROM PUBLIC;
+      SQL
+
 volumes:
   patrimoine_data:
   patrimoine_sauvegardes:
+  patrimoine_postgres:

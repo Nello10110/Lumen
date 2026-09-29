@@ -52,8 +52,8 @@ npm run test:e2e
 
 Un changement qui touche au **modèle de données ou aux requêtes** gagne à passer aussi la suite
 backend sous Postgres, sur une base jetable : `PATRIMOINE_TEST_DATABASE_URL=postgresql+psycopg://…
-python -m pytest -q` (détail au § 7 du [manuel d'exploitation](docs/MANUEL_EXPLOITATION.md)). La CI
-la rejoue de toute façon : Postgres vérifie les clés étrangères, SQLite non, et c'est ainsi qu'une
+python -m pytest -q` (détail au § 7 du [manuel d'exploitation](docs/MANUEL_EXPLOITATION.md)) — et la
+suite de bout en bout de même, avec `PATRIMOINE_E2E_DATABASE_URL`. La CI les rejoue de toute façon : Postgres vérifie les clés étrangères, SQLite non, et c'est ainsi qu'une
 fuite de données a été trouvée (`docs/BACKLOG.md` § BI.4).
 
 La suite de bout en bout n'est pas facultative dès qu'un changement touche à la **navigation** —

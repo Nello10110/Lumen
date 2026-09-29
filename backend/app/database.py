@@ -96,7 +96,8 @@ def _chemin_base_par_defaut() -> Path:
 # SQLAlchemy complète dans `PATRIMOINE_DATABASE_URL` — `postgresql+psycopg://...` —
 # prend le pas sur tout ce qui suit. Sans elle, RIEN ne change pour une installation
 # auto-hébergée : fichier SQLite, choix de son emplacement, mode WAL, sauvegardes.
-# `DB_PATH` vaut alors `None` : il n'existe pas de fichier de base à désigner.
+# `DB_PATH` vaut alors `None` : il n'existe pas de fichier de base à désigner. Une
+# valeur VIDE vaut absence : le `compose.yaml` la laisse vide hors profil `postgres`.
 _URL_EXPLICITE = os.environ.get("PATRIMOINE_DATABASE_URL")
 if _URL_EXPLICITE:
     DATABASE_URL = _URL_EXPLICITE

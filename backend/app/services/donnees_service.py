@@ -2,9 +2,9 @@
 
 Complémentaire, et volontairement distinct, des deux mécanismes existants :
 
-- `services/backup_service.py` sauvegarde le FICHIER SQLite entier, chiffré, côté
-  serveur, pour l'exploitant — opaque, non ré-importable ailleurs, et contenant
-  tous les foyers ;
+- `services/backup_service.py` sauvegarde la base entière, chiffrée, côté serveur,
+  pour l'exploitant (fichier SQLite, ou archive `pg_dump` sous Postgres) — opaque,
+  non ré-importable ailleurs, et contenant tous les foyers ;
 - `services/csv_export.py` produit des extraits thématiques à lire dans Excel —
   lisibles mais partiels et non ré-importables (les relations sont aplaties).
 

@@ -3,6 +3,7 @@ absence de clé, rétention, restauration — sans passer par le scheduler
 (`test_scheduler_service.py` s'en charge)."""
 
 import sqlite3
+from datetime import datetime
 
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
@@ -134,3 +135,47 @@ def test_restaurer_chiffre_round_trip(base_source, tmp_path, cle_chiffrement):
     connexion = sqlite3.connect(str(cible))
     connexion.execute("SELECT COUNT(*) FROM holdings").fetchone()
     connexion.close()
+
+
+def test_la_retention_chiffree_ignore_les_sauvegardes_en_clair(base_source, tmp_path, cle_chiffrement):
+    """Une sauvegarde manuelle en clair (CLI) du même dossier passait le motif des
+    chiffrées : la rétention du job planifié pouvait la supprimer."""
+    from scripts import sauvegarde
+
+    dossier = tmp_path / "sauvegardes"
+    chiffree = backup_service.sauvegarder_chiffre(base_source, dossier, horodatage=datetime(2026, 1, 2))
+    archive_postgres = dossier / "patrimoine-20260101-020000.dump.enc"
+    archive_postgres.write_bytes(b"archive")
+    clair = sauvegarde.sauvegarder(base_source, dossier, horodatage=datetime(2026, 1, 1))
+
+    assert backup_service.lister_sauvegardes_chiffrees(dossier) == [archive_postgres, chiffree]
+    assert backup_service.appliquer_retention_chiffree(dossier, retention=1) == [archive_postgres]
+    assert clair.exists()
+
+
+def test_le_cli_restaure_une_sauvegarde_chiffree_du_job(base_source, tmp_path, cle_chiffrement, monkeypatch):
+    from scripts import sauvegarde
+
+    monkeypatch.delenv("PATRIMOINE_DATABASE_URL", raising=False)
+    dossier = tmp_path / "sauvegardes"
+    chiffree = backup_service.sauvegarder_chiffre(base_source, dossier)
+    cible = tmp_path / "cible.db"
+
+    assert sauvegarde.main(["--restaurer", str(chiffree), "--base", str(cible), "--dossier", str(dossier), "--forcer"]) == 0
+
+    connexion = sqlite3.connect(str(cible))
+    connexion.execute("SELECT COUNT(*) FROM holdings").fetchone()
+    connexion.close()
+
+
+def test_le_cli_refuse_une_sauvegarde_chiffree_avec_une_autre_cle(base_source, tmp_path, cle_chiffrement, monkeypatch):
+    from scripts import sauvegarde
+
+    monkeypatch.delenv("PATRIMOINE_DATABASE_URL", raising=False)
+    dossier = tmp_path / "sauvegardes"
+    chiffree = backup_service.sauvegarder_chiffre(base_source, dossier)
+    monkeypatch.setenv(backup_service.VARIABLE_CLE, Fernet.generate_key().decode("utf-8"))
+    cible = tmp_path / "cible.db"
+
+    assert sauvegarde.main(["--restaurer", str(chiffree), "--base", str(cible), "--dossier", str(dossier), "--forcer"]) == 1
+    assert not cible.exists()

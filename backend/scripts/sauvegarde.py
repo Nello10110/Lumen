@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sauvegarde et restauration de la base SQLite de Lumen (LOT 7.6).
+"""Sauvegarde et restauration de la base de Lumen : SQLite (LOT 7.6) ou Postgres (§ BK.1).
 
 `patrimoine.db` contient l'intégralité de l'historique financier personnel de
 l'utilisateur, sans sauvegarde automatique ni procédure de restauration testée
@@ -24,8 +24,14 @@ Le script est utilisable en ligne de commande (`python scripts/sauvegarde.py
 `appliquer_retention`, `verifier_integrite`) sont testables indépendamment de
 l'interface en ligne de commande.
 
+Sous Postgres (`PATRIMOINE_DATABASE_URL`, backlog § BK.1), la sauvegarde est une
+archive `pg_dump` (format custom) et la restauration passe par `pg_restore` : cf. la
+section « Base Postgres » plus bas, et la raison pour laquelle un `pg_dump` ordinaire
+n'y suffit pas.
+
 Volontairement autonome (ne dépend que de la bibliothèque standard, pas du
-paquet `app`) : ce script doit pouvoir tourner même si l'application elle-même
+paquet `app` — hormis le déchiffrement d'une sauvegarde `.enc`, chargé à la
+demande) : ce script doit pouvoir tourner même si l'application elle-même
 ne démarre plus (base corrompue, dépendance cassée...), et fonctionner qu'il
 soit lancé directement (`python scripts/sauvegarde.py`) ou importé depuis les
 tests (`from scripts.sauvegarde import ...`). Il respecte néanmoins la même
@@ -39,10 +45,14 @@ import argparse
 import logging
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 logger = logging.getLogger("patrimoine.sauvegarde")
 
@@ -58,18 +68,29 @@ _CHEMIN_BASE_PAR_DEFAUT = _RACINE_BACKEND / "patrimoine.db"
 DOSSIER_SAUVEGARDES_PAR_DEFAUT = _RACINE_BACKEND / "sauvegardes"
 
 _FORMAT_HORODATAGE = "%Y%m%d-%H%M%S"
-# Une sauvegarde normale : "portfolio-AAAAMMJJ-HHMMSS.db", avec un suffixe "-2",
-# "-3"... en cas de collision (deux sauvegardes lancées dans la même seconde).
-# Distinct par construction du nom des copies de sécurité créées par `restaurer`
-# ("patrimoine-avant-restauration-...") : `appliquer_retention` ne doit jamais
-# purger ces dernières, qui ne sont pas des sauvegardes périodiques.
-_MOTIF_NOM_SAUVEGARDE = re.compile(r"^patrimoine-\d{8}-\d{6}(-\d+)?\.db$")
+SUFFIXE_SQLITE = ".db"
+SUFFIXE_POSTGRES = ".dump"
+# Sauvegarde du job planifié, chiffrée par `app.services.backup_service`.
+SUFFIXE_CHIFFRE = ".enc"
+# Une sauvegarde normale : "patrimoine-AAAAMMJJ-HHMMSS.db" (SQLite) ou ".dump"
+# (Postgres), avec un suffixe "-2", "-3"... en cas de collision (deux sauvegardes
+# lancées dans la même seconde). Distinct par construction du nom des copies de
+# sécurité créées par `restaurer` ("patrimoine-avant-restauration-...") :
+# `appliquer_retention` ne doit jamais purger ces dernières, qui ne sont pas des
+# sauvegardes périodiques.
+_MOTIF_NOM_SAUVEGARDE = re.compile(r"^patrimoine-\d{8}-\d{6}(-\d+)?\.(db|dump)$")
 
 
 class SauvegardeInvalideError(RuntimeError):
     """Levée quand une base (fraîchement sauvegardée ou fournie pour restauration)
     échoue au contrôle d'intégrité — ne doit jamais être confondue avec un succès
     silencieux."""
+
+
+class OutilPostgresError(RuntimeError):
+    """Un outil du client PostgreSQL (`pg_dump`, `pg_restore`, `psql`) est absent ou
+    a échoué. Le message reprend sa sortie d'erreur, qui ne contient jamais le mot de
+    passe (passé par l'environnement, cf. `connexion_postgres`)."""
 
 
 def chemin_base_source() -> Path:
@@ -169,14 +190,14 @@ def verifier_integrite(chemin_base: Path) -> None:
     logger.info("contrôle d'intégrité OK : %s", chemin_base)
 
 
-def _nom_disponible(dossier: Path, prefixe_horodate: str) -> Path:
-    """Premier chemin `dossier / (prefixe_horodate + ".db")` libre, avec un
+def _nom_disponible(dossier: Path, prefixe_horodate: str, suffixe: str = SUFFIXE_SQLITE) -> Path:
+    """Premier chemin `dossier / (prefixe_horodate + suffixe)` libre, avec un
     suffixe `-2`, `-3`... en cas de collision (deux appels dans la même seconde,
     résolution de l'horodatage étant à la seconde près)."""
-    chemin = dossier / f"{prefixe_horodate}.db"
+    chemin = dossier / f"{prefixe_horodate}{suffixe}"
     compteur = 2
     while chemin.exists():
-        chemin = dossier / f"{prefixe_horodate}-{compteur}.db"
+        chemin = dossier / f"{prefixe_horodate}-{compteur}{suffixe}"
         compteur += 1
     return chemin
 
@@ -287,15 +308,197 @@ def restaurer(
     return chemin_base_cible
 
 
+# ── Base Postgres (backlog § BK.1) ─────────────────────────────────────────────
+#
+# Les tables de foyer sont en `FORCE ROW LEVEL SECURITY` (§ BI.5) : leur propriétaire,
+# le rôle applicatif, y est soumis comme n'importe qui. Or `pg_dump` pose par défaut
+# `row_security = off`, qui fait ÉCHOUER toute lecture qu'une politique filtrerait —
+# un `pg_dump` ordinaire du rôle applicatif n'aboutit donc pas. `--enable-row-security`
+# laisse les politiques s'appliquer, et `app.tous_foyers=on`, posé dès la connexion,
+# les ouvre à tous les foyers, exactement comme les tâches de fond
+# (`database.session_tous_foyers`) ; sans lui, l'archive serait complète… et vide de
+# toute ligne de foyer. `psql` reçoit le même réglage à la restauration : les
+# politiques valent aussi pour l'écriture (`WITH CHECK`).
+OPTION_TOUS_FOYERS = "-c app.tous_foyers=on"
+
+
+def _outil_postgres(nom: str) -> str:
+    chemin = shutil.which(nom)
+    if chemin is None:
+        raise OutilPostgresError(f"{nom} introuvable : installer le client PostgreSQL 16 (paquet postgresql-client-16)")
+    return chemin
+
+
+def uri_libpq(url: str) -> str:
+    """URL SQLAlchemy (`postgresql+psycopg://…`) -> URI libpq SANS mot de passe."""
+    parties = urlsplit(url)
+    if not parties.scheme.startswith("postgresql"):
+        raise ValueError(f"URL de base non Postgres : schéma « {parties.scheme} »")
+    identite, arobase, hote = parties.netloc.rpartition("@")
+    utilisateur = identite.split(":", 1)[0]
+    return urlunsplit(("postgresql", f"{utilisateur}{arobase}{hote}", parties.path, parties.query, ""))
+
+
+def connexion_postgres(url: str) -> tuple[str, dict[str, str]]:
+    """(URI libpq, environnement des outils Postgres). Le mot de passe passe par
+    `PGPASSWORD` : en ligne de commande, `ps` le montrerait à tout utilisateur de la
+    machine. Sans mot de passe dans l'URL, celui de l'environnement (compose) vaut."""
+    uri = uri_libpq(url)
+    environnement = dict(os.environ)
+    mot_de_passe = urlsplit(url).password
+    if mot_de_passe:
+        environnement["PGPASSWORD"] = unquote(mot_de_passe)
+    environnement["PGOPTIONS"] = f"{environnement.get('PGOPTIONS', '')} {OPTION_TOUS_FOYERS}".strip()
+    return uri, environnement
+
+
+def _executer_outil(commande: list[str], environnement: dict[str, str] | None = None) -> str:
+    resultat = subprocess.run(commande, env=environnement, capture_output=True, text=True, check=False)
+    if resultat.returncode != 0:
+        raise OutilPostgresError(f"{Path(commande[0]).name} a échoué (code {resultat.returncode}) : {resultat.stderr.strip()}")
+    return resultat.stdout
+
+
+def _exporter_postgres(url: str, destination: Path) -> None:
+    uri, environnement = connexion_postgres(url)
+    _executer_outil(
+        [
+            _outil_postgres("pg_dump"),
+            "--format=custom",
+            "--enable-row-security",
+            "--no-password",
+            f"--file={destination}",
+            f"--dbname={uri}",
+        ],
+        environnement,
+    )
+
+
+def verifier_archive_postgres(chemin_archive: Path) -> None:
+    """Pendant de `verifier_integrite` pour une archive `pg_dump` : lisible par
+    `pg_restore`, et porteuse des données des tables principales."""
+    chemin_archive = Path(chemin_archive)
+    if not chemin_archive.exists():
+        raise FileNotFoundError(f"Fichier introuvable : {chemin_archive}")
+    try:
+        sommaire = _executer_outil([_outil_postgres("pg_restore"), "--list", str(chemin_archive)])
+    except OutilPostgresError as exc:
+        raise SauvegardeInvalideError(f"{chemin_archive} n'est pas une archive pg_dump lisible : {exc}") from exc
+    for table in TABLES_PRINCIPALES:
+        if not re.search(rf"TABLE DATA public {table} ", sommaire):
+            raise SauvegardeInvalideError(f"données de la table {table} absentes de {chemin_archive}")
+    logger.info("archive Postgres vérifiée : %s", chemin_archive)
+
+
+def sauvegarder_postgres(url: str, dossier_destination: Path, *, horodatage: datetime | None = None) -> Path:
+    """Archive `pg_dump` (format custom) de TOUS les foyers vers un fichier horodaté
+    `.dump` de `dossier_destination`, vérifiée avant d'être annoncée. Une archive
+    incomplète ou illisible est supprimée, jamais laissée pour une sauvegarde."""
+    dossier_destination = Path(dossier_destination)
+    dossier_destination.mkdir(parents=True, exist_ok=True)
+    horodatage = horodatage or datetime.now()
+    chemin = _nom_disponible(dossier_destination, f"patrimoine-{horodatage.strftime(_FORMAT_HORODATAGE)}", SUFFIXE_POSTGRES)
+    try:
+        _exporter_postgres(url, chemin)
+        verifier_archive_postgres(chemin)
+    except BaseException:
+        chemin.unlink(missing_ok=True)
+        raise
+    logger.info("sauvegarde Postgres créée : %s", chemin)
+    return chemin
+
+
+def restaurer_postgres(
+    chemin_archive: Path, url: str, dossier_sauvegardes: Path, *, horodatage: datetime | None = None
+) -> Path:
+    """Remplace le contenu de la base `url` par l'archive `chemin_archive`. Renvoie
+    la copie de sécurité de la base courante, prise avant d'y toucher (même nom et
+    même règle que sous SQLite : hors rétention).
+
+    Le schéma `public` est recréé en entier, dans UNE transaction avec le
+    chargement : restaurer seulement les objets de l'archive laisserait en place les
+    tables d'une migration postérieure, que la révision Alembic restaurée ne connaît
+    pas (le prochain démarrage échouerait à les recréer) ; et un échec à mi-chemin
+    ne laisse rien de modifié. `--no-owner` : les objets reviennent au rôle qui
+    restaure, celui de l'application."""
+    chemin_archive = Path(chemin_archive)
+    verifier_archive_postgres(chemin_archive)
+
+    dossier_sauvegardes = Path(dossier_sauvegardes)
+    dossier_sauvegardes.mkdir(parents=True, exist_ok=True)
+    horodatage = horodatage or datetime.now()
+    mise_de_cote = _nom_disponible(
+        dossier_sauvegardes, f"patrimoine-avant-restauration-{horodatage.strftime(_FORMAT_HORODATAGE)}", SUFFIXE_POSTGRES
+    )
+    _exporter_postgres(url, mise_de_cote)
+    logger.info("base courante mise de côté avant restauration : %s", mise_de_cote)
+
+    uri, environnement = connexion_postgres(url)
+    with tempfile.TemporaryDirectory() as dossier_temp:
+        # Script SQL d'abord, chargement ensuite : lu directement depuis `pg_restore`,
+        # une archive interrompue en cours de lecture serait validée telle quelle.
+        script = Path(dossier_temp) / "restauration.sql"
+        _executer_outil(
+            [
+                _outil_postgres("pg_restore"),
+                "--no-owner",
+                "--no-privileges",
+                "--enable-row-security",
+                f"--file={script}",
+                str(chemin_archive),
+            ]
+        )
+        _executer_outil(
+            [
+                _outil_postgres("psql"),
+                "--no-psqlrc",
+                "--quiet",
+                "--no-password",
+                "--set=ON_ERROR_STOP=1",
+                "--single-transaction",
+                "--command=DROP SCHEMA public CASCADE",
+                "--command=CREATE SCHEMA public",
+                f"--file={script}",
+                f"--dbname={uri}",
+            ],
+            environnement,
+        )
+    logger.info("base restaurée : %s -> %s", chemin_archive, uri)
+    return mise_de_cote
+
+
+def _dechiffrer_si_besoin(fichier: Path, dossier_temp: Path) -> Path:
+    """Une sauvegarde du job planifié (`.enc`) est déchiffrée avec
+    `PATRIMOINE_BACKUP_KEY` vers `dossier_temp` ; un fichier en clair est rendu tel
+    quel. Seul endroit où ce script sort de la bibliothèque standard — chargé ici,
+    à la demande, pour que tout le reste tourne même si l'application est cassée."""
+    if not fichier.name.endswith(SUFFIXE_CHIFFRE):
+        return fichier
+    if str(_RACINE_BACKEND) not in sys.path:
+        sys.path.insert(0, str(_RACINE_BACKEND))
+    from cryptography.fernet import InvalidToken  # noqa: PLC0415 - cf. docstring
+
+    from app.services import backup_service  # noqa: PLC0415 - cf. docstring
+
+    try:
+        return backup_service.dechiffrer(fichier, dossier_temp / fichier.name.removesuffix(SUFFIXE_CHIFFRE))
+    except InvalidToken as exc:
+        raise SauvegardeInvalideError(
+            f"{fichier} : PATRIMOINE_BACKUP_KEY n'est pas la clé qui l'a chiffré, ou le fichier est corrompu"
+        ) from exc
+
+
 def _construire_analyseur() -> argparse.ArgumentParser:
     analyseur = argparse.ArgumentParser(
         prog="sauvegarde.py",
         description=(
-            "Sauvegarde et restauration de la base SQLite de Lumen. Sans "
-            "--restaurer, effectue une sauvegarde à chaud (cohérente même "
+            "Sauvegarde et restauration de la base de Lumen — SQLite par défaut, "
+            "Postgres si PATRIMOINE_DATABASE_URL est définie (pg_dump / pg_restore). "
+            "Sans --restaurer, effectue une sauvegarde à chaud (cohérente même "
             "application démarrée) puis applique la rétention. Avec --restaurer, "
-            "remplace la base courante par le fichier indiqué, après l'avoir "
-            "mise de côté."
+            "remplace la base courante par le fichier indiqué — y compris une "
+            "sauvegarde chiffrée .enc du job planifié, avec PATRIMOINE_BACKUP_KEY — "
+            "après l'avoir mise de côté."
         ),
         epilog=(
             "Exemples :\n"
@@ -303,6 +506,7 @@ def _construire_analyseur() -> argparse.ArgumentParser:
             "  python scripts/sauvegarde.py --dossier /mnt/sauvegardes --retention 30\n"
             "  python scripts/sauvegarde.py --restaurer sauvegardes/patrimoine-20260101-020000.db\n"
             "  python scripts/sauvegarde.py --restaurer sauvegardes/patrimoine-20260101-020000.db --forcer\n"
+            "  python scripts/sauvegarde.py --restaurer sauvegardes/patrimoine-20260101-020000.dump.enc --forcer\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -311,7 +515,7 @@ def _construire_analyseur() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         metavar="CHEMIN",
-        help="Chemin de la base SQLite source (sauvegarde) ou cible (restauration). "
+        help="SQLite seulement : chemin de la base source (sauvegarde) ou cible (restauration). "
         "Par défaut : $PATRIMOINE_DB si défini, sinon backend/patrimoine.db.",
     )
     analyseur.add_argument(
@@ -345,10 +549,10 @@ def _construire_analyseur() -> argparse.ArgumentParser:
     return analyseur
 
 
-def _executer_sauvegarde(chemin_base: Path, dossier: Path, retention: int) -> int:
+def _executer_sauvegarde(url: str | None, base: Path | None, dossier: Path, retention: int) -> int:
     try:
-        chemin_sauvegarde = sauvegarder(chemin_base, dossier)
-    except (FileNotFoundError, SauvegardeInvalideError) as exc:
+        chemin_sauvegarde = sauvegarder_postgres(url, dossier) if url else sauvegarder(base or chemin_base_source(), dossier)
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
         logger.error("échec de la sauvegarde : %s", exc)
         return 1
 
@@ -360,10 +564,15 @@ def _executer_sauvegarde(chemin_base: Path, dossier: Path, retention: int) -> in
     return 0
 
 
-def _executer_restauration(fichier: Path, chemin_base: Path, dossier: Path, forcer: bool) -> int:
+def _executer_restauration(fichier: Path, url: str | None, base: Path | None, dossier: Path, forcer: bool) -> int:
+    try:
+        cible = uri_libpq(url) if url else base or chemin_base_source()
+    except ValueError as exc:
+        logger.error("échec de la restauration : %s", exc)
+        return 1
     if not forcer:
         reponse = input(
-            f"Ceci va remplacer {chemin_base} par le contenu de {fichier}.\n"
+            f"Ceci va remplacer {cible} par le contenu de {fichier}.\n"
             "La base courante sera d'abord mise de côté. Confirmer ? [o/N] "
         )
         if reponse.strip().lower() not in ("o", "oui", "y", "yes"):
@@ -371,12 +580,26 @@ def _executer_restauration(fichier: Path, chemin_base: Path, dossier: Path, forc
             return 1
 
     try:
-        restaurer(fichier, chemin_base, dossier)
-    except (FileNotFoundError, SauvegardeInvalideError) as exc:
+        with tempfile.TemporaryDirectory() as dossier_temp:
+            fichier_clair = _dechiffrer_si_besoin(Path(fichier), Path(dossier_temp))
+            if fichier_clair.suffix == SUFFIXE_POSTGRES:
+                if not url:
+                    raise SauvegardeInvalideError(
+                        f"{fichier} est une archive Postgres : PATRIMOINE_DATABASE_URL doit désigner la base à restaurer"
+                    )
+                restaurer_postgres(fichier_clair, url, dossier)
+            elif url:
+                raise SauvegardeInvalideError(
+                    f"{fichier} est une sauvegarde SQLite : elle ne se restaure pas dans une base Postgres "
+                    "(reprise des données : export/import JSON du foyer, docs/MANUEL_EXPLOITATION.md § 14)"
+                )
+            else:
+                restaurer(fichier_clair, cible, dossier)
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
         logger.error("échec de la restauration : %s", exc)
         return 1
 
-    print(f"Base restaurée depuis {fichier} vers {chemin_base}.")
+    print(f"Base restaurée depuis {fichier} vers {cible}.")
     return 0
 
 
@@ -384,11 +607,13 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
     args = _construire_analyseur().parse_args(argv)
-    chemin_base = args.base or chemin_base_source()
+    # Même règle que `app/database.py` : une valeur vide vaut absence (le compose la
+    # laisse vide hors profil `postgres`).
+    url = os.environ.get("PATRIMOINE_DATABASE_URL") or None
 
     if args.restaurer is not None:
-        return _executer_restauration(args.restaurer, chemin_base, args.dossier, args.forcer)
-    return _executer_sauvegarde(chemin_base, args.dossier, args.retention)
+        return _executer_restauration(args.restaurer, url, args.base, args.dossier, args.forcer)
+    return _executer_sauvegarde(url, args.base, args.dossier, args.retention)
 
 
 if __name__ == "__main__":

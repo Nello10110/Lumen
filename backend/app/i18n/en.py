@@ -247,7 +247,6 @@ TRADUCTIONS: dict[str, str] = {
     "Salaire introuvable": "Salary not found",
     "Sans compte renseigné": "No account specified",
     "Santé": "Health care",
-    "Sauvegarde intégrée réservée à une base SQLite : une base serveur se sauvegarde avec ses propres outils (pg_dump).": "Built-in backup is only for a SQLite database: a server database is backed up with its own tools (pg_dump).",
     "Score patrimonial": "Wealth score",
     "Secteur": "Sector",
     "Services publics": "Utilities",

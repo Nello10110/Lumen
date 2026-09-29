@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Peuple une base SQLite jetable avec un jeu de données déterministe pour la suite
-de tests E2E (Playwright, `frontend/e2e/`) — jamais utilisé contre une vraie base.
+"""Peuple une base jetable (SQLite, ou Postgres pour le job CI `e2e-postgres`) avec
+un jeu de données déterministe pour la suite de tests E2E (Playwright,
+`frontend/e2e/`) — jamais utilisé contre une vraie base.
 
 Toute la donnée métier (comptes, actifs, emprunts, transactions, budget...) est
 créée en appelant le VRAI backend HTTP (`--base-url`), déjà démarré sur la base
@@ -10,9 +11,10 @@ est en soi une première vérification de cohérence. Seule exception : les cour
 route n'expose en écriture directe (par conception — ces tables ne sont alimentées
 que par `market_data_service`/`justetf_service`, jamais par l'utilisateur) : posés
 en base directement via les modèles SQLAlchemy de l'application, une fois le compte
-et les lignes créés côté API. `PATRIMOINE_DB` doit être positionnée AVANT d'importer
-quoi que ce soit sous `app.*`, sur le MÊME fichier que celui ouvert par `--base-url`
-(cf. `app/database.py`, qui résout la base une seule fois à l'import du module).
+et les lignes créés côté API. La base doit être la MÊME que celle ouverte par
+`--base-url` : `--db` pour un fichier SQLite, sinon `PATRIMOINE_DATABASE_URL` héritée
+de l'environnement — positionnées avant tout import sous `app.*` (cf.
+`app/database.py`, qui résout la base une seule fois à l'import du module).
 
 Écrit un résumé JSON (`--out`) — identifiants créés, identifiants/agrégats attendus
 — consommé par `frontend/e2e/global-setup.ts` pour piloter les tests sans dupliquer
@@ -23,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -359,12 +362,12 @@ def _importer_budget(client: httpx.Client) -> None:
     categoriser.raise_for_status()
 
 
-def _seed_market_data(db_path: str) -> None:
-    """Cours et composition posés directement en base (cf. docstring de module) —
-    `PATRIMOINE_DB` doit être positionnée avant tout import sous `app.*`."""
-    import os
-
-    os.environ["PATRIMOINE_DB"] = db_path
+def _seed_market_data(db_path: str | None) -> None:
+    """Cours et composition posés directement en base (cf. docstring de module).
+    Données de marché, communes à tous les foyers : aucun périmètre de foyer à poser
+    sous Postgres."""
+    if db_path:
+        os.environ["PATRIMOINE_DB"] = db_path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
     from app.database import SessionLocal  # noqa: PLC0415
@@ -405,9 +408,14 @@ def _seed_market_data(db_path: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", required=True, help="URL du backend E2E déjà démarré (ex. http://127.0.0.1:8010)")
-    parser.add_argument("--db", required=True, help="Chemin du fichier SQLite ouvert par ce même backend")
+    parser.add_argument(
+        "--db",
+        help="Chemin du fichier SQLite ouvert par ce même backend. Absent : base Postgres de PATRIMOINE_DATABASE_URL",
+    )
     parser.add_argument("--out", required=True, help="Chemin du fichier JSON de résumé à écrire")
     args = parser.parse_args()
+    if not args.db and not os.environ.get("PATRIMOINE_DATABASE_URL"):
+        parser.error("--db ou PATRIMOINE_DATABASE_URL : la base ouverte par le backend doit être désignée")
 
     client = _client(args.base_url)
     _enregistrer(client)

@@ -19,6 +19,9 @@ reportlab>=4.2
 # dépendances.
 pillow>=10
 alembic>=1.13
+# Pilote Postgres (§ BK.1) : l'image doit pouvoir servir le profil `postgres` du
+# compose. Sans effet sous SQLite, qui ne le charge jamais.
+psycopg[binary]>=3.2
 cryptography>=42
 # Lecture du `.env` du dépôt au démarrage (cf. `app/config_env.py`) : sans elle, les
 # secrets posés dans ce fichier n'étaient lus que par Docker Compose, jamais par un

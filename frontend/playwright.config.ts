@@ -13,7 +13,8 @@ export const DATA_DIR = path.join(DIRNAME, 'e2e', '.e2e-data')
 export const STORAGE_STATE_PATH = path.join(DATA_DIR, 'storage-state.json')
 
 /** Suite E2E (navigateur réel, Playwright) contre un backend isolé sur une base
- * SQLite jetable, jamais la vraie base de l'utilisateur — cf. `e2e/global-setup.ts`
+ * jetable (SQLite, ou Postgres avec `PATRIMOINE_E2E_DATABASE_URL`, job CI
+ * `e2e-postgres`), jamais la vraie base de l'utilisateur — cf. `e2e/global-setup.ts`
  * pour l'orchestration (démarrage du backend, seed des données, arrêt propre) et
  * `backend/scripts/seed_e2e.py` pour le jeu de données. Complète (ne remplace pas)
  * la suite Vitest existante (chaque `*.test.tsx` sous `src/`, composants isolés avec l'API
