@@ -1,7 +1,9 @@
 """Sauvegarde chiffrée planifiée (backlog 2.L.2) : encapsule `scripts/sauvegarde.py`
-(non modifié — reste autonome, testable indépendamment de `app`, et toujours
-utilisable tel quel en CLI pour une sauvegarde manuelle NON chiffrée) pour brancher
-une sauvegarde + chiffrement Fernet dans le scheduler applicatif (`scheduler_service.py`).
+(autonome, testable indépendamment de `app`, et toujours utilisable tel quel en CLI
+pour une sauvegarde manuelle NON chiffrée) pour brancher une sauvegarde + chiffrement
+Fernet dans le scheduler applicatif (`scheduler_service.py`) — copie du fichier
+SQLite, ou archive `pg_dump` sous Postgres (backlog § BK.1), chiffrées de la même
+façon, rangées dans le même dossier, soumises à la même rétention.
 
 Chiffrement symétrique via `cryptography.fernet.Fernet` (AES-128-CBC + HMAC,
 implémentation simple à utiliser correctement) plutôt qu'une primitive stdlib : il
@@ -25,7 +27,7 @@ from . import cles_chiffrement
 logger = logging.getLogger("patrimoine.backup_service")
 
 VARIABLE_CLE = "PATRIMOINE_BACKUP_KEY"
-SUFFIXE_CHIFFRE = ".enc"
+SUFFIXE_CHIFFRE = sauvegarde_module.SUFFIXE_CHIFFRE
 
 
 class CleChiffrementAbsenteError(RuntimeError):
@@ -50,13 +52,8 @@ def _fernet() -> Fernet:
         raise CleChiffrementInvalideError(str(exc)) from exc
 
 
-def sauvegarder_chiffre(chemin_source: Path, dossier_destination: Path, *, horodatage=None) -> Path:
-    """Vérifie la clé de chiffrement AVANT toute écriture (jamais de sauvegarde en
-    clair laissée sur disque si la clé manque). Réutilise `sauvegarde.sauvegarder`
-    (qui vérifie déjà l'intégrité du fichier clair) puis chiffre, et supprime le
-    clair dans un `finally` — même en cas d'échec du chiffrement lui-même."""
-    fernet = _fernet()
-    chemin_clair = sauvegarde_module.sauvegarder(chemin_source, dossier_destination, horodatage=horodatage)
+def _chiffrer_puis_effacer_le_clair(fernet: Fernet, chemin_clair: Path) -> Path:
+    """Supprime le clair dans un `finally` — même en cas d'échec du chiffrement."""
     try:
         chemin_chiffre = chemin_clair.with_name(chemin_clair.name + SUFFIXE_CHIFFRE)
         chemin_chiffre.write_bytes(fernet.encrypt(chemin_clair.read_bytes()))
@@ -64,6 +61,25 @@ def sauvegarder_chiffre(chemin_source: Path, dossier_destination: Path, *, horod
         chemin_clair.unlink(missing_ok=True)
     logger.info("sauvegarde chiffrée créée : %s", chemin_chiffre)
     return chemin_chiffre
+
+
+def sauvegarder_chiffre(chemin_source: Path, dossier_destination: Path, *, horodatage=None) -> Path:
+    """Vérifie la clé de chiffrement AVANT toute écriture (jamais de sauvegarde en
+    clair laissée sur disque si la clé manque). Réutilise `sauvegarde.sauvegarder`
+    (qui vérifie déjà l'intégrité du fichier clair) puis chiffre."""
+    fernet = _fernet()
+    return _chiffrer_puis_effacer_le_clair(
+        fernet, sauvegarde_module.sauvegarder(chemin_source, dossier_destination, horodatage=horodatage)
+    )
+
+
+def sauvegarder_postgres_chiffre(url: str, dossier_destination: Path, *, horodatage=None) -> Path:
+    """Pendant Postgres de `sauvegarder_chiffre` : archive `pg_dump` de tous les
+    foyers (`sauvegarde.sauvegarder_postgres`, vérifiée), puis chiffrée."""
+    fernet = _fernet()
+    return _chiffrer_puis_effacer_le_clair(
+        fernet, sauvegarde_module.sauvegarder_postgres(url, dossier_destination, horodatage=horodatage)
+    )
 
 
 def dechiffrer(chemin_chiffre: Path, chemin_clair_destination: Path) -> Path:
@@ -81,16 +97,22 @@ def lister_sauvegardes_chiffrees(dossier: Path) -> list[Path]:
     dossier = Path(dossier)
     if not dossier.exists():
         return []
+    # `endswith` d'abord : sans lui, une sauvegarde manuelle EN CLAIR du même dossier
+    # (`patrimoine-….db`, CLI) passait le motif et tombait sous cette rétention-ci.
     fichiers = [
-        f for f in dossier.iterdir() if f.is_file() and sauvegarde_module._MOTIF_NOM_SAUVEGARDE.match(f.name.removesuffix(SUFFIXE_CHIFFRE))
+        f
+        for f in dossier.iterdir()
+        if f.is_file()
+        and f.name.endswith(SUFFIXE_CHIFFRE)
+        and sauvegarde_module._MOTIF_NOM_SAUVEGARDE.match(f.name.removesuffix(SUFFIXE_CHIFFRE))
     ]
     return sorted(fichiers)
 
 
 def appliquer_retention_chiffree(dossier: Path, retention: int = sauvegarde_module.RETENTION_PAR_DEFAUT) -> list[Path]:
     """Même politique que `sauvegarde.appliquer_retention` (ne garde que les
-    `retention` plus récentes), appliquée aux fichiers `.db.enc` plutôt qu'aux
-    `.db` en clair."""
+    `retention` plus récentes), appliquée aux fichiers chiffrés (`.db.enc`,
+    `.dump.enc`) plutôt qu'aux sauvegardes en clair."""
     if retention <= 0:
         return []
     fichiers = lister_sauvegardes_chiffrees(dossier)

@@ -50,13 +50,15 @@ au § 4.2.
 **Technique.** Backend Python (FastAPI, SQLAlchemy 2, Alembic), montants en `Decimal` exacts au
 centime (§ BI.1). Base **SQLite** par défaut — un fichier, une installation par foyer ; **Postgres**
 possible pour une future version hébergée, avec la séparation des foyers imposée par la base elle-même
-(sécurité au niveau des lignes, § BI.4-BI.5) — côté code seulement : ni déployable, ni capable de
-gérer plusieurs foyers à ce jour (§ BK). Frontend React + TypeScript + Vite. Déploiement par un
+(sécurité au niveau des lignes, § BI.4-BI.5) — déployable par un profil du compose, sauvegarde
+comprise (§ BK.1, en attente de sa première exécution en CI), mais pas encore capable de gérer
+plusieurs foyers (§ BK.2). Frontend React + TypeScript + Vite. Déploiement par un
 `compose.yaml` unique et des images publiées sur GHCR à chaque livraison.
 
 **Qualité.** 1 474 tests backend (SQLite ; la même suite tourne sous Postgres en CI, rôle ordinaire,
-séparation des foyers active), 853 tests frontend (Vitest), 81 tests de bout en bout (Playwright).
-Lint `ruff` et `oxlint`, typage `tsc`. Tout est rejoué à chaque push (`.github/workflows/ci.yml`).
+séparation des foyers active), 853 tests frontend (Vitest), 81 tests de bout en bout (Playwright,
+joués sous SQLite et sous Postgres). Lint `ruff` et `oxlint`, typage `tsc`. Tout est rejoué à chaque
+push (`.github/workflows/ci.yml`), y compris un déploiement réel du compose, avec et sans Postgres.
 
 **Licence.** FSL-1.1-ALv2 (§ BE) : code ouvert, usage libre hors concurrence commerciale, bascule
 automatique en Apache 2.0 au bout de deux ans.
@@ -66,8 +68,7 @@ automatique en Apache 2.0 au bout de deux ans.
 ## 2. Ce qui reste à faire
 
 Presque aucun point n'est bloqué par manque de temps : chacun attend une décision, une donnée
-externe ou une action hors code — seul BK.1 est du pur travail, sans urgence tant qu'aucune version
-hébergée n'est lancée. C'est la liste à tenir à jour — un point qui se débloque passe en tête de la
+externe ou une action hors code — BK.1, fait, n'attend plus que sa vérification par la CI. C'est la liste à tenir à jour — un point qui se débloque passe en tête de la
 file et reçoit son détail au § 5.
 
 ### 2.1 Points ouverts
@@ -83,21 +84,20 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.1** — déploiement Postgres (compose, image, sauvegardes) | Du travail, pas une décision : aujourd'hui Postgres ne tourne qu'en CI | À faire le jour où une version hébergée est lancée, ou pour un essai (détail § BK) |
+| **BK.1** — déploiement Postgres (compose, image, sauvegardes) | Fait le 29/09/2026 ; les jobs `backend-postgres`, `e2e-postgres` et `deploiement-postgres` n'ont pas encore tourné (pas de Docker sur le poste de développement) | Une exécution verte de la CI sur la pull request, puis passer le point en `traité` (détail § BK.1) |
 | **BK.2** — gestion des foyers sur une installation partagée | La conception : une installation ne sait créer qu'un foyer | **Atelier avec l'utilisateur** sur les questions du § BK.2, avant tout code |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
 
-**État au 23/09/2026 : pas encore utilisable.** La préparation technique est faite (§ BI.4, BI.5) :
-le code tourne sous Postgres — toute la suite de tests y passe en CI — et la base y sépare elle-même
-les foyers. Mais rien ne permet encore de le **déployer** (ni service Postgres dans `compose.yaml`,
-ni pilote dans l'image), et l'application ne sait créer **qu'un seul foyer par installation** : la
-séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas se produire. Les deux
-chantiers qui manquent :
+**État au 29/09/2026 : déployable, pas encore multi-foyer.** Le code tourne sous Postgres, la base y
+sépare elle-même les foyers (§ BI.4, BI.5), et le `compose.yaml` sait le déployer — profil
+`postgres`, rôle applicatif ordinaire, sauvegarde chiffrée et restauration (§ BK.1, en attente de
+sa vérification par la CI). Mais l'application ne sait créer **qu'un seul foyer par installation** :
+la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas se produire.
 
-- **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : du travail connu, à faire ;
+- **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : fait, à confirmer par la CI ;
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
   partagée. **À concevoir avec l'utilisateur avant tout code** — c'est le vrai sujet.
 
@@ -250,7 +250,7 @@ l'usage réel a fait remonter.
 | BD à BH | Logo SSO, licence, ouverture publique du dépôt, données personnelles, ménage git | 22/09 |
 | BI | Suites de l'étude « réécrire en Rust ? » : décimal, pandas, profilage, Postgres, séparation des foyers | 22-23/09 |
 | BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine, avertissement de suppression d'un compte | 23/09 |
-| BK | Version hébergée : déploiement Postgres et gestion des foyers (ouverts) | 23/09 |
+| BK | Version hébergée : déploiement Postgres (fait, CI à confirmer) et gestion des foyers (ouvert) | 23-29/09 |
 | BL | Application multilingue (FR, EN, ES, DE, IT) — cadrage et lots | 23/09 |
 | BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte ; import fiable (doublons légitimes, libellés de carte, périodicités) ; relevé Caisse d'Épargne reconnu, catégories de la banque, exclusion des totaux | 28-29/09 |
 
@@ -6979,33 +6979,82 @@ foyers, il faudra voir comment on fait ça ». Exact : § BI.4 et BI.5 ont rendu
 avec Postgres et fait séparer les foyers par la base, mais ni le déploiement ni la notion de
 plusieurs foyers sur une même installation n'existent.
 
-#### BK.1 — `majeur` · `M` · `non traité` · `P3` — Déploiement Postgres : compose, image, sauvegardes
+#### BK.1 — `majeur` · `M` · `en cours` (29/09/2026) · `P3` — Déploiement Postgres : compose, image, sauvegardes
 
-Aujourd'hui Postgres ne tourne qu'en CI (`ci.yml`, job `backend-postgres`, pour la suite de tests).
-Pour le faire tourner en vrai :
+**Ce qui manquait** (23/09/2026) : Postgres ne tournait qu'en CI, pour la suite de tests — ni service
+dans le compose, ni pilote dans l'image, ni rôle applicatif, ni sauvegarde (le job se mettait en
+erreur), ni suite E2E ou déploiement réel dessus.
 
-- **Image** : le pilote `psycopg[binary]` n'est que dans `requirements-dev.txt`. L'ajouter à
-  l'image (dans `requirements.txt`, ou par une variante d'image) — quelques Mo.
-- **Compose** : un service `postgres:16` (volume de données, `healthcheck`, `depends_on` du backend
-  sur la base prête), `PATRIMOINE_DATABASE_URL` passée au backend, mot de passe dans le `.env`
-  (jamais dans le fichier versionné, même règle que la clé de sauvegarde). Plutôt un fichier ou un
-  profil séparé (`compose.postgres.yaml`, ou `profiles: [postgres]`) que de toucher au compose
-  familial, qui doit rester en SQLite.
-- **Rôle applicatif** : créé à l'initialisation de la base (script monté dans
-  `/docker-entrypoint-initdb.d/`), NOSUPERUSER NOBYPASSRLS — sinon la séparation des foyers est
-  contournée. L'avertissement de démarrage (§ BI.5) le signale déjà, mais le compose doit le faire
-  juste du premier coup.
-- **Sauvegardes** : la tâche `sauvegarde_chiffree` ne copie que le fichier SQLite. Sous Postgres, un
-  `pg_dump` planifié et chiffré avec la même clé (`PATRIMOINE_BACKUP_KEY`), soit comme service du
-  compose, soit comme variante de la tâche existante ; et une procédure de restauration testée.
-- **Reprise d'une installation SQLite** : aujourd'hui, seul l'export/import JSON du foyer, qui ne
-  transporte ni les comptes de connexion, ni les sessions, ni les liens de partage. Un script de
-  copie table à table serait plus complet — utile seulement si des installations existantes doivent
-  basculer.
-- **Vérification** : un `docker compose up` réel sur Postgres, la suite E2E dessus, et une
-  sauvegarde restaurée pour de bon — pas seulement les tests unitaires.
+**Ce qui est fait (29/09/2026).** Décisions de l'utilisateur : un **profil** du compose, activé par
+`COMPOSE_PROFILES=postgres` dans le `.env`, rien à décommenter ; la sauvegarde chiffrée planifiée
+sous Postgres dans ce même lot.
 
-Indépendant de BK.2 : peut se faire avant, pour un essai à un seul foyer.
+- **Compose** : service `postgres:16` sous le profil `postgres`, volume `patrimoine_postgres`, aucun
+  port publié, `healthcheck` en TCP qui vérifie aussi que la base `lumen` existe — une
+  initialisation ratée se voit au lieu de passer pour une base prête. Le backend en dépend
+  (`condition: service_healthy`, `required: false` : hors profil la dépendance est ignorée — sans
+  `required`, Compose déclare le projet invalide, vérifié). Le backend a désormais son propre
+  `healthcheck` (`/api/health`), que l'interface attend. `docker compose config` comparé avant/après
+  sans profil : même déploiement, à trois écarts près — deux variables vides de plus
+  (`PATRIMOINE_DATABASE_URL`, `PGPASSWORD`), le `healthcheck` du backend, l'interface qui l'attend.
+  Docker Compose 2.23.1 minimum, documenté.
+- **Pas de `:?` pour les mots de passe Postgres** : Compose interpole tout le fichier avant d'appliquer
+  les profils (vérifié) — une variable exigée par le service Postgres ferait refuser le déploiement
+  SQLite. L'exigence est donc portée par le conteneur : mot de passe administrateur vide, l'image
+  refuse de s'initialiser ; mot de passe applicatif vide, le point d'entrée refuse de démarrer AVANT
+  l'initialisation (l'image ne rejoue jamais ses scripts sur un volume déjà initialisé).
+- **Rôle applicatif** `lumen_app` (`NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`), propriétaire
+  de la base `lumen`, créé au premier démarrage par un script **écrit dans le compose** (`configs:`
+  inline) plutôt que monté depuis le dépôt : le README fait télécharger le seul `compose.yaml`. Le
+  script ne contient aucun secret : `psql` lit le mot de passe dans l'environnement (`\getenv`),
+  jamais en ligne de commande. L'URL de connexion n'existe que si le mot de passe applicatif est posé
+  (`${…:+…}`) ; le mot de passe passe par `PGPASSWORD`, jamais dans l'URL. Les migrations tournent
+  sous ce rôle, soumis à `FORCE ROW LEVEL SECURITY`.
+- **Image** : `psycopg[binary]` passe dans `requirements.txt` ; client PostgreSQL **16** depuis le
+  dépôt officiel du projet (celui de Debian est en 17, dont les archives portent
+  `transaction_timeout`, inconnu d'un serveur 16 — la restauration échouerait).
+- **Sauvegarde** (`scripts/sauvegarde.py`, `backup_service`, `scheduler_service`) : `pg_dump` au format
+  custom, vérifié (`pg_restore --list`, tables principales présentes), chiffré avec
+  `PATRIMOINE_BACKUP_KEY`, `.dump.enc` dans le même dossier, même rétention, même écran Réglages.
+  **Le piège de la séparation des foyers** : `pg_dump` pose `row_security = off`, et le propriétaire
+  des tables, soumis aux politiques par `FORCE`, n'a plus le droit de lire — l'export échoue. Avec
+  `--enable-row-security` seul, il réussit… sans une ligne de foyer. D'où `--enable-row-security` et
+  `app.tous_foyers=on` posé à la connexion (`PGOPTIONS`), comme les tâches de fond. Les deux moitiés du
+  piège sont démontrées par des tests, et la sauvegarde elle-même par un test qui retrouve les lignes
+  de deux foyers.
+- **Restauration** dans le CLI (`--restaurer fichier.dump.enc`) : déchiffrement, vérification, copie
+  de sécurité de la base courante, puis schéma `public` recréé et archive chargée **dans une seule
+  transaction** (`psql --single-transaction`) — rien n'est modifié en cas d'échec, et une table d'une
+  migration postérieure ne survit pas à côté d'une révision Alembic qui l'ignore. Le CLI restaure
+  aussi, désormais, une sauvegarde SQLite chiffrée directement (il fallait déchiffrer à la main).
+- **Défaut trouvé en passant** : la rétention des sauvegardes chiffrées retenait aussi les sauvegardes
+  manuelles EN CLAIR du même dossier (`patrimoine-….db` passait le motif une fois le suffixe `.enc`
+  retiré — ce qui ne retirait rien) : une sauvegarde manuelle pouvait être supprimée par le job.
+  Corrigé, test à l'appui.
+- **E2E sous Postgres** : `PATRIMOINE_E2E_DATABASE_URL` fait préparer par `global-setup.ts` une base
+  jetable (schéma vidé, rôle applicatif créé — `scripts/base_postgres_jetable.py`, désormais partagé
+  avec `conftest.py`) ; `seed_e2e.py --db` devient facultatif. Sans la variable, rien ne change.
+- **CI**, trois jobs : `backend-postgres` joue en plus les tests de sauvegarde avec le client 16 ;
+  **`e2e-postgres`** joue toute la suite Playwright contre Postgres 16 sous le rôle applicatif, et
+  vérifie qu'aucun avertissement de contournement n'a été émis ; **`deploiement-postgres`** construit
+  les images sans les publier, lance `compose.yaml` avec le profil et un `.env` factice, puis
+  vérifie : migrations à la dernière révision, connexions du backend sous `lumen_app` (ni
+  superutilisateur ni `BYPASSRLS`), aucun avertissement de contournement, premier compte et une
+  ligne par l'API, sauvegarde déclenchée depuis Réglages (`.dump.enc`), ligne supprimée puis rendue
+  par la restauration du CLI, séparation des foyers toujours en place — puis relance **sans** profil
+  et vérifie que le mode SQLite démarre, fichier créé, sauvegarde `.db.enc` comprise.
+- **Reprise d'une installation SQLite** : documentée (manuel § 14.4) — l'export/import JSON du foyer
+  (§ Y.1), et ce qui ne voyage pas (comptes, mots de passe, sessions, journal d'accès, liens de
+  partage, périmètres d'invité, réglages d'installation, caches de marché). **Pas de script table à
+  table** : ni simple ni sûr (clés étrangères jamais vérifiées par SQLite, séquences à recaler,
+  écriture sous la séparation des foyers, jetons que l'export écarte à dessein).
+
+**Vérifié localement** : suite backend (SQLite), lint, typage, Vitest, Playwright en mode SQLite ;
+`docker compose config` avec et sans profil. **Reste à faire pour clore** : une exécution verte des
+trois jobs Postgres sur la pull request — Docker n'est pas utilisable sur le poste de développement,
+et rien de ce qui touche Postgres (tests de sauvegarde réels, E2E, déploiement) n'a donc encore tourné.
+
+Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'un foyer.
 
 #### BK.2 — `majeur` · `L` · `en attente d'arbitrage` · `P3` — Gestion des foyers sur une installation partagée
 

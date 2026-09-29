@@ -156,8 +156,9 @@ Les images sont construites par la CI à chaque livraison et publiées publiquem
 aucun compte à créer.
 
 Deux fichiers suffisent, et rien n'empêche de les lire avant de les télécharger :
-[`compose.yaml`](compose.yaml) décrit les deux services, [`.env.exemple`](.env.exemple) liste ce qui
-est à renseigner — une seule variable — et ce qui est facultatif.
+[`compose.yaml`](compose.yaml) décrit les services, [`.env.exemple`](.env.exemple) liste ce qui
+est à renseigner — une seule variable — et ce qui est facultatif. Docker Compose 2.23.1 ou plus
+récent (`docker compose version`).
 
 ```bash
 # 1. Récupérer le compose et le gabarit de configuration
@@ -194,6 +195,15 @@ Pour mettre à jour : `docker compose pull && docker compose up -d`.
 Les autres options — connexion SSO/OIDC, clé CoinGecko pour les cours crypto, version d'image à
 figer — sont décrites dans [`.env.exemple`](.env.exemple) et au
 [manuel d'exploitation](docs/MANUEL_EXPLOITATION.md).
+
+**Base Postgres, pour qui en a l'usage.** SQLite, le défaut, est le bon choix pour un foyer : un
+fichier, rien à administrer. Le même `compose.yaml` sait aussi démarrer un serveur Postgres 16 — trois
+lignes du `.env` (`COMPOSE_PROFILES=postgres` et deux mots de passe), rien à décommenter dans le
+compose. L'application s'y connecte avec un rôle ordinaire, soumis à la séparation des foyers par la
+base, et la sauvegarde chiffrée planifiée fonctionne de la même façon. Une installation ne gère
+encore qu'un foyer : c'est une préparation de version hébergée, détaillée au
+[manuel d'exploitation, § 14](docs/MANUEL_EXPLOITATION.md) — basculer une installation existante
+repart d'une base vide, la reprise des données y est décrite.
 
 ### Depuis les sources — pour développer
 
@@ -258,7 +268,7 @@ Chaque écran est détaillé dans le [manuel utilisateur](docs/MANUEL_UTILISATEU
 
 ## Sous le capot
 
-**Backend** — Python, FastAPI, SQLAlchemy 2.0, SQLite (Postgres : code compatible, déploiement à venir), Alembic, APScheduler, `yfinance`
+**Backend** — Python, FastAPI, SQLAlchemy 2.0, SQLite (ou Postgres, profil du compose), Alembic, APScheduler, `yfinance`
 **Frontend** — React, TypeScript, Vite, Tailwind CSS, Recharts
 
 Le code et la documentation sont **en français**, commentaires compris : ce projet est lu autant
@@ -283,8 +293,10 @@ npm run test:e2e
 ```
 
 Ces cinq vérifications tournent aussi sur chaque push et chaque pull request
-([`ci.yml`](.github/workflows/ci.yml)), la suite backend deux fois : sous SQLite et sous Postgres. La
-suite de bout en bout démarre elle-même un backend dédié sur une base jetable — jamais la vôtre.
+([`ci.yml`](.github/workflows/ci.yml)), la suite backend et la suite de bout en bout deux fois :
+sous SQLite et sous Postgres. La CI déploie aussi le `compose.yaml` pour de bon, avec et sans son
+profil Postgres, jusqu'à une sauvegarde restaurée. La suite de bout en bout démarre elle-même un
+backend dédié sur une base jetable — jamais la vôtre.
 
 <br>
 

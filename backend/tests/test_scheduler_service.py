@@ -336,8 +336,8 @@ def test_sauvegarde_chiffree_config_par_defaut_quotidienne(db):
     assert config.intervalle_heures == 24.0
 
 
-# La sauvegarde intégrée copie le FICHIER SQLite : sans objet sur une base serveur
-# (§ BI.4), où le job se contente d'un statut explicite — testé plus bas, sur les deux.
+# Copie du FICHIER SQLite : sans objet sur une base serveur, où le job passe par
+# `pg_dump` (§ BK.1) — testé plus bas, sur les deux moteurs.
 _SAUVEGARDE_DE_FICHIER = pytest.mark.skipif(
     not database.EST_SQLITE, reason="sauvegarde du fichier SQLite : sans objet sur une base serveur (§ BI.4)"
 )
@@ -416,19 +416,26 @@ def test_run_job_now_sauvegarde_chiffree_synchrone_via_la_branche_generique(db, 
     assert config.job_key == scheduler_service.BACKUP_ENCRYPTED
 
 
-def test_run_sauvegarde_chiffree_sans_fichier_de_base_statut_explicite(monkeypatch):
-    """Base serveur (§ BI.4, `DB_PATH` à `None`) : aucun fichier à copier. Le job le
-    dit dans Réglages au lieu de lever une exception sur `None`."""
-    appels = []
+def test_run_sauvegarde_chiffree_sur_base_serveur_archive_la_base_de_l_application(tmp_path, monkeypatch):
+    """Base serveur (§ BK.1, `DB_PATH` à `None`) : archive `pg_dump` chiffrée de
+    l'URL même que l'application ouvre, jamais la copie d'un fichier SQLite."""
+    urls = []
     monkeypatch.setattr(database, "DB_PATH", None)
-    monkeypatch.setattr(backup_service, "sauvegarder_chiffre", lambda *a, **k: appels.append(1))
+    monkeypatch.setattr(database, "DATABASE_URL", "postgresql+psycopg://lumen_app@postgres:5432/lumen")
+    monkeypatch.setattr(backup_service, "sauvegarder_chiffre", lambda *a, **k: pytest.fail("copie de fichier SQLite"))
+    monkeypatch.setattr(
+        backup_service,
+        "sauvegarder_postgres_chiffre",
+        lambda url, dossier, horodatage=None: (urls.append(url), tmp_path / "patrimoine-xxx.dump.enc")[1],
+    )
+    monkeypatch.setattr(backup_service, "appliquer_retention_chiffree", lambda dossier, retention: [])
 
     scheduler_service._run_sauvegarde_chiffree()
 
     config = _lire_config_job(scheduler_service.BACKUP_ENCRYPTED)
-    assert appels == []
-    assert config.dernier_statut == "erreur"
-    assert "pg_dump" in config.dernier_message
+    assert urls == ["postgresql+psycopg://lumen_app@postgres:5432/lumen"]
+    assert config.dernier_statut == "ok"
+    assert "patrimoine-xxx.dump.enc" in config.dernier_message
 
 
 # ---------------------------------------------------------------------------

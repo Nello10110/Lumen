@@ -70,8 +70,19 @@ jobs:
       - name: Installe les dependances
         run: pip install -r requirements-dev.txt
 
+      # pg_dump / pg_restore / psql de la version du serveur, pour les tests de
+      # sauvegarde (tests/test_sauvegarde_postgres.py) : un client plus recent ecrit
+      # des archives qu'un serveur 16 refuse de rejouer.
+      - name: Installe le client PostgreSQL 16
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-16
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+
       - name: Tests (pytest, Postgres)
-        run: python -m pytest
+        run: |
+          pg_dump --version
+          python -m pytest
 
   frontend:
     runs-on: ubuntu-latest
@@ -152,3 +163,198 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+  # La suite Playwright complete contre un backend sur Postgres 16 (backlog § BK.1),
+  # connecte avec un role ordinaire (ni superutilisateur ni BYPASSRLS) : la
+  # separation des foyers s'applique pendant tout le parcours.
+  e2e-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: lumen
+          POSTGRES_PASSWORD: lumen
+          POSTGRES_DB: lumen_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lumen"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Installe les dependances backend
+        working-directory: backend
+        run: pip install -r requirements-dev.txt
+
+      # Le job de sauvegarde peut etre declenche depuis Reglages pendant la suite.
+      - name: Installe le client PostgreSQL 16
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-16
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installe les dependances frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Installe Chromium (Playwright)
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Tests E2E (Playwright, Postgres)
+        working-directory: frontend
+        # PATRIMOINE_E2E_DATABASE_URL : URL d'administration de la base jetable ;
+        # e2e/global-setup.ts y cree le role applicatif et y connecte le backend.
+        env:
+          PATRIMOINE_E2E_PYTHON: python
+          PATRIMOINE_E2E_DATABASE_URL: postgresql+psycopg://lumen:lumen@localhost:5432/lumen_e2e
+        run: npx playwright test
+
+      - name: Le backend E2E tournait sous le role applicatif, sans contournement
+        run: |
+          grep -q "Running upgrade" frontend/e2e/.e2e-data/backend.log
+          if grep -q "BYPASSRLS" frontend/e2e/.e2e-data/backend.log; then
+            echo "Le backend E2E contournait la separation des foyers"; exit 1
+          fi
+
+      - name: Publie le rapport Playwright en cas d'echec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-postgres
+          path: |
+            frontend/playwright-report/
+            frontend/e2e/.e2e-data/backend.log
+          retention-days: 7
+
+  # Le deploiement lui-meme (backlog § BK.1), avec les images construites ici (rien
+  # n'est publie) : compose.yaml et son profil postgres, tels qu'un exploitant les
+  # lance. Mots de passe factices, propres a ce job.
+  deploiement-postgres:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # `shell: bash` explicite : GitHub ajoute alors `-o pipefail`, sans quoi un
+        # `curl` en echec devant un `jq` passerait inapercu.
+        shell: bash
+    env:
+      API: http://127.0.0.1:8080/api
+      COMPTE: ci_proprietaire
+      MOT_DE_PASSE_COMPTE: CiDeploiement1234!
+      CLE_FACTICE: cle-factice-de-la-ci-pour-le-deploiement-postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construit les images localement (sans publier)
+        # Etiquetees sous le nom que compose.yaml attend, version `ci`.
+        run: |
+          docker build -t ghcr.io/nello10110/lumen-backend:ci ./backend
+          docker build -t ghcr.io/nello10110/lumen-frontend:ci ./frontend
+          docker compose version
+
+      - name: .env de test, profil postgres
+        run: |
+          {
+            echo "LUMEN_VERSION=ci"
+            echo "PATRIMOINE_BACKUP_KEY=$CLE_FACTICE"
+            echo "COMPOSE_PROFILES=postgres"
+            echo "LUMEN_POSTGRES_ADMIN_PASSWORD=admin-factice-ci"
+            echo "LUMEN_POSTGRES_APP_PASSWORD=app-factice-ci"
+          } > .env
+
+      - name: Demarre et attend la sante des trois services
+        run: docker compose up -d --wait --wait-timeout 300
+
+      - name: Migrations appliquees jusqu'a la derniere revision
+        run: |
+          tete=$(docker compose exec -T backend python -c "from alembic.config import Config; from alembic.script import ScriptDirectory; print(ScriptDirectory.from_config(Config('alembic.ini')).get_current_head())")
+          base=$(docker compose exec -T postgres psql -U postgres -d lumen -tAc "SELECT version_num FROM alembic_version")
+          echo "tete du code : $tete / revision de la base : $base"
+          test -n "$tete" && test "$tete" = "$base"
+
+      - name: Premier compte et une donnee, par l'API authentifiee
+        run: |
+          jeton=$(curl -fsS -X POST "$API/auth/register" -H 'Content-Type: application/json' \
+            -d "{\"username\":\"$COMPTE\",\"password\":\"$MOT_DE_PASSE_COMPTE\"}" | jq -r .token)
+          echo "::add-mask::$jeton"
+          echo "JETON=$jeton" >> "$GITHUB_ENV"
+          ligne=$(curl -fsS -X POST "$API/portfolio/holdings" -H "Authorization: Bearer $jeton" -H 'Content-Type: application/json' \
+            -d '{"ticker":"CI-LIVRET","quantite":1,"type_actif":"REGULATED_SAVINGS","valeur_estimee":1234,"taux_pct":3.0,"versement_mensuel":100.0,"date_acquisition":"2026-01-01","compte_nom":"Livret CI"}' \
+            | jq -r .id)
+          echo "LIGNE_ID=$ligne" >> "$GITHUB_ENV"
+          curl -fsS "$API/portfolio/holdings" -H "Authorization: Bearer $jeton" | jq -e 'map(.ticker) | index("CI-LIVRET") != null'
+
+      - name: Le backend est connecte avec le role applicatif, sans contournement
+        run: |
+          roles=$(docker compose exec -T postgres psql -U postgres -d lumen -tAc \
+            "SELECT string_agg(DISTINCT usename, ',') FROM pg_stat_activity WHERE datname = 'lumen' AND backend_type = 'client backend' AND pid <> pg_backend_pid()")
+          echo "roles connectes a la base : $roles"
+          test "$roles" = "lumen_app"
+          test "$(docker compose exec -T postgres psql -U postgres -tAc "SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = 'lumen_app'")" = "f"
+          test "$(docker compose exec -T postgres psql -U postgres -d lumen -tAc "SELECT relforcerowsecurity FROM pg_class WHERE relname = 'holdings'")" = "t"
+          docker compose logs backend > backend.log
+          grep -q "Running upgrade" backend.log
+          if grep -q "BYPASSRLS" backend.log; then echo "avertissement de contournement au demarrage"; exit 1; fi
+
+      - name: Sauvegarde chiffree declenchee depuis l'API (job de Reglages)
+        run: |
+          statut=$(curl -fsS -X POST "$API/settings/jobs/sauvegarde_chiffree/run-now" -H "Authorization: Bearer $JETON")
+          echo "$statut" | jq .
+          echo "$statut" | jq -e '.dernier_statut == "ok"'
+          fichier=$(echo "$statut" | jq -r .dernier_message)
+          case "$fichier" in patrimoine-*.dump.enc) ;; *) echo "nom inattendu : $fichier"; exit 1 ;; esac
+          docker compose exec -T backend test -s "/app/sauvegardes/$fichier"
+          echo "SAUVEGARDE=$fichier" >> "$GITHUB_ENV"
+
+      - name: Restauration par le CLI, qui rend la donnee supprimee
+        run: |
+          curl -fsS -X DELETE "$API/portfolio/holdings/$LIGNE_ID" -H "Authorization: Bearer $JETON"
+          curl -fsS "$API/portfolio/holdings" -H "Authorization: Bearer $JETON" | jq -e 'map(.ticker) | index("CI-LIVRET") == null'
+          docker compose stop backend
+          docker compose run --rm --no-deps -T backend python scripts/sauvegarde.py --restaurer "/app/sauvegardes/$SAUVEGARDE" --forcer
+          docker compose up -d --wait --wait-timeout 300
+          curl -fsS "$API/portfolio/holdings" -H "Authorization: Bearer $JETON" | jq -e 'map(.ticker) | index("CI-LIVRET") != null'
+          test "$(docker compose exec -T postgres psql -U postgres -d lumen -tAc "SELECT string_agg(DISTINCT tableowner, ',') FROM pg_tables WHERE schemaname = 'public'")" = "lumen_app"
+          test "$(docker compose exec -T postgres psql -U postgres -d lumen -tAc "SELECT relforcerowsecurity FROM pg_class WHERE relname = 'holdings'")" = "t"
+          docker compose exec -T backend sh -c 'ls /app/sauvegardes/patrimoine-avant-restauration-*.dump'
+
+      - name: Sans le profil, le mode SQLite demarre toujours
+        run: |
+          docker compose down
+          {
+            echo "LUMEN_VERSION=ci"
+            echo "PATRIMOINE_BACKUP_KEY=$CLE_FACTICE"
+          } > .env
+          docker compose up -d --wait --wait-timeout 300
+          test -z "$(docker ps -q --filter label=com.docker.compose.service=postgres)"
+          test -z "$(docker compose exec -T backend printenv PATRIMOINE_DATABASE_URL)"
+          docker compose exec -T backend test -s /app/data/patrimoine.db
+          jeton=$(curl -fsS -X POST "$API/auth/register" -H 'Content-Type: application/json' \
+            -d "{\"username\":\"$COMPTE\",\"password\":\"$MOT_DE_PASSE_COMPTE\"}" | jq -r .token)
+          echo "::add-mask::$jeton"
+          curl -fsS -X POST "$API/settings/jobs/sauvegarde_chiffree/run-now" -H "Authorization: Bearer $jeton" \
+            | jq -e '.dernier_statut == "ok" and (.dernier_message | endswith(".db.enc"))'
+
+      - name: Journaux en cas d'echec
+        if: failure()
+        run: docker compose --profile postgres logs --no-color

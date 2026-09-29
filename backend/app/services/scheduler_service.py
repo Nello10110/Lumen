@@ -107,20 +107,6 @@ def _run_sauvegarde_chiffree() -> None:
     clé configurée, le job apparaît simplement en statut "erreur" dans Réglages."""
     db = session_tous_foyers()
     try:
-        # Sauvegarde = copie du FICHIER SQLite (API `backup` de `sqlite3`). Une base
-        # serveur (§ BI.4) n'a pas de fichier à copier : elle se sauvegarde avec ses
-        # propres outils (`pg_dump`, instantanés de l'hébergeur). Dit clairement dans
-        # Réglages plutôt qu'une trace d'exception sur `None`.
-        if database.DB_PATH is None:
-            record_result(
-                db,
-                BACKUP_ENCRYPTED,
-                "erreur",
-                a_traduire(
-                    "Sauvegarde intégrée réservée à une base SQLite : une base serveur se sauvegarde avec ses propres outils (pg_dump)."
-                ),
-            )
-            return
         # `database.DB_PATH`, pas `sauvegarde_module.chemin_base_source()` : c'est la
         # base que l'application OUVRE RÉELLEMENT. Les deux divergent dès que le repli
         # historique de `app/database.py` s'applique (`patrimoine.db` vide ou absent →
@@ -129,10 +115,12 @@ def _run_sauvegarde_chiffree() -> None:
         # le 02/09/2026 sur l'installation de l'utilisateur : aucune sauvegarde
         # produite depuis le 25/08, le contrôle d'intégrité rejetant à chaque fois une
         # base sans table `holdings`). Sauvegarder autre chose que la base réellement
-        # utilisée n'a, par construction, aucun sens.
-        chemin = backup_service.sauvegarder_chiffre(
-            database.DB_PATH, sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT
-        )
+        # utilisée n'a, par construction, aucun sens. Base serveur (`DB_PATH` à
+        # `None`, § BK.1) : archive `pg_dump` de la même URL que l'application.
+        if database.DB_PATH is None:
+            chemin = backup_service.sauvegarder_postgres_chiffre(database.DATABASE_URL, sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT)
+        else:
+            chemin = backup_service.sauvegarder_chiffre(database.DB_PATH, sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT)
         supprimees = backup_service.appliquer_retention_chiffree(
             sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT, sauvegarde_module.RETENTION_PAR_DEFAUT
         )

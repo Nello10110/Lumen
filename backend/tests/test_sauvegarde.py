@@ -24,6 +24,14 @@ from scripts import sauvegarde
 ID_UTILISATEUR_TEST = 1
 
 
+@pytest.fixture(autouse=True)
+def cli_en_mode_sqlite(monkeypatch):
+    """Ces tests portent sur des fichiers SQLite explicites ; sous la suite Postgres,
+    `PATRIMOINE_DATABASE_URL` enverrait le CLI sur la base serveur (cf.
+    `test_sauvegarde_postgres.py`)."""
+    monkeypatch.delenv("PATRIMOINE_DATABASE_URL", raising=False)
+
+
 def _creer_base_peuplee(chemin: Path, *, ticker: str = "AAPL") -> None:
     """Construit, au chemin donné, une base SQLite avec le schéma complet de
     l'application et quelques lignes représentatives sur trois tables."""

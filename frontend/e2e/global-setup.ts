@@ -41,6 +41,12 @@ function resoudrePython(): string {
 
 const PYTHON = resoudrePython()
 const DB_PATH = path.join(DATA_DIR, 'e2e.db')
+// Job CI `e2e-postgres` (backlog § BK.1) : URL d'administration d'une base Postgres
+// JETABLE. Son schéma est vidé et le rôle applicatif créé comme pour la suite pytest
+// (`backend/scripts/base_postgres_jetable.py`) ; le backend s'y connecte avec ce rôle
+// ordinaire, jamais en superutilisateur, qui contournerait la séparation des foyers.
+// Absente : SQLite, comme toujours.
+const URL_POSTGRES_ADMIN = process.env.PATRIMOINE_E2E_DATABASE_URL
 export const SEED_OUTPUT_PATH = path.join(DATA_DIR, 'seed-output.json')
 const BACKEND_LOG_PATH = path.join(DATA_DIR, 'backend.log')
 
@@ -58,7 +64,21 @@ async function attendrePret(url: string, timeoutMs: number): Promise<void> {
   throw new Error(`Backend E2E indisponible après ${timeoutMs}ms (${url})`)
 }
 
-/** Démarre le backend E2E (base SQLite jetable, isolée de la vraie base de
+/** Base du backend E2E : les variables d'environnement qui la désignent, et les
+ * arguments de `seed_e2e.py` qui visent la même. */
+function preparerBase(): { env: NodeJS.ProcessEnv; argsSeed: string[] } {
+  if (!URL_POSTGRES_ADMIN) {
+    return { env: { PATRIMOINE_DB: DB_PATH }, argsSeed: ['--db', DB_PATH] }
+  }
+  const preparation = spawnSync(PYTHON, ['scripts/base_postgres_jetable.py'], { cwd: BACKEND_DIR, encoding: 'utf-8' })
+  if (preparation.status !== 0) {
+    throw new Error(`Préparation de la base Postgres E2E impossible :\n${preparation.stderr}`)
+  }
+  return { env: { PATRIMOINE_DATABASE_URL: preparation.stdout.trim() }, argsSeed: [] }
+}
+
+/** Démarre le backend E2E (base jetable — SQLite, ou Postgres si
+ * `PATRIMOINE_E2E_DATABASE_URL` est définie —, isolée de la vraie base de
  * l'utilisateur) puis le seed via `backend/scripts/seed_e2e.py` (lui-même appuyé
  * sur le vrai backend HTTP — cf. sa docstring). Renvoie une fonction de teardown
  * (mécanisme Playwright officiel : évite un fichier `global-teardown.ts` séparé et
@@ -67,6 +87,7 @@ async function attendrePret(url: string, timeoutMs: number): Promise<void> {
 export default async function globalSetup(): Promise<() => Promise<void>> {
   rmSync(DATA_DIR, { recursive: true, force: true })
   mkdirSync(DATA_DIR, { recursive: true })
+  const base = preparerBase()
 
   const logFd = openSync(BACKEND_LOG_PATH, 'a')
   const proc: ChildProcess = spawn(
@@ -76,7 +97,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       cwd: BACKEND_DIR,
       env: {
         ...process.env,
-        PATRIMOINE_DB: DB_PATH,
+        ...base.env,
         PATRIMOINE_TESTING: '1',
       },
       stdio: ['ignore', logFd, logFd],
@@ -92,8 +113,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   const seed = spawnSync(
     PYTHON,
-    ['scripts/seed_e2e.py', '--base-url', BACKEND_URL, '--db', DB_PATH, '--out', SEED_OUTPUT_PATH],
-    { cwd: BACKEND_DIR, encoding: 'utf-8' },
+    ['scripts/seed_e2e.py', '--base-url', BACKEND_URL, ...base.argsSeed, '--out', SEED_OUTPUT_PATH],
+    { cwd: BACKEND_DIR, encoding: 'utf-8', env: { ...process.env, ...base.env } },
   )
   if (seed.status !== 0) {
     proc.kill()
