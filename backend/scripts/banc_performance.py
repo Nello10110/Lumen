@@ -54,6 +54,7 @@ def _preparer_environnement() -> None:
 
 def _generer_foyer(client, db) -> str:
     from app.models import (
+        Appartenance,
         Compte,
         CoursHistorique,
         Etablissement,
@@ -70,7 +71,8 @@ def _generer_foyer(client, db) -> str:
 
     rnd = random.Random(20260923)
     client.post("/api/auth/register", json={"username": IDENTIFIANT, "password": MOT_DE_PASSE})
-    uid = db.query(User).filter(User.username == IDENTIFIANT).one().id
+    # Le foyer créé par l'inscription, pas le compte : c'est à lui que les données appartiennent.
+    uid = db.query(Appartenance.foyer_id).join(User, User.id == Appartenance.user_id).filter(User.username == IDENTIFIANT).scalar()
     maintenant = datetime.now(UTC).replace(tzinfo=None)
     aujourdhui = date.today()
     debut = aujourdhui - timedelta(days=6 * 365)

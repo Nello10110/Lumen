@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from app.services import fraicheur_donnees_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_FOYER_TEST, make_holding
 
 
 def test_aucune_alerte_pour_une_valorisation_recente(db):
@@ -17,7 +17,7 @@ def test_aucune_alerte_pour_une_valorisation_recente(db):
         date_valeur_estimee=datetime.now() - timedelta(days=30),
     )
 
-    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_UTILISATEUR_TEST) == []
+    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST) == []
 
 
 def test_alerte_declenchee_a_partir_du_seuil(db):
@@ -31,7 +31,7 @@ def test_alerte_declenchee_a_partir_du_seuil(db):
         date_valeur_estimee=datetime.now() - timedelta(days=fraicheur_donnees_service.SEUIL_JOURS_ALERTE_FRAICHEUR),
     )
 
-    alertes = fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_UTILISATEUR_TEST)
+    alertes = fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST)
 
     assert len(alertes) == 1
     assert alertes[0]["holding_id"] == holding.id
@@ -51,7 +51,7 @@ def test_juste_en_dessous_du_seuil_aucune_alerte(db):
         date_valeur_estimee=datetime.now() - timedelta(days=fraicheur_donnees_service.SEUIL_JOURS_ALERTE_FRAICHEUR - 1),
     )
 
-    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_UTILISATEUR_TEST) == []
+    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST) == []
 
 
 def test_aucune_alerte_sans_valeur_estimee_renseignee(db):
@@ -64,7 +64,7 @@ def test_aucune_alerte_sans_valeur_estimee_renseignee(db):
         date_valeur_estimee=None,
     )
 
-    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_UTILISATEUR_TEST) == []
+    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST) == []
 
 
 def test_aucune_alerte_pour_un_type_non_manuel(db):
@@ -77,7 +77,7 @@ def test_aucune_alerte_pour_un_type_non_manuel(db):
         date_valeur_estimee=datetime.now() - timedelta(days=1000),
     )
 
-    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_UTILISATEUR_TEST) == []
+    assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST) == []
 
 
 def test_tri_du_plus_perime_au_moins_perime(db):
@@ -100,6 +100,6 @@ def test_tri_du_plus_perime_au_moins_perime(db):
         date_valeur_estimee=datetime.now() - timedelta(days=800),
     )
 
-    alertes = fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_UTILISATEUR_TEST)
+    alertes = fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST)
 
     assert [a["holding_id"] for a in alertes] == [tres_ancien.id, recent.id]

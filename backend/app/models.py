@@ -10,7 +10,7 @@ pour l'historique des révisions.
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -133,7 +133,7 @@ class Holding(Base):
     # complet vit désormais dans `backend/alembic/versions/`) — le code applicatif
     # la traite comme toujours renseignée dès qu'une ligne est créée ou lue via
     # l'API (jamais `None` en pratique).
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     ticker: Mapped[str] = mapped_column(String, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
     quantite: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_QUANTITE))
@@ -248,7 +248,7 @@ class Loan(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     libelle: Mapped[str] = mapped_column(String)
     capital_initial: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     taux_annuel_pct: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_TAUX))
@@ -371,7 +371,7 @@ class Etablissement(Base):
     __table_args__ = (UniqueConstraint("user_id", "nom", name="uq_etablissement_user_nom"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     # Clé du catalogue d'établissements connus choisie à la création (revue import,
     # 05/09/2026 — ex. "trade_republic", "boursorama"), affichée comme un badge coloré
@@ -458,7 +458,7 @@ class Compte(Base):
     __table_args__ = (UniqueConstraint("user_id", "nom", name="uq_compte_user_nom"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     etablissement_id: Mapped[int | None] = mapped_column(ForeignKey("etablissements.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -481,7 +481,7 @@ class Detenteur(Base):
     __tablename__ = "detenteurs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
@@ -557,7 +557,7 @@ class Salaire(Base):
     __tablename__ = "salaires"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     annee: Mapped[int] = mapped_column(Integer, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
     montant: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
@@ -603,7 +603,7 @@ class Transaction(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     transaction_id: Mapped[str] = mapped_column(String, index=True)
     datetime_utc: Mapped[datetime] = mapped_column(DateTime, index=True)
     date: Mapped[str] = mapped_column(String)
@@ -656,7 +656,7 @@ class JournalImport(Base):
     __table_args__ = (UniqueConstraint("user_id", "source", name="uq_journal_import_user_source"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     source: Mapped[str] = mapped_column(String)
     importe_le: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     # Lignes retenues par le dernier import, pour la pastille « 14/09 · 312 lignes ».
@@ -833,8 +833,7 @@ class Parametre(Base):
     GLOBAUX qui ne concernent ni un utilisateur particulier ni une tâche planifiée
     (cf. `ScheduledJobConfig`, dédié à celles-ci). Depuis le Milestone 2b
     (multi-utilisateur, `docs/BACKLOG.md` § 2.I.1), les réglages propres à un
-    utilisateur (méthode de coût de revient, seuil d'alerte) vivent dans
-    `UserParametre`. Ne restent ici que les réglages qui doivent valoir pour
+    foyer vivent dans `FoyerParametre`. Ne restent ici que les réglages qui doivent valoir pour
     l'INSTALLATION ENTIÈRE, jamais par compte : `version_calcul_portefeuille`
     (marqueur de version du CODE posé par `startup_maintenance`, pas une
     préférence) et, depuis le 22/09/2026, le logo du bouton de connexion SSO
@@ -850,22 +849,40 @@ class Parametre(Base):
     valeur: Mapped[str] = mapped_column(String)
 
 
-class UserParametre(Base):
-    """Réglages applicatifs propres à un utilisateur (LOT 5B, devenu par-utilisateur
-    au Milestone 2b — `docs/BACKLOG.md` § 2.I.1) : méthode de calcul du coût de
-    revient, seuil d'alerte de rééquilibrage. Table dédiée plutôt qu'un `user_id`
-    nullable ajouté à `Parametre` : `Parametre` garde un seul réglage réellement
-    global (`version_calcul_portefeuille`), mélanger les deux dans une même table
-    aurait exigé une clé primaire composite avec `user_id` NULL pour les lignes
-    globales — plus confus qu'une seconde table, pour un coût de migration
-    identique (table neuve, créée par `Base.metadata.create_all`, sans `ALTER
-    TABLE`). Mêmes accesseurs typés que `Parametre` (`services/preferences_service.py`,
-    seul point d'accès) — jamais un `get(cle)` générique laissé aux appelants."""
+STATUT_FOYER_ACTIF = "actif"
+STATUT_FOYER_SUSPENDU = "suspendu"
 
-    __tablename__ = "user_parametres"
+
+class Foyer(Base):
+    """Un foyer (backlog § BK.2) : ce à quoi appartiennent les données. Les 13 tables
+    de patrimoine s'y rattachent par `user_id` — nom trompeur, gardé le temps du lot
+    BK.2a pour ne pas mêler un renommage mécanique au changement de modèle ; il devient
+    `foyer_id` en BK.2e. Une installation antérieure a gardé l'identifiant de chaque
+    ancien propriétaire comme identifiant de son foyer : aucune ligne n'a été réécrite.
+
+    `langue` : celle de l'interface pour tous ses comptes (§ BL). `statut`,
+    `suspendu_le`, `derniere_activite` : pour l'opérateur (lot BK.2d)."""
+
+    __tablename__ = "foyers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nom: Mapped[str | None] = mapped_column(String, nullable=True)
+    langue: Mapped[str] = mapped_column(String, default="fr", server_default="fr")
+    statut: Mapped[str] = mapped_column(String, default=STATUT_FOYER_ACTIF, server_default=STATUT_FOYER_ACTIF)
+    cree_le: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    suspendu_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    derniere_activite: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class FoyerParametre(Base):
+    """Réglages d'un foyer (méthode de coût, taux d'imposition, jalons déjà célébrés…),
+    en clé/valeur. `services/preferences_service.py` en est le seul point d'accès, avec
+    des accesseurs typés. Le nom et la langue du foyer sont des colonnes de `Foyer`."""
+
+    __tablename__ = "foyer_parametres"
 
     cle: Mapped[str] = mapped_column(String, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), primary_key=True)
     valeur: Mapped[str] = mapped_column(String)
 
 
@@ -882,13 +899,13 @@ ROLES_ASSIGNABLES = (ROLE_MEMBRE, ROLE_INVITE)
 
 
 class User(Base):
-    """Compte utilisateur (multi-utilisateur, Milestone 1 — cf. `docs/BACKLOG.md` § 2.I.1).
-    Rôles (backlog 2.L.2) : un `proprietaire` est son propre foyer (`owner_user_id`
-    `None`) ; un `membre`/`invite` est rattaché au foyer d'un propriétaire via
-    `owner_user_id` — toutes les données qu'il consulte/crée restent stockées sous
-    `owner_user_id` (cf. `services/auth_service.id_foyer`), jamais sous son propre
-    `id`. Un foyer reste donc un unique `user_id` métier, cohérent avec toute
-    l'isolation par `user_id` déjà en place (Milestone 2a/2b)."""
+    """Compte de connexion (multi-utilisateur, Milestone 1). Son rôle n'est pas un
+    attribut du compte mais de son appartenance à un foyer (`Appartenance`, § BK.2).
+
+    `foyer_courant_id` et `role` ne sont PAS des colonnes : l'authentification les pose
+    sur l'instance d'après la session (`auth_service.adopter_foyer`), pour que
+    `auth_service.id_foyer` et `auth.require_role` n'aient qu'un attribut à lire. Sans
+    foyer, les deux valent `None` : aucun rôle, aucune donnée."""
 
     __tablename__ = "users"
 
@@ -906,8 +923,6 @@ class User(Base):
     # compte purement SSO (backlog SSO) : pas de mot de passe local utilisable,
     # `POST /api/auth/login` le refuse explicitement dans ce cas.
     password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
-    role: Mapped[str] = mapped_column(String, default=ROLE_PROPRIETAIRE, server_default=ROLE_PROPRIETAIRE)
-    owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     # Identifiant stable (`sub`) renvoyé par le fournisseur SSO (OIDC) une fois ce
     # compte lié à une identité — jamais le nom d'utilisateur ou l'email, qui peuvent
     # changer côté fournisseur ; seule clé de liaison fiable dans la durée.
@@ -918,7 +933,40 @@ class User(Base):
     # réponse du fournisseur. Jamais uniques, jamais utilisées pour l'authentification.
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Administrateur de l'installation, hors de tout foyer (lot BK.2d) : aucune
+    # appartenance ne peut lui être donnée (politique Postgres de `appartenances`).
+    est_operateur: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    foyer_courant_id = None
+    role = None
+
+
+class Appartenance(Base):
+    """Un compte dans un foyer, avec son rôle DANS ce foyer. Un seul propriétaire par
+    foyer, garanti par un index unique partiel. `assistant_termine_le` : l'assistant de
+    bienvenue est propre à chaque appartenance. `derniere_utilisation` : le foyer
+    rouvert à la connexion suivante."""
+
+    __tablename__ = "appartenances"
+    __table_args__ = (
+        UniqueConstraint("user_id", "foyer_id", name="uq_appartenance_user_foyer"),
+        Index(
+            "uq_appartenance_proprietaire_unique",
+            "foyer_id",
+            unique=True,
+            sqlite_where=text("role = 'proprietaire'"),
+            postgresql_where=text("role = 'proprietaire'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    role: Mapped[str] = mapped_column(String)
+    cree_le: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    assistant_termine_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    derniere_utilisation: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class PerimetreInvite(Base):
@@ -950,6 +998,10 @@ class AuthToken(Base):
     token: Mapped[str] = mapped_column(String, primary_key=True)
     id_session: Mapped[str] = mapped_column(String, nullable=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # Foyer courant de la session (§ BK.2) : côté serveur plutôt qu'un identifiant de
+    # foyer envoyé par le client à chaque requête, qui serait une surface IDOR
+    # permanente. `None` : session sans foyer, aucune donnée accessible.
+    foyer_id: Mapped[int | None] = mapped_column(ForeignKey("foyers.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     derniere_utilisation: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -971,7 +1023,7 @@ class CategorieBudget(Base):
     __table_args__ = (UniqueConstraint("user_id", "nom", "parent_id", name="uq_categorie_budget_user_nom_parent"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
     # Repère stable d'une catégorie par défaut (`epargne`, `logement`...), backlog § BL.3 :
@@ -1009,7 +1061,7 @@ class MouvementBancaire(Base):
     __table_args__ = (UniqueConstraint("user_id", "transaction_id", name="uq_mouvement_bancaire_user_txid"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     transaction_id: Mapped[str] = mapped_column(String, index=True)
     date: Mapped[str] = mapped_column(String, index=True)  # "YYYY-MM-DD"
     libelle: Mapped[str] = mapped_column(String)
@@ -1037,7 +1089,7 @@ class RegleCategorisation(Base):
     __tablename__ = "regles_categorisation"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     motif: Mapped[str] = mapped_column(String)
     categorie_id: Mapped[int] = mapped_column(ForeignKey("categories_budget.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -1052,7 +1104,7 @@ class BudgetCible(Base):
     __table_args__ = (UniqueConstraint("user_id", "categorie_id", name="uq_budget_cible_user_categorie"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     categorie_id: Mapped[int] = mapped_column(ForeignKey("categories_budget.id"))
     montant_mensuel: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
@@ -1100,7 +1152,7 @@ class LienPartage(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     token: Mapped[str] = mapped_column(String, unique=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     detenteur_id: Mapped[int | None] = mapped_column(ForeignKey("detenteurs.id"), nullable=True)
     inclure_patrimoine_net: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")

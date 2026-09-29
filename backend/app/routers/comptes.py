@@ -45,7 +45,7 @@ def _holdings_visibles_ids_invite(db: Session, current_user: User) -> set[int] |
     variante plutôt que d'importer une fonction privée d'un autre module)."""
     if current_user.role != ROLE_INVITE:
         return None
-    perimetre = detenteurs_service.perimetre_invite(db, current_user.id)
+    perimetre = detenteurs_service.perimetre_invite(db, current_user.id, auth_service.id_foyer(current_user))
     if not perimetre:
         return set()
     return {

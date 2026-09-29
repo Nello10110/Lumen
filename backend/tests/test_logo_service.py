@@ -18,7 +18,7 @@ from PIL import Image
 from app.models import LogoCatalogue
 from app.services import comptes_service, etablissements_connus, logo_service
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 
 
 def png_factice(taille: tuple[int, int] = (32, 32), couleur: str = "red") -> bytes:
@@ -146,7 +146,7 @@ def test_normaliser_refuse_un_fichier_qui_nest_pas_une_image():
 
 
 def test_appliquer_logo_pose_les_champs(db):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "boursorama")
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Boursorama", "boursorama")
 
     change = logo_service.appliquer_logo(db, etablissement, png_factice(), logo_service.SOURCE_CATALOGUE)
 
@@ -160,7 +160,7 @@ def test_appliquer_logo_pose_les_champs(db):
 def test_appliquer_logo_identique_ne_reecrit_rien(db):
     """Cas normal du job hebdomadaire : un logo bouge rarement, inutile de réécrire
     la ligne (et d'avancer sa date de mise à jour) à chaque passage."""
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "boursorama")
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Boursorama", "boursorama")
     png = png_factice()
     logo_service.appliquer_logo(db, etablissement, png, logo_service.SOURCE_CATALOGUE)
     date_initiale = etablissement.logo_maj_le
@@ -172,7 +172,7 @@ def test_appliquer_logo_identique_ne_reecrit_rien(db):
 
 
 def test_retirer_logo_efface_tout(db):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "boursorama")
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Boursorama", "boursorama")
     logo_service.appliquer_logo(db, etablissement, png_factice(), logo_service.SOURCE_CATALOGUE)
 
     logo_service.retirer_logo(db, etablissement)
@@ -185,7 +185,7 @@ def test_retirer_logo_efface_tout(db):
 def test_rafraichir_ne_touche_jamais_un_logo_televerse(db, monkeypatch):
     """Demande explicite : le job hebdomadaire entretient ce qui est automatique, il
     n'écrase jamais un choix délibéré de l'utilisateur."""
-    televerse = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ma banque", "trade_republic")
+    televerse = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Ma banque", "trade_republic")
     logo_service.appliquer_logo(db, televerse, png_factice(couleur="red"), logo_service.SOURCE_UPLOAD)
     empreinte_avant = televerse.logo_empreinte
 
@@ -197,7 +197,7 @@ def test_rafraichir_ne_touche_jamais_un_logo_televerse(db, monkeypatch):
 
 
 def test_rafraichir_met_a_jour_un_logo_de_catalogue(db, monkeypatch):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "boursorama")
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Boursorama", "boursorama")
     logo_service.appliquer_logo(db, etablissement, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
 
     monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _logo_factice(couleur="blue"))
@@ -208,7 +208,7 @@ def test_rafraichir_met_a_jour_un_logo_de_catalogue(db, monkeypatch):
 
 
 def test_rafraichir_recharge_une_url_saisie(db, monkeypatch):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ma banque", None)
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Ma banque", None)
     logo_service.appliquer_logo(
         db, etablissement, png_factice(couleur="red"), logo_service.SOURCE_URL, "https://exemple.fr/logo.png"
     )
@@ -227,9 +227,9 @@ def test_rafraichir_recharge_une_url_saisie(db, monkeypatch):
 
 
 def test_rafraichir_un_echec_nempeche_pas_les_suivants(db, monkeypatch):
-    en_echec = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Site en panne", "boursorama")
+    en_echec = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Site en panne", "boursorama")
     logo_service.appliquer_logo(db, en_echec, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
-    ok = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Site qui répond", "fortuneo")
+    ok = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Site qui répond", "fortuneo")
     logo_service.appliquer_logo(db, ok, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
 
     def _recuperer(domaine: str, accepter_svg: bool = False) -> logo_service.LogoRecupere:
@@ -250,7 +250,7 @@ def test_rafraichir_un_echec_nempeche_pas_les_suivants(db, monkeypatch):
 def test_rafraichir_ignore_un_etablissement_sans_logo(db, monkeypatch):
     """Poser un logo est une action volontaire : ce job entretient l'existant, il ne
     démarche pas les établissements qui n'en ont jamais eu."""
-    comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Sans logo", "boursorama")
+    comptes_service.create_etablissement(db, ID_FOYER_TEST, "Sans logo", "boursorama")
     monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _logo_factice())
 
     resume = logo_service.rafraichir_logos(db)
@@ -382,7 +382,7 @@ def test_le_catalogue_prend_le_logo_embarque_sans_reseau(monkeypatch):
 
 
 def test_le_job_hebdomadaire_pose_le_logo_embarque(db, monkeypatch):
-    ledger = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ledger", "ledger")
+    ledger = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Ledger", "ledger")
     logo_service.appliquer_logo(db, ledger, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
     monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _sans_reseau)
 
@@ -397,9 +397,9 @@ def test_au_demarrage_le_logo_embarque_remplace_lancien_sans_toucher_un_choix_de
     le cache du catalogue et sur son établissement : il est remplacé dès le démarrage.
     Un logo téléversé par l'utilisateur, lui, reste le sien."""
     db.add(LogoCatalogue(logo_key="ledger", logo_png="ancien", logo_format=logo_service.FORMAT_PNG))
-    catalogue = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ledger", "ledger")
+    catalogue = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Ledger", "ledger")
     logo_service.appliquer_logo(db, catalogue, png_factice(couleur="red"), logo_service.SOURCE_CATALOGUE)
-    televerse = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Mon Ledger", "ledger")
+    televerse = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Mon Ledger", "ledger")
     logo_service.appliquer_logo(db, televerse, png_factice(couleur="green"), logo_service.SOURCE_UPLOAD)
     empreinte_televerse = televerse.logo_empreinte
 
@@ -441,7 +441,7 @@ def test_un_site_injoignable_nempeche_pas_le_rafraichissement_du_catalogue(db, m
 
 
 def test_logo_depuis_une_url_injoignable_repond_400_et_pas_500(client, db, monkeypatch):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ma banque", None)
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Ma banque", None)
     _reseau_en_panne(monkeypatch)
 
     reponse = client.put(

@@ -27,7 +27,8 @@ import { t } from '../i18n'
 export default function PatrimoineVide() {
   const { detenteurId, setDetenteurId } = usePreferencesAffichage()
   const { user } = useAuth()
-  const peutSaisir = user?.role !== 'invite'
+  // Un compte sans foyer (`null`) n'a pas plus de droits qu'un invité.
+  const peutSaisir = user?.role !== 'invite' && user?.role !== null
 
   // Le nom rend le message concret (« Rien n'est encore attribué à Alice ») ; en
   // cas d'échec, une formulation neutre suffit — jamais une erreur pour ça.

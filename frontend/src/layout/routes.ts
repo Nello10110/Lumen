@@ -129,6 +129,9 @@ export const ROUTES: RouteMeta[] = [
   { path: '/aide', get titre() { return t('nav.aide') }, get navLabel() { return t('nav.aide') }, icone: IconAide, rang: 'administration' },
 ]
 
-export function routesDuRang(rang: Rang, role?: Role): RouteMeta[] {
-  return ROUTES.filter((r) => r.rang === rang && (!r.rolesAutorises || !role || r.rolesAutorises.includes(role)))
+/** `role` absent : pas de filtre. `null` (compte sans foyer) : aucune route réservée. */
+export function routesDuRang(rang: Rang, role?: Role | null): RouteMeta[] {
+  return ROUTES.filter(
+    (r) => r.rang === rang && (!r.rolesAutorises || role === undefined || (role !== null && r.rolesAutorises.includes(role))),
+  )
 }

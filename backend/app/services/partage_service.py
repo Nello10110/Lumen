@@ -89,7 +89,7 @@ def lien_valide_par_token(db: Session, token: str) -> LienPartage | None:
     if lien is None or lien.revoked_at is not None or lien.expires_at < _maintenant_naif():
         database.sans_perimetre(db)
         return None
-    database.fixer_foyer(db, lien.user_id, lien.user_id)
+    database.fixer_foyer(db, lien.user_id, None)
     return lien
 
 

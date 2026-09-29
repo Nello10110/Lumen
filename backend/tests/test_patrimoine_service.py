@@ -8,14 +8,14 @@ from decimal import Decimal
 from app.models import Loan
 from app.services import detenteurs_service, patrimoine_service, preferences_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding
+from .conftest import ID_FOYER_TEST, make_compte, make_holding
 
 
 def test_actifs_totaux_couvre_le_portefeuille_financier_et_le_patrimoine_manuel(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     # AAA sans cours en base : valorisée à son coût de revient (1000 €), comme
     # `analysis_service.value_holdings` le fait déjà pour toute ligne sans cotation.
@@ -24,21 +24,21 @@ def test_actifs_totaux_couvre_le_portefeuille_financier_et_le_patrimoine_manuel(
 
 def test_passifs_totaux_somme_les_emprunts(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0)
-    db.add(Loan(user_id=ID_UTILISATEUR_TEST, libelle="Prêt A", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
-    db.add(Loan(user_id=ID_UTILISATEUR_TEST, libelle="Prêt B", capital_initial=20000.0, taux_annuel_pct=0.0, mensualite=500.0, date_debut=datetime(2020, 1, 1), duree_mois=40, capital_restant_du_manuel=5000.0))
+    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt A", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
+    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt B", capital_initial=20000.0, taux_annuel_pct=0.0, mensualite=500.0, date_debut=datetime(2020, 1, 1), duree_mois=40, capital_restant_du_manuel=5000.0))
     db.commit()
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     assert resultat["passifs_totaux"] == 35000.0
 
 
 def test_patrimoine_net_est_actifs_moins_passifs(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
-    db.add(Loan(user_id=ID_UTILISATEUR_TEST, libelle="Crédit immo", capital_initial=200000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=200, capital_restant_du_manuel=120000.0))
+    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Crédit immo", capital_initial=200000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=200, capital_restant_du_manuel=120000.0))
     db.commit()
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     assert resultat["actifs_totaux"] == 300000.0
     assert resultat["passifs_totaux"] == 120000.0
@@ -51,7 +51,7 @@ def test_repartition_par_classe_groupe_par_type_actif_avec_libelles_francais(db)
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=100000.0, valeur_estimee=150000.0)
     make_holding(db, ticker="SANS_TYPE", type_actif=None, quantite=1, prix_revient_moyen=200.0)
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe"]}
     assert par_categorie["Actions"] == 1500.0
@@ -74,7 +74,7 @@ def test_repartition_par_classe_groupe_bricks_avec_limmobilier(db):
     make_holding(db, ticker="BRICKS-ABCDEF0123", type_actif="BOND", quantite=1, prix_revient_moyen=5000.0)
     make_holding(db, ticker="FR0000120271", type_actif="BOND", quantite=1, prix_revient_moyen=2000.0)
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe"]}
     assert par_categorie["Immobilier"] == 155000.0  # 150000 (MAISON) + 5000 (Bricks.co)
@@ -85,13 +85,13 @@ def test_repartition_par_classe_groupe_bricks_avec_limmobilier(db):
 def test_repartition_par_classe_omet_les_categories_a_valeur_nulle(db):
     make_holding(db, ticker="PE", type_actif="PRIVATE_FUND", quantite=1, prix_revient_moyen=0.0)
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     assert resultat["repartition_par_classe"] == []
 
 
 def test_aucune_donnee_renvoie_des_totaux_nuls(db):
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     assert resultat == {
         "actifs_totaux": 0,
@@ -110,7 +110,7 @@ def test_patrimoine_financier_exclut_le_patrimoine_manuel(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     assert resultat["actifs_totaux"] == 1000.0 + 250000.0
     assert resultat["patrimoine_financier"] == 1000.0
@@ -124,7 +124,7 @@ def test_repartition_par_classe_financiere_exclut_le_patrimoine_manuel(db):
     make_holding(db, ticker="BBB", type_actif="FUND", quantite=1, prix_revient_moyen=500.0)
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_financiere"]}
     assert par_categorie == {"Actions": 1000.0, "ETF / Fonds": 500.0}
@@ -135,10 +135,10 @@ def test_repartition_par_classe_financiere_exclut_le_patrimoine_manuel(db):
 def test_repartition_par_classe_financiere_filtree_par_detenteur(db):
     h_action = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h_action, [(alice.id, 100.0)])
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h_action, [(alice.id, 100.0)])
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST, detenteur_id=alice.id)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_financiere"]}
     assert par_categorie == {"Actions": 1000.0}
@@ -156,7 +156,7 @@ def test_repartition_par_classe_nette_soustrait_lemprunt_rattache_a_sa_propre_li
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -169,7 +169,7 @@ def test_repartition_par_classe_nette_soustrait_lemprunt_rattache_a_sa_propre_li
     )
     db.commit()
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
     # Immobilier : 300000 - 120000 (son propre emprunt). Actions : 1000, jamais touché
@@ -184,7 +184,7 @@ def test_repartition_par_classe_nette_peut_etre_negative_si_lemprunt_depasse_la_
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=100000.0)
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -197,7 +197,7 @@ def test_repartition_par_classe_nette_peut_etre_negative_si_lemprunt_depasse_la_
     )
     db.commit()
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
     assert par_categorie == {"Immobilier": -50000.0}
@@ -207,7 +207,7 @@ def test_repartition_par_classe_nette_bucket_dettes_non_rattachees(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Prêt perso",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -219,7 +219,7 @@ def test_repartition_par_classe_nette_bucket_dettes_non_rattachees(db):
     )
     db.commit()
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
     assert par_categorie == {"Actions": 1000.0, "Dettes non rattachées": -8000.0}
@@ -230,7 +230,7 @@ def test_repartition_par_classe_nette_detenteur_reutilise_part_nette(db):
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -242,10 +242,10 @@ def test_repartition_par_classe_nette_detenteur_reutilise_part_nette(db):
         )
     )
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 100.0)])
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST, detenteur_id=alice.id)
 
     par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
     assert par_categorie == {"Immobilier": 180000.0}
@@ -261,11 +261,11 @@ def test_detenteur_id_none_reproduit_exactement_la_vue_foyer(db):
     """Non-régression explicite : le comportement par défaut (aucun filtre) ne doit
     strictement rien changer, même après l'ajout du paramètre `detenteur_id`."""
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    db.add(Loan(user_id=ID_UTILISATEUR_TEST, libelle="Prêt", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
+    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
     db.commit()
 
-    sans_filtre = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
-    avec_filtre_explicite = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=None)
+    sans_filtre = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
+    avec_filtre_explicite = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST, detenteur_id=None)
 
     assert sans_filtre == avec_filtre_explicite
 
@@ -274,9 +274,9 @@ def test_actif_non_reparti_est_invisible_dans_la_vue_dun_detenteur(db):
     """Un actif jamais réparti reste 100 % foyer implicite (K.1/L.1) — il n'apparaît
     dans la vue d'AUCUN détenteur individuel, seulement dans la vue foyer."""
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
 
-    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST, detenteur_id=alice.id)
 
     assert resultat == {
         "actifs_totaux": 0,
@@ -292,7 +292,7 @@ def test_actif_non_reparti_est_invisible_dans_la_vue_dun_detenteur(db):
 def test_detenteur_id_filtre_a_la_part_de_ce_detenteur(db):
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
     loan = Loan(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         libelle="Crédit immo",
         capital_initial=200000.0,
         taux_annuel_pct=0.0,
@@ -304,12 +304,12 @@ def test_detenteur_id_filtre_a_la_part_de_ce_detenteur(db):
     )
     db.add(loan)
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bob")
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
 
-    vue_alice = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
-    vue_foyer = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+    vue_alice = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST, detenteur_id=alice.id)
+    vue_foyer = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
     assert vue_alice["actifs_totaux"] == 150000.0  # 50 % de 300000
     assert vue_alice["passifs_totaux"] == 60000.0  # 50 % de 120000
@@ -325,7 +325,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
         make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         par_nom = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe"]}
         assert par_nom["Actions"] == 1000.0
@@ -335,7 +335,7 @@ class TestExpositionConsolidee:
     def test_repartition_geo_utilise_zone_geo_pour_le_manuel_defaut_europe(self, db):
         make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         par_zone = {item["categorie"]: item["valeur"] for item in resultat["repartition_geo"]}
         assert par_zone["Europe"] == 200000.0
@@ -345,7 +345,7 @@ class TestExpositionConsolidee:
             db, ticker="APPART_US", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=100000.0, valeur_estimee=100000.0, zone_geo="Amérique du Nord"
         )
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         par_zone = {item["categorie"]: item["valeur"] for item in resultat["repartition_geo"]}
         assert par_zone["Amérique du Nord"] == 100000.0
@@ -359,7 +359,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="PETIT4", type_actif="STOCK", quantite=1, prix_revient_moyen=500.0)
         make_holding(db, ticker="PETIT5", type_actif="STOCK", quantite=1, prix_revient_moyen=500.0)
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         # Total = 10000. Plus grosse ligne = 6000 (60%). Top5 = 6000+1000+1000+1000+500 = 9500 (95%).
         assert resultat["plus_grosse_ligne_ticker"] == "GROS"
@@ -370,12 +370,12 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
         make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=9000.0, valeur_estimee=9000.0)  # 9000
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         assert resultat["part_estimee_manuelle_pct"] == 90.0
 
     def test_portefeuille_vide(self, db):
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         assert resultat["valeur_totale"] == 0.0
         assert resultat["repartition_geo"] == []
@@ -394,7 +394,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=200000.0,
                 taux_annuel_pct=0.0,
@@ -407,8 +407,8 @@ class TestExpositionConsolidee:
         )
         db.commit()
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
-        patrimoine = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
+        patrimoine = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
 
         # Brute (inchangée) : 300000 (Immobilier) + 1000 (Actions) = 301000, jamais
         # nettée de l'emprunt — c'est la lentille Brut, confirmée correcte telle quelle.
@@ -437,7 +437,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=250000.0,
                 taux_annuel_pct=0.0,
@@ -450,7 +450,7 @@ class TestExpositionConsolidee:
         )
         db.commit()
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         # Nette : 200000 - 250000 (son emprunt) + 1000 (Actions) = -49000.
         assert resultat["valeur_totale_nette"] == -49000.0
@@ -462,7 +462,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 libelle="Prêt perso",
                 capital_initial=10000.0,
                 taux_annuel_pct=0.0,
@@ -474,7 +474,7 @@ class TestExpositionConsolidee:
         )
         db.commit()
 
-        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_FOYER_TEST)
 
         assert resultat["valeur_totale"] == 1000.0  # brute, l'emprunt n'y figure jamais
         assert resultat["valeur_totale_nette"] == 200.0  # 1000 - 800, sans bucket "Dettes" dédié ici
@@ -491,7 +491,7 @@ class TestCompositionCategorieConsolidee:
         make_holding(db, ticker="BBB", type_actif="STOCK", quantite=5, prix_revient_moyen=50.0)
         make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
 
-        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Actions", net=False)
+        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_FOYER_TEST, "classe", "Actions", net=False)
 
         tickers = {l["ticker"]: l["valeur"] for l in resultat["lignes"]}
         assert tickers == {"AAA": 1000.0, "BBB": 250.0}
@@ -503,7 +503,7 @@ class TestCompositionCategorieConsolidee:
         h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=200000.0,
                 taux_annuel_pct=0.0,
@@ -516,8 +516,8 @@ class TestCompositionCategorieConsolidee:
         )
         db.commit()
 
-        brut = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Immobilier", net=False)
-        net = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Immobilier", net=True)
+        brut = patrimoine_service.compute_composition_categorie_consolidee(db, ID_FOYER_TEST, "classe", "Immobilier", net=False)
+        net = patrimoine_service.compute_composition_categorie_consolidee(db, ID_FOYER_TEST, "classe", "Immobilier", net=True)
 
         assert brut["lignes"][0]["valeur"] == 200000.0
         assert net["lignes"][0]["valeur"] == 80000.0
@@ -526,7 +526,7 @@ class TestCompositionCategorieConsolidee:
         h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=250000.0,
                 taux_annuel_pct=0.0,
@@ -539,7 +539,7 @@ class TestCompositionCategorieConsolidee:
         )
         db.commit()
 
-        net = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Immobilier", net=True)
+        net = patrimoine_service.compute_composition_categorie_consolidee(db, ID_FOYER_TEST, "classe", "Immobilier", net=True)
 
         assert len(net["lignes"]) == 1
         assert net["lignes"][0]["ticker"] == "MAISON"
@@ -552,7 +552,7 @@ class TestCompositionCategorieConsolidee:
         )
         make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
 
-        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "geo", "Europe", net=False)
+        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_FOYER_TEST, "geo", "Europe", net=False)
 
         tickers = {l["ticker"] for l in resultat["lignes"]}
         assert tickers == {"MAISON"}
@@ -561,7 +561,7 @@ class TestCompositionCategorieConsolidee:
     def test_categorie_inconnue_renvoie_une_liste_vide(self, db):
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
 
-        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Crypto", net=False)
+        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_FOYER_TEST, "classe", "Crypto", net=False)
 
         assert resultat["lignes"] == []
         assert resultat["valeur_totale"] == 0.0
@@ -575,7 +575,7 @@ class TestLignesPatrimoineFiltrees:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
         make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST)
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_FOYER_TEST)
 
         assert [l["ticker"] for l in lignes] == ["MAISON", "AAA"]
         assert lignes[0]["valeur"] == 250000.0
@@ -585,7 +585,7 @@ class TestLignesPatrimoineFiltrees:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
         make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST, type_actif="STOCK")
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_FOYER_TEST, type_actif="STOCK")
 
         assert [l["ticker"] for l in lignes] == ["AAA"]
 
@@ -595,7 +595,7 @@ class TestLignesPatrimoineFiltrees:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0, compte_id=compte_a.id)
         make_holding(db, ticker="BBB", type_actif="STOCK", quantite=5, prix_revient_moyen=50.0, compte_id=compte_b.id)
 
-        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST, compte_id=compte_a.id)
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_FOYER_TEST, compte_id=compte_a.id)
 
         assert [l["ticker"] for l in lignes] == ["AAA"]
         assert lignes[0]["compte_nom"] == "Compte A"
@@ -604,26 +604,26 @@ class TestLignesPatrimoineFiltrees:
         maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST, libelle="Crédit", holding_id=maison.id, capital_initial=200000.0,
+                user_id=ID_FOYER_TEST, libelle="Crédit", holding_id=maison.id, capital_initial=200000.0,
                 taux_annuel_pct=1.5, mensualite=1000.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
                 capital_restant_du_manuel=180000.0,
             )
         )
         db.commit()
 
-        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST)
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_FOYER_TEST)
 
         assert lignes[0]["valeur"] == 300000.0
         assert lignes[0]["valeur_nette"] == 120000.0
 
     def test_filtre_detenteur_ne_garde_que_les_lignes_reparties_avec_leur_quote_part(self, db):
-        alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-        bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
+        alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+        bob = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bob")
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # jamais répartie
         maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
-        detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, maison, [(alice.id, 60.0), (bob.id, 40.0)])
+        detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, maison, [(alice.id, 60.0), (bob.id, 40.0)])
 
-        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+        lignes = patrimoine_service.lignes_patrimoine_filtrees(db, ID_FOYER_TEST, detenteur_id=alice.id)
 
         assert [l["ticker"] for l in lignes] == ["MAISON"]
         assert lignes[0]["valeur"] == 180000.0  # 60% de 300000
@@ -636,17 +636,17 @@ class TestLignesPatrimoineFiltrees:
 def test_comparaison_insee_none_sans_annee_de_naissance_renseignee(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=1000.0)
 
-    assert patrimoine_service.compute_comparaison_insee(db, ID_UTILISATEUR_TEST) is None
+    assert patrimoine_service.compute_comparaison_insee(db, ID_FOYER_TEST) is None
 
 
 def test_comparaison_insee_ecart_positif(db):
     annee_naissance = date.today().year - 41  # tranche 40-49 -> médiane 215 200 €
     preferences_service.enregistrer_preferences(
-        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=annee_naissance
+        db, ID_FOYER_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=annee_naissance
     )
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=300000.0)
 
-    resultat = patrimoine_service.compute_comparaison_insee(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_comparaison_insee(db, ID_FOYER_TEST)
 
     assert resultat["actifs_totaux_foyer"] == 300000.0
     assert resultat["mediane_reference"] == 215200.0
@@ -658,11 +658,11 @@ def test_comparaison_insee_ecart_positif(db):
 def test_comparaison_insee_ecart_negatif(db):
     annee_naissance = date.today().year - 41
     preferences_service.enregistrer_preferences(
-        db, ID_UTILISATEUR_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=annee_naissance
+        db, ID_FOYER_TEST, preferences_service.METHODE_COUT_MOYEN_PONDERE, annee_naissance_foyer=annee_naissance
     )
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=100000.0)
 
-    resultat = patrimoine_service.compute_comparaison_insee(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_comparaison_insee(db, ID_FOYER_TEST)
 
     assert resultat["ecart_pct"] == -53.5  # (100000 / 215200 - 1) * 100, arrondi à 1 décimale
 
@@ -678,11 +678,11 @@ def test_indicateurs_de_situation_calcules_en_decimal_sans_erreur(db):
     make_holding(db, ticker="APPART", type_actif=TYPE_ACTIF_REAL_ESTATE, quantite=1, valeur_estimee=200000)
     aujourdhui = date.today().isoformat()
     for i, montant in enumerate([-1000.10, -999.90, -1000, 2500, 2500, 2500]):
-        db.add(MouvementBancaire(user_id=ID_UTILISATEUR_TEST, transaction_id=f"m{i}", date=aujourdhui, libelle=f"m{i}", montant=montant))
-    db.add(Loan(user_id=ID_UTILISATEUR_TEST, libelle="Prêt", capital_initial=100000, taux_annuel_pct=0, mensualite=750, date_debut=datetime(2020, 1, 1), duree_mois=240))
+        db.add(MouvementBancaire(user_id=ID_FOYER_TEST, transaction_id=f"m{i}", date=aujourdhui, libelle=f"m{i}", montant=montant))
+    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt", capital_initial=100000, taux_annuel_pct=0, mensualite=750, date_debut=datetime(2020, 1, 1), duree_mois=240))
     db.commit()
 
-    resultat = patrimoine_service.compute_indicateurs_situation(db, ID_UTILISATEUR_TEST)
+    resultat = patrimoine_service.compute_indicateurs_situation(db, ID_FOYER_TEST)
 
     assert resultat["depenses_mensuelles_moyennes"] == Decimal("1000.00")  # 3000 / 3
     assert resultat["revenus_nets_mensuels_moyens"] == Decimal("2500.00")

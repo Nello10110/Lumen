@@ -5,7 +5,9 @@ export type Role = 'proprietaire' | 'membre' | 'invite'
 export interface AuthUser {
   id: number
   username: string
-  role: Role
+  // Rôle dans le foyer courant (backlog § BK.2) ; `null` pour un compte qui
+  // n'appartient à aucun foyer : aucun droit, aucune donnée.
+  role: Role | null
   // Métadonnées d'affichage pures (backlog SSO, claim mapping) — `null` pour un
   // compte mot de passe local, jamais utilisées pour l'authentification.
   email?: string | null

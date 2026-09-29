@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from app.models import Loan, MarketDataCache
 from app.services import score_patrimonial_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_FOYER_TEST, make_holding
 
 
 def _sous_score(resultat: dict, id_: str) -> dict | None:
@@ -27,7 +27,7 @@ def test_score_nominal_avec_les_trois_sous_scores(db):
     # seuils -> score = round(100 * (0,80 - 0,50) / (0,80 - 0,30)) = round(60) = 60.
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -39,7 +39,7 @@ def test_score_nominal_avec_les_trois_sous_scores(db):
     )
     db.commit()
 
-    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_UTILISATEUR_TEST)
+    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_FOYER_TEST)
 
     assert len(resultat["sous_scores"]) == 3
     assert _sous_score(resultat, "diversification")["score"] == 48
@@ -55,7 +55,7 @@ def test_qualite_donnees_exclue_et_poids_redistribue_sans_portefeuille_financier
     # deux autres.
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=80000.0, valeur_estimee=100000.0)
 
-    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_UTILISATEUR_TEST)
+    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_FOYER_TEST)
 
     assert len(resultat["sous_scores"]) == 2
     assert _sous_score(resultat, "qualite_donnees") is None
@@ -67,7 +67,7 @@ def test_qualite_donnees_exclue_et_poids_redistribue_sans_portefeuille_financier
 
 
 def test_actifs_totaux_nuls_ne_leve_jamais_de_division_par_zero(db):
-    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_UTILISATEUR_TEST)
+    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_FOYER_TEST)
 
     assert resultat["score_global"] == 0
     assert _sous_score(resultat, "diversification")["score"] == 0
@@ -80,7 +80,7 @@ def test_endettement_100_au_seuil_sain_exactement(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=8000.0, valeur_estimee=10000.0)
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -92,7 +92,7 @@ def test_endettement_100_au_seuil_sain_exactement(db):
     )
     db.commit()
 
-    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_UTILISATEUR_TEST)
+    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_FOYER_TEST)
 
     assert _sous_score(resultat, "endettement")["score"] == 100
 
@@ -101,7 +101,7 @@ def test_endettement_0_au_seuil_eleve_exactement(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=8000.0, valeur_estimee=10000.0)
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -113,7 +113,7 @@ def test_endettement_0_au_seuil_eleve_exactement(db):
     )
     db.commit()
 
-    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_UTILISATEUR_TEST)
+    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_FOYER_TEST)
 
     assert _sous_score(resultat, "endettement")["score"] == 0
 
@@ -121,6 +121,6 @@ def test_endettement_0_au_seuil_eleve_exactement(db):
 def test_diversification_nulle_si_une_seule_classe_dactif(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
 
-    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_UTILISATEUR_TEST)
+    resultat = score_patrimonial_service.compute_score_patrimonial(db, ID_FOYER_TEST)
 
     assert _sous_score(resultat, "diversification")["score"] == 0

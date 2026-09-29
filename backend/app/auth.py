@@ -1,11 +1,11 @@
 """Dépendances FastAPI protégeant les routes existantes (multi-utilisateur, Milestone 1
-+ rôles, backlog 2.L.2).
++ rôles, backlog 2.L.2, foyers § BK.2).
 
-Branchée au niveau de `app.include_router(..., dependencies=[Depends(get_current_user)])`
-dans `main.py` pour l'authentification (être connecté), et via `require_role(...)`
-pour l'autorisation (avoir le bon rôle) — appliquée soit au niveau routeur (routes
-réservées au propriétaire), soit au niveau endpoint (routeurs à granularité mixte,
-cf. `main.py` et les routeurs concernés)."""
+- `get_current_user` : un compte authentifié, foyer facultatif — routes `/api/auth/*` ;
+- `get_membre_foyer` : un foyer courant exigé — branchée dans `main.py` sur tous les
+  routeurs de données ;
+- `require_role(...)` : un rôle DANS le foyer courant — appliquée soit au niveau
+  routeur (routes réservées au propriétaire), soit au niveau endpoint."""
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from .services import auth_service, preferences_service
 
 MESSAGE_NON_AUTHENTIFIE = "Authentification requise."
 MESSAGE_ROLE_INSUFFISANT = "Action non autorisée pour ce rôle."
+MESSAGE_AUCUN_FOYER = "Ce compte n'appartient à aucun foyer."
 
 
 def get_current_token(request: Request, db: Session = Depends(get_db)) -> AuthToken:
@@ -38,18 +39,27 @@ def get_current_user(token_row: AuthToken = Depends(get_current_token), db: Sess
     user = db.get(User, token_row.user_id)
     if user is None:
         raise HTTPException(status_code=401, detail=MESSAGE_NON_AUTHENTIFIE)
-    auth_service.ouvrir_perimetre(db, user)
-    # Authentifié : la langue du FOYER prime sur celle annoncée par la requête (§ BL.4)
-    # — un PDF ou un CSV téléchargé par un lien direct n'a pas l'en-tête de l'interface.
-    definir_langue(preferences_service.lire_langue_foyer(db, auth_service.id_foyer(user)))
+    auth_service.reprendre_session(db, user, token_row)
+    if user.foyer_courant_id is not None:
+        # Authentifié : la langue du FOYER prime sur celle annoncée par la requête (§ BL.4)
+        # — un PDF ou un CSV téléchargé par un lien direct n'a pas l'en-tête de l'interface.
+        definir_langue(preferences_service.lire_langue_foyer(db, user.foyer_courant_id))
     return user
+
+
+def get_membre_foyer(current_user: User = Depends(get_current_user)) -> User:
+    """403, pas 404 ni 401 : le compte est bien connecté, c'est l'accès aux données qui
+    lui manque tant qu'il n'appartient à aucun foyer."""
+    if current_user.foyer_courant_id is None:
+        raise HTTPException(status_code=403, detail=MESSAGE_AUCUN_FOYER)
+    return current_user
 
 
 def require_role(*roles_autorises: str):
     """Dépendance paramétrée : `Depends(require_role(ROLE_PROPRIETAIRE))` sur un
     endpoint, ou `dependencies=[Depends(require_role(...))]` sur un `include_router`."""
 
-    def _dependency(current_user: User = Depends(get_current_user)) -> User:
+    def _dependency(current_user: User = Depends(get_membre_foyer)) -> User:
         if current_user.role not in roles_autorises:
             raise HTTPException(status_code=403, detail=MESSAGE_ROLE_INSUFFISANT)
         return current_user

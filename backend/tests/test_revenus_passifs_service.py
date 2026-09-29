@@ -7,11 +7,11 @@ from decimal import Decimal
 
 from app.services import immobilier_service, revenus_passifs_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
+from .conftest import ID_FOYER_TEST, make_holding, make_transaction
 
 
 def test_sans_aucune_donnee_tout_est_nul(db):
-    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_UTILISATEUR_TEST)
+    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_FOYER_TEST)
 
     assert resultat == {
         "loyers_nets_annuels": 0.0,
@@ -34,7 +34,7 @@ def test_loyers_nets_annuels_retranche_charges_et_frais_pas_la_mensualite(db):
         db, maison.id, loyer_mensuel=1000.0, charges_mensuelles=100.0, frais_annuels=1200.0
     )
 
-    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_UTILISATEUR_TEST)
+    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_FOYER_TEST)
 
     # 1000*12 - (100*12 + 1200) = 12000 - 2400 = 9600
     assert resultat["loyers_nets_annuels"] == 9600.0
@@ -45,7 +45,7 @@ def test_bien_immobilier_sans_loyer_renseigne_ne_compte_pas(db):
     maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0, valeur_estimee=250000.0)
     immobilier_service.upsert_detail_immobilier(db, maison.id, surface_m2=50.0)  # pas de loyer
 
-    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_UTILISATEUR_TEST)
+    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_FOYER_TEST)
 
     assert resultat["loyers_nets_annuels"] == 0.0
 
@@ -57,7 +57,7 @@ def test_interets_livrets_annuels_applique_le_taux_declare(db):
     # même avec un taux renseigné par erreur.
     make_holding(db, ticker="CC", type_actif="CASH_ACCOUNT", quantite=1, valeur_estimee=1000.0, taux_pct=5.0)
 
-    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_UTILISATEUR_TEST)
+    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_FOYER_TEST)
 
     # 10000*0.03 + 5000*0.02 = 300 + 100 = 400
     assert resultat["interets_livrets_annuels"] == 400.0
@@ -79,7 +79,7 @@ def test_dividendes_et_interets_courtage_extrapoles_depuis_les_12_derniers_mois(
         db, transaction_id="div_vieux", category="CASH", type="DIVIDEND", date=trop_vieux, amount=999.0, fee=0.0, tax=0.0, shares=None
     )
 
-    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_UTILISATEUR_TEST)
+    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_FOYER_TEST)
 
     assert resultat["dividendes_estimes_annuels"] == 45.0  # 50 + 0 - 5
     assert resultat["interets_courtage_estimes_annuels"] == 20.0
@@ -102,7 +102,7 @@ def test_revenu_total_combine_certain_et_estime(db):
         shares=None,
     )
 
-    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_UTILISATEUR_TEST)
+    resultat = revenus_passifs_service.compute_revenus_passifs(db, ID_FOYER_TEST)
 
     # certain = 12000 (loyer, sans charges/frais renseignés) + 300 (livret) = 12300
     # estime = 100 (dividende)

@@ -17,7 +17,7 @@ import pytest
 from app import i18n
 from app.i18n import CATALOGUES, formats, traduire
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 from .test_auth_router import client_reel, db_vide  # noqa: F401  (fixtures)
 
 _RACINE_APP = Path(__file__).resolve().parent.parent / "app"
@@ -243,10 +243,10 @@ def test_pdf_genere_dans_chaque_langue(client_reel):
 def test_page_de_partage_public_annonce_la_langue_du_foyer(client, db):
     from app.services import partage_service, preferences_service
 
-    preferences_service.enregistrer_langue_foyer(db, ID_UTILISATEUR_TEST, "es")
+    preferences_service.enregistrer_langue_foyer(db, ID_FOYER_TEST, "es")
     lien = partage_service.creer_lien(
         db,
-        ID_UTILISATEUR_TEST,
+        ID_FOYER_TEST,
         nom="Banque",
         detenteur_id=None,
         duree_jours=7,

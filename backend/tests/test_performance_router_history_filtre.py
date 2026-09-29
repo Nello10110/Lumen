@@ -10,7 +10,7 @@ from app.models import Compte, Etablissement, Holding
 from app.services import historical_performance_service, immobilier_service
 from app.services.portfolio_reconstruction import rebuild_holdings
 
-from .conftest import ID_UTILISATEUR_TEST, make_transaction
+from .conftest import ID_FOYER_TEST, make_transaction
 from .test_historical_performance_service import _FauxTickerAvecHistorique
 
 
@@ -23,11 +23,11 @@ def _preparer_deux_positions(db, monkeypatch):
     pas posé après coup directement sur `Holding` : depuis ce lot, le filtre par
     compte de `/api/performance/history` résout les positions via
     `Transaction.compte_id`, `Holding.compte_id` n'en étant qu'un reflet."""
-    etablissement = Etablissement(user_id=ID_UTILISATEUR_TEST, nom="Établissement Test")
+    etablissement = Etablissement(user_id=ID_FOYER_TEST, nom="Établissement Test")
     db.add(etablissement)
     db.commit()
-    compte_aaa = Compte(user_id=ID_UTILISATEUR_TEST, nom="Compte AAA", etablissement_id=etablissement.id)
-    compte_bbb = Compte(user_id=ID_UTILISATEUR_TEST, nom="Compte BBB", etablissement_id=None)
+    compte_aaa = Compte(user_id=ID_FOYER_TEST, nom="Compte AAA", etablissement_id=etablissement.id)
+    compte_bbb = Compte(user_id=ID_FOYER_TEST, nom="Compte BBB", etablissement_id=None)
     db.add_all([compte_aaa, compte_bbb])
     db.commit()
 
@@ -44,10 +44,10 @@ def _preparer_deux_positions(db, monkeypatch):
         datetime_utc=datetime(2024, 1, 1),
         compte_id=compte_bbb.id,
     )
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
 
-    db.query(Holding).filter(Holding.ticker == "AAA", Holding.user_id == ID_UTILISATEUR_TEST).update({"type_actif": "STOCK"})
-    db.query(Holding).filter(Holding.ticker == "BBB", Holding.user_id == ID_UTILISATEUR_TEST).update({"type_actif": "CRYPTO"})
+    db.query(Holding).filter(Holding.ticker == "AAA", Holding.user_id == ID_FOYER_TEST).update({"type_actif": "STOCK"})
+    db.query(Holding).filter(Holding.ticker == "BBB", Holding.user_id == ID_FOYER_TEST).update({"type_actif": "CRYPTO"})
     db.commit()
 
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
@@ -130,7 +130,7 @@ def test_filtre_par_type_actif_manuel_selectionne_desormais_le_per(client, db, m
     ne renvoyait jusqu'ici qu'une série vide (le grand livre de transactions filtré
     par `historical_performance_service` ne connaît aucune ligne manuelle)."""
     _preparer_deux_positions(db, monkeypatch)
-    per = Holding(user_id=ID_UTILISATEUR_TEST, ticker="PER1", nom="PER", quantite=1.0, type_actif="PENSION")
+    per = Holding(user_id=ID_FOYER_TEST, ticker="PER1", nom="PER", quantite=1.0, type_actif="PENSION")
     db.add(per)
     db.commit()
     db.refresh(per)
@@ -151,7 +151,7 @@ def test_sans_filtre_inclut_desormais_la_part_manuelle(client, db, monkeypatch):
     « Tout » puis « PER » ne doit jamais faire apparaître un montant absent du
     total non filtré)."""
     _preparer_deux_positions(db, monkeypatch)
-    per = Holding(user_id=ID_UTILISATEUR_TEST, ticker="PER1", nom="PER", quantite=1.0, type_actif="PENSION")
+    per = Holding(user_id=ID_FOYER_TEST, ticker="PER1", nom="PER", quantite=1.0, type_actif="PENSION")
     db.add(per)
     db.commit()
     db.refresh(per)

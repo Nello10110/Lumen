@@ -13,7 +13,7 @@ silencieusement perdu comme avant ce correctif."""
 
 from app.models import Holding, Transaction
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 
 EN_TETE = "transaction_id,datetime,date,category,type,asset_class,symbol,name,shares,price,amount,fee,tax,description,mcc_code"
 
@@ -43,7 +43,7 @@ def test_reimport_identique_ne_duplique_pas_et_ne_signale_aucune_mise_a_jour(cli
     assert corps["importees"] == 0
     assert corps["mises_a_jour"] == 0
     assert corps["doublons_ignores"] == 1
-    assert db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST).count() == 1
+    assert db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST).count() == 1
 
 
 def test_reimport_avec_montant_corrige_met_a_jour_la_ligne_sans_la_dupliquer(client, db):
@@ -56,7 +56,7 @@ def test_reimport_avec_montant_corrige_met_a_jour_la_ligne_sans_la_dupliquer(cli
     assert corps["mises_a_jour"] == 1
     assert corps["doublons_ignores"] == 0
 
-    transactions = db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST).all()
+    transactions = db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST).all()
     assert len(transactions) == 1  # jamais dupliquée
     assert transactions[0].amount == -1520.00  # la valeur corrigée fait foi
 
@@ -82,8 +82,8 @@ def test_import_stampe_compte_id_sur_la_transaction(client, db):
     l'import, pas une approximation reconstruite après coup sur `Holding` seul."""
     _importer(client, _csv(_ligne("tx-1")))
 
-    tx = db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST, Transaction.transaction_id == "tx-1").one()
-    holding = db.query(Holding).filter_by(user_id=ID_UTILISATEUR_TEST).one()
+    tx = db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST, Transaction.transaction_id == "tx-1").one()
+    holding = db.query(Holding).filter_by(user_id=ID_FOYER_TEST).one()
 
     assert tx.compte_id is not None
     assert tx.compte_id == holding.compte_id
@@ -110,7 +110,7 @@ def test_reimport_resynchronise_compte_id_comme_les_autres_champs(client, db):
         return client.post("/api/transactions/import", json={"file_token": apercu["file_token"], "etablissement_nom": "Banque Test"})
 
     _importer_avec_bucket(_csv_avec_bucket("DEFAULT"))
-    tx = db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST, Transaction.transaction_id == "tx-1").one()
+    tx = db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST, Transaction.transaction_id == "tx-1").one()
     premier_compte_id = tx.compte_id
 
     reponse = _importer_avec_bucket(_csv_avec_bucket("PEA"))
@@ -142,4 +142,4 @@ def test_reimport_avec_un_fichier_mixte_compte_correctement_chaque_categorie(cli
     assert corps["importees"] == 1  # tx-nouvelle
     assert corps["mises_a_jour"] == 1  # tx-a-corriger
     assert corps["doublons_ignores"] == 1  # tx-inchangee
-    assert db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST).count() == 3
+    assert db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST).count() == 3

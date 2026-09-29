@@ -11,7 +11,7 @@ from pypdf import PdfReader
 from app.models import Loan, MarketDataCache
 from app.services import declaration_patrimoine_service, detenteurs_service, preferences_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_FOYER_TEST, make_holding
 
 
 def _texte_pdf(contenu: bytes) -> str:
@@ -23,7 +23,7 @@ def _texte_pdf(contenu: bytes) -> str:
 def _generer(db, **overrides):
     defaults = dict(holding_ids=None, loan_ids=None, detenteur_id=None, destinataire=None, inclure_profil=False)
     defaults.update(overrides)
-    return declaration_patrimoine_service.generer_pdf_declaration(db, ID_UTILISATEUR_TEST, **defaults)
+    return declaration_patrimoine_service.generer_pdf_declaration(db, ID_FOYER_TEST, **defaults)
 
 
 def test_pdf_valide_meme_sans_donnees(db):
@@ -93,7 +93,7 @@ def test_ligne_cotee_affiche_le_cours_de_marche(db):
 def test_passifs_affiches_par_defaut(db):
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -122,11 +122,11 @@ def test_destinataire_et_synthese(db):
 
 
 def test_filtre_detenteur_ne_montre_que_ses_quotites(db):
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bob")
     h_partage = make_holding(db, ticker="AAA", nom="Bien partagé", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
     make_holding(db, ticker="BBB", nom="Bien non reparti", type_actif="STOCK", quantite=1, prix_revient_moyen=5000.0)
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h_partage, [(alice.id, 60.0), (bob.id, 40.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h_partage, [(alice.id, 60.0), (bob.id, 40.0)])
 
     texte_alice = _texte_pdf(_generer(db, detenteur_id=alice.id))
 
@@ -137,11 +137,11 @@ def test_filtre_detenteur_ne_montre_que_ses_quotites(db):
 
 
 def test_filtre_detenteur_affiche_la_part_dette_de_lemprunt_rattache(db):
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
     h = make_holding(db, ticker="MAISON", nom="Maison", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 100.0)])
     loan = Loan(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         libelle="Crédit immo",
         capital_initial=200000.0,
         taux_annuel_pct=0.0,
@@ -165,13 +165,13 @@ def test_filtre_detenteur_affiche_chaque_emprunt_rattache_separement(db):
     déclaration filtrée par détenteur ne retenait que le premier trouvé (`next(...)`)
     et lui attribuait à tort la dette CUMULÉE des deux — un seul libellé apparaissait
     au lieu de deux, chacun avec sa propre part."""
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
     h = make_holding(db, ticker="MAISON", nom="Maison", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 100.0)])
     for libelle, crd in (("Crédit immo", 100000.0), ("Prêt travaux", 20000.0)):
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 libelle=libelle,
                 capital_initial=crd,
                 taux_annuel_pct=0.0,
@@ -195,7 +195,7 @@ def test_filtre_detenteur_affiche_chaque_emprunt_rattache_separement(db):
 
 
 def test_inclure_profil_ajoute_la_section_avec_taux_imposition(db):
-    preferences_service.enregistrer_preferences(db, ID_UTILISATEUR_TEST, "cout_moyen_pondere", 30.0)
+    preferences_service.enregistrer_preferences(db, ID_FOYER_TEST, "cout_moyen_pondere", 30.0)
 
     texte = _texte_pdf(_generer(db, inclure_profil=True))
 

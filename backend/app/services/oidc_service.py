@@ -42,7 +42,8 @@ from urllib.parse import urlencode
 import requests
 from sqlalchemy.orm import Session
 
-from ..models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, User
+from .. import database
+from ..models import ROLE_MEMBRE, Foyer, User
 from . import auth_service
 
 VARIABLE_ENABLED = "PATRIMOINE_OIDC_ENABLED"
@@ -75,6 +76,11 @@ DISPLAY_NAME_PAR_DEFAUT = "SSO"
 CLAIM_USERNAME_PAR_DEFAUT = "preferred_username"
 CLAIM_EMAIL_PAR_DEFAUT = "email"
 CLAIM_NOM_PAR_DEFAUT = "name"
+
+MESSAGE_PLUSIEURS_FOYERS = (
+    "Ce serveur accueille plusieurs foyers : un nouveau compte SSO ne peut rejoindre aucun d'eux "
+    "automatiquement. Demandez au propriétaire de votre foyer de créer votre compte."
+)
 
 _discovery_cache: dict[str, dict] = {}
 
@@ -252,15 +258,15 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
        `oidc_subject` → on le lie (le SSO devient un second moyen de connexion à un
        compte déjà créé à la main), rôle et mot de passe inchangés ; `email`/`nom`
        peuplés au moment de ce premier lien.
-    3. Sinon, auto-provisionne (backlog SSO, décision utilisateur) : `proprietaire`
-       seulement si aucun compte n'existe encore (bootstrap, même logique que
-       `POST /api/auth/register`), sinon `membre` **rattaché au foyer du propriétaire
-       déjà en place** (`owner_user_id`, même logique que `POST /household-members`)
+    3. Sinon, auto-provisionne (backlog SSO, décision utilisateur) : propriétaire d'un
+       foyer neuf seulement si aucun foyer n'existe encore (bootstrap, même logique que
+       `POST /api/auth/register`), sinon `membre` **du foyer unique de l'installation**
        — sans ça, le compte devenait son propre foyer vide, sans accès au patrimoine
-       partagé (bug trouvé en vérification bout en bout, avant toute mise en
-       production). Jamais un rôle plus privilégié auto-attribué à un compte non créé
-       à la main. `username` dérivé du claim configuré (`config.claim_username`,
-       une seule fois) ; `email`/`nom` peuplés dès la création."""
+       partagé (§ L.3). Refusé s'il y a plusieurs foyers : jamais un rattachement au
+       hasard (§ BK.2 ; un compte SSO créera son propre foyer au lot BK.2d). Jamais un
+       rôle plus privilégié auto-attribué à un compte non créé à la main. `username`
+       dérivé du claim configuré (`config.claim_username`, une seule fois) ;
+       `email`/`nom` peuplés dès la création."""
     sub = claims["sub"]
     email = claims.get(config.claim_email)
     nom = claims.get(config.claim_nom)
@@ -277,14 +283,22 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
         auth_service.mettre_a_jour_profil_oidc(db, par_username, email=email, nom=nom)
         return par_username
 
-    proprietaire = db.query(User).filter(User.role == ROLE_PROPRIETAIRE).first()
-    role = ROLE_PROPRIETAIRE if proprietaire is None else ROLE_MEMBRE
-    owner_user_id = proprietaire.id if proprietaire is not None else None
+    # Le foyer à rejoindre se cherche parmi TOUS les foyers : c'est l'installation qui
+    # décide, pas un foyer que le nouveau venu verrait déjà.
+    with database.tous_les_foyers_le_temps(db):
+        foyers = [foyer_id for (foyer_id,) in db.query(Foyer.id).limit(2).all()]
+    if len(foyers) > 1:
+        # Rattacher un inconnu à l'un de plusieurs foyers, c'est lui ouvrir le
+        # patrimoine d'une famille au hasard.
+        raise OidcError(MESSAGE_PLUSIEURS_FOYERS)
     username_final = username_souhaite
     suffixe = 2
     while auth_service.utilisateur_par_username(db, username_final) is not None:
         username_final = f"{username_souhaite[:29]}-{suffixe}"
         suffixe += 1
-    return auth_service.creer_utilisateur_oidc(
-        db, username_final, sub, role=role, owner_user_id=owner_user_id, email=email, nom=nom
-    )
+    user = auth_service.creer_utilisateur_oidc(db, username_final, sub, email=email, nom=nom)
+    if foyers:
+        auth_service.ajouter_au_foyer(db, user, foyers[0], ROLE_MEMBRE)
+    else:
+        auth_service.creer_foyer(db, user)
+    return user

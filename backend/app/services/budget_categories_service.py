@@ -94,7 +94,7 @@ def assurer_categories_par_defaut(db: Session, user_id: int) -> list[CategorieBu
     ensuite — un utilisateur qui a déjà tout supprimé volontairement (ou n'a jamais
     accepté les catégories par défaut, cf. `create_categorie` qui marque aussi le
     foyer comme initialisé) ne doit pas les voir réapparaître (drapeau posé via
-    `preferences_service`, seul point d'accès à `UserParametre`)."""
+    `preferences_service`, seul point d'accès à `FoyerParametre`)."""
     existantes = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
     if existantes:
         return existantes

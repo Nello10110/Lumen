@@ -11,8 +11,8 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from app.models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, User
-from app.services import oidc_service
+from app.models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, Appartenance, Foyer, User
+from app.services import auth_service, oidc_service
 from tests.conftest import ID_UTILISATEUR_TEST
 
 ISSUER = "https://authentik.example.com/application/o/patrimoine"
@@ -332,16 +332,22 @@ def config_defaut(**overrides) -> "oidc_service.OidcConfig":
 
 @pytest.fixture
 def db_vide(db):
-    """La fixture `db` de `conftest.py` pré-insère `ID_UTILISATEUR_TEST` comme toute
-    première ligne — indispensable de repartir d'une base STRICTEMENT vide ici pour
-    exercer la branche bootstrap (`db.query(User).count() == 0`)."""
+    """La fixture `db` de `conftest.py` pré-insère le compte et le foyer de test —
+    indispensable de repartir d'une base STRICTEMENT vide ici pour exercer la branche
+    bootstrap (aucun foyer)."""
+    db.query(Appartenance).delete()
     db.query(User).filter(User.id == ID_UTILISATEUR_TEST).delete()
+    db.query(Foyer).delete()
     db.commit()
     return db
 
 
+def _appartenance(db, user: User) -> Appartenance | None:
+    return db.query(Appartenance).filter(Appartenance.user_id == user.id).first()
+
+
 def test_oidc_subject_deja_lie_renvoie_le_meme_compte(db_vide):
-    existant = User(username="alice", password_hash=None, oidc_subject="sub-123", role=ROLE_MEMBRE)
+    existant = User(username="alice", password_hash=None, oidc_subject="sub-123")
     db_vide.add(existant)
     db_vide.commit()
     db_vide.refresh(existant)
@@ -353,7 +359,7 @@ def test_oidc_subject_deja_lie_renvoie_le_meme_compte(db_vide):
 
 
 def test_lie_un_compte_local_existant_non_encore_lie(db_vide):
-    compte_local = User(username="alice", password_hash="pbkdf2_sha256$1$sel$hash", role=ROLE_PROPRIETAIRE)
+    compte_local = User(username="alice", password_hash="pbkdf2_sha256$1$sel$hash")
     db_vide.add(compte_local)
     db_vide.commit()
     db_vide.refresh(compte_local)
@@ -364,7 +370,6 @@ def test_lie_un_compte_local_existant_non_encore_lie(db_vide):
     assert resultat.oidc_subject == "sub-nouveau"
     # Le mot de passe existant reste utilisable : le SSO s'AJOUTE, ne remplace rien.
     assert resultat.password_hash == "pbkdf2_sha256$1$sel$hash"
-    assert resultat.role == ROLE_PROPRIETAIRE
     assert db_vide.query(User).count() == 1
 
 
@@ -373,32 +378,31 @@ def test_premier_login_oidc_sur_base_vide_devient_proprietaire(db_vide):
 
     resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-1", "preferred_username": "alice"})
 
-    assert resultat.role == ROLE_PROPRIETAIRE
+    assert _appartenance(db_vide, resultat).role == ROLE_PROPRIETAIRE
     assert resultat.oidc_subject == "sub-1"
     assert resultat.password_hash is None
-    assert resultat.owner_user_id is None
 
 
 def test_login_oidc_suivant_devient_membre_rattache_au_foyer_du_proprietaire(db_vide):
-    proprietaire = User(username="proprietaire", password_hash="x", role=ROLE_PROPRIETAIRE)
+    proprietaire = User(username="proprietaire", password_hash="x")
     db_vide.add(proprietaire)
     db_vide.commit()
-    db_vide.refresh(proprietaire)
+    foyer = auth_service.creer_foyer(db_vide, proprietaire)
 
     resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-2", "preferred_username": "bob"})
 
-    assert resultat.role == ROLE_MEMBRE
     assert resultat.username == "bob"
-    # Bug trouvé en vérification bout en bout : sans `owner_user_id`, ce compte
+    # Bug trouvé en vérification bout en bout : sans rattachement, ce compte
     # devenait son propre foyer vide plutôt que de rejoindre le patrimoine partagé.
-    assert resultat.owner_user_id == proprietaire.id
+    appartenance = _appartenance(db_vide, resultat)
+    assert (appartenance.foyer_id, appartenance.role) == (foyer.id, ROLE_MEMBRE)
 
 
 def test_provisioning_deduplique_le_nom_utilisateur_en_collision(db_vide):
     # "bob" existe déjà, mais lié à une AUTRE identité SSO (donc pas de lien
     # possible) : le nouveau compte doit prendre un nom distinct plutôt qu'échouer
     # sur la contrainte d'unicité, ou pire, se lier au mauvais compte.
-    db_vide.add(User(username="bob", password_hash=None, oidc_subject="sub-autre-personne", role=ROLE_MEMBRE))
+    db_vide.add(User(username="bob", password_hash=None, oidc_subject="sub-autre-personne"))
     db_vide.commit()
 
     resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-3", "preferred_username": "bob"})

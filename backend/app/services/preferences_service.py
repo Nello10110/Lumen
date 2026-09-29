@@ -1,6 +1,7 @@
-"""Réglages applicatifs persistants (LOT 5B), stockés dans `models.UserParametre`
-(table clé/valeur générique, par utilisateur depuis le Milestone 2b — cf.
-`docs/BACKLOG.md` § 2.I.1). Ce module est le SEUL point d'accès à cette table :
+"""Réglages d'un foyer (LOT 5B), stockés dans `models.FoyerParametre` (table
+clé/valeur) — sauf son nom et sa langue, colonnes de `models.Foyer` (§ BK.2). Chaque
+fonction prend l'identifiant du FOYER (`auth_service.id_foyer`), jamais celui d'un
+compte. Ce module est le SEUL point d'accès à ces réglages :
 il expose des accesseurs typés et nommés par réglage plutôt qu'un `get(cle)`
 générique — un appelant ne doit jamais avoir à connaître la clé de stockage brute
 ni le format texte utilisé pour un booléen/nombre.
@@ -14,16 +15,13 @@ place, sans qu'une migration de données soit nécessaire.
 
 from sqlalchemy.orm import Session
 
-from ..models import UserParametre
+from ..models import Foyer, FoyerParametre
 
-# Clés de stockage en base (`UserParametre.cle`), jamais exposées en dehors de ce module.
+# Clés de stockage en base (`FoyerParametre.cle`), jamais exposées en dehors de ce module.
 _CLE_METHODE_COUT = "methode_cout"
 _CLE_BUDGET_CATEGORIES_INITIALISEES = "budget_categories_initialisees"
 _CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
 _CLE_ANNEE_NAISSANCE_FOYER = "annee_naissance_foyer"
-_CLE_ONBOARDING_TERMINE = "onboarding_termine"
-_CLE_FOYER_NOM = "foyer_nom"
-_CLE_LANGUE_FOYER = "langue"
 
 # Méthode de calcul du coût de revient (LOT 5.6) : coût moyen pondéré (défaut
 # historique, comportement inchangé) ou FIFO (premier entré, premier sorti), cf.
@@ -40,35 +38,39 @@ LANGUES_DISPONIBLES = ("fr", "en", "es", "de", "it")
 LANGUE_PAR_DEFAUT = "fr"
 
 
-def _lire_valeur_brute(db: Session, cle: str, user_id: int) -> str | None:
-    parametre = db.get(UserParametre, (cle, user_id))
+def _lire_valeur_brute(db: Session, cle: str, foyer_id: int) -> str | None:
+    parametre = db.get(FoyerParametre, (cle, foyer_id))
     return parametre.valeur if parametre is not None else None
 
 
-def _ecrire_valeur_brute(db: Session, cle: str, user_id: int, valeur: str) -> None:
-    parametre = db.get(UserParametre, (cle, user_id))
+def _ecrire_valeur_brute(db: Session, cle: str, foyer_id: int, valeur: str) -> None:
+    parametre = db.get(FoyerParametre, (cle, foyer_id))
     if parametre is None:
-        db.add(UserParametre(cle=cle, user_id=user_id, valeur=valeur))
+        db.add(FoyerParametre(cle=cle, foyer_id=foyer_id, valeur=valeur))
     else:
         parametre.valeur = valeur
 
 
-def lire_methode_cout(db: Session, user_id: int) -> str:
+def _effacer_valeur(db: Session, cle: str, foyer_id: int) -> None:
+    db.query(FoyerParametre).filter(FoyerParametre.cle == cle, FoyerParametre.foyer_id == foyer_id).delete()
+
+
+def lire_methode_cout(db: Session, foyer_id: int) -> str:
     """Méthode de calcul du coût de revient actuellement configurée pour ce
     compte. Une valeur en base qui ne serait plus l'une des deux valeurs
     autorisées (ne devrait jamais arriver, `PreferencesUpdate` la contraint en
     amont) retombe sur le défaut plutôt que de propager une donnée invalide dans
     la reconstruction."""
-    valeur = _lire_valeur_brute(db, _CLE_METHODE_COUT, user_id)
+    valeur = _lire_valeur_brute(db, _CLE_METHODE_COUT, foyer_id)
     return valeur if valeur in METHODES_VALIDES else METHODE_COUT_MOYEN_PONDERE
 
 
-def lire_taux_imposition_pct(db: Session, user_id: int) -> float | None:
+def lire_taux_imposition_pct(db: Session, foyer_id: int) -> float | None:
     """Taux d'imposition SAISI par l'utilisateur (backlog 2.Q.2, déclaration de
     patrimoine) — une donnée reprise telle quelle, jamais un calcul fiscal (cf.
     `docs/BACKLOG.md` § 3, seule exception admise au hors-périmètre fiscalité).
     `None` par défaut : rien à afficher tant qu'il n'a jamais été renseigné."""
-    valeur = _lire_valeur_brute(db, _CLE_TAUX_IMPOSITION_PCT, user_id)
+    valeur = _lire_valeur_brute(db, _CLE_TAUX_IMPOSITION_PCT, foyer_id)
     if valeur is None:
         return None
     try:
@@ -77,14 +79,14 @@ def lire_taux_imposition_pct(db: Session, user_id: int) -> float | None:
         return None
 
 
-def lire_annee_naissance_foyer(db: Session, user_id: int) -> int | None:
+def lire_annee_naissance_foyer(db: Session, foyer_id: int) -> int | None:
     """Année de naissance de la personne de référence du foyer, saisie par
     l'utilisateur (backlog § AZ.2) — sert uniquement à choisir la bonne tranche
     d'âge de comparaison au patrimoine médian INSEE
     (`patrimoine_service.compute_comparaison_insee`), jamais un autre calcul.
     `None` tant que jamais renseignée : la carte de comparaison reste alors
     masquée côté frontend, jamais une tranche devinée par défaut."""
-    valeur = _lire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, user_id)
+    valeur = _lire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, foyer_id)
     if valeur is None:
         return None
     try:
@@ -93,79 +95,62 @@ def lire_annee_naissance_foyer(db: Session, user_id: int) -> int | None:
         return None
 
 
-def budget_categories_initialisees(db: Session, user_id: int) -> bool:
+def budget_categories_initialisees(db: Session, foyer_id: int) -> bool:
     """Drapeau posé une fois l'arbre de catégories budget créé pour ce foyer
     (backlog 2.N.1, `services/budget_categories_service.py`) — distingue "jamais
     utilisé" (les catégories par défaut doivent être semées) de "tout supprimé
     volontairement" (elles ne doivent plus jamais réapparaître), les deux se
     traduisant sinon par une liste vide indiscernable."""
-    return _lire_valeur_brute(db, _CLE_BUDGET_CATEGORIES_INITIALISEES, user_id) is not None
+    return _lire_valeur_brute(db, _CLE_BUDGET_CATEGORIES_INITIALISEES, foyer_id) is not None
 
 
-def marquer_budget_categories_initialisees(db: Session, user_id: int) -> None:
-    if not budget_categories_initialisees(db, user_id):
-        _ecrire_valeur_brute(db, _CLE_BUDGET_CATEGORIES_INITIALISEES, user_id, "1")
+def marquer_budget_categories_initialisees(db: Session, foyer_id: int) -> None:
+    if not budget_categories_initialisees(db, foyer_id):
+        _ecrire_valeur_brute(db, _CLE_BUDGET_CATEGORIES_INITIALISEES, foyer_id, "1")
 
 
-def onboarding_termine(db: Session, user_id: int) -> bool:
-    """Drapeau posé une fois l'assistant de configuration initiale (welcome board)
-    terminé ou explicitement passé par ce compte — même mécanisme que
-    `budget_categories_initialisees` ci-dessus. `False` par défaut : un compte neuf
-    (quel que soit son mode de création — inscription locale ou premier compte
-    provisionné par SSO, cf. `services/oidc_service.resoudre_ou_provisionner_utilisateur`)
-    n'a jamais encore vu l'assistant."""
-    return _lire_valeur_brute(db, _CLE_ONBOARDING_TERMINE, user_id) is not None
+def lire_nom_foyer(db: Session, foyer_id: int) -> str | None:
+    """Nom libre donné au foyer (revue du 05/09/2026). `None` tant qu'il n'a jamais été
+    renseigné."""
+    foyer = db.get(Foyer, foyer_id)
+    return foyer.nom if foyer is not None else None
 
 
-def marquer_onboarding_termine(db: Session, user_id: int) -> None:
-    if not onboarding_termine(db, user_id):
-        _ecrire_valeur_brute(db, _CLE_ONBOARDING_TERMINE, user_id, "1")
-
-
-def lire_nom_foyer(db: Session, user_id: int) -> str | None:
-    """Nom libre donné au foyer (revue du 05/09/2026, gestion du foyer dans sa
-    globalité) — réglage PARTAGÉ du foyer (`id_foyer(current_user)`, comme
-    `methode_cout`), pas propre à chaque compte comme `onboarding_termine`. `None`
-    tant qu'il n'a jamais été renseigné."""
-    return _lire_valeur_brute(db, _CLE_FOYER_NOM, user_id)
-
-
-def enregistrer_nom_foyer(db: Session, user_id: int, nom: str) -> None:
-    _ecrire_valeur_brute(db, _CLE_FOYER_NOM, user_id, nom)
+def enregistrer_nom_foyer(db: Session, foyer_id: int, nom: str) -> None:
+    db.get(Foyer, foyer_id).nom = nom
     db.commit()
 
 
-def lire_langue_foyer(db: Session, user_id: int) -> str:
-    """Langue d'affichage du foyer (backlog § BL) — réglage PARTAGÉ du foyer
-    (`id_foyer(current_user)`), comme son nom : chaque foyer choisit la sienne, et
+def lire_langue_foyer(db: Session, foyer_id: int) -> str:
+    """Langue d'affichage du foyer (backlog § BL) : chaque foyer choisit la sienne, et
     ses membres et invités la suivent. Une valeur qui ne serait plus proposée (langue
     retirée de `LANGUES_DISPONIBLES`) retombe sur le défaut plutôt que de laisser
     l'interface sans traduction."""
-    valeur = _lire_valeur_brute(db, _CLE_LANGUE_FOYER, user_id)
-    return valeur if valeur in LANGUES_DISPONIBLES else LANGUE_PAR_DEFAUT
+    foyer = db.get(Foyer, foyer_id)
+    return foyer.langue if foyer is not None and foyer.langue in LANGUES_DISPONIBLES else LANGUE_PAR_DEFAUT
 
 
-def enregistrer_langue_foyer(db: Session, user_id: int, langue: str) -> None:
+def enregistrer_langue_foyer(db: Session, foyer_id: int, langue: str) -> None:
     """La validation (`langue` dans `LANGUES_DISPONIBLES`) est faite en amont par le
     schéma d'entrée ; ce module ne fait que persister."""
-    _ecrire_valeur_brute(db, _CLE_LANGUE_FOYER, user_id, langue)
+    db.get(Foyer, foyer_id).langue = langue
     db.commit()
 
 
-def lire_preferences(db: Session, user_id: int) -> dict:
-    """Ensemble complet des réglages de ce compte, défauts compris — jamais de clé
-    manquante même sur un compte neuf, contrairement à une lecture directe de
-    `UserParametre`."""
+def lire_preferences(db: Session, foyer_id: int) -> dict:
+    """Ensemble complet des réglages du foyer, défauts compris — jamais de clé
+    manquante même sur un foyer neuf, contrairement à une lecture directe de
+    `FoyerParametre`."""
     return {
-        "methode_cout": lire_methode_cout(db, user_id),
-        "taux_imposition_pct": lire_taux_imposition_pct(db, user_id),
-        "annee_naissance_foyer": lire_annee_naissance_foyer(db, user_id),
+        "methode_cout": lire_methode_cout(db, foyer_id),
+        "taux_imposition_pct": lire_taux_imposition_pct(db, foyer_id),
+        "annee_naissance_foyer": lire_annee_naissance_foyer(db, foyer_id),
     }
 
 
 def enregistrer_preferences(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     methode_cout: str,
     taux_imposition_pct: float | None = None,
     annee_naissance_foyer: int | None = None,
@@ -178,14 +163,14 @@ def enregistrer_preferences(
     `annee_naissance_foyer=None` effacent la valeur déjà enregistrée
     (contrairement à `methode_cout`, toujours requis) : un champ de saisie vidé
     côté client doit pouvoir revenir à "non renseigné"."""
-    _ecrire_valeur_brute(db, _CLE_METHODE_COUT, user_id, methode_cout)
+    _ecrire_valeur_brute(db, _CLE_METHODE_COUT, foyer_id, methode_cout)
     if taux_imposition_pct is None:
-        db.query(UserParametre).filter(UserParametre.cle == _CLE_TAUX_IMPOSITION_PCT, UserParametre.user_id == user_id).delete()
+        _effacer_valeur(db, _CLE_TAUX_IMPOSITION_PCT, foyer_id)
     else:
-        _ecrire_valeur_brute(db, _CLE_TAUX_IMPOSITION_PCT, user_id, str(taux_imposition_pct))
+        _ecrire_valeur_brute(db, _CLE_TAUX_IMPOSITION_PCT, foyer_id, str(taux_imposition_pct))
     if annee_naissance_foyer is None:
-        db.query(UserParametre).filter(UserParametre.cle == _CLE_ANNEE_NAISSANCE_FOYER, UserParametre.user_id == user_id).delete()
+        _effacer_valeur(db, _CLE_ANNEE_NAISSANCE_FOYER, foyer_id)
     else:
-        _ecrire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, user_id, str(annee_naissance_foyer))
+        _ecrire_valeur_brute(db, _CLE_ANNEE_NAISSANCE_FOYER, foyer_id, str(annee_naissance_foyer))
     db.commit()
-    return lire_preferences(db, user_id)
+    return lire_preferences(db, foyer_id)

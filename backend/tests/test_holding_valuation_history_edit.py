@@ -8,7 +8,16 @@ aucun moyen de la corriger."""
 
 from app.services import historique_cache
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, NOM_UTILISATEUR_TEST, basculer_utilisateur, make_holding
+from .conftest import (
+    ID_FOYER_B,
+    ID_FOYER_TEST,
+    ID_UTILISATEUR_B,
+    ID_UTILISATEUR_TEST,
+    NOM_UTILISATEUR_B,
+    NOM_UTILISATEUR_TEST,
+    basculer_utilisateur,
+    make_holding,
+)
 
 
 def _point_id(client, holding_id: int, date: str) -> int:
@@ -121,7 +130,7 @@ def test_point_dun_autre_foyer_est_refuse(client, db):
     point_id = _point_id(client, h.id, "2026-01-01")
 
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    h_b = make_holding(db, ticker="AV_B", user_id=ID_UTILISATEUR_B, type_actif="LIFE_INSURANCE")
+    h_b = make_holding(db, ticker="AV_B", user_id=ID_FOYER_B, type_actif="LIFE_INSURANCE")
 
     reponse_patch = client.patch(f"/api/portfolio/holdings/{h_b.id}/immobilier-history/{point_id}", json={"valeur": 1.0, "date": "2026-01-01"})
     reponse_delete = client.delete(f"/api/portfolio/holdings/{h_b.id}/immobilier-history/{point_id}")
@@ -148,7 +157,7 @@ def test_modifier_un_point_invalide_le_cache_du_patrimoine(client, db):
     h = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE")
     client.put(f"/api/portfolio/holdings/{h.id}/valorisation", json={"valeur": 100.0, "date": "2026-01-01"})
     point_id = _point_id(client, h.id, "2026-01-01")
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     historique_cache.ecrire(db, cle, [{"date": "2024-01-01"}])
 
     client.patch(f"/api/portfolio/holdings/{h.id}/immobilier-history/{point_id}", json={"valeur": 150.0, "date": "2026-01-01"})

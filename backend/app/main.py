@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import ENV_CHARGE
-from .auth import get_current_user, require_role
+from .auth import get_membre_foyer, require_role
 from .config_env import CHEMIN_ENV, variables_chargees
 from .database import avertir_si_separation_contournee, session_tous_foyers, upgrade_schema
 from .i18n import MiddlewareLangue, a_traduire, traduire
@@ -180,14 +180,15 @@ app.include_router(auth.router)
 # l'URL (et le code optionnel), jamais un compte connecté.
 app.include_router(partage_public.router)
 
-# Protégées : toutes exigent un jeton valide (Milestone 1). Au-delà de la simple
+# Protégées : toutes exigent un jeton valide (Milestone 1) et un foyer courant
+# (§ BK.2 : un compte sans foyer n'a accès à aucune donnée). Au-delà de la simple
 # authentification, les rôles (backlog 2.L.2) restreignent certains routeurs
 # entièrement au propriétaire, ou au propriétaire+membre (invité exclu) — appliqué
 # ici au niveau `include_router` pour les routeurs à granularité uniforme ;
 # `portfolio.py`/`loans.py`/`patrimoine.py` restent protégés seulement par
 # `_protegee` ici et affinent eux-mêmes au niveau endpoint (lecture ouverte aux 3
 # rôles avec filtrage serveur pour l'invité, écriture réservée propriétaire+membre).
-_protegee = [Depends(get_current_user)]
+_protegee = [Depends(get_membre_foyer)]
 _proprietaire_seul = [Depends(require_role(ROLE_PROPRIETAIRE))]
 _pas_invite = [Depends(require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE))]
 

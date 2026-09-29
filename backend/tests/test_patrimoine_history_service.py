@@ -12,13 +12,19 @@ pour rester sans appel réseau."""
 from datetime import datetime
 
 from app.models import Loan
-from app.services import detenteurs_service, historical_performance_service, historique_cache, immobilier_service, patrimoine_history_service
+from app.services import (
+    detenteurs_service,
+    historical_performance_service,
+    historique_cache,
+    immobilier_service,
+    patrimoine_history_service,
+)
 
-from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding
+from .conftest import ID_FOYER_TEST, make_compte, make_holding
 
 
 def test_aucune_donnee_renvoie_liste_vide(db):
-    assert patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST) == []
+    assert patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST) == []
 
 
 def test_serie_manuelle_locf_entre_deux_points(db):
@@ -26,7 +32,7 @@ def test_serie_manuelle_locf_entre_deux_points(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 250000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2024, 6, 1))
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     avant_juin = [p for p in points if p["date"] < "2024-06-01"]
     apres_juin = [p for p in points if p["date"] >= "2024-06-01"]
@@ -48,7 +54,7 @@ def test_ligne_epargne_interpolee_lineairement_entre_deux_points(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 1200.0, datetime(2024, 1, 15))
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
     assert point_mi_chemin["valeur_manuelle"] == 1100.0  # (1000 + 1200) / 2, pile à mi-chemin
@@ -67,7 +73,7 @@ def test_immobilier_reste_en_escalier_meme_a_cote_dune_ligne_epargne_interpolee(
     immobilier_service.enregistrer_point_historique(db, av.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, av.id, 1200.0, datetime(2024, 1, 15))
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
     # 250000 (immobilier, encore plaqué au premier point) + 1100 (épargne, interpolée)
@@ -85,7 +91,7 @@ def test_valeur_investie_ne_bouge_quaux_points_ou_un_versement_est_declare(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 1300.0, datetime(2024, 2, 1), versement=250.0)
     immobilier_service.enregistrer_point_historique(db, holding.id, 1500.0, datetime(2024, 3, 1))  # pas de versement déclaré
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     point_avant_versement = next(p for p in points if p["date"] == "2024-01-01")
     point_apres_versement = next(p for p in points if p["date"] == "2024-02-05")
@@ -105,7 +111,7 @@ def test_valeur_investie_dun_bien_immobilier_inclut_les_frais_dacquisition(db):
     bien = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0, date_acquisition=datetime(2024, 1, 1))
     immobilier_service.upsert_detail_immobilier(db, bien.id, frais_notaire=10000.0, frais_travaux=5000.0)
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     point_ancrage = points[0]
     assert point_ancrage["valeur_investie"] == 215000.0  # 200000 + 10000 + 5000
@@ -127,7 +133,7 @@ def test_valeur_investie_interpolee_pour_une_ligne_epargne_comme_la_valeur_brute
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 1200.0, datetime(2024, 1, 15), versement=200.0)
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
     assert point_mi_chemin["valeur_manuelle"] == 1100.0  # brute : interpolée à mi-chemin
@@ -147,7 +153,7 @@ def test_investi_immobilier_reste_en_escalier_meme_a_cote_dune_ligne_epargne_int
     immobilier_service.enregistrer_point_historique(db, av.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, av.id, 1200.0, datetime(2024, 1, 15), versement=200.0)
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
     # immobilier : encore plaqué à 250000 (escalier) + épargne : interpolée à 1100
@@ -163,7 +169,7 @@ def test_ancrage_cout_dacquisition_definit_linvesti_initial(db):
     )
     immobilier_service.enregistrer_point_historique(db, holding.id, 250000.0, datetime(2024, 1, 1))  # pas de versement déclaré
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     assert points[0]["valeur_investie"] == 200000.0  # l'ancrage, pas 250000
     assert points[-1]["valeur_investie"] == 200000.0  # la hausse de 2024 n'est pas déclarée : pur gain
@@ -183,7 +189,7 @@ def test_valeur_investie_combine_poche_financiere_et_manuelle(db, monkeypatch):
     holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     dernier = points[-1]
     assert dernier["valeur_investie"] == 5000.0  # 4000 (financier) + 1000 (manuel, premier point)
@@ -202,7 +208,7 @@ def test_valeur_investie_nette_est_nettee_des_passifs(db):
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=300000.0, valeur_estimee=300000.0)
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=250000.0,
             taux_annuel_pct=0.0,
@@ -215,7 +221,7 @@ def test_valeur_investie_nette_est_nettee_des_passifs(db):
     )
     db.commit()
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     dernier = points[-1]
     assert dernier["valeur_investie"] == 300000.0  # ancrage sur le coût d'acquisition, jamais nettée
@@ -234,7 +240,7 @@ def test_valeur_realisee_cumulee_reste_exclusivement_financiere(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 1500.0, datetime(2024, 2, 1), versement=100.0)
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     assert all(p["valeur_realisee_cumulee"] == 0.0 for p in points)
 
@@ -243,13 +249,13 @@ def test_valeur_investie_scoping_detenteur(db):
     holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 1300.0, datetime(2024, 2, 1), versement=300.0)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice.id, 100.0)])
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bob")
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, holding, [(alice.id, 100.0)])
 
-    points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
-    points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
-    points_bob = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=bob.id)
+    points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
+    points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, detenteur_id=alice.id)
+    points_bob = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, detenteur_id=bob.id)
 
     assert points_alice[-1]["valeur_investie"] == points_foyer[-1]["valeur_investie"] == 1300.0
     assert points_bob[-1]["valeur_investie"] == 0.0
@@ -261,7 +267,7 @@ def test_serie_manuelle_sans_historique_degrade_vers_valeur_estimee_a_plat(db):
     avec grâce vers une ligne plate à `valeur_estimee`, jamais 0 ni une exception."""
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     assert points
     assert all(p["valeur_manuelle"] == 250000.0 for p in points)
@@ -282,7 +288,7 @@ def test_serie_manuelle_ancree_sur_le_cout_dacquisition_avant_le_premier_point_c
     )
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2024, 6, 1))
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     avant_2024 = [p for p in points if p["date"] < "2024-06-01"]
     apres_2024 = [p for p in points if p["date"] >= "2024-06-01"]
@@ -307,7 +313,7 @@ def test_serie_manuelle_ignore_la_date_dacquisition_si_posterieure_au_premier_po
     )
     immobilier_service.enregistrer_point_historique(db, holding.id, 250000.0, datetime(2020, 1, 1))
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     assert points[0]["date"] == "2020-01-01"
     assert points[0]["valeur_manuelle"] == 250000.0
@@ -326,7 +332,7 @@ def test_serie_manuelle_ancree_sur_le_cout_dacquisition_sans_aucun_historique_ni
         date_acquisition=datetime(2019, 1, 1),
     )
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     assert points
     assert points[0]["date"] == "2019-01-01"
@@ -341,7 +347,7 @@ def test_emprunt_ne_contribue_pas_avant_sa_date_de_debut(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2020, 1, 1))
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -353,7 +359,7 @@ def test_emprunt_ne_contribue_pas_avant_sa_date_de_debut(db):
     )
     db.commit()
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     avant_pret = [p for p in points if p["date"] < "2022-01-01"]
     apres_pret = [p for p in points if p["date"] >= "2022-01-01"]
@@ -367,7 +373,7 @@ def test_emprunt_recalage_manuel_theorique_avant_gele_apres(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2020, 1, 1))
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -381,7 +387,7 @@ def test_emprunt_recalage_manuel_theorique_avant_gele_apres(db):
     )
     db.commit()
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     avant_recalage = [p for p in points if p["date"] < "2023-01-01"]
     apres_recalage = [p for p in points if p["date"] >= "2023-01-01"]
@@ -397,7 +403,7 @@ def test_detenteur_id_scoping_ligne_manuelle_et_emprunt_rattache_herite(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2020, 1, 1))
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -409,15 +415,15 @@ def test_detenteur_id_scoping_ligne_manuelle_et_emprunt_rattache_herite(db):
         )
     )
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bob")
     # Alice possède 100 % de l'actif ; aucune quotité d'emprunt explicite -> hérite de
     # celle de l'actif (même règle que `detenteurs_service.compute_parts`).
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, holding, [(alice.id, 100.0)])
 
-    points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
-    points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
-    points_bob = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=bob.id)
+    points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
+    points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, detenteur_id=alice.id)
+    points_bob = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, detenteur_id=bob.id)
 
     assert points_alice[-1]["valeur_manuelle"] == points_foyer[-1]["valeur_manuelle"]
     assert points_alice[-1]["passifs_totaux"] == points_foyer[-1]["passifs_totaux"]
@@ -431,7 +437,7 @@ def test_emprunt_non_rattache_invisible_pour_un_detenteur_individuel(db):
     rattaché n'a aucun cas d'usage par détenteur individuel, seulement la vue foyer."""
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Prêt perso",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -441,10 +447,10 @@ def test_emprunt_non_rattache_invisible_pour_un_detenteur_individuel(db):
         )
     )
     db.commit()
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
 
-    points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
-    points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+    points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
+    points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, detenteur_id=alice.id)
 
     # Premier point de la grille = `date_debut` du prêt : capital initial encore dû
     # côté foyer (le prêt est peut-être déjà théoriquement soldé "aujourd'hui", vu la
@@ -456,11 +462,11 @@ def test_emprunt_non_rattache_invisible_pour_un_detenteur_individuel(db):
 def test_cache_sert_le_meme_resultat_sans_recalcul(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-    premier = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
-    deuxieme = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    premier = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
+    deuxieme = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     assert premier == deuxieme
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     assert historique_cache.lire(db, cle) == premier
 
 
@@ -471,7 +477,7 @@ def test_cache_ecrit_avec_un_schema_anterieur_est_ignore_et_recalcule(db):
     Pydantic sur la réponse de l'API — graphique vide en lentille Net/Brut."""
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     ancien_point = {
         "date": "2026-01-01",
         "valeur_financiere": 0.0,
@@ -483,7 +489,7 @@ def test_cache_ecrit_avec_un_schema_anterieur_est_ignore_et_recalcule(db):
     }
     historique_cache.ecrire(db, cle, [ancien_point])
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
 
     assert points
     assert "valeur_investie" in points[0]
@@ -492,8 +498,8 @@ def test_cache_ecrit_avec_un_schema_anterieur_est_ignore_et_recalcule(db):
 
 def test_invalidation_purge_le_cache(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
-    patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     assert historique_cache.lire(db, cle) is not None
 
     historique_cache.invalider_historiques_patrimoine(db)
@@ -510,8 +516,8 @@ def test_filtre_type_actif_exclut_les_lignes_manuelles_dune_autre_classe(db):
     immobilier_service.enregistrer_point_historique(db, maison.id, 300000.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, per.id, 15000.0, datetime(2024, 1, 1))
 
-    points_immo = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, type_actif="REAL_ESTATE")
-    points_per = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, type_actif="PENSION")
+    points_immo = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, type_actif="REAL_ESTATE")
+    points_per = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, type_actif="PENSION")
 
     assert all(p["valeur_manuelle"] == 300000.0 for p in points_immo)
     assert all(p["valeur_manuelle"] == 15000.0 for p in points_per)
@@ -532,22 +538,22 @@ def test_filtre_compte_exclut_lemprunt_dun_autre_compte(db):
     immobilier_service.enregistrer_point_historique(db, maison_b.id, 250000.0, datetime(2024, 1, 1))
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST, libelle="Crédit A", holding_id=maison_a.id, capital_initial=200000.0,
+            user_id=ID_FOYER_TEST, libelle="Crédit A", holding_id=maison_a.id, capital_initial=200000.0,
             taux_annuel_pct=1.5, mensualite=1000.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
             capital_restant_du_manuel=190000.0,
         )
     )
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST, libelle="Crédit B", holding_id=maison_b.id, capital_initial=150000.0,
+            user_id=ID_FOYER_TEST, libelle="Crédit B", holding_id=maison_b.id, capital_initial=150000.0,
             taux_annuel_pct=1.5, mensualite=800.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
             capital_restant_du_manuel=140000.0,
         )
     )
     db.commit()
 
-    points_a = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, compte_id=compte_a.id)
-    points_b = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, compte_id=compte_b.id)
+    points_a = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, compte_id=compte_a.id)
+    points_b = patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, compte_id=compte_b.id)
 
     assert all(p["passifs_totaux"] == 190000.0 for p in points_a)
     assert all(p["actifs_totaux"] == 300000.0 for p in points_a)
@@ -556,14 +562,14 @@ def test_filtre_compte_exclut_lemprunt_dun_autre_compte(db):
 
 
 def test_filtre_avec_detenteur_restreint_aux_lignes_de_ce_detenteur(db):
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    bob = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bob")
     maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
     immobilier_service.enregistrer_point_historique(db, maison.id, 300000.0, datetime(2024, 1, 1))
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, maison, [(alice.id, 60.0), (bob.id, 40.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, maison, [(alice.id, 60.0), (bob.id, 40.0)])
 
     points_alice = patrimoine_history_service.compute_patrimoine_history(
-        db, ID_UTILISATEUR_TEST, detenteur_id=alice.id, type_actif="REAL_ESTATE"
+        db, ID_FOYER_TEST, detenteur_id=alice.id, type_actif="REAL_ESTATE"
     )
 
     assert all(p["valeur_manuelle"] == 180000.0 for p in points_alice)  # 60% de 300000
@@ -573,15 +579,15 @@ def test_cle_de_cache_differe_selon_le_filtre(db):
     """Le tableau de bord (jamais filtré) doit continuer de lire/écrire EXACTEMENT
     la même clé qu'avant ce lot — seule une combinaison de filtres explicite obtient
     sa propre entrée."""
-    cle_sans_filtre = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
-    cle_avec_filtre = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST, type_actif="REAL_ESTATE")
+    cle_sans_filtre = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
+    cle_avec_filtre = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST, type_actif="REAL_ESTATE")
 
-    assert cle_sans_filtre == f"historique_patrimoine:{ID_UTILISATEUR_TEST}:foyer"
+    assert cle_sans_filtre == f"historique_patrimoine:{ID_FOYER_TEST}:foyer"
     assert cle_avec_filtre != cle_sans_filtre
 
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
-    patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
-    patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, type_actif="REAL_ESTATE")
+    patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST)
+    patrimoine_history_service.compute_patrimoine_history(db, ID_FOYER_TEST, type_actif="REAL_ESTATE")
 
     assert historique_cache.lire(db, cle_sans_filtre) is not None
     assert historique_cache.lire(db, cle_avec_filtre) is not None

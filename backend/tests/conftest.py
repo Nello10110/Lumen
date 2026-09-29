@@ -5,8 +5,8 @@
   `Base.metadata.create_all`.
 - `client` : `TestClient` FastAPI dont la dépendance `get_db` est basculée vers
   cette même base jetable, et `get_current_user` (Milestone 1, multi-utilisateur)
-  vers un utilisateur de test fixe — toutes les routes exigent désormais d'être
-  connecté, cf. `main.py`.
+  vers un utilisateur de test fixe, propriétaire du foyer de test — toutes les routes
+  exigent désormais d'être connecté, cf. `main.py`.
 - `no_network_yfinance` (autouse) : neutralise `yf.Ticker` et `yf.Search`, les
   deux seuls points d'entrée yfinance utilisés par le projet, pour qu'aucun test
   ne dépende du réseau ni de la disponibilité de Yahoo Finance.
@@ -46,28 +46,33 @@ from app import database
 from app.auth import get_current_user
 from app.database import Base, get_db
 from app.main import app
-from app.models import Compte, Holding, Transaction, User
+from app.models import ROLE_PROPRIETAIRE, Appartenance, Compte, Foyer, Holding, Transaction, User
 from app.services import coingecko_service, justetf_service, market_data_refresh
 
 _compteur_transaction_id = itertools.count(1)
 _compteur_compte_nom = itertools.count(1)
 
-# Multi-utilisateur (Milestone 2a, isolation des données) : la fixture `db` crée cet
-# utilisateur comme TOUTE PREMIÈRE ligne de la base de test, fraîchement créée à
-# chaque test (fichier SQLite jetable) — son id est donc déterministe (1), fixé
-# explicitement ici plutôt que de compter sur l'autoincrément pour que ce ne soit
-# pas un détail d'implémentation implicite. `make_holding`/`make_transaction`
-# l'utilisent comme propriétaire par défaut ; les tests qui construisent une ligne
-# directement (`Holding(...)`, `Transaction(...)`, `Loan(...)`) doivent désormais
-# passer `user_id=ID_UTILISATEUR_TEST` explicitement.
+# Multi-utilisateur (Milestone 2a, isolation des données) : la fixture `db` crée ce
+# compte, propriétaire du foyer `ID_FOYER_TEST`, avec des ids fixés explicitement
+# plutôt que de compter sur l'autoincrément. `make_holding`/`make_transaction`
+# rattachent leurs lignes à ce FOYER par défaut ; les tests qui construisent une ligne
+# directement (`Holding(...)`, `Transaction(...)`, `Loan(...)`) passent
+# `user_id=ID_FOYER_TEST` explicitement.
 ID_UTILISATEUR_TEST = 1
 NOM_UTILISATEUR_TEST = "test"
 # Second compte, pour les tests d'isolation inter-utilisateurs (Milestone 2a,
-# `tests/test_isolation_utilisateurs.py`) — créé par la fixture `client_b`, jamais
-# par `db` (qui ne crée que ID_UTILISATEUR_TEST), pour ne pas fausser les ~450
+# `tests/test_isolation_utilisateurs.py`) — créé par `basculer_utilisateur`, jamais
+# par `db` (qui ne crée que ID_UTILISATEUR_TEST), pour ne pas fausser les
 # tests existants qui ne s'attendent qu'à un seul utilisateur en base.
 ID_UTILISATEUR_B = 2
 NOM_UTILISATEUR_B = "test-b"
+
+# Foyers (§ BK.2) : leurs identifiants sont DÉCALÉS de ceux des comptes. Un compte
+# (`current_user.id`) employé par erreur à la place du foyer désigne alors un foyer
+# qui n'existe pas — le test échoue, au lieu de passer par coïncidence des ids.
+DECALAGE_FOYER = 10
+ID_FOYER_TEST = ID_UTILISATEUR_TEST + DECALAGE_FOYER
+ID_FOYER_B = ID_UTILISATEUR_B + DECALAGE_FOYER
 
 
 def _db_postgres():
@@ -81,22 +86,30 @@ def _db_postgres():
     # Le banc de test agit en administrateur : il crée et relit les données de
     # plusieurs foyers. La séparation (§ BI.5) se vérifie dans ses tests dédiés.
     session = database.session_tous_foyers()
-    session.add(User(id=ID_UTILISATEUR_TEST, username=NOM_UTILISATEUR_TEST, password_hash="inutilisé"))
-    session.commit()
-    _resynchroniser_sequence_users(session)
+    _creer_proprietaire_de_test(session)
+    _resynchroniser_sequences(session)
     try:
         yield session
     finally:
         session.close()
 
 
-def _resynchroniser_sequence_users(session) -> None:
+def _resynchroniser_sequences(session) -> None:
     """Un `id` écrit explicitement n'avance PAS la séquence Postgres (SQLite, lui,
-    repart toujours du plus grand id) : sans ce recalage, le prochain utilisateur
-    créé sans id (inscription) reprendrait l'id 1, déjà pris."""
+    repart toujours du plus grand id) : sans ce recalage, le prochain compte ou foyer
+    créé sans id (inscription) reprendrait un id déjà pris."""
     if database.EST_SQLITE:
         return
-    session.execute(text("SELECT setval(pg_get_serial_sequence('users', 'id'), (SELECT MAX(id) FROM users))"))
+    for table in ("users", "foyers"):
+        session.execute(text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), (SELECT MAX(id) FROM {table}))"))
+    session.commit()
+
+
+def _creer_proprietaire_de_test(session) -> None:
+    session.add(User(id=ID_UTILISATEUR_TEST, username=NOM_UTILISATEUR_TEST, password_hash="inutilisé"))
+    session.add(Foyer(id=ID_FOYER_TEST))
+    session.flush()
+    session.add(Appartenance(user_id=ID_UTILISATEUR_TEST, foyer_id=ID_FOYER_TEST, role=ROLE_PROPRIETAIRE))
     session.commit()
 
 
@@ -111,10 +124,7 @@ def db():
     Base.metadata.create_all(bind=engine_test)
     SessionLocalTest = sessionmaker(autocommit=False, autoflush=False, bind=engine_test)
     session = SessionLocalTest()
-    # Multi-utilisateur (Milestone 2a) : toute première ligne de la base fraîchement
-    # créée, donc id déterministe — cf. ID_UTILISATEUR_TEST ci-dessus.
-    session.add(User(id=ID_UTILISATEUR_TEST, username=NOM_UTILISATEUR_TEST, password_hash="inutilisé"))
-    session.commit()
+    _creer_proprietaire_de_test(session)
     try:
         yield session
     finally:
@@ -135,7 +145,7 @@ def client(db):
     def _override_get_db():
         yield db
 
-    utilisateur_test = db.get(User, ID_UTILISATEUR_TEST)
+    utilisateur_test = en_session(db.get(User, ID_UTILISATEUR_TEST), ID_FOYER_TEST)
 
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_current_user] = lambda: utilisateur_test
@@ -147,18 +157,42 @@ def client(db):
         app.dependency_overrides.pop(get_current_user, None)
 
 
-def creer_utilisateur(db, user_id: int, username: str | None = None) -> User:
-    """Crée le compte `user_id` s'il n'existe pas encore. Une ligne de test rattachée
-    à un utilisateur qui n'existe pas passe sous SQLite, qui ne vérifie pas les clés
+def en_session(utilisateur: User, foyer_id: int | None, role: str | None = ROLE_PROPRIETAIRE) -> User:
+    """Ce que l'authentification pose sur le compte (`auth_service.adopter_foyer`),
+    pour les tests qui la court-circuitent."""
+    utilisateur.foyer_courant_id = foyer_id
+    utilisateur.role = role if foyer_id is not None else None
+    return utilisateur
+
+
+def creer_foyer(db, foyer_id: int) -> Foyer:
+    """Crée le foyer `foyer_id` s'il n'existe pas encore. Une ligne de test rattachée à
+    un foyer qui n'existe pas passe sous SQLite, qui ne vérifie pas les clés
     étrangères, mais Postgres la refuse (§ BI.4) : un test qui simule « un autre
     foyer » doit donc le créer pour de bon."""
+    foyer = db.get(Foyer, foyer_id)
+    if foyer is None:
+        foyer = Foyer(id=foyer_id)
+        db.add(foyer)
+        db.commit()
+        _resynchroniser_sequences(db)
+    return foyer
+
+
+def creer_utilisateur(db, user_id: int, username: str | None = None) -> User:
+    """Crée le compte `user_id` s'il n'existe pas encore, propriétaire de son foyer
+    (`user_id + DECALAGE_FOYER`). Renvoyé tel que l'authentification le pose."""
     utilisateur = db.get(User, user_id)
+    foyer_id = user_id + DECALAGE_FOYER
     if utilisateur is None:
         utilisateur = User(id=user_id, username=username or f"utilisateur-{user_id}", password_hash="inutilisé")
         db.add(utilisateur)
         db.commit()
-        _resynchroniser_sequence_users(db)
-    return utilisateur
+        creer_foyer(db, foyer_id)
+        db.add(Appartenance(user_id=user_id, foyer_id=foyer_id, role=ROLE_PROPRIETAIRE))
+        db.commit()
+        _resynchroniser_sequences(db)
+    return en_session(utilisateur, foyer_id)
 
 
 def basculer_utilisateur(db, user_id: int, username: str) -> User:
@@ -257,7 +291,7 @@ def make_transaction(db, **overrides) -> Transaction:
     """Construit et persiste une transaction de test avec des valeurs par défaut
     raisonnables (achat en bourse), surchargeables au cas par cas."""
     defaults = dict(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         transaction_id=f"tx-test-{next(_compteur_transaction_id)}",
         datetime_utc=datetime(2024, 1, 1),
         date="2024-01-01",
@@ -291,7 +325,7 @@ def make_compte(db, **overrides) -> Compte:
     # `UniqueConstraint(user_id, nom)` refuserait un deuxième appel par défaut dans
     # le même test.
     defaults = dict(
-        user_id=ID_UTILISATEUR_TEST, nom=f"Compte Test {next(_compteur_compte_nom)}", etablissement_id=None
+        user_id=ID_FOYER_TEST, nom=f"Compte Test {next(_compteur_compte_nom)}", etablissement_id=None
     )
     defaults.update(overrides)
     compte = Compte(**defaults)
@@ -304,7 +338,7 @@ def make_compte(db, **overrides) -> Compte:
 def make_holding(db, **overrides) -> Holding:
     """Construit et persiste une ligne de portefeuille de test."""
     defaults = dict(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="TEST",
         nom="Titre de test",
         quantite=10.0,

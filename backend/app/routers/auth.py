@@ -1,16 +1,16 @@
 """Inscription/connexion/sessions/journal d'accès/gestion du foyer (Milestone 1 +
-backlog 2.L.2). `register`/`login` sont les deux seules routes de toute l'API à
-rester accessibles sans jeton — cf. `main.py`, qui protège tous les autres
-routeurs via `dependencies=[Depends(get_current_user)]`."""
+backlog 2.L.2, foyers § BK.2). `register`/`login` sont les deux seules routes de
+toute l'API à rester accessibles sans jeton — cf. `main.py`, qui protège tous les
+autres routeurs via `dependencies=[Depends(get_membre_foyer)]`."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_token, get_current_user, require_role
+from ..auth import get_current_token, get_current_user, get_membre_foyer, require_role
 from ..database import get_db
 from ..i18n import tr, traduire
-from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, AuthToken, Detenteur, PerimetreInvite, User
+from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
 from ..schemas import (
     AccessLogEntryOut,
     AuthResponse,
@@ -41,22 +41,21 @@ def _adresse_client(request: Request) -> str | None:
 
 def _user_out(db: Session, user: User) -> UserOut:
     """`UserOut.model_validate` seul ne remplit jamais `onboarding_termine` (pas une
-    colonne de `User`, cf. schémas) — ce helper centralise le calcul depuis
-    `preferences_service` pour les trois routes qui renvoient un utilisateur complet
+    colonne de `User`, cf. schémas) — ce helper centralise le calcul, sur le foyer
+    courant posé par l'authentification, pour les routes qui renvoient un utilisateur complet
     (`register`/`login`/`me`), afin que le frontend connaisse l'état de l'assistant
     de configuration initiale dès la connexion, sans appel supplémentaire."""
-    # `login`/`register` arrivent ici sans être passées par `get_current_user` : le
-    # périmètre du foyer (§ BI.5) s'ouvre donc ici aussi, avant la moindre lecture.
-    auth_service.ouvrir_perimetre(db, user)
     sortie = UserOut.model_validate(user)
-    sortie.onboarding_termine = preferences_service.onboarding_termine(db, user.id)
-    # `id_foyer`, pas `user.id` : les lignes financières appartiennent au foyer
-    # (`Holding.user_id == id_foyer`), pas à chaque membre individuellement — un
-    # membre voit donc le même compteur que le propriétaire (même écran de
-    # rattrapage, cf. `comptes_service.compter_holdings_sans_compte`).
-    sortie.holdings_sans_compte = comptes_service.compter_holdings_sans_compte(db, auth_service.id_foyer(user))
-    sortie.foyer_nom = preferences_service.lire_nom_foyer(db, auth_service.id_foyer(user))
-    sortie.langue = preferences_service.lire_langue_foyer(db, auth_service.id_foyer(user))
+    if user.foyer_courant_id is None:
+        # Compte sans foyer : ni données, ni réglages de foyer à décrire.
+        return sortie
+    foyer = auth_service.id_foyer(user)
+    sortie.onboarding_termine = auth_service.assistant_termine(db, user)
+    # Le foyer, pas le compte : un membre voit le même compteur que le propriétaire
+    # (même écran de rattrapage, cf. `comptes_service.compter_holdings_sans_compte`).
+    sortie.holdings_sans_compte = comptes_service.compter_holdings_sans_compte(db, foyer)
+    sortie.foyer_nom = preferences_service.lire_nom_foyer(db, foyer)
+    sortie.langue = preferences_service.lire_langue_foyer(db, foyer)
     return sortie
 
 
@@ -71,11 +70,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     if auth_service.utilisateur_par_username(db, payload.username) is not None:
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
     user = auth_service.creer_utilisateur(db, payload.username, payload.password)
-    token = auth_service.creer_token(db, user)
-    if payload.langue is not None:
-        # Le premier compte est son propre foyer : sa langue est celle du foyer.
-        auth_service.ouvrir_perimetre(db, user)
-        preferences_service.enregistrer_langue_foyer(db, user.id, payload.langue)
+    # Le premier compte crée son foyer, dans la langue de son appareil.
+    auth_service.creer_foyer(db, user, langue=payload.langue)
+    token = auth_service.ouvrir_session(db, user)
     return AuthResponse(token=token.token, user=_user_out(db, user))
 
 
@@ -99,7 +96,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     if not auth_service.verify_password(payload.password, user.password_hash):
         auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "mot_de_passe_incorrect")
         raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
-    token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
+    token = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, payload.username, user.id, ip, "succes", None)
     return AuthResponse(token=token.token, user=_user_out(db, user))
 
@@ -171,7 +168,7 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
         auth_service.journaliser_acces(db, user.username, user.id, ip, "echec", "compte_verrouille")
         return _redirection_erreur(tr("Trop de tentatives. Réessayez après {heure}.", heure=verrouille_jusqua.strftime("%H:%M UTC")))
 
-    token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
+    token = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "oidc")
     return RedirectResponse(f"{config.frontend_url}/#token={token.token}")
 
@@ -224,15 +221,15 @@ def changer_langue_foyer(
 
 
 @router.post("/onboarding/terminer", response_model=UserOut)
-def terminer_onboarding(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def terminer_onboarding(db: Session = Depends(get_db), current_user: User = Depends(get_membre_foyer)):
     """Marque l'assistant de configuration initiale (welcome board) comme terminé ou
-    explicitement passé pour ce compte — appelée aussi bien par le bouton "Terminer"
+    explicitement passé pour ce compte dans ce foyer — appelée aussi bien par le bouton "Terminer"
     que par "Passer l'assistant" côté frontend (`WelcomeWizard.tsx`), dans les deux cas
     l'assistant ne doit plus jamais réapparaître à la prochaine connexion. Pas de
     restriction de rôle : un compte membre/invité qui l'appellerait (jamais exposé
     dans son propre parcours, l'assistant est réservé au propriétaire côté frontend)
     ne ferait que marquer son propre drapeau, sans effet visible pour personne d'autre."""
-    preferences_service.marquer_onboarding_termine(db, current_user.id)
+    auth_service.marquer_assistant_termine(db, current_user)
     db.commit()
     return _user_out(db, current_user)
 
@@ -269,7 +266,7 @@ def get_access_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
 ):
-    entrees = auth_service.lister_journal_acces(db, page, max(1, min(page_size, 200)))
+    entrees = auth_service.lister_journal_acces(db, auth_service.id_foyer(current_user), page, max(1, min(page_size, 200)))
     return [AccessLogEntryOut.model_validate(e) for e in entrees]
 
 
@@ -284,17 +281,46 @@ def _nom_affiche_oidc(membre: User) -> str | None:
     return config.display_name if config is not None else oidc_service.DISPLAY_NAME_PAR_DEFAUT
 
 
-def _household_member_out(db: Session, membre: User) -> HouseholdMemberOut:
-    """Cas d'un seul membre (création/changement de rôle) — la liste (`GET`) groupe
-    les mêmes requêtes pour tout le foyer en une fois plutôt que d'appeler ceci par
-    membre, pour éviter un N+1."""
-    sortie = HouseholdMemberOut.model_validate(membre)
-    sortie.detenteur_ids = [p.detenteur_id for p in db.query(PerimetreInvite).filter(PerimetreInvite.user_id == membre.id).all()]
-    sortie.oidc_display_name = _nom_affiche_oidc(membre)
-    sortie.derniere_connexion = auth_service.dernieres_connexions_reussies(db, [membre.id]).get(membre.id)
-    sortie.sessions_actives = auth_service.nombre_sessions_actives(db, [membre.id]).get(membre.id, 0)
-    sortie.verrouille_jusqua = auth_service.verrouillage_actif(db, membre.username)
-    return sortie
+def _comptes_out(db: Session, foyer_id: int, comptes: list[tuple[User, Appartenance]]) -> list[HouseholdMemberOut]:
+    """Requêtes groupées pour tous les comptes à la fois plutôt qu'une par compte (N+1).
+    Le rôle est celui de l'appartenance à CE foyer ; le périmètre d'invité, celui des
+    détenteurs de CE foyer."""
+    ids = [user.id for user, _ in comptes]
+    detenteur_ids_par_compte: dict[int, list[int]] = {}
+    perimetres = (
+        db.query(PerimetreInvite)
+        .join(Detenteur, Detenteur.id == PerimetreInvite.detenteur_id)
+        .filter(PerimetreInvite.user_id.in_(ids), Detenteur.user_id == foyer_id)
+        .all()
+    )
+    for p in perimetres:
+        detenteur_ids_par_compte.setdefault(p.user_id, []).append(p.detenteur_id)
+    dernieres = auth_service.dernieres_connexions_reussies(db, ids)
+    sessions = auth_service.nombre_sessions_actives(db, ids)
+    resultats = []
+    for user, appartenance in comptes:
+        sortie = HouseholdMemberOut(
+            id=user.id, username=user.username, role=appartenance.role, created_at=user.created_at, email=user.email, nom=user.nom
+        )
+        sortie.detenteur_ids = detenteur_ids_par_compte.get(user.id, [])
+        sortie.oidc_display_name = _nom_affiche_oidc(user)
+        sortie.derniere_connexion = dernieres.get(user.id)
+        sortie.sessions_actives = sessions.get(user.id, 0)
+        # Pas batchable simplement (fenêtre glissante par utilisateur) — foyer
+        # restreint en pratique, un aller-retour de plus par compte reste négligeable.
+        sortie.verrouille_jusqua = auth_service.verrouillage_actif(db, user.username)
+        resultats.append(sortie)
+    return resultats
+
+
+def _membre_du_foyer(db: Session, id: int, current_user: User) -> tuple[User, Appartenance]:
+    """Un membre ou un invité du foyer courant. 404 pour tout autre compte — y compris
+    le propriétaire lui-même, jamais modifiable ni supprimable par ces routes — sans
+    confirmer l'existence d'un compte d'un autre foyer."""
+    appartenance = auth_service.appartenance_active(db, id, auth_service.id_foyer(current_user))
+    if appartenance is None or appartenance.role == ROLE_PROPRIETAIRE:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    return db.get(User, id), appartenance
 
 
 @router.post("/household-members", response_model=HouseholdMemberOut)
@@ -305,47 +331,29 @@ def create_household_member(
 ):
     if auth_service.utilisateur_par_username(db, payload.username) is not None:
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
-    membre = auth_service.creer_utilisateur(db, payload.username, payload.password, role=payload.role, owner_user_id=current_user.id)
+    foyer = auth_service.id_foyer(current_user)
+    membre = auth_service.creer_utilisateur(db, payload.username, payload.password)
+    appartenance = auth_service.ajouter_au_foyer(db, membre, foyer, payload.role)
     if payload.detenteur_ids:
-        detenteurs_valides = (
-            db.query(Detenteur).filter(Detenteur.id.in_(payload.detenteur_ids), Detenteur.user_id == current_user.id).all()
-        )
+        detenteurs_valides = db.query(Detenteur).filter(Detenteur.id.in_(payload.detenteur_ids), Detenteur.user_id == foyer).all()
         for detenteur in detenteurs_valides:
             db.add(PerimetreInvite(user_id=membre.id, detenteur_id=detenteur.id))
         db.commit()
-    return _household_member_out(db, membre)
+    return _comptes_out(db, foyer, [(membre, appartenance)])[0]
 
 
 @router.get("/household-members", response_model=list[HouseholdMemberOut])
 def list_household_members(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
-    """Écran d'administration des comptes (revue du 04/09/2026) : inclut désormais le
-    propriétaire lui-même en première position — avec un seul compte connecté (le cas
-    le plus courant sur un premier déploiement), la liste ne montrait jusque-là RIEN,
-    ce qui laissait croire que l'écran ne fonctionnait pas. Le propriétaire reste en
-    lecture seule ici (rôle non éditable, pas de suppression) : `update_household_member_role`/
-    `delete_household_member` continuent de 404 sur son propre id (`owner_user_id`
-    vaut `None`, jamais égal à `current_user.id`), c'est le frontend qui n'affiche
+    """Écran d'administration des comptes (revue du 04/09/2026) : le propriétaire
+    lui-même en première position — avec un seul compte connecté (le cas le plus
+    courant sur un premier déploiement), une liste vide laissait croire que l'écran ne
+    fonctionnait pas. Il reste en lecture seule ici (rôle non éditable, pas de
+    suppression : `_membre_du_foyer` le refuse), c'est le frontend qui n'affiche
     tout simplement pas ces contrôles sur sa ligne."""
-    membres = db.query(User).filter(User.owner_user_id == current_user.id).order_by(User.created_at).all()
-    tous = [current_user, *membres]
-    ids = [u.id for u in tous]
-    detenteur_ids_par_membre: dict[int, list[int]] = {}
-    for p in db.query(PerimetreInvite).filter(PerimetreInvite.user_id.in_(ids)).all():
-        detenteur_ids_par_membre.setdefault(p.user_id, []).append(p.detenteur_id)
-    dernieres = auth_service.dernieres_connexions_reussies(db, ids)
-    sessions = auth_service.nombre_sessions_actives(db, ids)
-    resultats = []
-    for membre in tous:
-        sortie = HouseholdMemberOut.model_validate(membre)
-        sortie.detenteur_ids = detenteur_ids_par_membre.get(membre.id, [])
-        sortie.oidc_display_name = _nom_affiche_oidc(membre)
-        sortie.derniere_connexion = dernieres.get(membre.id)
-        sortie.sessions_actives = sessions.get(membre.id, 0)
-        # Pas batchable simplement (fenêtre glissante par utilisateur) — foyer
-        # restreint en pratique, un aller-retour de plus par membre reste négligeable.
-        sortie.verrouille_jusqua = auth_service.verrouillage_actif(db, membre.username)
-        resultats.append(sortie)
-    return resultats
+    foyer = auth_service.id_foyer(current_user)
+    comptes = auth_service.comptes_du_foyer(db, foyer)
+    comptes.sort(key=lambda compte: compte[1].role != ROLE_PROPRIETAIRE)
+    return _comptes_out(db, foyer, comptes)
 
 
 @router.patch("/household-members/{id}", response_model=HouseholdMemberOut)
@@ -355,25 +363,20 @@ def update_household_member(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
 ):
-    membre = db.get(User, id)
-    if membre is None or membre.owner_user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Compte introuvable")
+    membre, appartenance = _membre_du_foyer(db, id, current_user)
     if payload.username is not None and payload.username != membre.username:
         if auth_service.utilisateur_par_username(db, payload.username) is not None:
             raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
         membre.username = payload.username
     if payload.role is not None:
-        membre.role = payload.role
+        appartenance.role = payload.role
     db.commit()
-    db.refresh(membre)
-    return _household_member_out(db, membre)
+    return _comptes_out(db, appartenance.foyer_id, [(membre, appartenance)])[0]
 
 
 @router.delete("/household-members/{id}", status_code=204)
 def delete_household_member(id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
-    membre = db.get(User, id)
-    if membre is None or membre.owner_user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Compte introuvable")
+    membre, appartenance = _membre_du_foyer(db, id, current_user)
     db.query(PerimetreInvite).filter(PerimetreInvite.user_id == membre.id).delete()
     db.query(AuthToken).filter(AuthToken.user_id == membre.id).delete()
     # Le journal d'accès SURVIT à la suppression du compte, par conception (cf.
@@ -384,5 +387,6 @@ def delete_household_member(id: int, db: Session = Depends(get_db), current_user
     # vide : 10 entrées orphelines constatées en base réelle lors de la revue du
     # 03/09/2026 (`PRAGMA foreign_key_check`).
     db.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre.id).update({"user_id": None})
+    db.delete(appartenance)
     db.delete(membre)
     db.commit()

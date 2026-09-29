@@ -13,11 +13,11 @@ donc aucune frontière de sécurité, et évite d'imposer un redémarrage du bac
 changer une image. `oidc_service` reste volontairement ignorant de ce module : la
 règle « aucune configuration OIDC en base » y demeure entière.
 
-`Parametre` (et non `UserParametre`) parce qu'il n'y a qu'une page de connexion pour
+`Parametre` (et non `FoyerParametre`) parce qu'il n'y a qu'une page de connexion pour
 toute l'installation, partagée par tous les foyers et affichée alors qu'aucun
 utilisateur n'est encore identifié — un réglage par foyer n'aurait aucun sens ici.
 C'est aussi ce qui le tient hors de l'export de données d'un foyer
-(`donnees_service`, qui n'exporte que `user_parametres`) : une image d'installation
+(`donnees_service`, qui n'exporte que les réglages du foyer) : une image d'installation
 n'a rien à faire dans la sauvegarde des données d'un utilisateur.
 
 Toujours du PNG : les deux chemins d'alimentation (téléversement, récupération depuis

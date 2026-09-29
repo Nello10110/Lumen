@@ -13,6 +13,7 @@ from app.services import budget_categories_service, comptes_service
 from .conftest import (
     ID_UTILISATEUR_B,
     ID_UTILISATEUR_TEST,
+    ID_FOYER_TEST,
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
@@ -51,7 +52,7 @@ def test_create_rename_delete_categorie(client):
 
 
 def test_regles_create_reappliquer_delete(client, db):
-    categorie = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Transport", None)
+    categorie = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Transport", None)
 
     reponse = client.post("/api/budget/regles", json={"motif": "sncf", "categorie_id": categorie.id})
     assert reponse.status_code == 200
@@ -136,7 +137,7 @@ def test_import_qif(client):
 
 
 def test_mouvements_list_et_categoriser(client, db):
-    categorie = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Santé", None)
+    categorie = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Santé", None)
     client.post(
         "/api/budget/import/qif",
         files={"file": ("r.qif", b"D01/02/2026\nT-10.00\nPPharmacie\n^\n", "text/plain")},
@@ -154,7 +155,7 @@ def test_mouvements_list_et_categoriser(client, db):
 
 
 def test_cibles_set_list_delete(client, db):
-    categorie = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Loisirs", None)
+    categorie = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Loisirs", None)
 
     reponse = client.put(f"/api/budget/cibles/{categorie.id}", json={"montant_mensuel": 100.0})
     assert reponse.status_code == 200
@@ -186,7 +187,7 @@ def test_isolation_entre_utilisateurs(client, db):
     """Un second foyer ne doit voir ni les catégories, ni les mouvements, ni les
     règles, ni les cibles créées par le premier — même pattern que
     `tests/test_isolation_utilisateurs.py`."""
-    categorie = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Perso", None)
+    categorie = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Perso", None)
     client.post(
         "/api/budget/import/qif", files={"file": ("r.qif", b"D01/02/2026\nT-10.00\nPAchat\n^\n", "text/plain")}, data=NOUVEAU_COMPTE
     )
@@ -227,7 +228,7 @@ def test_recurrences(client):
 
 
 def test_jonction_patrimoine(client, db):
-    epargne = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Épargne", None)
+    epargne = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Épargne", None)
     client.post(
         "/api/budget/import/qif",
         files={"file": ("r.qif", b"D01/02/2026\nT2000.00\nPSalaire\n^\n", "text/plain")},
@@ -316,7 +317,7 @@ def test_import_cree_le_compte_et_l_etablissement_du_catalogue(client, db, forma
 
 @pytest.mark.parametrize("format_", FORMATS)
 def test_import_cree_le_compte_sur_un_etablissement_existant(client, db, format_):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Caisse d'Épargne")
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Caisse d'Épargne")
 
     reponse = _importer(client, format_, {"compte_nom": "Livret A", "etablissement_id": etablissement.id})
 
@@ -372,7 +373,7 @@ def test_import_sur_le_compte_ou_l_etablissement_d_un_autre_foyer_refuse(client,
     assert reponse.json()["detail"] == "Établissement introuvable"
 
     assert _mouvements(db) == []
-    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).count() == 0
 
 
 def _deux_comptes_avec_mouvements(client, db) -> tuple[Compte, Compte]:

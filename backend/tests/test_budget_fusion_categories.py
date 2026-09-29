@@ -18,6 +18,8 @@ from app.services.budget_import_service import MouvementBrut
 from .conftest import (
     ID_UTILISATEUR_B,
     ID_UTILISATEUR_TEST,
+    ID_FOYER_B,
+    ID_FOYER_TEST,
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
@@ -28,7 +30,7 @@ _compteur = itertools.count(1)
 
 
 def _categorie(db, nom: str, parent: CategorieBudget | None = None, **champs) -> CategorieBudget:
-    categorie = CategorieBudget(user_id=ID_UTILISATEUR_TEST, nom=nom, parent_id=parent.id if parent else None, **champs)
+    categorie = CategorieBudget(user_id=ID_FOYER_TEST, nom=nom, parent_id=parent.id if parent else None, **champs)
     db.add(categorie)
     db.commit()
     return categorie
@@ -36,7 +38,7 @@ def _categorie(db, nom: str, parent: CategorieBudget | None = None, **champs) ->
 
 def _mouvement(db, libelle="Mouvement", **champs) -> MouvementBancaire:
     mouvement = MouvementBancaire(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         transaction_id=f"tx-fusion-{next(_compteur)}",
         date="2026-09-10",
         libelle=libelle,
@@ -49,7 +51,7 @@ def _mouvement(db, libelle="Mouvement", **champs) -> MouvementBancaire:
 
 
 def _fusionner(db, source: CategorieBudget, cible: CategorieBudget):
-    return budget_categories_service.fusionner_categories(db, ID_UTILISATEUR_TEST, source.id, cible.id)
+    return budget_categories_service.fusionner_categories(db, ID_FOYER_TEST, source.id, cible.id)
 
 
 def _noms(db, parent: CategorieBudget | None = None) -> set[str]:
@@ -62,7 +64,7 @@ def _importer(db, categorie_banque: tuple[str, str | None], libelle="CB TRAM 12/
     compte = make_compte(db)
     budget_import_service.importer_mouvements(
         db,
-        ID_UTILISATEUR_TEST,
+        ID_FOYER_TEST,
         [MouvementBrut(date="2026-09-12", libelle=libelle, montant=-3.0, categorie_banque=categorie_banque)],
         compte_id=compte.id,
     )
@@ -110,8 +112,8 @@ def test_une_categorisation_manuelle_reste_manuelle(db):
 def test_les_regles_passent_a_la_cible(db):
     source = _categorie(db, "Transports")
     cible = _categorie(db, "Transport")
-    budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "sncf", source.id)
-    budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "ratp", cible.id)
+    budget_categories_service.create_regle(db, ID_FOYER_TEST, "sncf", source.id)
+    budget_categories_service.create_regle(db, ID_FOYER_TEST, "ratp", cible.id)
 
     resume = _fusionner(db, source, cible)
 
@@ -123,7 +125,7 @@ def test_les_regles_passent_a_la_cible(db):
 def test_le_budget_cible_de_la_source_passe_a_la_cible_qui_n_en_a_pas(db):
     source = _categorie(db, "Transports")
     cible = _categorie(db, "Transport")
-    budget_service.set_cible(db, ID_UTILISATEUR_TEST, source.id, 150)
+    budget_service.set_cible(db, ID_FOYER_TEST, source.id, 150)
 
     resume = _fusionner(db, source, cible)
 
@@ -138,8 +140,8 @@ def test_le_budget_cible_de_la_source_passe_a_la_cible_qui_n_en_a_pas(db):
 def test_la_cible_garde_son_budget_cible_et_celui_de_la_source_est_abandonne(db):
     source = _categorie(db, "Transports")
     cible = _categorie(db, "Transport")
-    budget_service.set_cible(db, ID_UTILISATEUR_TEST, source.id, 150)
-    budget_service.set_cible(db, ID_UTILISATEUR_TEST, cible.id, 200)
+    budget_service.set_cible(db, ID_FOYER_TEST, source.id, 150)
+    budget_service.set_cible(db, ID_FOYER_TEST, cible.id, 200)
 
     resume = _fusionner(db, source, cible)
 
@@ -172,7 +174,7 @@ def test_deux_sous_categories_de_meme_nom_normalise_sont_fusionnees(db):
     train_cible = _categorie(db, "METRO", cible)
     _categorie(db, "Vélo", source)
     mouvement = _mouvement(db, categorie_id=train_source.id, categorie_banque_id=train_source.id)
-    budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "ratp", train_source.id)
+    budget_categories_service.create_regle(db, ID_FOYER_TEST, "ratp", train_source.id)
 
     resume = _fusionner(db, source, cible)
 
@@ -193,10 +195,10 @@ def test_le_drapeau_d_exclusion_de_la_cible_est_conserve(db):
     autre_source = _categorie(db, "Interne")
     autre_cible = _categorie(db, "Compte a compte", exclue_des_totaux=True)
 
-    resume = budget_categories_service.apercu_fusion(db, ID_UTILISATEUR_TEST, source.id, cible.id)
+    resume = budget_categories_service.apercu_fusion(db, ID_FOYER_TEST, source.id, cible.id)
     assert resume.exclusion_differente is True
-    assert budget_categories_service.apercu_fusion(db, ID_UTILISATEUR_TEST, autre_source.id, autre_cible.id).exclusion_differente is True
-    assert budget_categories_service.apercu_fusion(db, ID_UTILISATEUR_TEST, cible.id, source.id).exclusion_differente is True
+    assert budget_categories_service.apercu_fusion(db, ID_FOYER_TEST, autre_source.id, autre_cible.id).exclusion_differente is True
+    assert budget_categories_service.apercu_fusion(db, ID_FOYER_TEST, cible.id, source.id).exclusion_differente is True
 
     _fusionner(db, source, cible)
     _fusionner(db, autre_source, autre_cible)
@@ -225,9 +227,9 @@ def test_apercu_ne_modifie_rien(db):
     cible = _categorie(db, "Transport")
     _categorie(db, "Train", source)
     _mouvement(db, categorie_id=source.id)
-    budget_service.set_cible(db, ID_UTILISATEUR_TEST, source.id, 50)
+    budget_service.set_cible(db, ID_FOYER_TEST, source.id, 50)
 
-    resume = budget_categories_service.apercu_fusion(db, ID_UTILISATEUR_TEST, source.id, cible.id)
+    resume = budget_categories_service.apercu_fusion(db, ID_FOYER_TEST, source.id, cible.id)
 
     assert (resume.mouvements, resume.sous_categories_deplacees, resume.budget_transfere) == (1, 1, True)
     db.expire_all()
@@ -288,7 +290,7 @@ def test_categorie_introuvable(db):
 
     for source_id, cible_id in ((categorie.id, 99999), (99999, categorie.id)):
         with pytest.raises(ValueError, match="Catégorie introuvable") as erreur:
-            budget_categories_service.fusionner_categories(db, ID_UTILISATEUR_TEST, source_id, cible_id)
+            budget_categories_service.fusionner_categories(db, ID_FOYER_TEST, source_id, cible_id)
         assert not isinstance(erreur.value, budget_categories_service.FusionImpossibleError)
 
 
@@ -367,10 +369,10 @@ def test_export_import_preserve_les_alias(db):
     source = _categorie(db, "Transports")
     cible = _categorie(db, "Transport")
     _fusionner(db, source, cible)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     assert document["donnees"]["categories_budget"][0]["alias"] == "transports"
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     db.expire_all()
     assert budget_categories_service.alias_de(db.query(CategorieBudget).filter(CategorieBudget.nom == "Transport").one()) == ["transports"]
@@ -379,11 +381,11 @@ def test_export_import_preserve_les_alias(db):
 
 def test_un_ancien_export_sans_alias_s_importe(db):
     _categorie(db, "Transport")
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     for ligne in document["donnees"]["categories_budget"]:
         del ligne["alias"]
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     db.expire_all()
     assert budget_categories_service.alias_de(db.query(CategorieBudget).one()) == []
@@ -423,11 +425,11 @@ def test_route_refuse_une_fusion_dans_elle_meme_ou_une_descendante(client, db):
 def test_route_categorie_d_un_autre_foyer_est_introuvable(client, db):
     mienne = _categorie(db, "Transport")
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    etrangere = CategorieBudget(user_id=ID_UTILISATEUR_B, nom="Transports")
+    etrangere = CategorieBudget(user_id=ID_FOYER_B, nom="Transports")
     db.add(etrangere)
     db.commit()
     mouvement = MouvementBancaire(
-        user_id=ID_UTILISATEUR_B, transaction_id="tx-b", date="2026-09-01", libelle="B", montant=-1, categorie_id=etrangere.id
+        user_id=ID_FOYER_B, transaction_id="tx-b", date="2026-09-01", libelle="B", montant=-1, categorie_id=etrangere.id
     )
     db.add(mouvement)
     db.commit()

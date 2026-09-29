@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PAGE_COMPONENTS } from './pageComponents'
-import { ROUTES } from './routes'
+import { ROUTES, routesDuRang } from './routes'
 
 // Audit menus du 30/08/2026 : ces tests verrouillent la promesse de `ROUTES`
 // (« source unique de vérité pour la navigation ») au lieu de la laisser reposer
@@ -43,5 +43,22 @@ describe('ROUTES — cohérence structurelle', () => {
     const cheminsRoutes = [...ROUTES.map((r) => r.path)].sort()
     const cheminsComposants = Object.keys(PAGE_COMPONENTS).sort()
     expect(cheminsComposants).toEqual(cheminsRoutes)
+  })
+})
+
+// § BK.2a : un compte sans foyer (`role: null`) n'a droit à aucune route réservée ;
+// un propriétaire les voit toutes, comme avant.
+describe('routesDuRang — rôle du foyer courant', () => {
+  const reservees = ROUTES.filter((r) => r.rolesAutorises).map((r) => r.path)
+
+  it('un compte sans foyer ne voit aucune route réservée', () => {
+    const chemins = [...routesDuRang('consultation', null), ...routesDuRang('administration', null)].map((r) => r.path)
+    expect(chemins.filter((c) => reservees.includes(c))).toEqual([])
+  })
+
+  it('un propriétaire voit toutes les routes de chaque rang', () => {
+    for (const rang of ['consultation', 'administration'] as const) {
+      expect(routesDuRang(rang, 'proprietaire')).toEqual(ROUTES.filter((r) => r.rang === rang))
+    }
   })
 })

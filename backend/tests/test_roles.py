@@ -134,7 +134,8 @@ def test_second_foyer_isole(db_vide, client_reel):
     )
 
     proprio_b = auth_service.creer_utilisateur(db_vide, "proprio-b", "mot-de-passe-solide")
-    token_b = auth_service.creer_token(db_vide, proprio_b).token
+    auth_service.creer_foyer(db_vide, proprio_b)
+    token_b = auth_service.ouvrir_session(db_vide, proprio_b).token
     membre_b_token = _creer_membre(client_reel, token_b, username="membre-b")
 
     holdings_membre_b = client_reel.get("/api/portfolio/holdings", headers=_en_tete(membre_b_token)).json()

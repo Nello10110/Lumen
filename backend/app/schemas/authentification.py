@@ -58,13 +58,15 @@ class UserOut(BaseModel):
 
     id: int
     username: str
-    role: str
+    # Rôle dans le foyer courant (§ BK.2) ; `None` pour un compte qui n'appartient à
+    # aucun foyer.
+    role: str | None
     # Métadonnées d'affichage pures (backlog SSO, claim mapping) — `None` pour un
     # compte mot de passe local, jamais utilisées pour l'authentification.
     email: str | None = None
     nom: str | None = None
     # Assistant de configuration initiale (welcome board) : pas une colonne de `User`,
-    # calculé depuis `UserParametre` (`services/preferences_service.onboarding_termine`)
+    # propre à l'appartenance au foyer courant (`auth_service.assistant_termine`)
     # et posé explicitement par `routers/auth.py` sur chaque réponse contenant un
     # `UserOut` — jamais rempli automatiquement par `model_validate`, absent de `User`.
     onboarding_termine: bool = False
@@ -190,7 +192,7 @@ class HouseholdMemberUpdate(BaseModel):
     d'utilisateur, chacun facultatif (mise à jour partielle). Jamais utilisé sur le
     propriétaire lui-même : `update_household_member` (routers/auth.py) refuse toute
     modification sur son propre compte, via le même garde IDOR que la suppression
-    (`owner_user_id != current_user.id`)."""
+    (`_membre_du_foyer` : un membre ou un invité du foyer courant, rien d'autre)."""
 
     role: str | None = None
     username: str | None = None

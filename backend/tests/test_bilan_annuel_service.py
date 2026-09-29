@@ -10,7 +10,7 @@ from pypdf import PdfReader
 
 from app.services import bilan_annuel_service, immobilier_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
+from .conftest import ID_FOYER_TEST, make_holding, make_transaction
 
 ANNEE_PASSEE = 2024
 
@@ -22,7 +22,7 @@ def _texte_pdf(contenu: bytes) -> str:
 
 
 def _generer(db, annee):
-    return bilan_annuel_service.generer_pdf_bilan_annuel(db, ID_UTILISATEUR_TEST, annee)
+    return bilan_annuel_service.generer_pdf_bilan_annuel(db, ID_FOYER_TEST, annee)
 
 
 def test_pdf_valide_sans_aucune_donnee(db):

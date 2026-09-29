@@ -15,13 +15,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.models import Holding, MarketDataCache, Transaction, User
+from app.models import Foyer, Holding, MarketDataCache, Transaction
 from scripts import sauvegarde
 
 # Multi-utilisateur (Milestone 2a) : `holdings`/`transactions` exigent désormais un
 # `user_id` — ce fichier construit ses propres bases isolées (pas la fixture `db`
-# partagée de `conftest.py`), donc ce compte minimal est créé ici.
-ID_UTILISATEUR_TEST = 1
+# partagée de `conftest.py`), donc ce foyer minimal est créé ici.
+ID_FOYER_TEST = 1
 
 
 @pytest.fixture(autouse=True)
@@ -40,15 +40,15 @@ def _creer_base_peuplee(chemin: Path, *, ticker: str = "AAPL") -> None:
     Session = sessionmaker(bind=engine)
     session = Session()
     try:
-        session.add(User(id=ID_UTILISATEUR_TEST, username="test", password_hash="inutilisé"))
+        session.add(Foyer(id=ID_FOYER_TEST))
         session.add(
             Holding(
-                user_id=ID_UTILISATEUR_TEST, ticker=ticker, nom="Apple Inc.", quantite=10.0, prix_revient_moyen=150.0, type_actif="STOCK"
+                user_id=ID_FOYER_TEST, ticker=ticker, nom="Apple Inc.", quantite=10.0, prix_revient_moyen=150.0, type_actif="STOCK"
             )
         )
         session.add(
             Transaction(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 transaction_id=f"tx-{ticker}",
                 datetime_utc=datetime(2024, 1, 1),
                 date="2024-01-01",

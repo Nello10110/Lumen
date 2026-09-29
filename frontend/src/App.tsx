@@ -166,7 +166,7 @@ function ContenuAuthentifie() {
   // ce gate — contrairement à l'onboarding ci-dessus, réservé au propriétaire. Un
   // `invite`, lecture seule, ne peut rien y corriger : jamais bloqué par un état
   // qu'il ne peut pas changer lui-même.
-  if (user.role !== 'invite' && user.holdings_sans_compte > 0)
+  if ((user.role === 'proprietaire' || user.role === 'membre') && user.holdings_sans_compte > 0)
     return (
       <>
         {flash}
