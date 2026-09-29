@@ -39,7 +39,7 @@ from datetime import datetime
 import pytest
 import yfinance as yf
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 
 from app import database
@@ -113,6 +113,15 @@ def _creer_proprietaire_de_test(session) -> None:
     session.commit()
 
 
+def _activer_cles_etrangeres(connexion_dbapi, _enregistrement) -> None:
+    """SQLite ne vérifie pas les clés étrangères sans ce PRAGMA, alors que Postgres le
+    fait toujours : sans lui, un test qui rattache une ligne à un foyer inexistant
+    passerait ici et n'échouerait qu'en CI Postgres."""
+    curseur = connexion_dbapi.cursor()
+    curseur.execute("PRAGMA foreign_keys=ON")
+    curseur.close()
+
+
 @pytest.fixture
 def db():
     if not database.EST_SQLITE:
@@ -121,6 +130,7 @@ def db():
     fd, chemin = tempfile.mkstemp(prefix="patrimoine_test_db_", suffix=".db")
     os.close(fd)
     engine_test = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    event.listen(engine_test, "connect", _activer_cles_etrangeres)
     Base.metadata.create_all(bind=engine_test)
     SessionLocalTest = sessionmaker(autocommit=False, autoflush=False, bind=engine_test)
     session = SessionLocalTest()
