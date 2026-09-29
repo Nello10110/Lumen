@@ -146,7 +146,13 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     colonnes = set(tableau.colonnes)
-    colonnes_attendues = {mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col}
+    colonnes_attendues = {
+        mapping.date_col,
+        mapping.libelle_col,
+        mapping.montant_col,
+        mapping.debit_col,
+        mapping.credit_col,
+    }
     colonnes_absentes = [c for c in colonnes_attendues if c and c not in colonnes]
     if colonnes_absentes:
         raise HTTPException(
@@ -156,7 +162,12 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
 
     user_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = budget_import_service.mouvements_depuis_lignes(
-        tableau.lignes, mapping.date_col, mapping.libelle_col, mapping.montant_col, mapping.debit_col, mapping.credit_col
+        tableau.lignes,
+        mapping.date_col,
+        mapping.libelle_col,
+        mapping.montant_col,
+        mapping.debit_col,
+        mapping.credit_col,
     )
     compte_id = _resoudre_compte(db, user_id, mapping)
     resultat = budget_import_service.importer_mouvements(

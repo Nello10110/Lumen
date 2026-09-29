@@ -58,33 +58,18 @@ def categoriser_mouvement(db: Session, user_id: int, mouvement_id: int, categori
     return mouvement
 
 
-def _mois_precedents(date_reference: str, n: int) -> str:
-    d = datetime.strptime(date_reference, "%Y-%m-%d").date()
-    mois = d.month - n
-    annee = d.year
-    while mois <= 0:
-        mois += 12
-        annee -= 1
-    return date_cls(annee, mois, 1).isoformat()
-
-
 def compute_depenses_recurrentes_mensuelles(db: Session, user_id: int, date_fin: str, compte_id: int | None = None) -> float:
-    """Heuristique légère (backlog 2.N.2) : un couple (libellé normalisé, montant
-    arrondi à l'euro) qui revient sur au moins 2 des 3 mois précédant `date_fin` est
-    considéré comme une charge récurrente ; leur somme approxime la charge fixe
-    mensuelle. Détection plus poussée (hausse de prix, abonnement inutilisé) laissée
-    à N.3, qui réutilisera cette même clé de correspondance."""
-    depuis = _mois_precedents(date_fin, 3)
-    mouvements = list_mouvements(db, user_id, date_debut=depuis, date_fin=date_fin, compte_id=compte_id)
-    mois_vus: dict[tuple[str, float], set[str]] = {}
-    dernier_montant: dict[tuple[str, float], float] = {}
-    for m in mouvements:
-        if m.montant >= 0:
-            continue
-        cle = (budget_categories_service.normaliser(m.libelle), round(abs(m.montant)))
-        mois_vus.setdefault(cle, set()).add(m.date[:7])
-        dernier_montant[cle] = abs(m.montant)
-    return round(sum(dernier_montant[cle] for cle, mois in mois_vus.items() if len(mois) >= 2), 2)
+    """Charge fixe mensuelle : somme, ramenée au mois (coût annuel / 12), des séries
+    périodiques — mensuelles, trimestrielles, annuelles — que détecte
+    `budget_recurrences_service` à `date_fin` (§ BM.2). Les achats fréquents sans rythme
+    (« irrégulières ») n'en font pas partie : un supermarché n'est pas une charge fixe."""
+    # Import différé : `budget_recurrences_service` importe ce module pour `list_mouvements`.
+    from . import budget_recurrences_service
+
+    recurrences = budget_recurrences_service.detect_recurrences(
+        db, user_id, aujourdhui=date_cls.fromisoformat(date_fin), compte_id=compte_id
+    )
+    return round(sum(r.cout_annuel_estime for r in recurrences if r.cout_annuel_estime is not None) / 12, 2)
 
 
 def _categorie_racine_id(categorie: CategorieBudget) -> int:

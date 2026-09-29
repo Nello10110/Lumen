@@ -2,15 +2,21 @@
  * `scripts/i18n-extraire.mjs`, puis relu à la main. */
 const recurrencesSection = {
   chargesRecurrentesEtAbonnements: "Charges récurrentes et abonnements",
-  detecteAutomatiquementSurLes12: "Détecté automatiquement sur les 12 derniers mois — mouvements revenant au moins deux fois sous le même libellé, encore vus au cours des 45 derniers jours.",
+  detecteAutomatiquement: "Détecté automatiquement sur l'historique importé — mouvements revenant au moins deux fois sous le même libellé (les dates que la banque ajoute aux paiements par carte sont ignorées), à rythme mensuel, trimestriel ou annuel, et toujours en cours. Le coût annuel est estimé au montant actuel.",
   libelle: "Libellé",
   categorie: "Catégorie",
   periodicite: "Périodicité",
   occurrences: "Occurrences",
   montant: "Montant",
   mensuelle: "Mensuelle",
-  irreguliere: "Irrégulière",
+  trimestrielle: "Trimestrielle",
+  annuelle: "Annuelle",
   hausseDePrix: "Hausse de prix",
+  evolutionDepuis: "{pct} depuis {montant}",
+  coutAnnuelEstime: "Coût annuel estimé",
+  achatsFrequents: "Achats fréquents",
+  achatsFrequentsAide: "Commerces ou virements qui reviennent sans rythme régulier : ils ne sont pas comptés dans les charges récurrentes.",
+  totalObserve: "Total sur la période observée",
 } as const
 
 export default recurrencesSection

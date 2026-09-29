@@ -79,6 +79,27 @@ def test_depenses_recurrentes_detecte_un_couple_libelle_montant_revenant_sur_2_m
     assert total == 15.0
 
 
+def test_depenses_recurrentes_regroupe_un_paiement_par_carte_malgre_sa_date(db):
+    make_mouvement(db, date="2026-01-18", libelle="CB ANTHROPIC CLAU FACT 180126", montant=-20.0)
+    make_mouvement(db, date="2026-02-18", libelle="CB ANTHROPIC CLAU FACT 180226", montant=-20.0)
+
+    assert budget_service.compute_depenses_recurrentes_mensuelles(db, ID_UTILISATEUR_TEST, "2026-03-01") == 20.0
+
+
+def test_depenses_recurrentes_ne_compte_que_les_series_periodiques(db):
+    # Charge mensuelle, trimestrielle (ramenée au mois) ; achats fréquents sans rythme ignorés.
+    make_mouvement(db, date="2026-01-05", libelle="Abonnement", montant=-15.0)
+    make_mouvement(db, date="2026-02-05", libelle="Abonnement", montant=-15.0)
+    for jour in ("2025-05-03", "2025-08-02", "2025-11-03", "2026-02-02"):
+        make_mouvement(db, date=jour, libelle="Cotisation", montant=-60.0)
+    for jour in ("2026-01-03", "2026-01-11", "2026-02-01", "2026-02-20"):
+        make_mouvement(db, date=jour, libelle="Supermarche", montant=-50.0)
+
+    total = budget_service.compute_depenses_recurrentes_mensuelles(db, ID_UTILISATEUR_TEST, "2026-03-01")
+
+    assert total == 15.0 + 60.0 * 4 / 12
+
+
 def test_depenses_recurrentes_ignore_un_mouvement_vu_une_seule_fois(db):
     make_mouvement(db, date="2026-02-05", libelle="Une seule fois", montant=-15.0)
 

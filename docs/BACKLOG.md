@@ -36,8 +36,10 @@ au § 4.2.
   réglementée, assurance-vie, PER, comptes courants, emprunts (capital restant dû calculé) ;
 - **foyer** : détenteurs et quotités (qui possède quoi, part nette de chacun), comptes et
   établissements, comptes utilisateurs propriétaire/membre/invité, liens de partage révocables ;
-- **budget** : import CSV/OFX/QIF rattaché à un compte du foyer, filtre par compte, catégorisation
-  par règles explicites, récurrences, taux d'épargne ;
+- **budget** : import CSV/OFX/QIF rattaché à un compte du foyer (paiements identiques conservés),
+  filtre par compte, catégorisation par règles explicites,
+  abonnements mensuels, trimestriels et annuels avec leur coût annuel et l'évolution de leur prix,
+  taux d'épargne ;
 - **analyse et projection** : historique du patrimoine, métriques avancées, simulateur et
   indépendance financière, rapports périodiques, relevé PDF ;
 - **exploitation** : sauvegarde chiffrée planifiée, export/import complet des données du foyer,
@@ -248,7 +250,7 @@ l'usage réel a fait remonter.
 | BJ | Retours du 23/09 : icône Ledger, accueil sans patrimoine, avertissement de suppression d'un compte | 23/09 |
 | BK | Version hébergée : déploiement Postgres et gestion des foyers (ouverts) | 23/09 |
 | BL | Application multilingue (FR, EN, ES, DE, IT) — cadrage et lots | 23/09 |
-| BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte | 28/09 |
+| BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte ; import fiable (doublons légitimes, libellés de carte, périodicités) | 28-29/09 |
 
 ---
 
@@ -7377,6 +7379,97 @@ verts (9 ignorés, propres à Postgres ; un échec préexistant et sans rapport,
 `test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`, échoue aussi sur le
 code d'avant), interface 891. Données E2E adaptées (`seed_e2e.py` : relevé importé sur « Compte
 courant E2E », établissement « Banque courante E2E ») ; suite Playwright à rejouer.
+
+#### BM.2 — `majeur` · `M` · `traité` (29/09/2026) · `P1` — Import bancaire fiable : doublons légitimes, libellés de carte, périodicités
+
+**Constat** (import d'un vrai relevé Caisse d'Épargne, 497 lignes) : trois paiements réels identiques
+le même jour devenaient un seul mouvement, sans avertissement ; deux mois du même paiement par carte
+(« CB ANTHROPIC CLAU FACT 180826 » puis « … 180926 ») n'étaient jamais regroupés ; seule la charge
+mensuelle était reconnue.
+
+**Ce qui change** :
+
+- **Identifiant d'un mouvement** (`budget_import_service._identifiants`). Sans identifiant fourni par la
+  source, il vaut toujours le hash de (date, montant, libellé normalisé). Dans un même fichier, les
+  lignes identiques se distinguent par leur **rang d'occurrence** : la 1re garde EXACTEMENT
+  l'identifiant d'avant (un relevé déjà importé n'est pas doublé), la 2e, 3e… reçoivent
+  `sha256(identifiant|occurrence-N)[:32]`. Le même rang s'applique à un FITID OFX répété dans un
+  fichier. Un ré-import du même fichier redonne les mêmes identifiants : rien de nouveau. Un relevé
+  importé avant la correction retrouve, en étant réimporté, ses mouvements fondus (2e et 3e
+  occurrences neuves, 1re reconnue).
+- **Référence bancaire : essayée, puis retirée.** Un champ `reference_col` au mapping CSV avait été
+  ajouté ; le test sur un vrai relevé Caisse d'Épargne (497 lignes) l'a écarté : 192 lignes n'ont pas
+  de référence (dont un prélèvement mensuel), aucune référence n'y est dupliquée — elle n'apporte donc
+  rien au rang d'occurrence — et importer un relevé avec la colonne puis le même sans elle a créé 305
+  doublons, les deux familles d'identifiants ne se recoupant pas. L'identifiant reste le hash, plus le
+  rang.
+- **Clé de regroupement** (`budget_categories_service.cle_regroupement`) : libellé normalisé (minuscules,
+  sans accents), débarrassé de ses dates, espaces réduits. Reconnus : `FACT|FACTURE` suivi de six
+  chiffres (« FACT 180826 »), JJ/MM/AA(AA), JJ.MM.AA(AA) et JJ-MM-AA(AA), JJ/MM seul (avec « / »
+  uniquement, « 5.12 » pouvant être un montant), JJMMAA isolé, AAAA-MM-JJ, avec l'éventuel « ECH »,
+  « DU », « LE » qui précède. Dates plausibles seulement (jour 01-31, mois 01-12, année 20-39) : quatre
+  chiffres (« 0309 »), année invraisemblable ou numéro de référence ne sont pas touchés. Exemples :
+  `CB ANTHROPIC CLAU FACT 180826` et `… 180926` donnent `cb anthropic clau` ; `CB SNCF 17/09/26 PARIS`
+  donne `cb sncf paris` ; `CB CARREFOUR MARKET 12/09` et `CB CARREFOUR CITY 12/09` restent distincts
+  (noms différents, jamais fusionnés). Le libellé stocké et affiché ne change pas ; la clé sert aux
+  récurrences et à l'indicateur « dépenses récurrentes/mois ». Le matching des règles de
+  catégorisation (sous-chaîne du libellé normalisé) n'est PAS modifié : un motif au nom du commerçant
+  reconnaît déjà tous les mois (test à l'appui) ; seul un motif contenant la date exacte ne le fait
+  pas, ce qui est voulu.
+- **Périodicités** (`budget_recurrences_service`) : mensuelle (intervalle moyen 20-40 j, fenêtre
+  d'observation 12 mois, récence 45 j), **trimestrielle** (75-105 j, 24 mois, 136 j) et **annuelle**
+  (335-395 j, 3 ans, 547 j) — récence = une fois et demie la période. Un intervalle plus court que la
+  moitié de la période rend la série « irrégulière » (deux achats espacés de 5 mois puis 2 semaines ne
+  font pas un abonnement trimestriel). Un intervalle plus long qu'une période et demie, jusqu'à trois
+  périodes et demie, est un **prélèvement sauté** (assurance prélevée dix mois sur douze : rien en
+  décembre ni en mai) : toléré tant qu'il ne touche pas plus d'un intervalle sur trois ; la moyenne
+  se calcule alors sur les seuls intervalles normaux, pour qu'un mois sauté ne fasse pas passer la
+  série pour un rythme plus lent. Du rythme le plus court au plus long, le premier qui convient
+  l'emporte ; à défaut, « irrégulière » (fenêtre 12 mois, récence 45 j, comme avant).
+- **API `/api/budget/recurrences`** : `periodicite` (`mensuelle`, `trimestrielle`, `annuelle`,
+  `irreguliere`), `montant_actuel`, `montant_initial` et `variation_prix_pct` (dernière occurrence de
+  la fenêtre comparée à la PREMIÈRE), `total_periode` (somme des occurrences de la fenêtre) et
+  `cout_annuel_estime`. `hausse_prix` vaut vrai si le dernier montant dépasse de plus de 5 % le
+  précédent OU le premier : une hausse par petits pas (10,00 → 10,30 → 10,60 → 10,90) est vue.
+  `compte_id` reste un filtre.
+- **Coût annuel estimé** : montant actuel × prélèvements par an (12, 4, 1) ; `null` pour une série
+  irrégulière. **Exception, pour une série mensuelle qui court depuis 350 jours au moins** : la somme
+  réelle des occurrences des 12 derniers mois — dix prélèvements de 15 € valent 150 €, pas 180 €, et un
+  changement de prix est compté pour ce qu'il a coûté. Choix limité au mensuel : sur un trimestriel ou
+  un annuel, la somme des 365 derniers jours dépend de la date du jour (un prélèvement de trop ou de
+  moins selon le jour), là où le montant × fréquence est stable ; c'est en revanche exact pour douze
+  prélèvements mensuels.
+- **Écran Budget** : la liste « Charges récurrentes et abonnements » ne montre que les séries
+  périodiques (périodicité, montant, coût annuel estimé, badge « Hausse de prix » avec son ampleur,
+  « +9,0 % depuis 10,00 € »). Les séries irrégulières — grande surface, pharmacie, libraire, virements
+  ponctuels, que le regroupement par libellé sans date rend visibles — vont dans un bloc **replié par
+  défaut, « Achats fréquents (n) »**, avec leur nombre d'occurrences et leur total sur la période
+  observée : ce sont des achats, pas des charges.
+- **Indicateur « dépenses récurrentes/mois »** (`compute_depenses_recurrentes_mensuelles`) : avant, il
+  comptait tout couple (libellé, montant à l'euro) vu sur deux des trois derniers mois, sans regarder
+  le rythme — un achat fréquent de même montant y entrait. Il somme maintenant, ramené au mois (coût
+  annuel / 12), les séries **périodiques** de `detect_recurrences` à la date de fin de période (donc
+  aussi les trimestrielles et annuelles, lissées) ; les irrégulières n'y comptent pas. Le reste à
+  vivre ne retranche toujours que les charges mensuelles.
+- **Filtre de compte de l'écran Budget** : déjà regroupé par établissement depuis § BM.1
+  (`OptionsComptesParEtablissement`, test existant) — rien à changer.
+
+**Sécurité** : aucune nouvelle surface ; les identifiants restent bornés au foyer.
+
+**Hors périmètre, signalé** : deux lignes identiques dans DEUX fichiers distincts qui ne se
+recouvrent pas comptent chacune pour la 1re occurrence de leur fichier et sont prises pour un doublon ;
+le cas est rare (mêmes date, montant et libellé le même jour, dans deux exports sans chevauchement).
+
+**Tests** : serveur, une quarantaine ajoutés (trois lignes identiques conservées, ré-import nul, 1re
+occurrence à l'identifiant inchangé, recouvrement de deux relevés, OFX sans FITID et QIF, route CSV ;
+clé de regroupement sur neuf libellés réalistes et quatre non-dates, deux commerçants non fusionnés,
+règle au motif du commerçant ; regroupement CB, mensuel, trimestriel, annuel, récences proportionnées,
+irrégulière, hausse progressive et annuelle, filtre par compte, exposition de l'API ; série à 10
+prélèvements sur 12 mois → mensuelle avec un coût annuel égal à la somme réelle, projection sous un an,
+coût suivant un changement de prix, intervalle trop court, trop de prélèvements sautés ; indicateur
+« dépenses récurrentes/mois » limité aux séries périodiques) ; interface (coût annuel, périodicités,
+ampleur de la hausse, bloc « Achats fréquents » replié avec occurrences et total, seul présenté quand
+aucune série périodique). Suites : serveur 1 586 verts (9 ignorés ; l'échec préexistant `test_fraicheur_donnees_service` toujours présent), interface 896, Playwright budget/import/intégrité 11 verts.
 
 ---
 

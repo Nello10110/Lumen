@@ -188,3 +188,79 @@ def test_reappliquer_regles_ne_touche_pas_une_categorisation_manuelle(db):
     lignes = {m.transaction_id: m.categorie_id for m in db.query(MouvementBancaire).all()}
     assert lignes["t1"] == c1.id
     assert lignes["t2"] == c2.id  # inchangé, malgré la règle qui matche aussi
+
+
+# ---------------------------------------------------------------------------
+# Lignes identiques d'un même fichier (§ BM.2)
+# ---------------------------------------------------------------------------
+
+
+def _trois_paiements_identiques() -> list[budget_import_service.MouvementBrut]:
+    return [budget_import_service.MouvementBrut(date="2026-02-03", libelle="CB PAIN QUOTIDIEN", montant=-0.85) for _ in range(3)]
+
+
+def test_trois_paiements_identiques_le_meme_jour_donnent_trois_mouvements(db):
+    compte = make_compte(db)
+
+    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+
+    assert (resultat.importees, resultat.doublons_ignores) == (3, 0)
+    assert db.query(MouvementBancaire).count() == 3
+    assert len({m.transaction_id for m in db.query(MouvementBancaire).all()}) == 3
+
+
+def test_reimporter_le_meme_fichier_ne_cree_rien(db):
+    compte = make_compte(db)
+    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+
+    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+
+    assert (resultat.importees, resultat.doublons_ignores) == (0, 3)
+    assert db.query(MouvementBancaire).count() == 3
+
+
+def test_la_premiere_occurrence_garde_l_identifiant_d_avant(db):
+    """Compatibilité : un relevé déjà importé (une seule ligne pour les trois paiements)
+    ne doit pas être réimporté en double — seules les 2e et 3e occurrences sont neuves."""
+    compte = make_compte(db)
+    ancien_id = budget_import_service._transaction_id_calcule("2026-02-03", -0.85, "CB PAIN QUOTIDIEN")
+    db.add(
+        MouvementBancaire(
+            user_id=ID_UTILISATEUR_TEST, transaction_id=ancien_id, date="2026-02-03", libelle="CB PAIN QUOTIDIEN", montant=-0.85, compte_id=compte.id
+        )
+    )
+    db.commit()
+
+    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+
+    assert (resultat.importees, resultat.doublons_ignores) == (2, 1)
+    assert db.query(MouvementBancaire).filter_by(transaction_id=ancien_id).count() == 1
+
+
+def test_un_recouvrement_de_releves_ne_double_rien(db):
+    """Deux extraits qui se chevauchent : le paiement présent dans les deux n'est compté qu'une fois."""
+    compte = make_compte(db)
+    m = budget_import_service.MouvementBrut
+    premier = [m(date="2026-02-03", libelle="CB CAFE", montant=-2.0), m(date="2026-02-03", libelle="CB CAFE", montant=-2.0)]
+    second = [m(date="2026-02-03", libelle="CB CAFE", montant=-2.0), m(date="2026-02-04", libelle="CB CAFE", montant=-2.0)]
+    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, premier, compte_id=compte.id)
+
+    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, second, compte_id=compte.id)
+
+    assert (resultat.importees, resultat.doublons_ignores) == (1, 1)
+
+
+def test_ofx_sans_fitid_et_qif_gardent_leurs_lignes_identiques(db):
+    compte = make_compte(db)
+    ofx = (
+        b"<OFX><STMTTRN><DTPOSTED>20260203<TRNAMT>-0.85<NAME>CB PAIN</STMTTRN>"
+        b"<STMTTRN><DTPOSTED>20260203<TRNAMT>-0.85<NAME>CB PAIN</STMTTRN></OFX>"
+    )
+    qif = b"D02/03/2026\nT-0.85\nPCB PAIN\n^\nD02/03/2026\nT-0.85\nPCB PAIN\n^\n"
+
+    for mouvements in (budget_import_service.parse_ofx(ofx), budget_import_service.parse_qif(qif)):
+        db.query(MouvementBancaire).delete()
+        db.commit()
+        resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id)
+        assert resultat.importees == 2
+        assert budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id).importees == 0

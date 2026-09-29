@@ -3,6 +3,7 @@ mot-clé — CRUD scopé par utilisateur, plus la logique de correspondance moti
 catégorie réutilisée à l'import (`budget_import_service.py`) et pour la
 réapplication en masse."""
 
+import re
 import unicodedata
 
 from sqlalchemy.orm import Session
@@ -47,6 +48,43 @@ def normaliser(texte: str) -> str:
     "Cotisation URSSAF" ou "COTISATION-CAF" sans egard à la casse/accentuation."""
     sans_accents = unicodedata.normalize("NFKD", texte).encode("ascii", "ignore").decode("ascii")
     return sans_accents.lower().strip()
+
+
+# Fragments de date qu'une banque ajoute au libellé d'un paiement par carte ou d'un
+# prélèvement (« CB ANTHROPIC CLAU FACT 180826 », « … ECH 05/09/2026 », « … 12/09 »).
+# Seules les dates plausibles (jour 01-31, mois 01-12, année 20-39) sont reconnues : un
+# numéro de référence ou de magasin n'est retiré que s'il est indiscernable d'une date.
+_JOUR = r"(?:0?[1-9]|[12]\d|3[01])"
+_MOIS = r"(?:0?[1-9]|1[0-2])"
+_JOUR_2 = r"(?:0[1-9]|[12]\d|3[01])"
+_MOIS_2 = r"(?:0[1-9]|1[0-2])"
+# « FACT 180826 » : après ce mot, six chiffres sont une date de facturation, plausible
+# ou non.
+_FACTURE_DATEE = re.compile(r"(?<![a-z])fact(?:ure)?\s*\d{6}(?!\d)")
+_FRAGMENTS_DATE = re.compile(
+    r"(?:(?<![a-z])(?:fact(?:ure)?|ech(?:eance)?|du|le)\s*)?(?:"
+    # JJ/MM/AA, JJ.MM.AAAA, JJ-MM-AA (même séparateur des deux côtés)
+    rf"(?<![\w/.\-]){_JOUR}([/.\-]){_MOIS}\1(?:20)?[23]\d(?![\d/])"
+    # JJ/MM seul : uniquement avec « / » — « 5.12 » ou « 5-12 » pourraient être un montant
+    rf"|(?<![\w/.\-]){_JOUR}/{_MOIS}(?![\d/])"
+    # JJMMAA isolé
+    rf"|(?<!\d){_JOUR_2}{_MOIS_2}[23]\d(?!\d)"
+    # AAAA-MM-JJ
+    rf"|(?<!\d)20[23]\d-{_MOIS_2}-{_JOUR_2}(?!\d)"
+    r")"
+)
+
+
+def cle_regroupement(libelle: str) -> str:
+    """Libellé débarrassé de ses fragments de date, pour regrouper les occurrences d'un
+    même commerçant ou abonnement : « CB ANTHROPIC CLAU FACT 180826 » et « … FACT 180926 »
+    donnent la même clé. Sert à détecter les récurrences uniquement — le libellé stocké et
+    affiché reste intact, et le matching des règles de catégorisation (sous-chaîne du
+    libellé) n'en dépend pas. Ne retire que des dates : deux commerçants aux noms
+    différents ne sont jamais fusionnés."""
+    sans_dates = _FRAGMENTS_DATE.sub(" ", _FACTURE_DATEE.sub(" ", normaliser(libelle)))
+    cle = re.sub(r"\s+", " ", sans_dates).strip(" -/*.,:;")
+    return cle or normaliser(libelle)
 
 
 def assurer_categories_par_defaut(db: Session, user_id: int) -> list[CategorieBudget]:

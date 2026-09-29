@@ -78,11 +78,15 @@ function recurrence(overrides: Partial<RecurrenceDetectee> = {}): RecurrenceDete
     categorie_id: null,
     montant_actuel: 12.99,
     montant_precedent: 12.99,
+    montant_initial: 12.99,
+    variation_prix_pct: 0,
     hausse_prix: false,
     occurrences: 3,
     premiere_date: '2025-12-05',
     derniere_date: '2026-02-05',
     periodicite: 'mensuelle',
+    cout_annuel_estime: 155.88,
+    total_periode: 38.97,
     ...overrides,
   }
 }
@@ -310,6 +314,74 @@ describe('BudgetPage — récurrences et abonnements (backlog 2.N.3)', () => {
     expect(screen.getByText('3')).toBeInTheDocument()
     expect(screen.getByText('12,99 €')).toBeInTheDocument()
     expect(screen.queryByText('Hausse de prix')).not.toBeInTheDocument()
+  })
+
+  it('affiche le coût annuel estimé des séries périodiques', async () => {
+    mockChargement({ recurrences: [recurrence()] })
+    render(<BudgetPage />)
+
+    await screen.findByText('Coût annuel estimé')
+    const ligneNetflix = screen.getByText('Netflix').closest('tr') as HTMLElement
+    expect(within(ligneNetflix).getByText('155,88 €')).toBeInTheDocument()
+  })
+
+  describe('achats fréquents (séries sans rythme)', () => {
+    const achat = recurrence({
+      libelle: 'Supermarché du coin',
+      periodicite: 'irreguliere',
+      montant_actuel: 54.2,
+      cout_annuel_estime: null,
+      occurrences: 7,
+      total_periode: 361.5,
+    })
+
+    it("ne les mêle pas à la liste des charges : bloc replié « Achats fréquents » avec occurrences et total", async () => {
+      mockChargement({ recurrences: [recurrence(), achat] })
+      render(<BudgetPage />)
+
+      const resume = await screen.findByText(/Achats fréquents/)
+      const bloc = resume.closest('details') as HTMLDetailsElement
+      expect(bloc.open).toBe(false)
+      expect(resume.textContent).toContain('(1)')
+      // Hors du bloc : la liste principale ne contient que la série périodique.
+      expect(bloc.contains(screen.getByText('Netflix'))).toBe(false)
+      // Dans le bloc : occurrences et total observé.
+      const ligne = within(bloc).getByText('Supermarché du coin').closest('tr') as HTMLElement
+      expect(within(ligne).getByText('7')).toBeInTheDocument()
+      expect(within(ligne).getByText('361,50 €')).toBeInTheDocument()
+    })
+
+    it("sans série périodique, seul le bloc replié est présenté", async () => {
+      mockChargement({ recurrences: [achat] })
+      render(<BudgetPage />)
+
+      await screen.findByText(/Achats fréquents/)
+      expect(screen.queryByText('Coût annuel estimé')).not.toBeInTheDocument()
+    })
+  })
+
+  it('nomme les périodicités trimestrielle et annuelle', async () => {
+    mockChargement({
+      recurrences: [
+        recurrence({ libelle: 'Cotisation', periodicite: 'trimestrielle', montant_actuel: 45, cout_annuel_estime: 180 }),
+        recurrence({ libelle: 'Assurance', periodicite: 'annuelle', montant_actuel: 336, cout_annuel_estime: 336 }),
+      ],
+    })
+    render(<BudgetPage />)
+
+    await screen.findByText('Trimestrielle')
+    expect(screen.getByText('Annuelle')).toBeInTheDocument()
+    expect(screen.getByText('180,00 €')).toBeInTheDocument()
+  })
+
+  it("rappelle d'où vient une hausse de prix progressive", async () => {
+    mockChargement({
+      recurrences: [recurrence({ hausse_prix: true, montant_actuel: 10.9, montant_precedent: 10.6, montant_initial: 10, variation_prix_pct: 9 })],
+    })
+    render(<BudgetPage />)
+
+    await screen.findByText('Hausse de prix')
+    expect(screen.getByText('+9,0 % depuis 10,00 €')).toBeInTheDocument()
   })
 
   it('affiche un badge « Hausse de prix » quand détectée', async () => {

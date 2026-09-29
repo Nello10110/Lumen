@@ -438,3 +438,59 @@ def test_supprimer_un_compte_supprime_ses_mouvements_bancaires(client, db):
 
     assert {m.libelle for m in _mouvements(db)} == {"Salaire", "Loyer"}
     assert {m.compte_id for m in _mouvements(db)} == {courant.id}
+
+
+# ---------------------------------------------------------------------------
+# Fiabilité de l'import et des récurrences (§ BM.2)
+# ---------------------------------------------------------------------------
+
+CSV_LIGNES_IDENTIQUES = (
+    "Date;Libellé;Montant\n"
+    "03/02/2026;CB PAIN QUOTIDIEN;-0,85\n"
+    "03/02/2026;CB PAIN QUOTIDIEN;-0,85\n"
+    "03/02/2026;CB PAIN QUOTIDIEN;-0,85\n"
+)
+
+
+def _confirmer_csv(client, contenu: str):
+    apercu = client.post("/api/budget/import/csv/preview", files={"file": ("releve.csv", contenu.encode(), "text/csv")}).json()
+    return client.post(
+        "/api/budget/import/csv/confirm",
+        json={
+            "file_token": apercu["file_token"],
+            "date_col": "Date",
+            "libelle_col": "Libellé",
+            "montant_col": "Montant",
+            **NOUVEAU_COMPTE,
+        },
+    )
+
+
+def test_import_csv_garde_trois_paiements_identiques_et_le_reimport_ne_cree_rien(client):
+    premier = _confirmer_csv(client, CSV_LIGNES_IDENTIQUES).json()
+    second = _confirmer_csv(client, CSV_LIGNES_IDENTIQUES).json()
+
+    assert (premier["importees"], premier["doublons_ignores"]) == (3, 0)
+    assert (second["importees"], second["doublons_ignores"]) == (0, 3)
+
+
+def test_recurrences_exposent_periodicite_cout_annuel_et_evolution_du_prix(client):
+    aujourdhui = date.today()
+    dates = [_mois_precedent(aujourdhui, n) for n in (3, 2, 1)]
+    montants = ("10.00", "10.30", "10.90")
+    qif = "".join(
+        f"D{d.month:02d}/{d.day:02d}/{d.year}\nT-{montant}\nPCB SERVICE FACT {d.day:02d}{d.month:02d}{d.year % 100:02d}\n^\n"
+        for d, montant in zip(dates, montants, strict=True)
+    ).encode()
+    client.post("/api/budget/import/qif", files={"file": ("r.qif", qif, "text/plain")}, data=NOUVEAU_COMPTE)
+
+    (recurrence,) = client.get("/api/budget/recurrences").json()
+
+    assert recurrence["periodicite"] == "mensuelle"
+    assert recurrence["occurrences"] == 3
+    assert recurrence["montant_actuel"] == 10.9
+    assert recurrence["montant_initial"] == 10.0
+    assert recurrence["variation_prix_pct"] == 9.0
+    assert recurrence["hausse_prix"] is True
+    assert recurrence["cout_annuel_estime"] == 130.8
+    assert recurrence["total_periode"] == 31.2

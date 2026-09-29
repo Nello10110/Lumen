@@ -1,12 +1,14 @@
 """Import de mouvements bancaires (backlog 2.N.1) : CSV avec mapping manuel de
 colonnes (comme le relevé de positions du portefeuille, `csv_import.py`), OFX et
 QIF qui n'en ont pas besoin (structure fixe). Déduplication sur
-(date, montant, libellé normalisé) via un identifiant calculé quand la source n'en
-fournit pas de stable ; catégorisation automatique par les règles de l'utilisateur.
+un identifiant : celui de la source (FITID OFX) ou, à défaut, un hash de (date,
+montant, libellé normalisé) — que le rang d'occurrence dans le fichier distingue
+(§ BM.2) ; catégorisation automatique par les règles de l'utilisateur.
 """
 
 import hashlib
 import re
+from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -40,6 +42,27 @@ class ImportResult:
 def _transaction_id_calcule(date: str, montant: float, libelle: str) -> str:
     base = f"{date}|{montant:.2f}|{budget_categories_service.normaliser(libelle)}"
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:32]
+
+
+def _avec_rang(identifiant: str, rang: int) -> str:
+    """Identifiant de la `rang`-ième occurrence d'une même ligne dans un fichier. La 1re
+    garde EXACTEMENT son identifiant : un relevé déjà importé avant cette distinction ne
+    doit pas être réimporté en double. Trois paiements identiques le même jour donnent
+    ainsi trois mouvements, et un ré-import du même fichier redonne les mêmes trois
+    identifiants, donc aucun nouveau mouvement."""
+    if rang == 1:
+        return identifiant
+    return hashlib.sha256(f"{identifiant}|occurrence-{rang}".encode()).hexdigest()[:32]
+
+
+def _identifiants(mouvements: list[MouvementBrut]) -> list[str]:
+    rangs: Counter[str] = Counter()
+    identifiants: list[str] = []
+    for m in mouvements:
+        base = m.transaction_id or _transaction_id_calcule(m.date, m.montant, m.libelle)
+        rangs[base] += 1
+        identifiants.append(_avec_rang(base, rangs[base]))
+    return identifiants
 
 
 _FORMATS_DATE_JOUR_MOIS = ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d/%m/%y", "%m/%d/%y", "%d-%m-%Y")
@@ -189,8 +212,7 @@ def importer_mouvements(
     importees = 0
     doublons = 0
     categorisees = 0
-    for m in mouvements:
-        tx_id = m.transaction_id or _transaction_id_calcule(m.date, m.montant, m.libelle)
+    for m, tx_id in zip(mouvements, _identifiants(mouvements), strict=True):
         if tx_id in existants:
             doublons += 1
             continue

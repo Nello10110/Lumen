@@ -78,11 +78,19 @@ export interface RecurrenceDetectee {
   categorie_id: number | null
   montant_actuel: number
   montant_precedent: number | null
+  // Première occurrence de la fenêtre observée, et variation de la dernière par rapport
+  // à elle (§ BM.2) : une hausse par petits pas ne se voit que sur cette comparaison.
+  montant_initial: number
+  variation_prix_pct: number | null
   hausse_prix: boolean
   occurrences: number
   premiere_date: string
   derniere_date: string
-  periodicite: 'mensuelle' | 'irreguliere'
+  periodicite: 'mensuelle' | 'trimestrielle' | 'annuelle' | 'irreguliere'
+  // Null pour une charge irrégulière : on ne sait pas combien de fois par an elle revient.
+  cout_annuel_estime: number | null
+  // Somme des occurrences de la fenêtre observée.
+  total_periode: number
 }
 
 export interface JonctionPatrimoine {

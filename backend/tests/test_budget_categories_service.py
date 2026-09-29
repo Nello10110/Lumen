@@ -1,6 +1,8 @@
 """Verrouille l'arbre de catégories et les règles de catégorisation (backlog 2.N.1) :
 `services/budget_categories_service.py`."""
 
+from types import SimpleNamespace
+
 import pytest
 
 from app.models import BudgetCible, MouvementBancaire, RegleCategorisation
@@ -96,3 +98,57 @@ def test_categorie_correspondante_premiere_regle_gagne(db):
         budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "carrefour city", c2.id),
     ]
     assert budget_categories_service.categorie_correspondante("CARREFOUR CITY PARIS", regles) == c1.id
+
+
+# ---------------------------------------------------------------------------
+# Clé de regroupement : libellé sans ses dates (§ BM.2)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("libelle", "cle"),
+    [
+        ("CB ANTHROPIC CLAU FACT 180826", "cb anthropic clau"),
+        ("CB ANTHROPIC CLAU        FACT 180926 ", "cb anthropic clau"),
+        ("CB STREAMFLIX.COM FACT 050926", "cb streamflix.com"),
+        ("CB TRAINS SNCF 17/09/26 PARIS", "cb trains sncf paris"),
+        ("CB MARCHE FRAIS 12/09", "cb marche frais"),
+        ("PRLV SEPA MOBILE ECH 05/09/2026 REF 4587392", "prlv sepa mobile ref 4587392"),
+        ("CB BOULANGERIE DU 12/09", "cb boulangerie"),
+        ("PRLV ENERGIE 3/9/26", "prlv energie"),
+        ("CB CAFÉ ÉTÉ 31/12/25", "cb cafe ete"),
+    ],
+)
+def test_cle_regroupement_retire_les_fragments_de_date(libelle, cle):
+    assert budget_categories_service.cle_regroupement(libelle) == cle
+
+
+@pytest.mark.parametrize(
+    "libelle",
+    [
+        "CB PHARMACIE DU CENTRE 0309",  # quatre chiffres : pas une date assez sûre
+        "CB DISCOUNT 5.12",  # un montant, pas le 5 décembre
+        "CB BOUTIQUE 12/09/45",  # année invraisemblable
+        "PRLV REF 987654",  # six chiffres qui ne forment pas une date
+    ],
+)
+def test_cle_regroupement_laisse_ce_qui_n_est_pas_une_date(libelle):
+    assert budget_categories_service.cle_regroupement(libelle) == budget_categories_service.normaliser(libelle)
+
+
+def test_cle_regroupement_ne_fusionne_pas_deux_commercants():
+    assert budget_categories_service.cle_regroupement("CB CARREFOUR MARKET 12/09") != budget_categories_service.cle_regroupement(
+        "CB CARREFOUR CITY 12/09"
+    )
+
+
+def test_cle_regroupement_d_un_libelle_qui_n_est_qu_une_date_retombe_sur_le_libelle():
+    assert budget_categories_service.cle_regroupement("12/09/2026") == "12/09/2026"
+
+
+def test_une_regle_au_motif_du_commercant_reconnait_le_libelle_avec_sa_date():
+    """Le matching des règles, par sous-chaîne, n'a pas besoin de la clé de regroupement."""
+    regle = SimpleNamespace(motif="anthropic", categorie_id=7)
+
+    assert budget_categories_service.categorie_correspondante("CB ANTHROPIC CLAU FACT 180826", [regle]) == 7
+    assert budget_categories_service.categorie_correspondante("CB ANTHROPIC CLAU FACT 180926", [regle]) == 7

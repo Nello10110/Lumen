@@ -181,11 +181,21 @@ class RecurrenceDetecteeOut(BaseModel):
     categorie_id: int | None
     montant_actuel: float
     montant_precedent: float | None
+    # Montant de la première occurrence de la fenêtre observée, et variation de la
+    # dernière par rapport à elle (§ BM.2) : une hausse progressive, par petits pas sous
+    # le seuil, n'apparaît que sur cette comparaison.
+    montant_initial: float
+    variation_prix_pct: float | None
     hausse_prix: bool
     occurrences: int
     premiere_date: str
     derniere_date: str
-    periodicite: str
+    periodicite: str  # "mensuelle" | "trimestrielle" | "annuelle" | "irreguliere"
+    # Montant actuel × nombre de prélèvements par an (mensuel depuis un an au moins : somme
+    # réelle des douze derniers mois) ; `None` pour une charge irrégulière, dont on ne sait
+    # pas combien de fois par an elle reviendra.
+    cout_annuel_estime: float | None
+    total_periode: float  # somme des occurrences de la fenêtre observée
 
 
 class JonctionPatrimoine(BaseModel):

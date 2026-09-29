@@ -986,10 +986,11 @@ class MouvementBancaire(Base):
     l'équivalent de `Transaction` (grand livre du courtier) mais pour un relevé
     bancaire : format libre (CSV mappé à la main, OFX, QIF), montant signé (positif
     = entrée, négatif = sortie). `transaction_id` est l'identifiant du relevé source
-    quand il en fournit un (OFX `FITID`) ; pour un CSV sans identifiant stable, un
-    hash déterministe de (date, montant, libellé normalisé) en tient lieu — c'est
-    exactement la clé de déduplication demandée par le backlog, portée directement
-    par la contrainte d'unicité plutôt que recalculée à chaque import.
+    quand il en fournit un (OFX `FITID`) ; sinon, un hash
+    déterministe de (date, montant, libellé normalisé) en tient lieu — c'est exactement
+    la clé de déduplication demandée par le backlog, portée directement par la
+    contrainte d'unicité plutôt que recalculée à chaque import. Des lignes identiques
+    d'un même fichier se distinguent par leur rang d'occurrence (§ BM.2).
 
     `compte_id` (§ BM.1) : le `Compte` du relevé, choisi ou créé à l'import. Supprimé
     avec son compte, comme les transactions du grand livre

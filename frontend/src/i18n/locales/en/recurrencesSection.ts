@@ -4,15 +4,21 @@ import type { Structure } from '../../types'
 /** Anglais — espace « recurrencesSection » (backlog § BL.2), traduit depuis le français. */
 const recurrencesSection: Structure<typeof fr> = {
   chargesRecurrentesEtAbonnements: "Recurring charges and subscriptions",
-  detecteAutomatiquementSurLes12: "Detected automatically over the last 12 months — transactions recurring at least twice under the same description, still seen within the last 45 days.",
+  detecteAutomatiquement: "Detected automatically from the imported history — transactions recurring at least twice under the same description (dates the bank adds to card payments are ignored), on a monthly, quarterly or yearly rhythm, and still ongoing. The annual cost is estimated from the current amount.",
   libelle: "Description",
   categorie: "Category",
   periodicite: "Frequency",
   occurrences: "Occurrences",
   montant: "Amount",
   mensuelle: "Monthly",
-  irreguliere: "Irregular",
+  trimestrielle: "Quarterly",
+  annuelle: "Yearly",
   hausseDePrix: "Price increase",
+  evolutionDepuis: "{pct} since {montant}",
+  coutAnnuelEstime: "Estimated annual cost",
+  achatsFrequents: "Frequent purchases",
+  achatsFrequentsAide: "Merchants or transfers that recur without a regular rhythm: they are not counted as recurring charges.",
+  totalObserve: "Total over the observed period",
 }
 
 export default recurrencesSection
