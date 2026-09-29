@@ -22,6 +22,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..database import obtenir_ou_creer
 from ..models import HistoriqueCache
 
 # Durée de validité d'une entrée de cache. Les séries récupérées sont hebdomadaires
@@ -143,12 +144,11 @@ def ecrire(db: Session, cle: str, contenu) -> None:
     contenu_json = json.dumps(contenu, default=_nombre_json)
     maintenant = datetime.now(UTC).replace(tzinfo=None)
 
-    entree = db.get(HistoriqueCache, cle)
-    if entree is None:
-        db.add(HistoriqueCache(cle=cle, contenu_json=contenu_json, derniere_maj=maintenant))
-    else:
-        entree.contenu_json = contenu_json
-        entree.derniere_maj = maintenant
+    # Le calcul d'une même courbe peut être lancé par deux requêtes à la fois : la
+    # dernière à écrire l'emporte, aucune ne doit échouer sur la clé déjà prise.
+    entree = obtenir_ou_creer(db, HistoriqueCache, cle=cle, contenu_json=contenu_json, derniere_maj=maintenant)
+    entree.contenu_json = contenu_json
+    entree.derniere_maj = maintenant
     db.commit()
 
 

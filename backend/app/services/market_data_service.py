@@ -51,9 +51,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import yfinance as yf
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..database import obtenir_ou_creer
 from ..i18n import a_traduire
 from ..models import (
     SOURCE_COMPOSITION,
@@ -153,28 +153,26 @@ def _enregistrer_resolution(
     (le tableau de bord lance plusieurs endpoints d'un coup, et chacun résout les
     tickers dont il a besoin) : toutes deux ne trouvent rien en cache, toutes deux
     insèrent, et la seconde viole la clé primaire. L'endpoint entier renvoyait alors
-    un 500 — constaté le 07/09/2026 sur `/api/patrimoine/historique`, avec pour seul
-    symptôme une courbe en erreur sur l'écran d'accueil — alors que le travail avait
-    justement été fait par l'autre requête.
+    un 500 — constaté le 07/09/2026 sur `/api/patrimoine/historique` — puis, une fois
+    l'erreur rattrapée, un `rollback()` qui emportait le travail en attente de
+    l'appelant et laissait une erreur `ticker_resolution_pkey` dans le journal
+    Postgres (CI `e2e-postgres`).
 
-    La ligne écrite par la gagnante fait autorité : on la relit plutôt que de
-    réessayer d'écrire. Les deux résolutions portent sur le même identifiant, elles
-    ne peuvent différer que par un aléa de Yahoo, jamais par un désaccord de fond."""
-    db.add(
-        TickerResolution(
-            identifiant=identifiant,
-            ticker_resolu=ticker_resolu,
-            quote_type=quote_type,
-            echec_structurel=echec_structurel,
-        )
+    `obtenir_ou_creer` n'échoue jamais sur un doublon : la ligne écrite par la
+    gagnante fait autorité, on renvoie la sienne. Les deux résolutions portent sur le
+    même identifiant, elles ne peuvent différer que par un aléa de Yahoo, jamais par
+    un désaccord de fond."""
+    resolution = obtenir_ou_creer(
+        db,
+        TickerResolution,
+        identifiant=identifiant,
+        ticker_resolu=ticker_resolu,
+        quote_type=quote_type,
+        echec_structurel=echec_structurel,
     )
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        gagnante = db.get(TickerResolution, identifiant)
-        return gagnante.ticker_resolu if gagnante is not None else ticker_resolu
-    return ticker_resolu
+    ticker_final = resolution.ticker_resolu
+    db.commit()
+    return ticker_final
 
 
 def resolve_ticker(db: Session, identifiant: str, asset_class: str | None) -> str | None:
@@ -619,10 +617,7 @@ def refresh_tickers(
             data = fetch_one(identifiant, ticker_resolu, fx_cache)
         results.append(data)
 
-        cache_entry = db.get(MarketDataCache, identifiant)
-        if cache_entry is None:
-            cache_entry = MarketDataCache(ticker=identifiant)
-            db.add(cache_entry)
+        cache_entry = obtenir_ou_creer(db, MarketDataCache, ticker=identifiant)
 
         cache_entry.nom = data.get("nom")
         cache_entry.prix_actuel = data.get("prix_actuel")

@@ -36,6 +36,7 @@ import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
+from ..database import obtenir_ou_creer
 from ..models import SOURCE_JUSTETF, FundComposition, FundCompositionBrute, FundTopHolding, Holding, MarketDataCache
 from .reference_indices import JUSTETF_SECTOR_LABELS, SECTEUR_AUTRES, ZONE_AUTRES, region_for_country
 
@@ -360,10 +361,7 @@ def refresh_all(db: Session) -> dict:
             reussis += 1
 
         if fiche.description:
-            cache_entry = db.get(MarketDataCache, isin)
-            if cache_entry is None:
-                cache_entry = MarketDataCache(ticker=isin)
-                db.add(cache_entry)
+            cache_entry = obtenir_ou_creer(db, MarketDataCache, ticker=isin)
             cache_entry.description = fiche.description
 
         # Top 10 (2.6) : indépendant de `description` et de la composition

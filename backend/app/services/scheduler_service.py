@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from scripts import sauvegarde as sauvegarde_module
 
 from .. import database
-from ..database import session_tous_foyers
+from ..database import obtenir_ou_creer, session_tous_foyers
 from ..i18n import a_traduire
 from ..models import Holding, ScheduledJobConfig
 from . import backup_service, coingecko_service, cours_service, justetf_service, logo_service, market_data_refresh, market_data_service
@@ -241,15 +241,9 @@ _scheduler: BackgroundScheduler | None = None
 
 
 def get_or_create_config(db: Session, job_key: str) -> ScheduledJobConfig:
-    config = db.get(ScheduledJobConfig, job_key)
-    if config is None:
-        if job_key in DEFAULTS:
-            config = ScheduledJobConfig(job_key=job_key, intervalle_heures=DEFAULTS[job_key])
-        else:
-            config = ScheduledJobConfig(job_key=job_key)
-        db.add(config)
-        db.commit()
-        db.refresh(config)
+    valeurs = {"intervalle_heures": DEFAULTS[job_key]} if job_key in DEFAULTS else {}
+    config = obtenir_ou_creer(db, ScheduledJobConfig, job_key=job_key, **valeurs)
+    db.commit()
     return config
 
 

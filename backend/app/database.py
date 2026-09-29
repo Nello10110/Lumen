@@ -23,6 +23,8 @@ import sqlite3
 from pathlib import Path
 
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = logging.getLogger("patrimoine.database")
@@ -134,6 +136,7 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+
 # ── Séparation des foyers imposée par la base (backlog § BI.5) ──────────────────
 #
 # Sous Postgres, chaque table de foyer porte une politique de sécurité au niveau des
@@ -228,6 +231,26 @@ def avertir_si_separation_contournee() -> bool:
 
 class Base(DeclarativeBase):
     pass
+
+
+def obtenir_ou_creer(db: Session, modele: type[Base], **valeurs):
+    """Renvoie la ligne de `modele` dont la clé primaire est portée par `valeurs`, en la
+    créant avec ces valeurs si elle n'existe pas — sans course entre requêtes.
+
+    Le motif « lire, puis insérer si absent » n'est pas sûr dès que deux requêtes se
+    croisent : SQLite sérialise les écritures et masque le défaut, mais sous Postgres
+    les deux insèrent et la seconde viole la clé primaire. Rattraper l'`IntegrityError`
+    obligeait à un `rollback()` qui emportait aussi le travail en attente de l'appelant ;
+    `INSERT … ON CONFLICT DO NOTHING` laisse la transaction intacte, et la ligne de la
+    gagnante fait autorité (les valeurs de la perdante sont ignorées, pas fusionnées).
+
+    L'appelant reste responsable du `commit`. Réservé aux tables à clé primaire
+    naturelle SIMPLE, dont la valeur est dans `valeurs`."""
+    # Seuls SQLite et Postgres sont pris en charge par l'application : tout autre
+    # dialecte lève une `KeyError` explicite plutôt que d'écrire sans garde-fou.
+    insert = {"sqlite": sqlite_insert, "postgresql": postgresql_insert}[db.get_bind().dialect.name]
+    db.execute(insert(modele).values(**valeurs).on_conflict_do_nothing())
+    return db.get(modele, valeurs[modele.__mapper__.primary_key[0].key])
 
 
 def get_db():

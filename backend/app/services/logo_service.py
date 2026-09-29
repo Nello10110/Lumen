@@ -42,6 +42,7 @@ from bs4 import BeautifulSoup
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
+from ..database import obtenir_ou_creer
 from ..i18n import tr
 from ..models import Etablissement, LogoCatalogue
 from . import etablissements_connus
@@ -438,10 +439,7 @@ def appliquer_logos_embarques(db: Session) -> int:
     for cle in etablissements_connus.LOGOS_EMBARQUES:
         png = logo_embarque(cle)
         contenu = base64.b64encode(png).decode("ascii")
-        cache = db.get(LogoCatalogue, cle)
-        if cache is None:
-            cache = LogoCatalogue(logo_key=cle)
-            db.add(cache)
+        cache = obtenir_ou_creer(db, LogoCatalogue, logo_key=cle)
         if cache.logo_png != contenu or cache.logo_format != FORMAT_PNG:
             cache.logo_png, cache.logo_format = contenu, FORMAT_PNG
             cache.derniere_tentative_le = datetime.now(UTC).replace(tzinfo=None)
@@ -497,11 +495,7 @@ def rafraichir_logos_catalogue(db: Session, forcer: bool = False) -> None:
         resultats = dict(zip(a_tenter, executeur.map(_recuperer_logo_catalogue, a_tenter), strict=True))
 
     for cle, logo in resultats.items():
-        cache = existants.get(cle)
-        if cache is None:
-            cache = LogoCatalogue(logo_key=cle)
-            db.add(cache)
-            existants[cle] = cache
+        cache = existants.get(cle) or obtenir_ou_creer(db, LogoCatalogue, logo_key=cle)
         cache.derniere_tentative_le = maintenant
         if logo is not None:
             cache.logo_png = base64.b64encode(logo.contenu).decode("ascii")
