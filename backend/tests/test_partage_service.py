@@ -7,7 +7,7 @@ from datetime import timedelta
 from app.models import PartageAcces
 from app.services import partage_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_FOYER_TEST, make_holding
 
 
 def _creer(db, **overrides):
@@ -23,7 +23,7 @@ def _creer(db, **overrides):
         code=None,
     )
     defaults.update(overrides)
-    return partage_service.creer_lien(db, ID_UTILISATEUR_TEST, **defaults)
+    return partage_service.creer_lien(db, ID_FOYER_TEST, **defaults)
 
 
 def test_creer_lien_genere_un_jeton_opaque_unique(db):
@@ -42,7 +42,7 @@ def test_creer_lien_avec_code_stocke_un_hash_jamais_le_code_en_clair(db):
 def test_lister_liens_ne_renvoie_que_ceux_du_foyer(db):
     _creer(db)
     _creer(db)
-    assert len(partage_service.lister_liens(db, ID_UTILISATEUR_TEST)) == 2
+    assert len(partage_service.lister_liens(db, ID_FOYER_TEST)) == 2
     assert partage_service.lister_liens(db, 999) == []
 
 

@@ -38,6 +38,8 @@ TRADUCTIONS: dict[str, str] = {
     "Catégorie": "Category",
     "Catégorie introuvable": "Category not found",
     "Catégorie parente introuvable": "Parent category not found",
+    "Ce compte n'appartient à aucun foyer.": "This account does not belong to any household.",
+    "Ce serveur accueille plusieurs foyers : un nouveau compte SSO ne peut rejoindre aucun d'eux automatiquement. Demandez au propriétaire de votre foyer de créer votre compte.": "This server hosts several households: a new SSO account cannot join any of them automatically. Ask the owner of your household to create your account.",
     "Une catégorie ne peut pas être fusionnée dans elle-même": "A category cannot be merged into itself",
     "Une catégorie ne peut pas être fusionnée dans l'une de ses sous-catégories": "A category cannot be merged into one of its own subcategories",
     "Une catégorie qui a des sous-catégories ne peut pas être fusionnée dans une sous-catégorie": "A category that has subcategories cannot be merged into a subcategory",

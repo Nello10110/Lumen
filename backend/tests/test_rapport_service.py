@@ -8,7 +8,7 @@ isoler ces tests de tout appel réseau/cache — déjà verrouillé par ses prop
 from app.services import historical_performance_service
 from app.services.rapport_service import compute_rapport_periode
 
-from .conftest import ID_UTILISATEUR_TEST, make_transaction
+from .conftest import ID_FOYER_TEST, make_transaction
 
 
 def _points(*paires: tuple[str, float], realise: dict[str, float] | None = None) -> list[dict]:
@@ -27,7 +27,7 @@ def test_evolution_pct_entre_debut_et_fin_de_periode(db, monkeypatch):
         lambda db_, user_id_: _points(("2026-06-28", 1000.0), ("2026-07-05", 1050.0), ("2026-07-26", 1100.0), ("2026-08-02", 1200.0)),
     )
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["valeur_debut_periode"] == 1000.0  # dernier point <= 2026-07-01
     assert rapport["valeur_fin_periode"] == 1100.0  # dernier point <= 2026-07-31
@@ -45,7 +45,7 @@ def test_valeur_debut_replie_sur_le_tout_premier_point_si_anterieur_a_la_periode
         lambda db_, user_id_: _points(("2026-07-15", 500.0), ("2026-07-31", 600.0)),
     )
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["valeur_debut_periode"] == 500.0
     assert rapport["valeur_fin_periode"] == 600.0
@@ -54,7 +54,7 @@ def test_valeur_debut_replie_sur_le_tout_premier_point_si_anterieur_a_la_periode
 def test_aucun_point_valeurs_none(db, monkeypatch):
     monkeypatch.setattr(historical_performance_service, "compute_portfolio_history", lambda db_, user_id_: [])
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["valeur_debut_periode"] is None
     assert rapport["valeur_fin_periode"] is None
@@ -69,7 +69,7 @@ def test_plus_gros_mouvements_tries_par_montant_absolu_limites_a_cinq(db, monkey
     # Transaction hors de la période demandée : ne doit jamais apparaître.
     make_transaction(db, transaction_id="hors-periode", symbol="AAA", amount=-9999.0, date="2026-06-30")
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     montants = [m["montant"] for m in rapport["plus_gros_mouvements"]]
     assert montants == [-500.0, 300.0, 50.0, -20.0, 10.0]
@@ -89,7 +89,7 @@ def test_dividendes_percus_nets_sur_la_periode_seulement(db, monkeypatch):
     )
     make_transaction(db, transaction_id="achat", symbol="AAA", amount=-100.0, date="2026-07-11")
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["dividendes_percus"] == 8.5
 
@@ -106,7 +106,7 @@ def test_periode_annuelle_couvre_toute_lannee(db, monkeypatch):
     make_transaction(db, transaction_id="dec", symbol="AAA", amount=-60.0, date="2026-12-20")
     make_transaction(db, transaction_id="hors-annee", symbol="AAA", amount=-9999.0, date="2025-12-31")
 
-    rapport = compute_rapport_periode(db, "2026-01-01", "2026-12-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-01-01", "2026-12-31", ID_FOYER_TEST)
 
     assert rapport["valeur_debut_periode"] == 900.0
     assert rapport["valeur_fin_periode"] == 1300.0
@@ -124,7 +124,7 @@ def test_periode_personnalisee_arbitraire(db, monkeypatch):
     make_transaction(db, transaction_id="dans-periode", symbol="AAA", amount=-30.0, date="2026-04-01")
     make_transaction(db, transaction_id="avant-periode", symbol="AAA", amount=-9999.0, date="2026-03-14")
 
-    rapport = compute_rapport_periode(db, "2026-03-15", "2026-04-15", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-03-15", "2026-04-15", ID_FOYER_TEST)
 
     assert rapport["valeur_debut_periode"] == 500.0
     assert rapport["valeur_fin_periode"] == 700.0
@@ -146,7 +146,7 @@ def test_gain_genere_isole_lappreciation_de_largent_ajoute(db, monkeypatch):
     )
     make_transaction(db, transaction_id="achat", symbol="AAA", amount=-1000.0, date="2026-07-05")
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["montant_investi_periode"] == 1000.0
     assert rapport["gain_genere_periode"] == 100.0
@@ -163,7 +163,7 @@ def test_gain_genere_inclut_le_delta_de_valeur_realisee(db, monkeypatch):
         ),
     )
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["montant_investi_periode"] == 0.0
     assert rapport["gain_genere_periode"] == 50.0
@@ -179,7 +179,7 @@ def test_gain_genere_negatif_si_largent_ajoute_depasse_la_croissance(db, monkeyp
     )
     make_transaction(db, transaction_id="achat", symbol="AAA", amount=-200.0, date="2026-07-10")
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["gain_genere_periode"] == -200.0
 
@@ -201,7 +201,7 @@ def test_gain_genere_ne_recompte_pas_lachat_quand_la_periode_precede_le_premier_
     )
     make_transaction(db, transaction_id="achat", symbol="AAA", amount=-1000.0, date="2026-06-01")
 
-    rapport = compute_rapport_periode(db, "2026-01-01", "2026-12-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-01-01", "2026-12-31", ID_FOYER_TEST)
 
     # Comportement d'affichage inchangé (evolution_pct existant, pas touché par le correctif).
     assert rapport["valeur_debut_periode"] == 1000.0
@@ -215,7 +215,7 @@ def test_gain_genere_none_sans_historique_mais_montant_investi_reste_calcule(db,
     monkeypatch.setattr(historical_performance_service, "compute_portfolio_history", lambda db_, user_id_: [])
     make_transaction(db, transaction_id="achat", symbol="AAA", amount=-300.0, date="2026-07-10")
 
-    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_FOYER_TEST)
 
     assert rapport["gain_genere_periode"] is None
     assert rapport["montant_investi_periode"] == 300.0

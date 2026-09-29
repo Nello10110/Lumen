@@ -12,7 +12,7 @@ from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Etablissemen
 from app.services import comptes_service, csv_import, donnees_service, transaction_import, upload_limits
 from app.services.lecture_tableau import Ligne, Tableau
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_FOYER_TEST, make_holding
 
 CSV_VALIDE = (
     "ticker,quantite\n"
@@ -187,7 +187,7 @@ def test_import_confirm_nouveau_compte_sans_etablissement_refuse_en_400(client):
 
 
 def test_import_confirm_nouveau_compte_avec_etablissement_cree_le_compte_rattache(client, db):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama")
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Boursorama")
     preview = _uploader_preview(client, CSV_AVEC_COMPTE)
 
     reponse = client.post(
@@ -203,7 +203,7 @@ def test_import_confirm_nouveau_compte_avec_etablissement_cree_le_compte_rattach
     )
 
     assert reponse.status_code == 200, reponse.text
-    compte = db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST, Compte.nom == "PEA Boursorama").first()
+    compte = db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST, Compte.nom == "PEA Boursorama").first()
     assert compte is not None
     assert compte.etablissement_id == etablissement.id
 
@@ -223,7 +223,7 @@ def test_import_transactions_nouvel_etablissement_avec_logo_key(client, db):
     )
 
     assert reponse.status_code == 200, reponse.text
-    etablissement = db.query(Etablissement).filter(Etablissement.user_id == ID_UTILISATEUR_TEST, Etablissement.nom == "Trade Republic").first()
+    etablissement = db.query(Etablissement).filter(Etablissement.user_id == ID_FOYER_TEST, Etablissement.nom == "Trade Republic").first()
     assert etablissement is not None
     assert etablissement.logo_key == "trade_republic"
 
@@ -232,7 +232,7 @@ def test_import_confirm_compte_deja_existant_sans_etablissement_fourni_fonctionn
     """Pas de régression : un compte déjà existant sous ce nom continue de
     fonctionner sans qu'un établissement soit fourni à cet import (son
     établissement actuel, s'il en a un, ne change pas ici)."""
-    comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA Boursorama", None)
+    comptes_service.create_compte(db, ID_FOYER_TEST, "PEA Boursorama", None)
     preview = _uploader_preview(client, CSV_AVEC_COMPTE)
 
     reponse = client.post(
@@ -396,8 +396,8 @@ def test_remplacer_existant_epargne_les_lignes_du_grand_livre(db, client, monkey
     l'utilisateur gère lui-même : une position issue du grand livre de transactions
     appartient au grand livre et doit survivre à l'import d'un relevé de positions —
     la supprimer créerait un état que le prochain import rétablirait tout seul."""
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="RECONSTRUIT", quantite=5.0, prix_revient_moyen=10.0, origine=ORIGINE_RECONSTRUIT))
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MANUELLE", quantite=3.0, prix_revient_moyen=20.0, origine=ORIGINE_MANUEL))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="RECONSTRUIT", quantite=5.0, prix_revient_moyen=10.0, origine=ORIGINE_RECONSTRUIT))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="MANUELLE", quantite=3.0, prix_revient_moyen=20.0, origine=ORIGINE_MANUEL))
     db.commit()
 
     tableau = Tableau(colonnes=["Ticker", "Qte"], lignes=[Ligne({"Ticker": "NOUVELLE", "Qte": "7"}, numero=2)])

@@ -9,8 +9,7 @@ dériver vers une incitation à « faire plus ».
 
 Chaque jalon est une donnée DÉRIVÉE (recalculée à chaque appel depuis les
 données déjà en base), sauf le fait qu'il ait déjà été célébré une fois : cette
-seule information est persistée (`UserParametre`, même patron que
-`preferences_service.onboarding_termine`), pour ne jamais rejouer la même
+seule information est persistée (`FoyerParametre`), pour ne jamais rejouer la même
 célébration à chaque connexion."""
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..i18n import a_traduire, traduire
-from ..models import Transaction, User, UserParametre
+from ..models import Foyer, FoyerParametre, Transaction
 
 _CLE_JALONS_CELEBRES = "jalons_celebres"
 _SEPARATEUR = ","
@@ -51,7 +50,7 @@ class JalonStatut:
 
 
 def _jalons_celebres(db: Session, user_id: int) -> set[str]:
-    parametre = db.get(UserParametre, (_CLE_JALONS_CELEBRES, user_id))
+    parametre = db.get(FoyerParametre, (_CLE_JALONS_CELEBRES, user_id))
     if parametre is None or not parametre.valeur:
         return set()
     return set(parametre.valeur.split(_SEPARATEUR))
@@ -59,9 +58,9 @@ def _jalons_celebres(db: Session, user_id: int) -> set[str]:
 
 def _ecrire_jalons_celebres(db: Session, user_id: int, ids: set[str]) -> None:
     valeur = _SEPARATEUR.join(sorted(ids))
-    parametre = db.get(UserParametre, (_CLE_JALONS_CELEBRES, user_id))
+    parametre = db.get(FoyerParametre, (_CLE_JALONS_CELEBRES, user_id))
     if parametre is None:
-        db.add(UserParametre(cle=_CLE_JALONS_CELEBRES, user_id=user_id, valeur=valeur))
+        db.add(FoyerParametre(cle=_CLE_JALONS_CELEBRES, foyer_id=user_id, valeur=valeur))
     else:
         parametre.valeur = valeur
 
@@ -71,8 +70,10 @@ def _premiere_transaction(db: Session, user_id: int) -> datetime | None:
 
 
 def _anciennete_compte(db: Session, user_id: int) -> datetime | None:
-    user = db.get(User, user_id)
-    return user.created_at if user is not None else None
+    """Date de création du foyer — celle du compte de son propriétaire pour un foyer
+    antérieur à l'objet foyer (§ BK.2), qui l'a reprise."""
+    foyer = db.get(Foyer, user_id)
+    return foyer.cree_le if foyer is not None else None
 
 
 def evaluer_jalons(db: Session, user_id: int) -> list[JalonStatut]:

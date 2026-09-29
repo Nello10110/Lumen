@@ -2,7 +2,15 @@
 `docs/BACKLOG.md` § 4.2, patrimoine net) — validation des saisies, `capital_restant_du`
 toujours calculé côté serveur, jamais fourni par le client."""
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, NOM_UTILISATEUR_TEST, basculer_utilisateur, make_holding
+from .conftest import (
+    ID_FOYER_B,
+    ID_UTILISATEUR_B,
+    ID_UTILISATEUR_TEST,
+    NOM_UTILISATEUR_B,
+    NOM_UTILISATEUR_TEST,
+    basculer_utilisateur,
+    make_holding,
+)
 
 
 def _payload(**overrides) -> dict:
@@ -120,7 +128,7 @@ def test_rattacher_un_emprunt_a_lactif_dun_autre_utilisateur_est_refuse(client, 
     autre compte, même en devinant son id."""
     cree = client.post("/api/loans", json=_payload()).json()
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    h_autre_compte = make_holding(db, ticker="MAISON_B", user_id=ID_UTILISATEUR_B)
+    h_autre_compte = make_holding(db, ticker="MAISON_B", user_id=ID_FOYER_B)
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     reponse = client.patch(f"/api/loans/{cree['id']}", json={"holding_id": h_autre_compte.id})

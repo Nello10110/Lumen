@@ -27,6 +27,8 @@ from app.services.budget_import_service import MouvementBrut
 from .conftest import (
     ID_UTILISATEUR_B,
     ID_UTILISATEUR_TEST,
+    ID_FOYER_B,
+    ID_FOYER_TEST,
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
@@ -80,7 +82,7 @@ def _importer_ce(client, contenu: str = RELEVE_CE, **surcharges) -> dict:
 
 def _categories(db) -> list[CategorieBudget]:
     db.expire_all()
-    return db.query(CategorieBudget).filter(CategorieBudget.user_id == ID_UTILISATEUR_TEST).all()
+    return db.query(CategorieBudget).filter(CategorieBudget.user_id == ID_FOYER_TEST).all()
 
 
 def _categorie(db, nom: str, parent: CategorieBudget | None = None) -> CategorieBudget:
@@ -147,7 +149,7 @@ def test_import_avec_le_mapping_suggere_lit_debit_et_credit(client, db):
 
 
 def test_arborescence_creee_en_reutilisant_la_categorie_par_defaut(client, db):
-    budget_categories_service.assurer_categories_par_defaut(db, ID_UTILISATEUR_TEST)
+    budget_categories_service.assurer_categories_par_defaut(db, ID_FOYER_TEST)
     logement_par_defaut = _categorie(db, "Logement")
 
     resultat = _importer_ce(client)
@@ -163,7 +165,7 @@ def test_arborescence_creee_en_reutilisant_la_categorie_par_defaut(client, db):
 
 
 def test_reutilisation_insensible_a_la_casse_et_aux_accents(client, db):
-    budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "ALIMENTATION", None)
+    budget_categories_service.create_categorie(db, ID_FOYER_TEST, "ALIMENTATION", None)
     _importer_ce(client)
     assert [c.nom for c in _categories(db) if c.parent_id is None and budget_categories_service.normaliser(c.nom) == "alimentation"] == [
         "ALIMENTATION"
@@ -195,14 +197,14 @@ def test_transaction_exclue_creee_marquee_exclue_et_sa_sous_categorie_heritee(cl
     virement_interne = _categorie(db, "Virement interne", exclue)
     assert exclue.exclue_des_totaux is True
     assert virement_interne.exclue_des_totaux is False
-    assert {exclue.id, virement_interne.id} <= budget_categories_service.ids_categories_exclues(db, ID_UTILISATEUR_TEST)
+    assert {exclue.id, virement_interne.id} <= budget_categories_service.ids_categories_exclues(db, ID_FOYER_TEST)
     assert _categorie(db, "Logement").exclue_des_totaux is False
 
 
 def test_une_categorie_existante_garde_le_choix_de_l_utilisateur(client, db):
     _importer_ce(client)
     exclue = _categorie(db, "Transaction exclue")
-    budget_categories_service.modifier_categorie(db, ID_UTILISATEUR_TEST, exclue.id, exclue_des_totaux=False)
+    budget_categories_service.modifier_categorie(db, ID_FOYER_TEST, exclue.id, exclue_des_totaux=False)
 
     autre_releve = ENTETE_CE + "\n" + _ligne_ce("20/09/2026", "VIR LIVRET", "VIR INTERNE VERS LDDS", "Transaction exclue", "Virement interne", debit="-100,00") + "\n"
     _importer_ce(client, autre_releve)
@@ -230,7 +232,7 @@ def test_csv_quelconque_avec_colonne_categorie_reprise_telle_quelle(db):
     d'attente ni d'exclusion connue, mais la catégorie est reprise."""
     lignes = [{"Date": "01/09/2026", "Libellé": "PHARMACIE", "Montant": "-12,00", "Poste": "Santé"}]
     mouvements, _ = budget_import_service.mouvements_depuis_lignes(lignes, "Date", "Libellé", "Montant", None, None, categorie_col="Poste")
-    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=make_compte(db).id)
+    budget_import_service.importer_mouvements(db, ID_FOYER_TEST, mouvements, compte_id=make_compte(db).id)
     assert _mouvement(db, "PHARMACIE").categorie_id == _categorie(db, "Santé").id
 
 
@@ -240,8 +242,8 @@ def test_csv_quelconque_avec_colonne_categorie_reprise_telle_quelle(db):
 
 
 def test_une_regle_de_l_utilisateur_l_emporte_sur_la_banque(client, db):
-    courses = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Courses", None)
-    budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "carrefour", courses.id)
+    courses = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Courses", None)
+    budget_categories_service.create_regle(db, ID_FOYER_TEST, "carrefour", courses.id)
 
     resultat = _importer_ce(client)
 
@@ -257,26 +259,26 @@ def test_reappliquer_les_regles_conserve_la_categorie_de_la_banque(client, db):
     loyer = _mouvement(db, "PRLV SEPA AGENCE DUPONT").categorie_id
     assert loyer is not None
 
-    budget_import_service.reappliquer_regles(db, ID_UTILISATEUR_TEST)
+    budget_import_service.reappliquer_regles(db, ID_FOYER_TEST)
     assert _mouvement(db, "PRLV SEPA AGENCE DUPONT").categorie_id == loyer
 
     # Une règle ajoutée après coup l'emporte, et sa suppression rend la main à la banque.
-    habitat = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Habitat", None)
-    regle = budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "agence dupont", habitat.id)
-    budget_import_service.reappliquer_regles(db, ID_UTILISATEUR_TEST)
+    habitat = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Habitat", None)
+    regle = budget_categories_service.create_regle(db, ID_FOYER_TEST, "agence dupont", habitat.id)
+    budget_import_service.reappliquer_regles(db, ID_FOYER_TEST)
     assert _mouvement(db, "PRLV SEPA AGENCE DUPONT").categorie_id == habitat.id
-    budget_categories_service.delete_regle(db, ID_UTILISATEUR_TEST, regle.id)
-    budget_import_service.reappliquer_regles(db, ID_UTILISATEUR_TEST)
+    budget_categories_service.delete_regle(db, ID_FOYER_TEST, regle.id)
+    budget_import_service.reappliquer_regles(db, ID_FOYER_TEST)
     assert _mouvement(db, "PRLV SEPA AGENCE DUPONT").categorie_id == loyer
 
 
 def test_une_categorisation_manuelle_n_est_jamais_ecrasee(client, db):
     _importer_ce(client)
-    loisirs = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Sorties", None)
+    loisirs = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Sorties", None)
     mouvement = _mouvement(db, "CB CARREFOUR MARKET 02/09")
-    budget_service.categoriser_mouvement(db, ID_UTILISATEUR_TEST, mouvement.id, loisirs.id)
+    budget_service.categoriser_mouvement(db, ID_FOYER_TEST, mouvement.id, loisirs.id)
 
-    budget_import_service.reappliquer_regles(db, ID_UTILISATEUR_TEST)
+    budget_import_service.reappliquer_regles(db, ID_FOYER_TEST)
     _importer_ce(client)
 
     assert _mouvement(db, "CB CARREFOUR MARKET 02/09").categorie_id == loisirs.id
@@ -286,8 +288,8 @@ def test_reimport_classe_les_mouvements_deja_presents_sans_les_doubler(client, d
     """Un relevé importé avant § BM.3 (sans colonne catégorie) puis réimporté avec :
     ses mouvements non catégorisés sont rangés, aucun n'est doublé, le manuel reste."""
     _importer_ce(client, categorie_col=None, sous_categorie_col=None)
-    sorties = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Sorties", None)
-    budget_service.categoriser_mouvement(db, ID_UTILISATEUR_TEST, _mouvement(db, "CB CARREFOUR MARKET 02/09").id, sorties.id)
+    sorties = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Sorties", None)
+    budget_service.categoriser_mouvement(db, ID_FOYER_TEST, _mouvement(db, "CB CARREFOUR MARKET 02/09").id, sorties.id)
 
     resultat = _importer_ce(client)
 
@@ -302,9 +304,9 @@ def test_reimport_classe_les_mouvements_deja_presents_sans_les_doubler(client, d
 def test_supprimer_la_categorie_de_la_banque_ne_la_fait_pas_revenir(client, db):
     _importer_ce(client)
     alimentation = _categorie(db, "Alimentation")
-    budget_categories_service.delete_categorie(db, ID_UTILISATEUR_TEST, alimentation.id)
+    budget_categories_service.delete_categorie(db, ID_FOYER_TEST, alimentation.id)
 
-    budget_import_service.reappliquer_regles(db, ID_UTILISATEUR_TEST)
+    budget_import_service.reappliquer_regles(db, ID_FOYER_TEST)
 
     mouvement = _mouvement(db, "CB CARREFOUR MARKET 02/09")
     assert mouvement.categorie_id is None
@@ -325,7 +327,7 @@ def _foyer_avec_virements_internes(db, aujourdhui: date) -> dict:
     """Six mois de salaire, de loyer et d'épargne, plus un virement interne mensuel
     de 2 000 € vers le livret et son retour de 500 € : sans exclusion, ils gonflent
     entrées, sorties et charges récurrentes."""
-    budget_categories_service.assurer_categories_par_defaut(db, ID_UTILISATEUR_TEST)
+    budget_categories_service.assurer_categories_par_defaut(db, ID_FOYER_TEST)
     compte = make_compte(db, nom="Compte courant")
     mouvements: list[MouvementBrut] = []
     for n in range(6):
@@ -338,7 +340,7 @@ def _foyer_avec_virements_internes(db, aujourdhui: date) -> dict:
             MouvementBrut(jour, "VIR INTERNE DEPUIS LIVRET A", 500.0, categorie_banque=("Transaction exclue", "Virement interne")),
         ]
     budget_import_service.importer_mouvements(
-        db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id, categories_exclues=frozenset({"transaction exclue"})
+        db, ID_FOYER_TEST, mouvements, compte_id=compte.id, categories_exclues=frozenset({"transaction exclue"})
     )
     return {"debut": _mois_avant(aujourdhui, 0).replace(day=1).isoformat(), "fin": aujourdhui.isoformat()}
 
@@ -347,7 +349,7 @@ def test_exclusion_dans_le_resume_et_la_repartition(db):
     aujourdhui = date(2026, 9, 20)
     periode = _foyer_avec_virements_internes(db, aujourdhui)
 
-    resume = budget_service.compute_summary(db, ID_UTILISATEUR_TEST, periode["debut"], periode["fin"])
+    resume = budget_service.compute_summary(db, ID_FOYER_TEST, periode["debut"], periode["fin"])
 
     assert float(resume["entrees"]) == 3000.0
     assert float(resume["sorties"]) == 1100.0
@@ -355,16 +357,16 @@ def test_exclusion_dans_le_resume_et_la_repartition(db):
     assert "Transaction exclue" not in {item["categorie_nom"] for item in resume["repartition_sorties"]}
     assert float(sum(item["montant"] for item in resume["repartition_sorties"])) == 1100.0
     # Les mouvements exclus restent listés.
-    assert len(budget_service.list_mouvements(db, ID_UTILISATEUR_TEST, periode["debut"], periode["fin"])) == 5
+    assert len(budget_service.list_mouvements(db, ID_FOYER_TEST, periode["debut"], periode["fin"])) == 5
 
 
 def test_exclusion_dans_les_recurrences_et_les_depenses_recurrentes(db):
     aujourdhui = date(2026, 9, 20)
     periode = _foyer_avec_virements_internes(db, aujourdhui)
 
-    recurrences = budget_recurrences_service.detect_recurrences(db, ID_UTILISATEUR_TEST, aujourdhui=aujourdhui)
+    recurrences = budget_recurrences_service.detect_recurrences(db, ID_FOYER_TEST, aujourdhui=aujourdhui)
     assert {r.libelle for r in recurrences} == {"PRLV SEPA AGENCE DUPONT", "VIR PERMANENT PEA"}
-    mensuel = budget_service.compute_depenses_recurrentes_mensuelles(db, ID_UTILISATEUR_TEST, periode["fin"])
+    mensuel = budget_service.compute_depenses_recurrentes_mensuelles(db, ID_FOYER_TEST, periode["fin"])
     assert float(mensuel) == 1100.0
 
 
@@ -372,7 +374,7 @@ def test_exclusion_dans_le_taux_d_epargne_et_le_reste_a_vivre(db):
     aujourdhui = date(2026, 9, 20)
     periode = _foyer_avec_virements_internes(db, aujourdhui)
 
-    jonction = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, periode["debut"], periode["fin"])
+    jonction = budget_service.compute_jonction_patrimoine(db, ID_FOYER_TEST, periode["debut"], periode["fin"])
 
     assert jonction["taux_epargne_reel_pct"] == 10.0  # 300 / 3 000, pas 300 / 3 500
     assert float(jonction["reste_a_vivre"]) == 3000.0 - 800.0 - 1100.0
@@ -382,7 +384,7 @@ def test_exclusion_dans_le_taux_d_epargne_et_le_reste_a_vivre(db):
 def test_exclusion_dans_les_indicateurs_de_situation(db):
     _foyer_avec_virements_internes(db, date.today())
 
-    indicateurs = patrimoine_service.compute_indicateurs_situation(db, ID_UTILISATEUR_TEST)
+    indicateurs = patrimoine_service.compute_indicateurs_situation(db, ID_FOYER_TEST)
 
     # Trois mois pleins de la fenêtre : 3 000 € d'entrées et 1 100 € de sorties par mois.
     assert float(indicateurs["revenus_nets_mensuels_moyens"]) == 3000.0
@@ -399,7 +401,7 @@ def test_demarquer_une_categorie_la_fait_compter_a_nouveau(client, db):
     assert reponse.json()["exclue_des_totaux"] is False
     assert reponse.json()["nom"] == "Transaction exclue"
 
-    resume = budget_service.compute_summary(db, ID_UTILISATEUR_TEST, periode["debut"], periode["fin"])
+    resume = budget_service.compute_summary(db, ID_FOYER_TEST, periode["debut"], periode["fin"])
     assert float(resume["entrees"]) == 3500.0
     assert float(resume["sorties"]) == 3100.0
 
@@ -412,7 +414,7 @@ def test_marquer_une_sous_categorie_seule(client, db):
 
     client.patch(f"/api/budget/categories/{loyer.id}", json={"exclue_des_totaux": True})
 
-    resume = budget_service.compute_summary(db, ID_UTILISATEUR_TEST, periode["debut"], periode["fin"])
+    resume = budget_service.compute_summary(db, ID_FOYER_TEST, periode["debut"], periode["fin"])
     assert float(resume["sorties"]) == 2300.0  # 300 d'épargne + 2 000 de virement interne
 
 
@@ -447,7 +449,7 @@ def test_import_d_un_foyer_ne_reutilise_pas_les_categories_d_un_autre(client, db
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
     _importer_ce(client)
     db.expire_all()
-    mouvements_b = db.query(MouvementBancaire).filter(MouvementBancaire.user_id == ID_UTILISATEUR_B).all()
+    mouvements_b = db.query(MouvementBancaire).filter(MouvementBancaire.user_id == ID_FOYER_B).all()
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     assert mouvements_b
@@ -456,32 +458,32 @@ def test_import_d_un_foyer_ne_reutilise_pas_les_categories_d_un_autre(client, db
 
 def test_export_import_preserve_exclusion_et_categorie_de_la_banque(client, db):
     _importer_ce(client)
-    courses = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Courses", None)
-    budget_service.categoriser_mouvement(db, ID_UTILISATEUR_TEST, _mouvement(db, "CB CARREFOUR MARKET 02/09").id, courses.id)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    courses = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Courses", None)
+    budget_service.categoriser_mouvement(db, ID_FOYER_TEST, _mouvement(db, "CB CARREFOUR MARKET 02/09").id, courses.id)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     assert {"exclue_des_totaux", "categorie_banque_id"} <= set(document["donnees"]["categories_budget"][0]) | set(
         document["donnees"]["mouvements_bancaires"][0]
     )
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     assert _categorie(db, "Transaction exclue").exclue_des_totaux is True
     carrefour = _mouvement(db, "CB CARREFOUR MARKET 02/09")
     assert db.get(CategorieBudget, carrefour.categorie_id).nom == "Courses"
     assert db.get(CategorieBudget, carrefour.categorie_banque_id).nom == "Supermarché"
-    budget_import_service.reappliquer_regles(db, ID_UTILISATEUR_TEST)
+    budget_import_service.reappliquer_regles(db, ID_FOYER_TEST)
     assert db.get(CategorieBudget, _mouvement(db, "PRLV SEPA AGENCE DUPONT").categorie_id).nom == "Loyer"
 
 
 def test_un_ancien_export_sans_les_nouvelles_colonnes_s_importe(client, db):
     _importer_ce(client)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     for ligne in document["donnees"]["categories_budget"]:
         del ligne["exclue_des_totaux"]
     for ligne in document["donnees"]["mouvements_bancaires"]:
         del ligne["categorie_banque_id"]
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     assert _categorie(db, "Transaction exclue").exclue_des_totaux is False
     assert _mouvement(db, "PRLV SEPA AGENCE DUPONT").categorie_banque_id is None

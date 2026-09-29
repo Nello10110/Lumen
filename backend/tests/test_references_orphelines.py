@@ -16,12 +16,12 @@ import app.database as database_module
 from alembic import command
 from app.models import Holding, Loan, PerimetreInvite, QuotiteLoan, User
 from app.services import detenteurs_service, portfolio_reconstruction
-from tests.conftest import ID_UTILISATEUR_TEST, make_compte, make_holding, make_transaction
+from tests.conftest import ID_FOYER_TEST, make_compte, make_holding, make_transaction
 
 
 def _emprunt(db, **champs) -> Loan:
     loan = Loan(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         libelle="Crédit",
         capital_initial=100000.0,
         taux_annuel_pct=1.0,
@@ -54,8 +54,8 @@ def test_le_lien_public_dune_personne_supprimee_ne_montre_pas_la_suivante(client
 
 
 def test_le_perimetre_dun_invite_part_avec_la_personne_supprimee(db):
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
-    invite = User(username="invite", password_hash="inutilisé", role="invite", owner_user_id=ID_UTILISATEUR_TEST)
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
+    invite = User(username="invite", password_hash="inutilisé")
     db.add(invite)
     db.commit()
     db.add(PerimetreInvite(user_id=invite.id, detenteur_id=alice.id))
@@ -67,9 +67,9 @@ def test_le_perimetre_dun_invite_part_avec_la_personne_supprimee(db):
 
 
 def test_supprimer_un_emprunt_supprime_sa_repartition(client, db):
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice")
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Alice")
     loan = _emprunt(db)
-    detenteurs_service.set_quotites_loan(db, ID_UTILISATEUR_TEST, loan, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_loan(db, ID_FOYER_TEST, loan, [(alice.id, 100.0)])
 
     assert client.delete(f"/api/loans/{loan.id}").status_code == 200
 
@@ -81,7 +81,7 @@ def test_la_reconstruction_garde_lemprunt_rattache_a_une_ligne_reconstruite(db):
     ligne sous un nouvel id, le rattachement doit suivre."""
     compte = make_compte(db)
     make_transaction(db, symbol="ACME", compte_id=compte.id, shares=10.0, price=100.0, amount=-1000.0)
-    portfolio_reconstruction.rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    portfolio_reconstruction.rebuild_holdings(db, ID_FOYER_TEST)
     ancienne = db.query(Holding).filter(Holding.ticker == "ACME").one()
     loan = _emprunt(db, holding_id=ancienne.id)
     # Une ligne saisie entre-temps : sans elle, SQLite redonnerait à la ligne recréée
@@ -89,7 +89,7 @@ def test_la_reconstruction_garde_lemprunt_rattache_a_une_ligne_reconstruite(db):
     make_holding(db, ticker="LIVRET", origine="manuel")
 
     make_transaction(db, symbol="ACME", compte_id=compte.id, shares=5.0, price=110.0, amount=-550.0)
-    portfolio_reconstruction.rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    portfolio_reconstruction.rebuild_holdings(db, ID_FOYER_TEST)
 
     db.expire_all()
     nouvelle = db.query(Holding).filter(Holding.ticker == "ACME").one()

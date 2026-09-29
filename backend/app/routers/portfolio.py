@@ -286,7 +286,7 @@ def _holdings_visibles(db: Session, current_user: User):
     filtrage côté client uniquement, contournable dans l'onglet réseau."""
     requete = db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user))
     if current_user.role == ROLE_INVITE:
-        perimetre = detenteurs_service.perimetre_invite(db, current_user.id)
+        perimetre = detenteurs_service.perimetre_invite(db, current_user.id, auth_service.id_foyer(current_user))
         if not perimetre:
             return []
         requete = requete.join(QuotiteHolding, QuotiteHolding.holding_id == Holding.id).filter(

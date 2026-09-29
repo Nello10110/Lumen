@@ -7,10 +7,10 @@ from datetime import datetime
 import yfinance as yf
 
 from app.services import historical_performance_service
-
-from .conftest import ID_UTILISATEUR_TEST, make_transaction
-from .test_historical_performance_service import _FauxTickerAvecHistorique
 from app.services.portfolio_reconstruction import rebuild_holdings
+
+from .conftest import ID_FOYER_TEST, make_transaction
+from .test_historical_performance_service import _FauxTickerAvecHistorique
 
 
 def test_metriques_avancees_sans_historique(client):
@@ -29,7 +29,7 @@ def test_metriques_avancees_sans_historique(client):
 
 def test_metriques_avancees_avec_historique(client, db, monkeypatch):
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
@@ -105,7 +105,7 @@ def test_comparaison_benchmark_sans_historique_404(client):
 
 def test_comparaison_benchmark_avec_historique(client, db, monkeypatch):
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 

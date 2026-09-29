@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from .conftest import (
     ID_UTILISATEUR_B,
     ID_UTILISATEUR_TEST,
+    ID_FOYER_B,
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
@@ -94,7 +95,7 @@ def test_holding_avec_compte_id_dun_autre_foyer_refuse(client, db):
     """IDOR : rattacher sa ligne au compte de quelqu'un d'autre ne doit jamais
     réussir silencieusement."""
     creer_utilisateur(db, ID_UTILISATEUR_B)
-    compte_b = make_compte(db, user_id=ID_UTILISATEUR_B, nom="PEA de B")
+    compte_b = make_compte(db, user_id=ID_FOYER_B, nom="PEA de B")
 
     reponse = client.post("/api/portfolio/holdings", json=_payload_holding(compte_id=compte_b.id))
     assert reponse.status_code in REFUS | {404}
@@ -236,7 +237,7 @@ def test_emprunt_rattache_a_un_holding_dun_autre_foyer_refuse(client, db):
     """IDOR sur le rattachement d'un emprunt à un actif."""
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
-    h_b = make_holding(db, ticker="BBB", user_id=ID_UTILISATEUR_B)
+    h_b = make_holding(db, ticker="BBB", user_id=ID_FOYER_B)
 
     cree = client.post("/api/loans", json=_payload_loan()).json()
     assert client.patch(f"/api/loans/{cree['id']}", json={"holding_id": h_b.id}).status_code in REFUS | {404}

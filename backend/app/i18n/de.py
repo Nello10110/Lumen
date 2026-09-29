@@ -38,6 +38,8 @@ TRADUCTIONS: dict[str, str] = {
     "Catégorie": "Kategorie",
     "Catégorie introuvable": "Kategorie nicht gefunden",
     "Catégorie parente introuvable": "Übergeordnete Kategorie nicht gefunden",
+    "Ce compte n'appartient à aucun foyer.": "Dieses Konto gehört zu keinem Haushalt.",
+    "Ce serveur accueille plusieurs foyers : un nouveau compte SSO ne peut rejoindre aucun d'eux automatiquement. Demandez au propriétaire de votre foyer de créer votre compte.": "Auf diesem Server gibt es mehrere Haushalte: Ein neues SSO-Konto kann keinem von ihnen automatisch beitreten. Bitten Sie den Eigentümer Ihres Haushalts, Ihr Konto anzulegen.",
     "Une catégorie ne peut pas être fusionnée dans elle-même": "Eine Kategorie kann nicht mit sich selbst zusammengeführt werden",
     "Une catégorie ne peut pas être fusionnée dans l'une de ses sous-catégories": "Eine Kategorie kann nicht in eine ihrer Unterkategorien zusammengeführt werden",
     "Une catégorie qui a des sous-catégories ne peut pas être fusionnée dans une sous-catégorie": "Eine Kategorie mit Unterkategorien kann nicht in eine Unterkategorie zusammengeführt werden",

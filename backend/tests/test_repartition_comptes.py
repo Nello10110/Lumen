@@ -9,11 +9,11 @@ from decimal import Decimal
 from app.models import Compte, Holding
 from app.services.analysis_service import COMPTE_SANS_ANNOTATION, repartition_par_compte, value_holdings
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 
 
 def _compte(db, nom: str) -> Compte:
-    compte = Compte(user_id=ID_UTILISATEUR_TEST, nom=nom)
+    compte = Compte(user_id=ID_FOYER_TEST, nom=nom)
     db.add(compte)
     db.commit()
     db.refresh(compte)
@@ -23,9 +23,9 @@ def _compte(db, nom: str) -> Compte:
 def test_repartition_par_compte_regroupe_les_lignes_annotees(db):
     pea = _compte(db, "PEA")
     cto = _compte(db, "CTO")
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte_id=pea.id))
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte_id=cto.id))
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="CCC", quantite=2.0, prix_revient_moyen=100.0, compte_id=pea.id))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte_id=pea.id))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte_id=cto.id))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="CCC", quantite=2.0, prix_revient_moyen=100.0, compte_id=pea.id))
     db.commit()
 
     valued = value_holdings(db.query(Holding).all())
@@ -41,8 +41,8 @@ def test_repartition_par_compte_regroupe_les_lignes_annotees(db):
 
 def test_repartition_par_compte_regroupe_les_lignes_sans_annotation(db):
     cto = _compte(db, "CTO")
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte_id=None))
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte_id=cto.id))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte_id=None))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte_id=cto.id))
     db.commit()
 
     valued = value_holdings(db.query(Holding).all())

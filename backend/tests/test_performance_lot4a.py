@@ -9,7 +9,7 @@ from sqlalchemy import event
 from app.models import Holding, MarketDataCache
 from app.services import portfolio_reconstruction
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 
 
 def test_get_performance_appelle_compute_positions_une_seule_fois(client, db, monkeypatch):
@@ -26,7 +26,7 @@ def test_get_performance_appelle_compute_positions_une_seule_fois(client, db, mo
     passer par le paramètre `positions` désormais disponible."""
     for i in range(5):
         ticker = f"T{i}"
-        db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
+        db.add(Holding(user_id=ID_FOYER_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
         db.add(MarketDataCache(ticker=ticker, prix_actuel=12.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
@@ -54,7 +54,7 @@ def test_get_holdings_ne_declenche_pas_une_requete_sql_par_ligne(client, db):
     maintenant = datetime.now(timezone.utc)
     for i in range(nombre_lignes):
         ticker = f"H{i}"
-        db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
+        db.add(Holding(user_id=ID_FOYER_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
         db.add(MarketDataCache(ticker=ticker, prix_actuel=12.0, derniere_maj=maintenant))
     db.commit()
 

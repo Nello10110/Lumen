@@ -3,7 +3,7 @@ branchement dans les deux générateurs PDF de l'application."""
 
 from app.services import declaration_patrimoine_service, pdf_export_service, pdf_watermark
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 
 
 class _FauxCanvas:
@@ -55,7 +55,7 @@ def test_releve_de_patrimoine_dessine_le_filigrane(db, monkeypatch):
     appels = []
     monkeypatch.setattr(pdf_export_service, "dessiner_filigrane", lambda canvas, doc: appels.append(1))
 
-    pdf_export_service.generer_pdf_patrimoine(db, ID_UTILISATEUR_TEST)
+    pdf_export_service.generer_pdf_patrimoine(db, ID_FOYER_TEST)
 
     assert appels == [1]
 
@@ -66,7 +66,7 @@ def test_declaration_de_patrimoine_dessine_le_filigrane(db, monkeypatch):
 
     declaration_patrimoine_service.generer_pdf_declaration(
         db,
-        ID_UTILISATEUR_TEST,
+        ID_FOYER_TEST,
         holding_ids=None,
         loan_ids=None,
         detenteur_id=None,

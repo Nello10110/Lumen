@@ -17,7 +17,7 @@ from app.services.performance_service import (
 )
 from app.services.portfolio_reconstruction import rebuild_holdings
 
-from .conftest import ID_UTILISATEUR_TEST, make_transaction
+from .conftest import ID_FOYER_TEST, make_transaction
 
 
 def test_xirr_doublement_en_un_an_environ_100_pourcent():
@@ -37,7 +37,7 @@ def test_xirr_none_si_tous_les_flux_ont_le_meme_signe():
 
 
 def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
-    holding = Holding(user_id=ID_UTILISATEUR_TEST, ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0)
+    holding = Holding(user_id=ID_FOYER_TEST, ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0)
     db.add(holding)
     db.add(
         MarketDataCache(
@@ -48,7 +48,7 @@ def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
     )
     db.commit()
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     assert resultats[holding.id]["rendement_depuis_achat_pct"] == 20.0
 
@@ -63,10 +63,10 @@ def test_pas_de_rendement_annualise_sans_prix_de_marche_reel(db):
     # dividende SANS cotation donne bien un XIRR), seulement l'absence de tout flux
     # au-delà de l'achat.
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     holding = db.query(Holding).filter(Holding.ticker == "ABC").one()
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     assert resultats[holding.id]["rendement_annualise_pct"] is None
 
@@ -100,13 +100,13 @@ def test_rendement_annualise_dividende_sans_cotation_bricks_co(db):
         amount=60.0,
         datetime_utc=datetime(2024, 1, 1),
     )
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     holding = db.query(Holding).filter(Holding.ticker == "BRICKS-ABC").one()
     # Aucune `MarketDataCache` pour ce ticker — comme tout ticker Bricks.co réel
     # (`market_data_service.est_symbole_non_cotable` refuse même la recherche
     # réseau) : `a_des_donnees=False`, la ligne reste valorisée à son coût.
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     # Toujours aucun prix connu : on ne sait toujours pas ce que vaut la ligne
     # aujourd'hui, et il serait faux de prétendre le contraire.
@@ -121,7 +121,7 @@ def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
     """Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/BACKLOG.md` § 4.2) : pas de
     `MarketDataCache`, mais `valeur_estimee` joue le rôle du prix actuel."""
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="MAISON",
         nom="Résidence",
         quantite=1.0,
@@ -132,7 +132,7 @@ def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
     db.add(holding)
     db.commit()
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     assert resultats[holding.id]["rendement_depuis_achat_pct"] == 15.0
     # Pas d'historique de transactions pour cette ligne, ni de date d'acquisition
@@ -146,7 +146,7 @@ def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisitio
     (`compute_holding_returns`/`compute_holding_return`, cf. `_rendement_pour_ligne`),
     pas seulement dans la rentabilité locative de la fiche immobilier."""
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="MAISON_FRAIS",
         nom="Résidence",
         quantite=1.0,
@@ -160,12 +160,12 @@ def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisitio
     immobilier_service.upsert_detail_immobilier(db, holding.id, frais_notaire=10000.0, frais_travaux=5000.0)
 
     # coût total = 200000 + 15000 = 215000 ; rendement = 230000/215000 - 1 ≈ 6.98 %.
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
     assert float(resultats[holding.id]["rendement_depuis_achat_pct"]) == pytest.approx((230000 / 215000 - 1) * 100, abs=0.01)
 
     # `compute_holding_return` (variante mono-ligne, utilisée par la fiche) doit
     # renvoyer exactement le même résultat.
-    resultat_seul = compute_holding_return(db, holding.id, ID_UTILISATEUR_TEST)
+    resultat_seul = compute_holding_return(db, holding.id, ID_FOYER_TEST)
     assert resultat_seul["rendement_depuis_achat_pct"] == resultats[holding.id]["rendement_depuis_achat_pct"]
 
 
@@ -178,7 +178,7 @@ def test_cout_acquisition_derive_de_lhistorique_quand_prix_revient_moyen_est_vid
     ligne à coût `None`). Scénario exact du retour terrain : PER à 0€ en 2024, puis
     50 000€ aujourd'hui dont 5 000€ de plus-value déclarée -> 45 000€ de versement."""
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="PER_TEST",
         nom="PER",
         quantite=1.0,
@@ -192,13 +192,13 @@ def test_cout_acquisition_derive_de_lhistorique_quand_prix_revient_moyen_est_vid
     immobilier_service.enregistrer_point_historique(db, holding.id, 0.0, datetime(2024, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 50000.0, datetime.now(timezone.utc).replace(tzinfo=None), versement=45000.0)
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
     assert resultats[holding.id]["cout_acquisition_total"] == 45000.0
     assert float(resultats[holding.id]["rendement_depuis_achat_pct"]) == pytest.approx((50000 / 45000 - 1) * 100, abs=0.01)
 
     # `compute_holding_return` (variante mono-ligne) doit renvoyer exactement le
     # même résultat, même précédent que `test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisition`.
-    resultat_seul = compute_holding_return(db, holding.id, ID_UTILISATEUR_TEST)
+    resultat_seul = compute_holding_return(db, holding.id, ID_FOYER_TEST)
     assert resultat_seul["cout_acquisition_total"] == 45000.0
 
 
@@ -207,7 +207,7 @@ def test_cout_acquisition_non_derive_quand_prix_revient_moyen_est_deja_renseigne
     `prix_revient_moyen` explicitement saisi, même si un historique de valorisation
     existe aussi pour la même ligne."""
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="PER_AVEC_PRIX",
         nom="PER",
         quantite=1.0,
@@ -220,7 +220,7 @@ def test_cout_acquisition_non_derive_quand_prix_revient_moyen_est_deja_renseigne
     db.refresh(holding)
     immobilier_service.enregistrer_point_historique(db, holding.id, 999.0, datetime(2024, 1, 1))
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
     assert resultats[holding.id]["cout_acquisition_total"] == 10000.0
 
 
@@ -235,7 +235,7 @@ def test_rendement_annualise_derive_de_lhistorique_sans_date_acquisition(db):
     à un seul flux déjà verrouillé par `test_rendement_annualise_via_date_acquisition_pour_actif_manuel`,
     mais dérivée ici du premier point de l'historique plutôt que d'un champ séparé)."""
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="PER_HISTORIQUE",
         nom="PER",
         quantite=1.0,
@@ -250,7 +250,7 @@ def test_rendement_annualise_derive_de_lhistorique_sans_date_acquisition(db):
         db, holding.id, 1000.0, datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=730)
     )
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     # (1 + r)^2 = 1210 / 1000 = 1.21 -> r = 10 %.
     assert resultats[holding.id]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
@@ -264,7 +264,7 @@ def test_rendement_annualise_derive_de_plusieurs_versements_declares(db):
     valorisation finale à 2310€ : ≈ 10 %/an (1000*1.1² + 1000*1.1 = 2310)."""
     maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="PER_VERSEMENTS",
         nom="PER",
         quantite=1.0,
@@ -278,7 +278,7 @@ def test_rendement_annualise_derive_de_plusieurs_versements_declares(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, maintenant - timedelta(days=730))
     immobilier_service.enregistrer_point_historique(db, holding.id, 2000.0, maintenant - timedelta(days=365), versement=1000.0)
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     assert resultats[holding.id]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
 
@@ -292,7 +292,7 @@ def test_rendement_annualise_repli_sur_date_acquisition_si_lhistorique_ne_suffit
     calculable par cette autre voie."""
     maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="PER_DEGENERE",
         nom="PER",
         quantite=1.0,
@@ -309,7 +309,7 @@ def test_rendement_annualise_repli_sur_date_acquisition_si_lhistorique_ne_suffit
     # en tirer de taux (division par une durée nulle en pratique, pas de racine).
     immobilier_service.enregistrer_point_historique(db, holding.id, 1210.0, maintenant, versement=1210.0)
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     # (1 + r)^2 = 1210 / 1210... non : le coût vient de `date_acquisition`, qui n'a
     # pas de valeur de coût propre ici -> `investi_cumule_derive` fournit 1210 (la
@@ -325,7 +325,7 @@ def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
     n'existe pour fournir un flux réel — `xirr` avec exactement un flux entrant et un
     flux sortant se réduit à la formule CAGR classique."""
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="MAISON_DATEE",
         nom="Résidence",
         quantite=1.0,
@@ -337,7 +337,7 @@ def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
     db.add(holding)
     db.commit()
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     # (1 + r)^2 = 242000 / 200000 = 1.21 -> r = 10 %.
     assert resultats[holding.id]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
@@ -345,7 +345,7 @@ def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
 
 def test_pas_de_rendement_annualise_si_detention_trop_courte_meme_avec_date_acquisition(db):
     holding = Holding(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         ticker="MAISON_RECENTE",
         nom="Achat récent",
         quantite=1.0,
@@ -357,7 +357,7 @@ def test_pas_de_rendement_annualise_si_detention_trop_courte_meme_avec_date_acqu
     db.add(holding)
     db.commit()
 
-    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    resultats = compute_holding_returns(db, ID_FOYER_TEST)
 
     assert resultats[holding.id]["rendement_annualise_pct"] is None
 
@@ -368,12 +368,12 @@ def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
     `valeur_positions`/`gains_latents` gonflerait le gain latent de sa valeur
     entière. La carte Rentabilité (boursière pure, increment 5) doit l'ignorer."""
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     db.add(MarketDataCache(ticker="ABC", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
-    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.add(Holding(user_id=ID_FOYER_TEST, ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
     db.commit()
 
-    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
+    resultat = compute_performance(db, ID_FOYER_TEST)
 
     # 10 * 150 = 1500 (ABC seul, la maison à 250000 € n'y figure pas).
     assert resultat["valeur_positions"] == 1500.0
@@ -392,7 +392,7 @@ def test_compute_performance_deduit_le_cout_dune_ligne_financiere_saisie_manuell
     `valeur_positions` — seul son coût manquait."""
     db.add(
         Holding(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             ticker="MANUEL",
             quantite=10.0,
             prix_revient_moyen=100.0,
@@ -402,7 +402,7 @@ def test_compute_performance_deduit_le_cout_dune_ligne_financiere_saisie_manuell
     db.add(MarketDataCache(ticker="MANUEL", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
-    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
+    resultat = compute_performance(db, ID_FOYER_TEST)
 
     assert resultat["valeur_positions"] == 1500.0
     assert resultat["gains_latents"] == pytest.approx(500.0)  # 1500 - 1000 (coût de revient déclaré)
@@ -422,16 +422,16 @@ def test_rendement_annualise_du_foyer_inclut_desormais_les_dividendes(db):
     directe qu'il est maintenant pris en compte, sans dépendre d'une valeur XIRR
     exacte (fonction non linéaire, fragile à figer en dur)."""
     make_transaction(db, transaction_id="tx-1", symbol="ABC", shares=10.0, amount=-1000.0, datetime_utc=datetime(2023, 1, 1))
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     db.add(MarketDataCache(ticker="ABC", prix_actuel=100.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
-    sans_dividende = compute_performance(db, ID_UTILISATEUR_TEST)["rendement_annualise_pct"]
+    sans_dividende = compute_performance(db, ID_FOYER_TEST)["rendement_annualise_pct"]
 
     make_transaction(
         db, transaction_id="tx-2", symbol="ABC", category="CASH", type="DIVIDEND", shares=10.0, amount=80.0, datetime_utc=datetime(2023, 6, 1)
     )
 
-    avec_dividende = compute_performance(db, ID_UTILISATEUR_TEST)["rendement_annualise_pct"]
+    avec_dividende = compute_performance(db, ID_FOYER_TEST)["rendement_annualise_pct"]
 
     assert sans_dividende is not None and avec_dividende is not None
     assert avec_dividende > sans_dividende
@@ -541,7 +541,7 @@ def test_scenario_complet_gain_perte_total_au_centime_pres(db):
         datetime_utc=datetime(2024, 3, 4),
     )
 
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     db.add(
         MarketDataCache(
             ticker="SCN",
@@ -551,7 +551,7 @@ def test_scenario_complet_gain_perte_total_au_centime_pres(db):
     )
     db.commit()
 
-    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
+    resultat = compute_performance(db, ID_FOYER_TEST)
 
     assert resultat["gains_realises"] == Decimal("193.2")  # au centime près : exact depuis § BI.1
     assert resultat["gains_latents"] == Decimal("55.8")
@@ -582,7 +582,7 @@ def test_type_de_mouvement_inconnu_est_exclu_du_resultat(db):
         datetime_utc=datetime(2024, 1, 1),
     )
 
-    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
+    resultat = compute_performance(db, ID_FOYER_TEST)
 
     assert resultat["dividendes_percus"] == 0.0
     assert resultat["interets_percus"] == 0.0
@@ -607,7 +607,7 @@ def test_frais_et_impots_informatifs_sans_influence_sur_le_gain(db):
         datetime_utc=datetime(2024, 1, 1),
     )
 
-    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
+    resultat = compute_performance(db, ID_FOYER_TEST)
 
     assert resultat["frais_payes"] == pytest.approx(10.0)
     assert resultat["impots_preleves"] == pytest.approx(5.0)
@@ -677,13 +677,13 @@ def test_compute_holding_return_identique_a_compute_holding_returns_sur_plusieur
     # CCC : achat, sans cotation en cache -> ni depuis_achat ni annualise (valorisé au coût).
     make_transaction(db, transaction_id="ccc-1", symbol="CCC", shares=2.0, amount=-200.0, datetime_utc=datetime(2023, 3, 1))
 
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
     db.add(MarketDataCache(ticker="BBB", prix_actuel=90.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
-    holdings_par_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST).all()}
+    holdings_par_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).all()}
 
-    ensemble = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    ensemble = compute_holding_returns(db, ID_FOYER_TEST)
     assert set(ensemble) == {h.id for h in holdings_par_ticker.values()}
     # CCC : achat seul, sans cotation NI aucun flux réalisé depuis (pas de vente, pas
     # de dividende) — garde-fou explicite (retour utilisateur du 14/09/2026, positions
@@ -694,12 +694,12 @@ def test_compute_holding_return_identique_a_compute_holding_returns_sur_plusieur
     assert ensemble[ccc_id] == {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None, "cout_acquisition_total": 100.0}
 
     for holding_id in ensemble:
-        assert compute_holding_return(db, holding_id, ID_UTILISATEUR_TEST) == ensemble[holding_id], f"divergence pour {holding_id}"
+        assert compute_holding_return(db, holding_id, ID_FOYER_TEST) == ensemble[holding_id], f"divergence pour {holding_id}"
 
     # Une ligne absente du portefeuille renvoie des valeurs nulles — même comportement
     # que `.get(holding_id, {})` sur le résultat de `compute_holding_returns`, tel
     # qu'utilisé par les appelants (routeur/`holding_detail_service`).
-    assert compute_holding_return(db, 999999, ID_UTILISATEUR_TEST) == {
+    assert compute_holding_return(db, 999999, ID_FOYER_TEST) == {
         "rendement_depuis_achat_pct": None,
         "rendement_annualise_pct": None,
     }
@@ -711,7 +711,7 @@ def test_compute_holding_return_ne_relit_pas_tout_le_grand_livre(db, monkeypatch
     c'était précisément le coût que ce lot élimine pour l'affichage d'une seule fiche."""
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=1.0, amount=-100.0)
     make_transaction(db, transaction_id="t2", symbol="BBB", shares=1.0, amount=-100.0)
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     holding = db.query(Holding).filter(Holding.ticker == "AAA").one()
 
     def _echoue(*args, **kwargs):
@@ -719,7 +719,7 @@ def test_compute_holding_return_ne_relit_pas_tout_le_grand_livre(db, monkeypatch
 
     monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _echoue)
 
-    resultat = compute_holding_return(db, holding.id, ID_UTILISATEUR_TEST)
+    resultat = compute_holding_return(db, holding.id, ID_FOYER_TEST)
     assert resultat["rendement_depuis_achat_pct"] is None  # pas de cotation, mais pas d'exception non plus
 
 
@@ -728,12 +728,12 @@ def test_compute_holding_return_ne_relit_pas_tout_le_grand_livre(db, monkeypatch
 
 def test_positions_partagees_evite_un_recalcul_quand_plusieurs_fonctions_sont_enchainees(db, monkeypatch):
     """Démontre le mécanisme retenu pour le LOT 4.3 : un appelant qui a déjà calculé
-    `positions` (typiquement via `compute_positions(db, ID_UTILISATEUR_TEST)`) peut le transmettre
+    `positions` (typiquement via `compute_positions(db, ID_FOYER_TEST)`) peut le transmettre
     explicitement à `compute_performance` et `compute_holding_returns` plutôt que de
     laisser chacune le recalculer pour son propre compte — une seule reconstruction du
     grand livre au lieu d'une par fonction enchaînée, sans changer aucun résultat."""
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST)
     db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
@@ -746,22 +746,22 @@ def test_positions_partagees_evite_un_recalcul_quand_plusieurs_fonctions_sont_en
 
     monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _compte_et_calcule)
 
-    positions = portfolio_reconstruction.compute_positions(db, ID_UTILISATEUR_TEST)  # calculé une fois par l'appelant
-    resultat_perf = compute_performance(db, ID_UTILISATEUR_TEST, positions=positions)
-    resultat_holdings = compute_holding_returns(db, ID_UTILISATEUR_TEST, positions=positions)
+    positions = portfolio_reconstruction.compute_positions(db, ID_FOYER_TEST)  # calculé une fois par l'appelant
+    resultat_perf = compute_performance(db, ID_FOYER_TEST, positions=positions)
+    resultat_holdings = compute_holding_returns(db, ID_FOYER_TEST, positions=positions)
 
     assert compteur["n"] == 1  # les deux fonctions enchaînées ont réutilisé le même résultat
 
     # Sans le paramètre explicite, chaque fonction recalcule pour son propre compte —
     # et les résultats restent rigoureusement identiques (aucun changement de calcul).
     compteur["n"] = 0
-    assert compute_performance(db, ID_UTILISATEUR_TEST) == resultat_perf
-    assert compute_holding_returns(db, ID_UTILISATEUR_TEST) == resultat_holdings
+    assert compute_performance(db, ID_FOYER_TEST) == resultat_perf
+    assert compute_holding_returns(db, ID_FOYER_TEST) == resultat_holdings
     assert compteur["n"] == 2
 
 
 def test_calendrier_dividendes_vide_sans_dividende(db):
-    assert compute_dividend_calendar(db, ID_UTILISATEUR_TEST) == []
+    assert compute_dividend_calendar(db, ID_FOYER_TEST) == []
 
 
 def test_calendrier_dividendes_regroupe_par_mois_et_somme_net(db):
@@ -784,7 +784,7 @@ def test_calendrier_dividendes_regroupe_par_mois_et_somme_net(db):
     # Bruit : une transaction non-dividende ne doit apparaître nulle part.
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=1.0, amount=-100.0, datetime_utc=datetime(2024, 3, 10), date="2024-03-10")
 
-    calendrier = compute_dividend_calendar(db, ID_UTILISATEUR_TEST)
+    calendrier = compute_dividend_calendar(db, ID_FOYER_TEST)
 
     assert [m["mois"] for m in calendrier] == ["2024-03", "2024-04"]
     mars = calendrier[0]

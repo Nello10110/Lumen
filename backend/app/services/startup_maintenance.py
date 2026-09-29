@@ -28,7 +28,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from ..models import Parametre, Transaction, User
+from ..models import Foyer, Parametre, Transaction
 from . import historique_cache, portfolio_reconstruction
 
 logger = logging.getLogger("patrimoine.maintenance")
@@ -62,21 +62,18 @@ def _enregistrer_version(db: Session, version: int) -> None:
 
 
 def reconstruire_si_regles_de_calcul_modifiees(db: Session) -> int | None:
-    """Reconstruit le portefeuille de TOUS les utilisateurs si les règles de calcul
+    """Reconstruit le portefeuille de TOUS les foyers si les règles de calcul
     ont changé depuis la dernière reconstruction. Renvoie le nombre total de
-    positions recalculées (tous comptes confondus), ou `None` s'il n'y avait rien à
+    positions recalculées (tous foyers confondus), ou `None` s'il n'y avait rien à
     faire.
 
-    Multi-utilisateur (Milestone 2a/2b, `docs/BACKLOG.md` § 2.I.1) :
     `VERSION_CALCUL_PORTEFEUILLE` reste volontairement une version GLOBALE dans
-    `Parametre` (contrairement à `methode_cout`, devenue par utilisateur au
-    Milestone 2b dans `UserParametre`) — c'est un marqueur de
-    version du CODE de calcul, pas une préférence, il n'a donc pas de sens par
-    compte. Un changement de règle de calcul doit reconstruire le portefeuille de
-    CHAQUE compte existant : la boucle ci-dessous est le comportement définitif,
-    pas un compromis en attendant un futur milestone. Tourne toujours au démarrage
-    du process, avec une session unique partagée par tous les comptes (pas de
-    `current_user` disponible ici, contrairement aux endpoints HTTP).
+    `Parametre` (contrairement à `methode_cout`, réglage de chaque foyer dans
+    `FoyerParametre`) — c'est un marqueur de version du CODE de calcul, pas une
+    préférence. Un changement de règle de calcul doit reconstruire le portefeuille de
+    CHAQUE foyer existant. Tourne toujours au démarrage du process, avec une session
+    unique partagée par tous les foyers (pas de `current_user` disponible ici,
+    contrairement aux endpoints HTTP).
 
     Une exception n'est jamais laissée remonter : une remise à niveau qui échoue ne doit
     pas empêcher l'application de démarrer — l'utilisateur peut toujours relancer une
@@ -94,9 +91,9 @@ def reconstruire_si_regles_de_calcul_modifiees(db: Session) -> int | None:
             return None
 
         total_recalcule = 0
-        for (user_id,) in db.query(User.id).all():
+        for (user_id,) in db.query(Foyer.id).all():
             if db.query(Transaction).filter(Transaction.user_id == user_id).first() is None:
-                continue  # ce compte n'a pas de grand livre importé, rien à reconstruire pour lui
+                continue  # ce foyer n'a pas de grand livre importé, rien à reconstruire pour lui
             resultat = portfolio_reconstruction.rebuild_holdings(db, user_id)
             total_recalcule += resultat.positions_recalculees
 

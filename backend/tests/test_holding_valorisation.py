@@ -5,7 +5,15 @@ route qui accepte une date choisie par le client plutôt que `datetime.now()` (c
 `create_holding`/`update_holding`, inchangés). Règle d'antidatage : un point antidaté
 ne doit jamais écraser une valeur courante plus récente déjà connue."""
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, NOM_UTILISATEUR_TEST, basculer_utilisateur, make_holding
+from .conftest import (
+    ID_FOYER_B,
+    ID_UTILISATEUR_B,
+    ID_UTILISATEUR_TEST,
+    NOM_UTILISATEUR_B,
+    NOM_UTILISATEUR_TEST,
+    basculer_utilisateur,
+    make_holding,
+)
 
 
 def test_ajoute_un_point_dhistorique_a_la_date_choisie(client, db):
@@ -81,7 +89,7 @@ def test_valorisation_sur_holding_introuvable_renvoie_404(client):
 
 def test_valorisation_sur_actif_dun_autre_utilisateur_est_refusee(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    h_b = make_holding(db, ticker="AV_B", user_id=ID_UTILISATEUR_B, type_actif="LIFE_INSURANCE")
+    h_b = make_holding(db, ticker="AV_B", user_id=ID_FOYER_B, type_actif="LIFE_INSURANCE")
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     reponse = client.put(f"/api/portfolio/holdings/{h_b.id}/valorisation", json={"valeur": 100.0, "date": "2026-01-01"})

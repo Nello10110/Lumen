@@ -20,6 +20,8 @@ même fichier que l'application.
 import logging
 import os
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy import create_engine, event, text
@@ -152,10 +154,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 #
 # - aucun périmètre (défaut) : la base ne montre AUCUNE ligne de foyer. C'est l'état
 #   d'une requête avant authentification ; un oubli se voit, il ne fuit pas ;
-# - `fixer_foyer` : posé par l'authentification (`auth.get_current_user`) ;
+# - `fixer_foyer` : posé par l'authentification (`auth.get_current_user`). Le compte
+#   connecté (`app.utilisateur_id`) y voit aussi ses appartenances et les foyers
+#   auxquels elles le rattachent (§ BK.2) : c'est ce qui permet de résoudre son foyer
+#   courant avant de le poser ;
 # - `tous_les_foyers` : explicite, pour les tâches de fond qui parcourent tous les
 #   foyers (rafraîchissement des cours, démarrage, planificateur) — voir
-#   `session_tous_foyers`.
+#   `session_tous_foyers` — ou le temps d'une opération (`tous_les_foyers_le_temps`).
 #
 # Sous SQLite, rien de tout cela n'existe : le périmètre est noté, jamais appliqué.
 _SANS_PERIMETRE = ("", "", "off")
@@ -188,10 +193,12 @@ def _changer_perimetre(session: Session, perimetre: tuple[str, str, str]) -> Non
             _appliquer_perimetre(session, connexion)
 
 
-def fixer_foyer(session: Session, foyer_id: int, utilisateur_id: int) -> None:
-    """Restreint la session au foyer `foyer_id`. `utilisateur_id` (le membre connecté,
-    qui peut différer du foyer) ne sert qu'à ses préférences personnelles."""
-    _changer_perimetre(session, (str(foyer_id), str(utilisateur_id), "off"))
+def fixer_foyer(session: Session, foyer_id: int | None, utilisateur_id: int | None) -> None:
+    """Restreint la session au foyer `foyer_id` (`None` : aucun). `utilisateur_id`, le
+    compte connecté, ne lui ouvre que ses propres appartenances."""
+    foyer = "" if foyer_id is None else str(foyer_id)
+    utilisateur = "" if utilisateur_id is None else str(utilisateur_id)
+    _changer_perimetre(session, (foyer, utilisateur, "off"))
 
 
 def tous_les_foyers(session: Session) -> Session:
@@ -199,6 +206,19 @@ def tous_les_foyers(session: Session) -> Session:
     nature sur tous les foyers."""
     _changer_perimetre(session, ("", "", "on"))
     return session
+
+
+@contextmanager
+def tous_les_foyers_le_temps(session: Session) -> Iterator[Session]:
+    """Lève la restriction le temps d'une opération qui ne peut s'en passer — créer un
+    foyer, qui n'est encore celui de personne ; compter les foyers — puis rend à la
+    session le périmètre qu'elle avait."""
+    precedent = session.info.get("perimetre", _SANS_PERIMETRE)
+    _changer_perimetre(session, ("", "", "on"))
+    try:
+        yield session
+    finally:
+        _changer_perimetre(session, precedent)
 
 
 def sans_perimetre(session: Session) -> None:

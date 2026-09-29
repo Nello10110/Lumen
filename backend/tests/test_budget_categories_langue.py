@@ -13,21 +13,21 @@ import app.database as database_module
 from app.models import CategorieBudget
 from app.services import budget_categories_service, budget_service, preferences_service
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 from .test_budget_service import make_mouvement
 
 
 def _noms(db):
     return {
         c.code: c.nom
-        for c in db.query(CategorieBudget).filter(CategorieBudget.user_id == ID_UTILISATEUR_TEST).all()
+        for c in db.query(CategorieBudget).filter(CategorieBudget.user_id == ID_FOYER_TEST).all()
     }
 
 
 def test_categories_par_defaut_creees_dans_la_langue_du_foyer(db):
-    preferences_service.enregistrer_langue_foyer(db, ID_UTILISATEUR_TEST, "en")
+    preferences_service.enregistrer_langue_foyer(db, ID_FOYER_TEST, "en")
 
-    budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST)
+    budget_categories_service.list_categories(db, ID_FOYER_TEST)
 
     noms = _noms(db)
     assert noms["epargne"] == "Savings"
@@ -37,13 +37,13 @@ def test_categories_par_defaut_creees_dans_la_langue_du_foyer(db):
 def test_taux_epargne_et_reste_a_vivre_retrouves_dans_une_autre_langue(db):
     """Sans le code, un foyer anglophone (« Savings », « Housing ») perdait les deux
     indicateurs : la recherche se faisait sur « épargne » et « logement »."""
-    preferences_service.enregistrer_langue_foyer(db, ID_UTILISATEUR_TEST, "en")
-    categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST)}
+    preferences_service.enregistrer_langue_foyer(db, ID_FOYER_TEST, "en")
+    categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_FOYER_TEST)}
     make_mouvement(db, date="2026-02-01", libelle="Salary", montant=2000.0)
     make_mouvement(db, date="2026-02-03", libelle="Rent", montant=-800.0, categorie_id=categories["logement"].id)
     make_mouvement(db, date="2026-02-05", libelle="Transfer", montant=-400.0, categorie_id=categories["epargne"].id)
 
-    j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+    j = budget_service.compute_jonction_patrimoine(db, ID_FOYER_TEST, "2026-02-01", "2026-02-28")
 
     assert j["taux_epargne_reel_pct"] == 20.0
     assert j["categorie_epargne_introuvable"] is False
@@ -54,12 +54,12 @@ def test_taux_epargne_et_reste_a_vivre_retrouves_dans_une_autre_langue(db):
 def test_categorie_epargne_renommee_reste_reconnue(db):
     """Limite levée par le code : renommer « Épargne » ne fait plus disparaître le taux
     d'épargne."""
-    categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST)}
-    budget_categories_service.modifier_categorie(db, ID_UTILISATEUR_TEST, categories["epargne"].id, nom="Placements du mois")
+    categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_FOYER_TEST)}
+    budget_categories_service.modifier_categorie(db, ID_FOYER_TEST, categories["epargne"].id, nom="Placements du mois")
     make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=1000.0)
     make_mouvement(db, date="2026-02-05", libelle="Virement", montant=-100.0, categorie_id=categories["epargne"].id)
 
-    j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+    j = budget_service.compute_jonction_patrimoine(db, ID_FOYER_TEST, "2026-02-01", "2026-02-28")
 
     assert j["taux_epargne_reel_pct"] == 10.0
 
@@ -67,20 +67,20 @@ def test_categorie_epargne_renommee_reste_reconnue(db):
 def test_categorie_recreee_a_la_main_sans_code_reste_reconnue_par_son_nom(db):
     # Arbre par défaut supprimé, puis « Savings » recréée à la main : pas de code, mais
     # le nom par défaut, dans l'une des langues proposées, suffit — comme avant § BL.3.
-    for c in budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST):
-        budget_categories_service.delete_categorie(db, ID_UTILISATEUR_TEST, c.id)
-    epargne = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "savings", None)
+    for c in budget_categories_service.list_categories(db, ID_FOYER_TEST):
+        budget_categories_service.delete_categorie(db, ID_FOYER_TEST, c.id)
+    epargne = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "savings", None)
     make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=1000.0)
     make_mouvement(db, date="2026-02-05", libelle="Virement", montant=-250.0, categorie_id=epargne.id)
 
-    j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+    j = budget_service.compute_jonction_patrimoine(db, ID_FOYER_TEST, "2026-02-01", "2026-02-28")
 
     assert j["taux_epargne_reel_pct"] == 25.0
 
 
 def test_changer_la_langue_renomme_les_categories_non_personnalisees(client, db):
-    categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST)}
-    budget_categories_service.modifier_categorie(db, ID_UTILISATEUR_TEST, categories["loisirs"].id, nom="Sorties")
+    categories = {c.code: c for c in budget_categories_service.list_categories(db, ID_FOYER_TEST)}
+    budget_categories_service.modifier_categorie(db, ID_FOYER_TEST, categories["loisirs"].id, nom="Sorties")
 
     reponse = client.patch("/api/auth/foyer/langue", json={"langue": "de"})
 
@@ -94,8 +94,8 @@ def test_changer_la_langue_renomme_les_categories_non_personnalisees(client, db)
 
 
 def test_changer_la_langue_ne_heurte_pas_un_nom_deja_pris(client, db):
-    budget_categories_service.list_categories(db, ID_UTILISATEUR_TEST)
-    budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Savings", None)
+    budget_categories_service.list_categories(db, ID_FOYER_TEST)
+    budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Savings", None)
 
     reponse = client.patch("/api/auth/foyer/langue", json={"langue": "en"})
 

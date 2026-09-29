@@ -9,11 +9,11 @@ from datetime import datetime
 from app.services import historical_performance_service, immobilier_service
 from app.services.rapport_service import compute_rapport_epargne_periode, compute_rapport_periode
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_FOYER_TEST, make_holding
 
 
 def test_aucune_ligne_epargne_renvoie_a_des_donnees_false(db):
-    epargne = compute_rapport_epargne_periode(db, "2026-01-01", "2026-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2026-01-01", "2026-12-31", ID_FOYER_TEST)
 
     assert epargne["a_des_donnees"] is False
     assert epargne["valeur_debut_periode"] == 0.0
@@ -30,7 +30,7 @@ def test_evolution_de_lepargne_entre_debut_et_fin_de_periode(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2026, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 11000.0, datetime(2026, 6, 1))
 
-    epargne = compute_rapport_epargne_periode(db, "2026-01-01", "2026-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2026-01-01", "2026-12-31", ID_FOYER_TEST)
 
     assert epargne["a_des_donnees"] is True
     assert epargne["valeur_debut_periode"] == 10000.0
@@ -44,7 +44,7 @@ def test_repartition_par_type_en_fin_de_periode_triee_par_valeur_decroissante(db
     immobilier_service.enregistrer_point_historique(db, livret.id, 3000.0, datetime(2026, 1, 1))
     immobilier_service.enregistrer_point_historique(db, av.id, 15000.0, datetime(2026, 1, 1))
 
-    epargne = compute_rapport_epargne_periode(db, "2026-01-01", "2026-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2026-01-01", "2026-12-31", ID_FOYER_TEST)
 
     assert epargne["repartition_par_type"] == [
         {"label": "Assurance-vie", "valeur": 15000.0},
@@ -60,8 +60,8 @@ def test_interets_estimes_proratises_sur_la_duree_de_la_periode(db):
     holding = make_holding(db, ticker="LDD1", type_actif="REGULATED_SAVINGS", quantite=1, valeur_estimee=10000.0, taux_pct=4.0)
     immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
 
-    epargne_un_an = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
-    epargne_six_mois = compute_rapport_epargne_periode(db, "2025-01-01", "2025-07-01", ID_UTILISATEUR_TEST)
+    epargne_un_an = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_FOYER_TEST)
+    epargne_six_mois = compute_rapport_epargne_periode(db, "2025-01-01", "2025-07-01", ID_FOYER_TEST)
 
     assert epargne_un_an["interets_periode"] == 400.0  # 10000 * 4% (365j / 365)
     assert epargne_un_an["decomposition_estimee"] is True
@@ -72,7 +72,7 @@ def test_type_sans_taux_declare_necoule_aucun_interet(db):
     holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1, valeur_estimee=10000.0)
     immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
 
-    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_FOYER_TEST)
 
     assert epargne["interets_periode"] == 0.0
 
@@ -82,7 +82,7 @@ def test_versements_estimes_est_le_residu_apres_les_interets_estimes(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 10500.0, datetime(2025, 12, 31))
 
-    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_FOYER_TEST)
 
     # Évolution totale 500 € ; intérêt estimé ~420 € (10500 * 4% sur la période) ;
     # le reste (résidu) est attribué au versement estimé.
@@ -97,7 +97,7 @@ def test_type_immobilier_ninflue_pas_sur_le_bloc_epargne(db):
     bien = make_holding(db, ticker="APPT", type_actif="REAL_ESTATE", quantite=1, valeur_estimee=300000.0)
     immobilier_service.enregistrer_point_historique(db, bien.id, 300000.0, datetime(2025, 1, 1))
 
-    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_FOYER_TEST)
 
     assert epargne["a_des_donnees"] is False
 
@@ -110,7 +110,7 @@ def test_compute_rapport_periode_inclut_le_bloc_epargne(db, monkeypatch):
     holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1, valeur_estimee=5000.0)
     immobilier_service.enregistrer_point_historique(db, holding.id, 5000.0, datetime(2026, 1, 1))
 
-    rapport = compute_rapport_periode(db, "2026-01-01", "2026-12-31", ID_UTILISATEUR_TEST)
+    rapport = compute_rapport_periode(db, "2026-01-01", "2026-12-31", ID_FOYER_TEST)
 
     assert rapport["epargne"]["a_des_donnees"] is True
     assert rapport["epargne"]["valeur_fin_periode"] == 5000.0
@@ -126,7 +126,7 @@ def test_versement_declare_prime_sur_lestimation(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 10500.0, datetime(2025, 6, 1), versement=300.0)
 
-    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_FOYER_TEST)
 
     assert epargne["decomposition_estimee"] is False
     assert epargne["versements_periode"] == 300.0
@@ -139,7 +139,7 @@ def test_plusieurs_versements_declares_sur_la_periode_sont_additionnes(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 11000.0, datetime(2025, 4, 1), versement=900.0)
     immobilier_service.enregistrer_point_historique(db, holding.id, 12000.0, datetime(2025, 9, 1), versement=800.0)
 
-    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_FOYER_TEST)
 
     assert epargne["decomposition_estimee"] is False
     assert epargne["versements_periode"] == 1700.0
@@ -155,6 +155,6 @@ def test_versement_declare_hors_periode_nest_pas_compte(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
     immobilier_service.enregistrer_point_historique(db, holding.id, 10500.0, datetime(2025, 12, 31))
 
-    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_FOYER_TEST)
 
     assert epargne["decomposition_estimee"] is True

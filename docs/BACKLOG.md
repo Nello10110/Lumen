@@ -52,11 +52,12 @@ centime (§ BI.1). Base **SQLite** par défaut — un fichier, une installation 
 possible pour une future version hébergée, avec la séparation des foyers imposée par la base elle-même
 (sécurité au niveau des lignes, § BI.4-BI.5) — déployable par un profil du compose, sauvegarde
 comprise (§ BK.1, vérifié en CI), mais pas encore capable de gérer
-plusieurs foyers (§ BK.2). Frontend React + TypeScript + Vite. Déploiement par un
+plusieurs foyers (§ BK.2 : le foyer est un objet à part entière depuis le lot BK.2a, les suivants
+restent à faire). Frontend React + TypeScript + Vite. Déploiement par un
 `compose.yaml` unique et des images publiées sur GHCR à chaque livraison.
 
-**Qualité.** 1 474 tests backend (SQLite ; la même suite tourne sous Postgres en CI, rôle ordinaire,
-séparation des foyers active), 853 tests frontend (Vitest), 81 tests de bout en bout (Playwright,
+**Qualité.** 1 709 tests backend (SQLite ; la même suite tourne sous Postgres en CI, rôle ordinaire,
+séparation des foyers active), 912 tests frontend (Vitest), 81 tests de bout en bout (Playwright,
 joués sous SQLite et sous Postgres). Lint `ruff` et `oxlint`, typage `tsc`. Tout est rejoué à chaque
 push (`.github/workflows/ci.yml`), y compris un déploiement réel du compose, avec et sans Postgres.
 
@@ -84,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; aucun lot livré — une installation ne sait toujours créer qu'un foyer | Réalisation par lots : **BK.2a** (objet `Foyer`, invisible) à venir en premier, puis BK.2b à BK.2e (§ BK.2, point 9) |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) traité le 29/09/2026, en attente de la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), BK.2b (invitations) en premier |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -98,7 +99,8 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
 
 - **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : `traité (29/09/2026)`, vérifié par la CI ;
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
-  partagée. **Conception validée le 29/09/2026, premier lot BK.2a à venir** (§ BK.2, point 9).
+  partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) traité, en attente de la CI
+  Postgres ; BK.2b à BK.2e à venir** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7073,7 +7075,8 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 
 #### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
 
-**État au 29/09/2026 : conception validée par l'utilisateur ; le premier lot est BK.2a** (§ 9). Aucun lot n'est encore livré.
+**État au 29/09/2026 : conception validée par l'utilisateur ; lot BK.2a traité** (objet foyer, invisible —
+détail en fin de section, « Lot BK.2a — réalisé »), **en attente de la CI Postgres** ; BK.2b à BK.2e à venir (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7479,6 +7482,65 @@ Validées par l'utilisateur le 29/09/2026 (recommandations de la fiche acceptée
    les comptes déjà liés ne changent pas.
 9. **Création directe d'un compte par le propriétaire** (avec mot de passe) : conservée, limitée à un
    compte qui n'appartient qu'à ce foyer.
+
+##### Lot BK.2a — réalisé (29/09/2026, en attente de la CI Postgres)
+
+**Ce qui change, sans rien de visible** sur une installation à un foyer :
+
+- **Modèle** (`models.py`) : `Foyer` (`foyers` : nom, langue, statut, dates), `Appartenance`
+  (`appartenances` : compte, foyer, rôle, assistant vu, dernière utilisation ; `UNIQUE (user_id,
+  foyer_id)` et un seul propriétaire par foyer par index unique partiel), `FoyerParametre`
+  (`foyer_parametres`) ; `auth_tokens.foyer_id` ; `users` perd `role` / `owner_user_id`, gagne
+  `est_operateur` ; le `user_id` des 13 tables de données pointe vers `foyers.id` (option C : renommé
+  en BK.2e). `UserParametre` disparaît.
+- **Migration `b8e4d2f6a1c9`** (§ 6 complète) : foyers de même id que l'ancien propriétaire — et aussi
+  pour le `owner_user_id` d'un membre et le `user_id` d'une donnée sans compte (rien n'est perdu) ;
+  appartenances ; réglages ; sessions conservées ; clés étrangères repointées ; politiques Postgres des
+  trois nouvelles tables. Descente testée ; elle refuse un compte de plusieurs foyers, un opérateur, ou
+  un foyer qui ne porte pas l'identifiant de son propriétaire (ses données seraient à réécrire).
+- **Authentification** (`auth.py`, `auth_service`) : le foyer courant vient de la session
+  (`reprendre_session`), vérifié en base à chaque requête (appartenance + foyer actif) ; `id_foyer` lit
+  `user.foyer_courant_id` et lève une erreur au lieu de retomber sur `user.id` ; `require_role` lit le
+  rôle de l'appartenance. Nouvelle dépendance `get_membre_foyer` sur tous les routeurs de données
+  (403 « Ce compte n'appartient à aucun foyer. », 5 langues).
+- **Comptes du foyer** (`routers/auth.py`) : liste, création, rôle, suppression par les appartenances
+  du foyer courant (garde IDOR `_membre_du_foyer`) ; périmètre d'invité lu dans le foyer courant
+  (`perimetre_invite`). `startup_maintenance` parcourt les foyers ; jalons datés par `foyers.cree_le`.
+- **Journal d'accès filtré par foyer** — avec une nuance : tant que l'installation n'a qu'un foyer,
+  son propriétaire voit aussi les tentatives sur un identifiant inconnu, comme avant (sinon une
+  installation familiale perdait cette surveillance) ; au-delà, seulement les comptes de son foyer.
+- **SSO** : un nouveau compte rejoint le foyer **unique** de l'installation (fin du `.first()`), ou
+  crée le premier ; avec plusieurs foyers, il est refusé (message traduit) en attendant BK.2d.
+- **Export/import** : la section `user_parametres` du fichier garde son nom (format inchangé, version
+  2) ; elle porte `foyer_parametres` plus le nom et la langue du foyer sous leurs anciennes clés, et
+  `onboarding_termine` pour l'assistant du **propriétaire** : avant BK.2a, ce drapeau vivait dans la
+  même table sous l'id du propriétaire — celui du foyer —, donc partait avec l'export, revenait avec
+  l'import et s'effaçait à la remise à zéro (l'assistant se relançait). Comportement gardé à
+  l'identique, verrouillé par trois tests ; celui des membres, jamais exporté, n'est pas touché. La
+  remise à zéro retrouve les périmètres d'invité par leurs détenteurs.
+- **Interface** : `AuthUser.role` typé `Role | null` (compte sans foyer) ; `routesDuRang(…, null)`
+  ne donne aucune route réservée, le rattrapage des comptes et « Saisir une ligne » exigent un rôle
+  propriétaire ou membre. Rien ne change pour un compte d'un foyer.
+
+**Séparation par la base** (Postgres) : `foyers` et `appartenances` lisibles pour les foyers et
+appartenances du compte connecté, écriture seulement dans son foyer courant — plus strict que la
+fiche, qui ne distinguait pas lecture et écriture : sans cela, un compte pouvait s'inscrire lui-même
+dans n'importe quel foyer ; `WITH CHECK` refuse toute appartenance à un compte opérateur.
+La création d'un foyer (inscription, premier compte SSO) lève la restriction le temps de la
+transaction (`database.tous_les_foyers_le_temps`), comme la route publique d'un lien de partage.
+
+**Tests** : la fixture de base décale les ids de foyer (`ID_FOYER_TEST = 11` pour le compte 1) ;
+`test_migration_objet_foyer.py` (base remplie à la révision précédente : propriétaire, membre, invité
+avec périmètre, compte SSO, compte du défaut L.3, lien, sessions → mêmes réponses d'API avec les mêmes
+jetons, puis descente et remontée) ; `test_foyers.py` (session repointée vers un autre foyer, appartenance
+retirée, compte sans foyer, rôle de l'appartenance, IDOR sur les comptes, journal, SSO) ;
+`test_separation_foyers.py` étendu à un compte membre de deux foyers, à l'auto-inscription refusée et à
+l'opérateur (Postgres).
+
+**Gardé pour plus tard, volontairement** : `users.est_operateur` et `foyers.suspendu_le` n'ont pas
+encore d'usage applicatif, et rien ne suspend encore un foyer (`statut` est lu, jamais changé) — lot
+BK.2d ; le renommage `user_id` → `foyer_id` (BK.2e). Un compte laissé sans foyer par la migration voit
+une application vide (403 sur les données) jusqu'à l'écran « aucun foyer » de BK.2b.
 
 
 ### BL. Application multilingue (cadrée le 23/09/2026)

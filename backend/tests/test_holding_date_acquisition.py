@@ -5,7 +5,7 @@ l'application) et de `date_valeur_estimee` (date de dernière estimation)."""
 
 from app.services import historique_cache
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 
 
 def test_create_holding_avec_date_acquisition(client):
@@ -90,7 +90,7 @@ def test_update_de_la_date_acquisition_seule_invalide_le_cache_du_patrimoine(cli
         "/api/portfolio/holdings",
         json={"ticker": "MAISON", "quantite": 1, "type_actif": "REAL_ESTATE", "prix_revient_moyen": 200000, "valeur_estimee": 250000},
     ).json()
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     historique_cache.ecrire(db, cle, [{"date": "2024-01-01"}])
 
     reponse = client.patch(f"/api/portfolio/holdings/{cree['id']}", json={"date_acquisition": "2019-03-01"})
@@ -113,7 +113,7 @@ def test_update_du_prix_revient_moyen_seul_invalide_le_cache_du_patrimoine(clien
             "date_acquisition": "2019-03-01",
         },
     ).json()
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     historique_cache.ecrire(db, cle, [{"date": "2024-01-01"}])
 
     reponse = client.patch(f"/api/portfolio/holdings/{cree['id']}", json={"prix_revient_moyen": 210000})
@@ -126,7 +126,7 @@ def test_create_holding_avec_date_acquisition_invalide_le_cache_du_patrimoine(cl
     """Même correctif côté création : une ligne créée directement avec une date
     d'acquisition (sans `valeur_estimee`, ex. un actif financier saisi manuellement
     avec un coût d'acquisition connu) doit aussi invalider un cache déjà existant."""
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     historique_cache.ecrire(db, cle, [{"date": "2024-01-01"}])
 
     reponse = client.post(
@@ -151,7 +151,7 @@ def test_update_dun_autre_champ_ninvalide_pas_le_cache_du_patrimoine(client, db)
         "/api/portfolio/holdings",
         json={"ticker": "MAISON", "quantite": 1, "type_actif": "REAL_ESTATE", "valeur_estimee": 250000, "date_acquisition": "2019-03-01"},
     ).json()
-    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    cle = historique_cache.cle_historique_patrimoine(ID_FOYER_TEST)
     historique_cache.ecrire(db, cle, [{"date": "2024-01-01"}])
 
     reponse = client.patch(f"/api/portfolio/holdings/{cree['id']}", json={"nom": "Résidence principale"})

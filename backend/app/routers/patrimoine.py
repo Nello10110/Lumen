@@ -54,7 +54,7 @@ def _verifier_acces_detenteur(db: Session, current_user: User, detenteur_id: int
     if current_user.role == ROLE_INVITE:
         # Un invité (2.L.2) n'a jamais accès à la vue Foyer consolidée : le
         # `detenteur_id` demandé doit être explicitement dans son périmètre assigné.
-        perimetre = detenteurs_service.perimetre_invite(db, current_user.id)
+        perimetre = detenteurs_service.perimetre_invite(db, current_user.id, auth_service.id_foyer(current_user))
         if detenteur_id is None or detenteur_id not in perimetre:
             raise HTTPException(status_code=403, detail="Détenteur hors de votre périmètre")
 

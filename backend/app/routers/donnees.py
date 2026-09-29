@@ -128,10 +128,7 @@ def effacer(
             status_code=400, detail=tr("Confirmation incorrecte. Tapez exactement « {attendu} » pour confirmer.", attendu=attendu)
         )
 
-    ids_comptes_foyer = [
-        ligne.id for ligne in db.query(User.id).filter((User.id == user_id) | (User.owner_user_id == user_id)).all()
-    ]
-    donnees_service.reinitialiser_foyer(db, user_id, ids_comptes_foyer)
+    donnees_service.reinitialiser_foyer(db, user_id)
     # Les historiques mis en cache décrivent un patrimoine qui n'existe plus.
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}

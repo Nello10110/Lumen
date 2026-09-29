@@ -8,23 +8,23 @@ import pytest
 from app.models import Holding, Loan
 from app.services import detenteurs_service
 
-from .conftest import ID_UTILISATEUR_TEST, creer_utilisateur, make_holding
+from .conftest import ID_FOYER_TEST, creer_utilisateur, make_holding
 
 
 def make_detenteur(db, nom="Alice"):
-    return detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, nom)
+    return detenteurs_service.create_detenteur(db, ID_FOYER_TEST, nom)
 
 
 def test_create_list_update_delete_detenteur(db):
     d = make_detenteur(db, nom="Alice")
     assert d.id is not None
-    assert [x.nom for x in detenteurs_service.list_detenteurs(db, ID_UTILISATEUR_TEST)] == ["Alice"]
+    assert [x.nom for x in detenteurs_service.list_detenteurs(db, ID_FOYER_TEST)] == ["Alice"]
 
     detenteurs_service.update_detenteur(db, d, nom="Alicia")
-    assert detenteurs_service.list_detenteurs(db, ID_UTILISATEUR_TEST)[0].nom == "Alicia"
+    assert detenteurs_service.list_detenteurs(db, ID_FOYER_TEST)[0].nom == "Alicia"
 
     detenteurs_service.delete_detenteur(db, d)
-    assert detenteurs_service.list_detenteurs(db, ID_UTILISATEUR_TEST) == []
+    assert detenteurs_service.list_detenteurs(db, ID_FOYER_TEST) == []
 
 
 def test_set_quotites_holding_rejette_si_somme_differente_de_100(db):
@@ -33,7 +33,7 @@ def test_set_quotites_holding_rejette_si_somme_differente_de_100(db):
     bob = make_detenteur(db, "Bob")
 
     with pytest.raises(ValueError, match="100"):
-        detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 50.0), (bob.id, 40.0)])
+        detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 50.0), (bob.id, 40.0)])
 
 
 def test_set_quotites_holding_rejette_un_detenteur_en_double(db):
@@ -41,7 +41,7 @@ def test_set_quotites_holding_rejette_un_detenteur_en_double(db):
     alice = make_detenteur(db, "Alice")
 
     with pytest.raises(ValueError, match="une seule fois"):
-        detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 50.0), (alice.id, 50.0)])
+        detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 50.0), (alice.id, 50.0)])
 
 
 def test_set_quotites_holding_rejette_un_detenteur_dun_autre_compte(db):
@@ -50,15 +50,15 @@ def test_set_quotites_holding_rejette_un_detenteur_dun_autre_compte(db):
     detenteur_autre_compte = detenteurs_service.create_detenteur(db, user_id=999, nom="Intrus")
 
     with pytest.raises(ValueError, match="introuvable"):
-        detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(detenteur_autre_compte.id, 100.0)])
+        detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(detenteur_autre_compte.id, 100.0)])
 
 
 def test_set_quotites_holding_liste_vide_retire_toute_repartition(db):
     h = make_holding(db)
     alice = make_detenteur(db, "Alice")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 100.0)])
 
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [])
 
     assert detenteurs_service.compute_parts(db, h, 1000.0) == {}
 
@@ -72,7 +72,7 @@ def test_compute_parts_part_detenue_simple(db):
     h = make_holding(db)
     alice = make_detenteur(db, "Alice")
     bob = make_detenteur(db, "Bob")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 60.0), (bob.id, 40.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 60.0), (bob.id, 40.0)])
 
     parts = detenteurs_service.compute_parts(db, h, 1000.0)
 
@@ -89,10 +89,10 @@ def test_compute_parts_part_nette_herite_de_la_quotite_de_lactif_sans_quotite_de
     h = make_holding(db)
     alice = make_detenteur(db, "Alice")
     bob = make_detenteur(db, "Bob")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
     db.add(
         Loan(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -119,9 +119,9 @@ def test_compute_parts_part_nette_avec_quotite_demprunt_explicite_differente(db)
     h = make_holding(db)
     alice = make_detenteur(db, "Alice")
     bob = make_detenteur(db, "Bob")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
     loan = Loan(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         libelle="Crédit",
         capital_initial=200000.0,
         taux_annuel_pct=0.0,
@@ -135,7 +135,7 @@ def test_compute_parts_part_nette_avec_quotite_demprunt_explicite_differente(db)
     db.commit()
     db.refresh(loan)
     # Alice seule a signé le prêt : 100 % de la dette lui est imputée.
-    detenteurs_service.set_quotites_loan(db, ID_UTILISATEUR_TEST, loan, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_loan(db, ID_FOYER_TEST, loan, [(alice.id, 100.0)])
 
     parts = detenteurs_service.compute_parts(db, h, 300000.0)
 
@@ -152,11 +152,11 @@ def test_compute_parts_somme_le_crd_de_plusieurs_emprunts_sur_le_meme_bien(db):
     `patrimoine_service._crd_par_ligne`)."""
     h = make_holding(db)
     alice = make_detenteur(db, "Alice")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 100.0)])
     for capital_restant_du_manuel in (100000.0, 50000.0):
         db.add(
             Loan(
-                user_id=ID_UTILISATEUR_TEST,
+                user_id=ID_FOYER_TEST,
                 libelle="Crédit",
                 capital_initial=capital_restant_du_manuel,
                 taux_annuel_pct=0.0,
@@ -178,7 +178,7 @@ def test_compute_parts_somme_le_crd_de_plusieurs_emprunts_sur_le_meme_bien(db):
 def test_delete_detenteur_supprime_ses_quotites_en_cascade(db):
     h = make_holding(db)
     alice = make_detenteur(db, "Alice")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 100.0)])
 
     detenteurs_service.delete_detenteur(db, alice)
 
@@ -198,31 +198,31 @@ def test_compute_parts_bulk_donne_exactement_le_meme_resultat_que_ligne_a_ligne(
     On couvre volontairement les cas tordus : plusieurs emprunts sur un même bien,
     un emprunt avec ses propres quotités (qui priment) et un autre sans (qui hérite
     de celles de l'actif), et une ligne sans aucune quotité."""
-    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Alice")
-    d2 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Bob")
+    d1 = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bulk Alice")
+    d2 = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Bulk Bob")
 
     reparti = make_holding(db, ticker="REPARTI", quantite=1, prix_revient_moyen=100_000.0)
     non_reparti = make_holding(db, ticker="NONREPARTI", quantite=1, prix_revient_moyen=50_000.0)
     detenteurs_service.set_quotites_holding(
-        db, ID_UTILISATEUR_TEST, reparti, [(d1.id, 60.0), (d2.id, 40.0)]
+        db, ID_FOYER_TEST, reparti, [(d1.id, 60.0), (d2.id, 40.0)]
     )
 
     # Deux emprunts sur le même bien : l'un hérite des quotités de l'actif, l'autre
     # a les siennes.
     herite = Loan(
-        user_id=ID_UTILISATEUR_TEST, libelle="Hérité", holding_id=reparti.id, capital_initial=40_000.0,
+        user_id=ID_FOYER_TEST, libelle="Hérité", holding_id=reparti.id, capital_initial=40_000.0,
         taux_annuel_pct=1.5, mensualite=300.0, date_debut=datetime(2024, 1, 1), duree_mois=180,
         capital_restant_du_manuel=30_000.0,
     )
     propre = Loan(
-        user_id=ID_UTILISATEUR_TEST, libelle="Propre", holding_id=reparti.id, capital_initial=20_000.0,
+        user_id=ID_FOYER_TEST, libelle="Propre", holding_id=reparti.id, capital_initial=20_000.0,
         taux_annuel_pct=2.0, mensualite=200.0, date_debut=datetime(2024, 1, 1), duree_mois=120,
         capital_restant_du_manuel=10_000.0,
     )
     db.add_all([herite, propre])
     db.commit()
     detenteurs_service.set_quotites_loan(
-        db, ID_UTILISATEUR_TEST, propre, [(d1.id, 100.0)]
+        db, ID_FOYER_TEST, propre, [(d1.id, 100.0)]
     )
 
     couples = [(reparti, 100_000.0), (non_reparti, 50_000.0)]
@@ -244,11 +244,11 @@ def test_compute_parts_bulk_ne_fait_pas_de_requete_par_ligne(db):
     correctif sur base réelle : un N+1 proportionnel au nombre de lignes."""
     from sqlalchemy import event
 
-    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Compteur Alice")
+    d1 = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Compteur Alice")
     couples = []
     for i in range(12):
         h = make_holding(db, ticker=f"BULK{i}", quantite=1, prix_revient_moyen=1000.0)
-        detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(d1.id, 100.0)])
+        detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(d1.id, 100.0)])
         couples.append((h, 1000.0))
 
     # Le vrai appelant (`patrimoine_service`) charge ses lignes puis appelle

@@ -29,7 +29,7 @@ def list_loans(db: Session = Depends(get_db), current_user: User = Depends(get_c
         # Visible pour un invité (2.L.2) : quotité d'emprunt explicite sur son
         # périmètre, OU emprunt rattaché à un actif dont il détient une quotité
         # (même règle d'héritage que `detenteurs_service.compute_parts`).
-        perimetre = detenteurs_service.perimetre_invite(db, current_user.id)
+        perimetre = detenteurs_service.perimetre_invite(db, current_user.id, auth_service.id_foyer(current_user))
         if not perimetre:
             return []
         loans_directs = {

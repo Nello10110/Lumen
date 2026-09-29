@@ -4,7 +4,7 @@ esprit que `test_ledger_import_router.py`, format Bricks.co."""
 
 from app.models import Compte, Etablissement, Transaction
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_FOYER_TEST
 
 EN_TETE = "id,date,type,statut,propriété,type de contrat,montant (€),prix de la brick (€)"
 
@@ -52,9 +52,9 @@ def test_confirmer_cree_un_etablissement_et_un_compte_bricks(client, db):
     assert corps["importees"] == 1
     assert corps["comptes_crees"] == 1
 
-    etablissement = db.query(Etablissement).filter(Etablissement.user_id == ID_UTILISATEUR_TEST).one()
+    etablissement = db.query(Etablissement).filter(Etablissement.user_id == ID_FOYER_TEST).one()
     assert etablissement.nom == "Bricks.co"
-    compte = db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).one()
+    compte = db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).one()
     assert compte.nom == "Bricks.co"
     assert compte.etablissement_id == etablissement.id
 
@@ -62,7 +62,7 @@ def test_confirmer_cree_un_etablissement_et_un_compte_bricks(client, db):
 def test_nom_de_compte_personnalise_est_respecte(client, db):
     _confirmer(client, _csv(_ligne()), nom_compte="Mon crowdfunding")
 
-    compte = db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).one()
+    compte = db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).one()
     assert compte.nom == "Mon crowdfunding"
 
 
@@ -86,7 +86,7 @@ def test_reimport_du_meme_fichier_ne_duplique_pas(client, db):
     corps = reponse.json()
     assert corps["importees"] == 0
     assert corps["doublons_ignores"] == 1
-    assert db.query(Transaction).filter(Transaction.user_id == ID_UTILISATEUR_TEST).count() == 1
+    assert db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST).count() == 1
 
 
 def test_revenus_reverses_apparaissent_au_calendrier_de_dividendes(client):

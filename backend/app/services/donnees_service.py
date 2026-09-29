@@ -37,9 +37,8 @@ foyer contient exactement le contenu du fichier.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -49,11 +48,15 @@ from ..i18n import tr
 from ..models import (
     ORIGINE_MANUEL,
     ORIGINE_RECONSTRUIT,
+    ROLE_PROPRIETAIRE,
+    Appartenance,
     BudgetCible,
     CategorieBudget,
     Compte,
     Detenteur,
     Etablissement,
+    Foyer,
+    FoyerParametre,
     Holding,
     HoldingImmobilierDetail,
     HoldingValuationHistory,
@@ -67,9 +70,9 @@ from ..models import (
     RegleCategorisation,
     Salaire,
     Transaction,
-    UserParametre,
 )
 from . import salaire_service
+from .preferences_service import LANGUE_PAR_DEFAUT
 
 logger = logging.getLogger("patrimoine.donnees_service")
 
@@ -115,10 +118,19 @@ class TableExportee:
 
     @property
     def a_un_id(self) -> bool:
-        """`user_parametres` a une clé primaire composite (`cle`, `user_id`) et pas
+        """`foyer_parametres` a une clé primaire composite (`cle`, `foyer_id`) et pas
         d'`id` de substitution : rien à remapper pour elle, et rien à collecter
         comme parent — aucune table ne la référence."""
         return "id" in self.modele.__table__.columns
+
+    @property
+    def colonne_foyer(self):
+        """Colonne de rattachement au foyer : `user_id` sur les tables de patrimoine
+        (renommée en BK.2e), `foyer_id` sur les réglages ; aucune sur une table fille."""
+        for nom in ("user_id", "foyer_id"):
+            if hasattr(self.modele, nom):
+                return getattr(self.modele, nom)
+        return None
 
 
 # Ordre = ordre d'INSERTION à l'import : un parent précède toujours ses enfants.
@@ -170,12 +182,28 @@ TABLES: list[TableExportee] = [
     ),
     TableExportee("regles_categorisation", RegleCategorisation, references={"categorie_id": "categories_budget"}),
     TableExportee("budget_cibles", BudgetCible, references={"categorie_id": "categories_budget"}),
-    TableExportee("user_parametres", UserParametre),
+    # Nom de section du FORMAT de fichier, gardé depuis la table `user_parametres` qu'a
+    # remplacée `foyer_parametres` (§ BK.2) : un export d'avant se réimporte, et un
+    # export d'après se relit par une version antérieure. Le nom et la langue du foyer,
+    # colonnes de `foyers`, y voyagent sous leurs anciennes clés, comme l'assistant de
+    # bienvenue du propriétaire (voir `CLE_ASSISTANT_PROPRIETAIRE`).
+    TableExportee("user_parametres", FoyerParametre),
 ]
 
-# Colonnes jamais exportées : `user_id` est celui du foyer SOURCE (l'import le
+# Colonnes jamais exportées : le rattachement est celui du foyer SOURCE (l'import le
 # repositionne sur le foyer courant), `id` est conservé à part pour le remappage.
-COLONNES_EXCLUES = {"user_id"}
+COLONNES_EXCLUES = {"user_id", "foyer_id"}
+
+SECTION_PARAMETRES = "user_parametres"
+CLE_NOM_FOYER = "foyer_nom"
+CLE_LANGUE_FOYER = "langue"
+# Assistant de bienvenue du PROPRIÉTAIRE. Avant l'objet foyer (§ BK.2), il vivait dans
+# la même table que les réglages, sous l'identifiant du propriétaire — qui était celui
+# du foyer : il partait avec l'export, revenait avec l'import, et une remise à zéro
+# l'effaçait (l'assistant se relançait). Il vit désormais sur l'appartenance du
+# propriétaire ; le comportement est gardé tel quel. Celui des membres n'a jamais
+# voyagé.
+CLE_ASSISTANT_PROPRIETAIRE = "onboarding_termine"
 
 
 def _colonnes(table: TableExportee) -> list[str]:
@@ -200,7 +228,7 @@ def _serialiser(valeur: Any) -> Any:
 def _lignes_du_foyer(db: Session, table: TableExportee, user_id: int, ids_parents: dict[str, set[int]]) -> list:
     modele = table.modele
     if table.scope_par is None:
-        return db.query(modele).filter(modele.user_id == user_id).all()
+        return db.query(modele).filter(table.colonne_foyer == user_id).all()
     # Table fille : son appartenance au foyer se déduit du parent déjà collecté.
     table_parent = table.references[table.scope_par]
     ids = ids_parents.get(table_parent, set())
@@ -221,6 +249,16 @@ def exporter_foyer(db: Session, user_id: int) -> dict:
         ids_parents[table.nom] = {ligne.id for ligne in lignes} if table.a_un_id else set()
         colonnes = _colonnes(table)
         donnees[table.nom] = [{col: _serialiser(getattr(ligne, col)) for col in colonnes} for ligne in lignes]
+
+    foyer = db.get(Foyer, user_id)
+    if foyer.nom is not None:
+        donnees[SECTION_PARAMETRES].append({"cle": CLE_NOM_FOYER, "valeur": foyer.nom})
+    # La langue par défaut n'est pas écrite : l'import la rétablit de lui-même.
+    if foyer.langue != LANGUE_PAR_DEFAUT:
+        donnees[SECTION_PARAMETRES].append({"cle": CLE_LANGUE_FOYER, "valeur": foyer.langue})
+    proprietaire = _appartenance_du_proprietaire(db, user_id)
+    if proprietaire is not None and proprietaire.assistant_termine_le is not None:
+        donnees[SECTION_PARAMETRES].append({"cle": CLE_ASSISTANT_PROPRIETAIRE, "valeur": "1"})
 
     return {
         "format": FORMAT,
@@ -278,9 +316,19 @@ def _valeur_a_inserer(colonne: str, valeur: Any, modele: type) -> Any:
     return valeur
 
 
+def _appartenance_du_proprietaire(db: Session, foyer_id: int) -> Appartenance | None:
+    return (
+        db.query(Appartenance)
+        .filter(Appartenance.foyer_id == foyer_id, Appartenance.role == ROLE_PROPRIETAIRE)
+        .first()
+    )
+
+
 def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
-    """Efface tout le patrimoine du foyer, enfants avant parents. Les caches et les
-    données sensibles (cf. docstring de module) ne sont jamais touchés."""
+    """Efface tout le patrimoine du foyer et ses réglages, nom, langue et assistant de
+    bienvenue du propriétaire compris (cf. `CLE_ASSISTANT_PROPRIETAIRE`), enfants avant
+    parents. Les caches, les comptes et les données sensibles (cf.
+    docstring de module) ne sont jamais touchés."""
     ids_parents: dict[str, set[int]] = {}
     for table in TABLES:
         lignes = _lignes_du_foyer(db, table, user_id, ids_parents)
@@ -289,15 +337,21 @@ def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
     for table in reversed(TABLES):
         modele = table.modele
         if table.scope_par is None:
-            db.query(modele).filter(modele.user_id == user_id).delete(synchronize_session=False)
+            db.query(modele).filter(table.colonne_foyer == user_id).delete(synchronize_session=False)
         else:
             ids = ids_parents.get(table.references[table.scope_par], set())
             if ids:
                 db.query(modele).filter(getattr(modele, table.scope_par).in_(ids)).delete(synchronize_session=False)
+    foyer = db.get(Foyer, user_id)
+    foyer.nom = None
+    foyer.langue = LANGUE_PAR_DEFAUT
+    proprietaire = _appartenance_du_proprietaire(db, user_id)
+    if proprietaire is not None:
+        proprietaire.assistant_termine_le = None
     db.flush()
 
 
-def reinitialiser_foyer(db: Session, user_id: int, ids_comptes_foyer: Sequence[int]) -> None:
+def reinitialiser_foyer(db: Session, user_id: int) -> None:
     """Remise à zéro complète et destructrice du foyer (revue du 05/09/2026, demande
     directe de l'utilisateur) — TOUT le patrimoine (`_supprimer_donnees_du_foyer`,
     donc `TABLES`) PLUS `LienPartage`/`PerimetreInvite`, deux tables volontairement
@@ -308,10 +362,8 @@ def reinitialiser_foyer(db: Session, user_id: int, ids_comptes_foyer: Sequence[i
     courir le risque qu'un vieux lien de partage public ou périmètre d'invité pointe
     silencieusement vers une donnée totalement différente créée plus tard.
 
-    `ids_comptes_foyer` : tous les comptes utilisateurs du foyer (propriétaire +
-    membres/invités) — `PerimetreInvite.user_id` est le compte de l'invité lui-même,
-    jamais l'ancre du foyer (`id_foyer`), contrairement à toutes les autres tables
-    ici.
+    Les périmètres d'invité se retrouvent par leur détenteur : `PerimetreInvite.user_id`
+    est le compte de l'invité, qui peut l'être d'autres foyers (§ BK.2).
 
     Ne touche JAMAIS `users`/`auth_tokens`/`access_log_entries` : les comptes
     utilisateurs et le journal d'accès survivent à une remise à zéro des données,
@@ -325,8 +377,10 @@ def reinitialiser_foyer(db: Session, user_id: int, ids_comptes_foyer: Sequence[i
         liens = db.query(LienPartage.id).filter(LienPartage.user_id == user_id)
         db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
         db.query(LienPartage).filter(LienPartage.user_id == user_id).delete(synchronize_session=False)
-        if ids_comptes_foyer:
-            db.query(PerimetreInvite).filter(PerimetreInvite.user_id.in_(ids_comptes_foyer)).delete(synchronize_session=False)
+        detenteurs = db.query(Detenteur.id).filter(Detenteur.user_id == user_id)
+        db.query(PerimetreInvite).filter(PerimetreInvite.detenteur_id.in_(detenteurs.scalar_subquery())).delete(
+            synchronize_session=False
+        )
         _supprimer_donnees_du_foyer(db, user_id)
         db.commit()
     except Exception:
@@ -385,14 +439,34 @@ def _importer_table(db: Session, table: TableExportee, lignes: list[dict], user_
                 else:
                     valeurs[colonne] = _valeur_a_inserer(colonne, valeur, modele)
                     _verifier_valeur_autorisee(table, colonne, valeurs[colonne])
-            if hasattr(modele, "user_id"):
-                valeurs["user_id"] = user_id
+            if table.colonne_foyer is not None:
+                valeurs[table.colonne_foyer.key] = user_id
             objet = modele(**valeurs)
             db.add(objet)
             db.flush()  # rend le nouvel id disponible pour les tables filles
             if table.a_un_id and ancien_id is not None:
                 remap_table[ancien_id] = objet.id
     remap[table.nom] = remap_table
+
+
+def _extraire_reglages_hors_table(db: Session, user_id: int, lignes: list[dict]) -> list[dict]:
+    """Pose sur le foyer et sur son propriétaire les réglages du fichier qui ne sont pas
+    des lignes de `foyer_parametres`, et renvoie les autres."""
+    foyer = db.get(Foyer, user_id)
+    autres = []
+    for ligne in lignes:
+        cle, valeur = ligne.get("cle"), ligne.get("valeur")
+        if cle == CLE_NOM_FOYER:
+            foyer.nom = valeur
+        elif cle == CLE_LANGUE_FOYER:
+            foyer.langue = valeur
+        elif cle == CLE_ASSISTANT_PROPRIETAIRE:
+            proprietaire = _appartenance_du_proprietaire(db, user_id)
+            if proprietaire is not None:
+                proprietaire.assistant_termine_le = datetime.now(UTC).replace(tzinfo=None)
+        else:
+            autres.append(ligne)
+    return autres
 
 
 def importer_foyer(db: Session, user_id: int, document: Any) -> dict[str, int]:
@@ -409,7 +483,10 @@ def importer_foyer(db: Session, user_id: int, document: Any) -> dict[str, int]:
         _supprimer_donnees_du_foyer(db, user_id)
         remap: dict[str, dict[int, int]] = {}
         for table in TABLES:
-            _importer_table(db, table, donnees.get(table.nom, []), user_id, remap)
+            lignes = donnees.get(table.nom, [])
+            if table.nom == SECTION_PARAMETRES:
+                lignes = _extraire_reglages_hors_table(db, user_id, lignes)
+            _importer_table(db, table, lignes, user_id, remap)
         db.commit()
     except Exception:
         db.rollback()

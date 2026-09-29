@@ -5,7 +5,7 @@ réapplication des règles."""
 from app.models import MouvementBancaire
 from app.services import budget_categories_service, budget_import_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_compte
+from .conftest import ID_FOYER_TEST, make_compte
 
 
 def test_mouvements_depuis_lignes_colonne_montant_signee():
@@ -127,14 +127,14 @@ def test_ofx_et_qif_windows_1252_gardent_leurs_accents():
 
 def test_importer_mouvements_deduplique_et_categorise_automatiquement(db):
     compte = make_compte(db)
-    c = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Transport", None)
-    budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "sncf", c.id)
+    c = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Transport", None)
+    budget_categories_service.create_regle(db, ID_FOYER_TEST, "sncf", c.id)
 
     mouvements = [
         budget_import_service.MouvementBrut(date="2026-02-01", libelle="SNCF Connect", montant=-50.0),
         budget_import_service.MouvementBrut(date="2026-02-02", libelle="Boulangerie", montant=-5.0),
     ]
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id)
+    resultat = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, mouvements, compte_id=compte.id)
 
     assert resultat.importees == 2
     assert resultat.doublons_ignores == 0
@@ -146,7 +146,7 @@ def test_importer_mouvements_deduplique_et_categorise_automatiquement(db):
     assert {ligne.compte_id for ligne in lignes} == {compte.id}
 
     # Ré-importer exactement le même relevé : tout doit être détecté comme doublon.
-    resultat2 = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id)
+    resultat2 = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, mouvements, compte_id=compte.id)
     assert resultat2.importees == 0
     assert resultat2.doublons_ignores == 2
 
@@ -154,24 +154,24 @@ def test_importer_mouvements_deduplique_et_categorise_automatiquement(db):
 def test_importer_mouvements_avec_transaction_id_fourni_deduplique_dessus(db):
     compte = make_compte(db)
     m1 = budget_import_service.MouvementBrut(date="2026-02-01", libelle="A", montant=-1.0, transaction_id="FIXE-1")
-    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, [m1], compte_id=compte.id)
+    budget_import_service.importer_mouvements(db, ID_FOYER_TEST, [m1], compte_id=compte.id)
     # Même transaction_id, libellé/montant différents (ex. re-export corrigé par la
     # banque) : doit tout de même être vu comme le même mouvement.
     m2 = budget_import_service.MouvementBrut(date="2026-02-01", libelle="A corrigé", montant=-1.0, transaction_id="FIXE-1")
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, [m2], compte_id=compte.id)
+    resultat = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, [m2], compte_id=compte.id)
 
     assert resultat.doublons_ignores == 1
 
 
 def test_reappliquer_regles_ne_touche_pas_une_categorisation_manuelle(db):
-    c1 = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Auto", None)
-    c2 = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Manuelle", None)
-    budget_categories_service.create_regle(db, ID_UTILISATEUR_TEST, "sncf", c1.id)
+    c1 = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Auto", None)
+    c2 = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Manuelle", None)
+    budget_categories_service.create_regle(db, ID_FOYER_TEST, "sncf", c1.id)
 
-    db.add(MouvementBancaire(user_id=ID_UTILISATEUR_TEST, transaction_id="t1", date="2026-02-01", libelle="SNCF Connect", montant=-10.0))
+    db.add(MouvementBancaire(user_id=ID_FOYER_TEST, transaction_id="t1", date="2026-02-01", libelle="SNCF Connect", montant=-10.0))
     db.add(
         MouvementBancaire(
-            user_id=ID_UTILISATEUR_TEST,
+            user_id=ID_FOYER_TEST,
             transaction_id="t2",
             date="2026-02-02",
             libelle="SNCF Connect",
@@ -182,7 +182,7 @@ def test_reappliquer_regles_ne_touche_pas_une_categorisation_manuelle(db):
     )
     db.commit()
 
-    modifies = budget_import_service.reappliquer_regles(db, ID_UTILISATEUR_TEST)
+    modifies = budget_import_service.reappliquer_regles(db, ID_FOYER_TEST)
 
     assert modifies == 1
     lignes = {m.transaction_id: m.categorie_id for m in db.query(MouvementBancaire).all()}
@@ -202,7 +202,7 @@ def _trois_paiements_identiques() -> list[budget_import_service.MouvementBrut]:
 def test_trois_paiements_identiques_le_meme_jour_donnent_trois_mouvements(db):
     compte = make_compte(db)
 
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+    resultat = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, _trois_paiements_identiques(), compte_id=compte.id)
 
     assert (resultat.importees, resultat.doublons_ignores) == (3, 0)
     assert db.query(MouvementBancaire).count() == 3
@@ -211,9 +211,9 @@ def test_trois_paiements_identiques_le_meme_jour_donnent_trois_mouvements(db):
 
 def test_reimporter_le_meme_fichier_ne_cree_rien(db):
     compte = make_compte(db)
-    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+    budget_import_service.importer_mouvements(db, ID_FOYER_TEST, _trois_paiements_identiques(), compte_id=compte.id)
 
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+    resultat = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, _trois_paiements_identiques(), compte_id=compte.id)
 
     assert (resultat.importees, resultat.doublons_ignores) == (0, 3)
     assert db.query(MouvementBancaire).count() == 3
@@ -226,12 +226,12 @@ def test_la_premiere_occurrence_garde_l_identifiant_d_avant(db):
     ancien_id = budget_import_service._transaction_id_calcule("2026-02-03", -0.85, "CB PAIN QUOTIDIEN")
     db.add(
         MouvementBancaire(
-            user_id=ID_UTILISATEUR_TEST, transaction_id=ancien_id, date="2026-02-03", libelle="CB PAIN QUOTIDIEN", montant=-0.85, compte_id=compte.id
+            user_id=ID_FOYER_TEST, transaction_id=ancien_id, date="2026-02-03", libelle="CB PAIN QUOTIDIEN", montant=-0.85, compte_id=compte.id
         )
     )
     db.commit()
 
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, _trois_paiements_identiques(), compte_id=compte.id)
+    resultat = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, _trois_paiements_identiques(), compte_id=compte.id)
 
     assert (resultat.importees, resultat.doublons_ignores) == (2, 1)
     assert db.query(MouvementBancaire).filter_by(transaction_id=ancien_id).count() == 1
@@ -243,9 +243,9 @@ def test_un_recouvrement_de_releves_ne_double_rien(db):
     m = budget_import_service.MouvementBrut
     premier = [m(date="2026-02-03", libelle="CB CAFE", montant=-2.0), m(date="2026-02-03", libelle="CB CAFE", montant=-2.0)]
     second = [m(date="2026-02-03", libelle="CB CAFE", montant=-2.0), m(date="2026-02-04", libelle="CB CAFE", montant=-2.0)]
-    budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, premier, compte_id=compte.id)
+    budget_import_service.importer_mouvements(db, ID_FOYER_TEST, premier, compte_id=compte.id)
 
-    resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, second, compte_id=compte.id)
+    resultat = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, second, compte_id=compte.id)
 
     assert (resultat.importees, resultat.doublons_ignores) == (1, 1)
 
@@ -261,6 +261,6 @@ def test_ofx_sans_fitid_et_qif_gardent_leurs_lignes_identiques(db):
     for mouvements in (budget_import_service.parse_ofx(ofx), budget_import_service.parse_qif(qif)):
         db.query(MouvementBancaire).delete()
         db.commit()
-        resultat = budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id)
+        resultat = budget_import_service.importer_mouvements(db, ID_FOYER_TEST, mouvements, compte_id=compte.id)
         assert resultat.importees == 2
-        assert budget_import_service.importer_mouvements(db, ID_UTILISATEUR_TEST, mouvements, compte_id=compte.id).importees == 0
+        assert budget_import_service.importer_mouvements(db, ID_FOYER_TEST, mouvements, compte_id=compte.id).importees == 0

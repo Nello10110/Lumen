@@ -30,6 +30,8 @@ from app.services import donnees_service
 from .conftest import (
     ID_UTILISATEUR_B,
     ID_UTILISATEUR_TEST,
+    ID_FOYER_B,
+    ID_FOYER_TEST,
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
@@ -108,7 +110,7 @@ def _peupler_foyer(client, db) -> dict:
 def test_export_produit_un_document_complet_et_versionne(client, db):
     _peupler_foyer(client, db)
 
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
     assert document["format"] == donnees_service.FORMAT
     assert document["version"] == donnees_service.VERSION
@@ -122,7 +124,7 @@ def test_export_nexpose_jamais_le_user_id_ni_les_donnees_sensibles(client, db):
     jetons, journaux) ne doivent jamais se retrouver dans un fichier qui circule."""
     _peupler_foyer(client, db)
 
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
     for lignes in document["donnees"].values():
         for ligne in lignes:
@@ -137,9 +139,9 @@ def test_aller_retour_complet_restitue_le_meme_patrimoine(client, db):
     _peupler_foyer(client, db)
     net_avant = client.get("/api/patrimoine/net").json()
     lignes_avant = {h["ticker"] for h in client.get("/api/portfolio/holdings").json()}
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     assert {h["ticker"] for h in client.get("/api/portfolio/holdings").json()} == lignes_avant
     assert client.get("/api/patrimoine/net").json()["patrimoine_net"] == net_avant["patrimoine_net"]
@@ -155,12 +157,12 @@ def test_aller_retour_preserve_le_logo_dun_etablissement(client, db):
 
     from .test_logo_service import png_factice
 
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ma banque", None)
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Ma banque", None)
     logo_service.appliquer_logo(db, etablissement, png_factice(), logo_service.SOURCE_UPLOAD)
     empreinte_avant = etablissement.logo_empreinte
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     restaure = db.query(Etablissement).filter(Etablissement.nom == "Ma banque").one()
     assert restaure.logo_empreinte == empreinte_avant
@@ -173,9 +175,9 @@ def test_aller_retour_preserve_les_relations_entre_tables(client, db):
     pointent toujours vers la BONNE entité après réécriture, pas seulement qu'ils
     pointent vers quelque chose."""
     _peupler_foyer(client, db)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     # Ligne → compte → établissement
     action = db.query(Holding).filter(Holding.ticker == "AAA").one()
@@ -210,12 +212,12 @@ def test_import_remplace_integralement_lexistant(client, db):
     """Décision utilisateur : remplacement, pas fusion. Ce qui n'est pas dans le
     fichier disparaît."""
     _peupler_foyer(client, db)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     # Une ligne créée APRÈS l'export ne doit pas survivre à l'import.
     client.post("/api/portfolio/holdings", json={"ticker": "ZZZ", "quantite": 1.0, "prix_revient_moyen": 1.0, "compte_nom": "Compte ZZZ"})
     assert any(h["ticker"] == "ZZZ" for h in client.get("/api/portfolio/holdings").json())
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     assert not any(h["ticker"] == "ZZZ" for h in client.get("/api/portfolio/holdings").json())
 
@@ -224,43 +226,43 @@ def test_import_ne_duplique_pas_en_cas_dimports_successifs(client, db):
     """Réimporter deux fois le même fichier doit donner le même résultat qu'une
     fois (opération idempotente) — conséquence directe du remplacement."""
     _peupler_foyer(client, db)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
     apres_un = len(client.get("/api/portfolio/holdings").json())
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     assert len(client.get("/api/portfolio/holdings").json()) == apres_un
     # PEA et compte courant du relevé bancaire, chacun une seule fois.
-    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).count() == 2
+    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).count() == 2
 
 
 def test_import_ne_touche_jamais_les_donnees_dun_autre_foyer(client, db):
     """Le remplacement est strictement borné au foyer courant."""
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    make_holding(db, ticker="FOYER-B", user_id=ID_UTILISATEUR_B)
+    make_holding(db, ticker="FOYER-B", user_id=ID_FOYER_B)
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
     _peupler_foyer(client, db)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
-    assert db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_B).count() == 1
+    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_B).count() == 1
 
 
 def test_un_export_dun_foyer_est_importable_dans_un_autre(client, db):
     """Cas d'usage « migration d'instance » : le fichier ne porte aucun `user_id`,
     il se réimporte donc sous l'identité du foyer qui l'importe."""
     _peupler_foyer(client, db)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_B, document)
+    donnees_service.importer_foyer(db, ID_FOYER_B, document)
 
-    lignes_b = db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_B).all()
+    lignes_b = db.query(Holding).filter(Holding.user_id == ID_FOYER_B).all()
     assert {h.ticker for h in lignes_b} == {"AAA", "MAISON"}
     # Les quotités importées appartiennent bien au foyer B, pas au foyer source.
-    quotites = db.query(QuotiteHolding).join(Holding).filter(Holding.user_id == ID_UTILISATEUR_B).count()
+    quotites = db.query(QuotiteHolding).join(Holding).filter(Holding.user_id == ID_FOYER_B).count()
     assert quotites == 2
 
 
@@ -290,7 +292,7 @@ def test_un_fichier_invalide_neffacce_jamais_le_patrimoine(client, db):
     avant = len(client.get("/api/portfolio/holdings").json())
 
     with pytest.raises(donnees_service.FichierExportInvalideError):
-        donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, {"format": "autre", "version": 1, "donnees": {}})
+        donnees_service.importer_foyer(db, ID_FOYER_TEST, {"format": "autre", "version": 1, "donnees": {}})
 
     assert len(client.get("/api/portfolio/holdings").json()) == avant
 
@@ -357,11 +359,11 @@ def test_endpoint_import_refuse_proprement_un_fichier_invalide(client, db, nom, 
 
 def test_export_dun_foyer_vide_est_importable(client, db):
     """Un foyer neuf s'exporte sans erreur, et son import remet simplement à zéro."""
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     assert donnees_service.resume(document) == {}
 
     make_holding(db, ticker="AAA")
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     assert client.get("/api/portfolio/holdings").json() == []
 
@@ -370,9 +372,9 @@ def test_les_dates_survivent_a_laller_retour(client, db):
     """`json.loads` ne rend que des chaînes : sans reconversion explicite, les
     colonnes date/datetime seraient réinsérées en texte."""
     _peupler_foyer(client, db)
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
-    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     maison = db.query(Holding).filter(Holding.ticker == "MAISON").one()
     assert isinstance(maison.date_acquisition, datetime)
@@ -397,7 +399,7 @@ def test_import_refuse_une_valeur_hors_enumeration(db, table, colonne, valeur):
     schéma SQL ne porte aucune contrainte CHECK. Sans ce garde-fou, un fichier
     d'export édité à la main corrompt silencieusement les données du foyer et casse
     des écrans sans que rien n'explique pourquoi."""
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     modele = next(t.modele for t in donnees_service.TABLES if t.nom == table)
     colonnes = {c.name for c in modele.__table__.columns} - {"user_id"}
     ligne = {c: None for c in colonnes}
@@ -406,7 +408,7 @@ def test_import_refuse_une_valeur_hors_enumeration(db, table, colonne, valeur):
     document["donnees"][table] = [ligne]
 
     with pytest.raises(donnees_service.ValeurInvalideError) as exc:
-        donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+        donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
     assert colonne in str(exc.value)
     assert valeur in str(exc.value)
@@ -415,16 +417,16 @@ def test_import_refuse_une_valeur_hors_enumeration(db, table, colonne, valeur):
 def test_import_refuse_laisse_les_donnees_intactes(db):
     """L'import est un remplacement total : un refus en cours de route ne doit pas
     laisser le foyer à moitié vidé."""
-    avant = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    avant = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     nombre_holdings = len(avant["donnees"]["holdings"])
 
-    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     document["donnees"]["salaires"] = [{"id": 1, "detenteur_id": None, "periodicite": "hebdomadaire"}]
 
     with pytest.raises(donnees_service.ValeurInvalideError):
-        donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+        donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
-    apres = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    apres = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     assert len(apres["donnees"]["holdings"]) == nombre_holdings
 
 
@@ -436,27 +438,27 @@ def test_import_refuse_laisse_les_donnees_intactes(db):
 
 def test_reinitialiser_foyer_efface_tout_le_patrimoine(client, db):
     _peupler_foyer(client, db)
-    assert db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST).count() > 0
+    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).count() > 0
 
-    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST])
+    donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
-    assert db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST).count() == 0
-    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).count() == 0
-    assert db.query(Etablissement).filter(Etablissement.user_id == ID_UTILISATEUR_TEST).count() == 0
-    assert db.query(Detenteur).filter(Detenteur.user_id == ID_UTILISATEUR_TEST).count() == 0
-    assert db.query(Loan).filter(Loan.user_id == ID_UTILISATEUR_TEST).count() == 0
-    assert db.query(Salaire).filter(Salaire.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Etablissement).filter(Etablissement.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Detenteur).filter(Detenteur.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Loan).filter(Loan.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Salaire).filter(Salaire.user_id == ID_FOYER_TEST).count() == 0
 
 
 def test_reinitialiser_foyer_ne_touche_pas_un_autre_foyer(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    make_holding(db, ticker="FOYER-B", user_id=ID_UTILISATEUR_B)
+    make_holding(db, ticker="FOYER-B", user_id=ID_FOYER_B)
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
     _peupler_foyer(client, db)
 
-    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST])
+    donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
-    assert db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_B).count() == 1
+    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_B).count() == 1
 
 
 def test_reinitialiser_foyer_preserve_les_comptes_utilisateurs(client, db):
@@ -467,7 +469,7 @@ def test_reinitialiser_foyer_preserve_les_comptes_utilisateurs(client, db):
     ).json()
     _peupler_foyer(client, db)
 
-    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST, membre["id"]])
+    donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
     assert db.get(User, ID_UTILISATEUR_TEST) is not None
     assert db.get(User, membre["id"]) is not None
@@ -478,11 +480,11 @@ def test_reinitialiser_foyer_efface_les_liens_de_partage(client, db):
     reste une donnée du foyer à effacer pour une remise à zéro réelle."""
     _peupler_foyer(client, db)
     client.post("/api/partage", json={"nom": "Pour la banque"})
-    assert db.query(LienPartage).filter(LienPartage.user_id == ID_UTILISATEUR_TEST).count() == 1
+    assert db.query(LienPartage).filter(LienPartage.user_id == ID_FOYER_TEST).count() == 1
 
-    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST])
+    donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
-    assert db.query(LienPartage).filter(LienPartage.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(LienPartage).filter(LienPartage.user_id == ID_FOYER_TEST).count() == 0
 
 
 def test_reinitialiser_foyer_efface_les_perimetres_invites_et_resiste_a_la_reutilisation_dun_id(client, db):
@@ -498,7 +500,7 @@ def test_reinitialiser_foyer_efface_les_perimetres_invites_et_resiste_a_la_reuti
     ).json()
     assert db.query(PerimetreInvite).filter(PerimetreInvite.user_id == invite["id"]).count() == 1
 
-    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST, invite["id"]])
+    donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
     assert db.query(PerimetreInvite).filter(PerimetreInvite.user_id == invite["id"]).count() == 0
 
@@ -554,3 +556,95 @@ def test_endpoint_effacer_preserve_les_comptes_utilisateurs(client, db):
 
     assert reponse.status_code == 200
     assert db.get(User, membre["id"]) is not None
+
+
+# ---------------------------------------------------------------------------
+# Objet foyer (§ BK.2a) : le nom et la langue, colonnes de `foyers`, voyagent dans la
+# section `user_parametres` du fichier, sous leurs clés d'avant — le format ne change pas.
+# ---------------------------------------------------------------------------
+
+
+def test_le_nom_et_la_langue_du_foyer_font_laller_retour(client, db):
+    from app.models import Foyer
+
+    client.patch("/api/auth/foyer", json={"nom": "Famille Test"})
+    client.patch("/api/auth/foyer/langue", json={"langue": "de"})
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
+    donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
+    assert (db.get(Foyer, ID_FOYER_TEST).nom, db.get(Foyer, ID_FOYER_TEST).langue) == (None, "fr")
+
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
+
+    foyer = db.get(Foyer, ID_FOYER_TEST)
+    assert (foyer.nom, foyer.langue) == ("Famille Test", "de")
+
+
+def test_un_export_davant_lobjet_foyer_se_reimporte(client, db):
+    """Un fichier produit avant § BK.2a porte les réglages sous leurs clés d'alors."""
+    from app.models import Foyer, FoyerParametre
+
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
+    document["donnees"]["user_parametres"] = [
+        {"cle": "foyer_nom", "valeur": "Ancien export"},
+        {"cle": "onboarding_termine", "valeur": "1"},
+        {"cle": "methode_cout", "valeur": "fifo"},
+    ]
+
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
+
+    assert db.get(Foyer, ID_FOYER_TEST).nom == "Ancien export"
+    assert {p.cle for p in db.query(FoyerParametre).filter(FoyerParametre.foyer_id == ID_FOYER_TEST)} == {"methode_cout"}
+    assert client.get("/api/auth/me").json()["onboarding_termine"] is True
+
+
+# L'assistant de bienvenue du propriétaire : avant § BK.2a, il vivait parmi les réglages
+# du foyer (même identifiant) — exporté, réimporté, effacé par une remise à zéro. Inchangé.
+
+
+def _creer_membre_ayant_vu_lassistant(client, db) -> int:
+    from app.models import Appartenance
+
+    membre = client.post(
+        "/api/auth/household-members", json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"}
+    ).json()
+    appartenance = db.query(Appartenance).filter(Appartenance.user_id == membre["id"]).one()
+    appartenance.assistant_termine_le = datetime(2026, 1, 1)
+    db.commit()
+    return membre["id"]
+
+
+def test_une_remise_a_zero_relance_lassistant_du_proprietaire(client, db):
+    from app.models import Appartenance
+
+    id_membre = _creer_membre_ayant_vu_lassistant(client, db)
+    client.post("/api/auth/onboarding/terminer")
+    assert client.get("/api/auth/me").json()["onboarding_termine"] is True
+
+    assert client.post("/api/donnees/effacer", json={"confirmation": "SUPPRIMER"}).status_code == 200
+
+    assert client.get("/api/auth/me").json()["onboarding_termine"] is False
+    # Celui d'un membre n'a jamais été une donnée du foyer : il reste vu.
+    assert db.query(Appartenance).filter(Appartenance.user_id == id_membre).one().assistant_termine_le is not None
+
+
+def test_lassistant_du_proprietaire_fait_laller_retour_dans_lexport(client, db):
+    client.post("/api/auth/onboarding/terminer")
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
+    assert {"cle": "onboarding_termine", "valeur": "1"} in document["donnees"]["user_parametres"]
+
+    donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
+    assert client.get("/api/auth/me").json()["onboarding_termine"] is False
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
+
+    assert client.get("/api/auth/me").json()["onboarding_termine"] is True
+
+
+def test_un_import_sans_lassistant_le_relance_comme_avant(client, db):
+    """Import = remplacement total : un fichier d'un foyer dont le propriétaire n'avait
+    pas terminé l'assistant le relance, comme avant § BK.2a."""
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
+    client.post("/api/auth/onboarding/terminer")
+
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
+
+    assert client.get("/api/auth/me").json()["onboarding_termine"] is False

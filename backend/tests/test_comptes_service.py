@@ -10,21 +10,21 @@ import pytest
 from app.models import Compte, Holding, Loan, QuotiteHolding, QuotiteLoan, Transaction
 from app.services import comptes_service, detenteurs_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
+from .conftest import ID_FOYER_TEST, make_holding, make_transaction
 
 
 def test_create_et_list_etablissements(db):
-    comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Caisse d'Épargne")
-    comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama")
+    comptes_service.create_etablissement(db, ID_FOYER_TEST, "Caisse d'Épargne")
+    comptes_service.create_etablissement(db, ID_FOYER_TEST, "Boursorama")
 
-    noms = {e.nom for e in comptes_service.list_etablissements(db, ID_UTILISATEUR_TEST)}
+    noms = {e.nom for e in comptes_service.list_etablissements(db, ID_FOYER_TEST)}
     assert noms == {"Caisse d'Épargne", "Boursorama"}
 
 
 def test_create_etablissement_avec_logo_key(db):
     """Refonte import (05/09/2026) : `logo_key` référence une entrée du catalogue
     d'établissements connus côté frontend — purement décoratif côté serveur."""
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Trade Republic", "trade_republic")
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Trade Republic", "trade_republic")
 
     assert etablissement.logo_key == "trade_republic"
 
@@ -34,18 +34,18 @@ def test_get_or_create_etablissement_pose_logo_key_a_la_creation_jamais_ensuite(
     un établissement déjà existant garde son logo actuel, jamais écrasé par un
     second appel qui en fournirait un différent (ex. deux imports successifs qui ne
     s'accordent pas)."""
-    premier = comptes_service.get_or_create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "boursorama")
+    premier = comptes_service.get_or_create_etablissement(db, ID_FOYER_TEST, "Boursorama", "boursorama")
     assert premier.logo_key == "boursorama"
 
-    second = comptes_service.get_or_create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "autre_logo")
+    second = comptes_service.get_or_create_etablissement(db, ID_FOYER_TEST, "Boursorama", "autre_logo")
 
     assert second.id == premier.id
     assert second.logo_key == "boursorama"
 
 
 def test_delete_etablissement_ne_supprime_pas_les_comptes_rattaches(db):
-    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Caisse d'Épargne")
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Livret A", etablissement.id)
+    etablissement = comptes_service.create_etablissement(db, ID_FOYER_TEST, "Caisse d'Épargne")
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Livret A", etablissement.id)
 
     comptes_service.delete_etablissement(db, etablissement)
 
@@ -58,7 +58,7 @@ def test_delete_compte_supprime_en_cascade_les_holdings_rattaches(db):
     """Comportement délibérément inversé le 16/09/2026 (demande directe) —
     contrairement à `delete_etablissement` ci-dessus, qui ne fait toujours que
     détacher."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     holding_id = make_holding(db, ticker="AAA", compte_id=compte.id).id
 
     comptes_service.delete_compte(db, compte)
@@ -69,7 +69,7 @@ def test_delete_compte_supprime_en_cascade_les_holdings_rattaches(db):
 def test_delete_compte_supprime_aussi_les_transactions_rattachees(db):
     """Sans quoi une ligne `origine=reconstruit` ressusciterait « Sans compte » à
     la prochaine reconstruction du portefeuille."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Compte Titres", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Compte Titres", None)
     make_holding(db, ticker="AAA", compte_id=compte.id)
     tx_id = make_transaction(db, symbol="AAA", compte_id=compte.id).id
 
@@ -79,15 +79,15 @@ def test_delete_compte_supprime_aussi_les_transactions_rattachees(db):
 
 
 def test_get_or_create_compte_reutilise_un_compte_existant(db):
-    premier = comptes_service.get_or_create_compte(db, ID_UTILISATEUR_TEST, "PEA")
-    second = comptes_service.get_or_create_compte(db, ID_UTILISATEUR_TEST, "PEA")
+    premier = comptes_service.get_or_create_compte(db, ID_FOYER_TEST, "PEA")
+    second = comptes_service.get_or_create_compte(db, ID_FOYER_TEST, "PEA")
 
     assert premier.id == second.id
-    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST, Compte.nom == "PEA").count() == 1
+    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST, Compte.nom == "PEA").count() == 1
 
 
 def test_get_or_create_compte_cree_si_absent(db):
-    compte = comptes_service.get_or_create_compte(db, ID_UTILISATEUR_TEST, "Nouveau compte")
+    compte = comptes_service.get_or_create_compte(db, ID_FOYER_TEST, "Nouveau compte")
 
     assert compte.nom == "Nouveau compte"
     assert compte.etablissement_id is None
@@ -97,16 +97,16 @@ def test_set_quotites_compte_applique_la_meme_repartition_a_chaque_ligne(db):
     """Cœur de la fonctionnalité (retour utilisateur) : dire une fois « ce compte
     est à 50/50 » plutôt que ligne par ligne — sans nouvelle table de quotités,
     juste `QuotiteHolding` écrite sur chaque ligne du compte."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "CTO", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "CTO", None)
     alice_id = _creer_detenteur(db, "Alice")
     bob_id = _creer_detenteur(db, "Bob")
     h1 = make_holding(db, ticker="AAA", compte_id=compte.id)
     h2 = make_holding(db, ticker="BBB", compte_id=compte.id)
     # Ligne d'un autre compte : ne doit jamais être touchée.
-    autre_compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    autre_compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     h3 = make_holding(db, ticker="CCC", compte_id=autre_compte.id)
 
-    comptes_service.set_quotites_compte(db, ID_UTILISATEUR_TEST, compte, [(alice_id, 50.0), (bob_id, 50.0)])
+    comptes_service.set_quotites_compte(db, ID_FOYER_TEST, compte, [(alice_id, 50.0), (bob_id, 50.0)])
 
     for h in (h1, h2):
         quotites = {q.detenteur_id: q.quotite_pct for q in db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == h.id).all()}
@@ -119,12 +119,12 @@ def test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches(db):
     courant, un compte titre, un immobilier, une dette » — un emprunt rattaché
     (`Loan.holding_id`) à une ligne du compte doit suivre la même répartition que
     la ligne elle-même, sans étape séparée sur la carte Dettes et emprunts."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Compte immobilier", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Compte immobilier", None)
     alice_id = _creer_detenteur(db, "Alice")
     bob_id = _creer_detenteur(db, "Bob")
     appartement = make_holding(db, ticker="MAISON", compte_id=compte.id)
     loan = Loan(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         libelle="Prêt immobilier",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,
@@ -138,7 +138,7 @@ def test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches(db):
     db.refresh(loan)
     # Emprunt sans rattachement : ne doit jamais être touché.
     loan_orphelin = Loan(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         libelle="Prêt conso",
         capital_initial=5000.0,
         taux_annuel_pct=2.0,
@@ -151,7 +151,7 @@ def test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches(db):
     db.commit()
     db.refresh(loan_orphelin)
 
-    comptes_service.set_quotites_compte(db, ID_UTILISATEUR_TEST, compte, [(alice_id, 50.0), (bob_id, 50.0)])
+    comptes_service.set_quotites_compte(db, ID_FOYER_TEST, compte, [(alice_id, 50.0), (bob_id, 50.0)])
 
     quotites_pret = {q.detenteur_id: q.quotite_pct for q in db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == loan.id).all()}
     assert quotites_pret == {alice_id: 50.0, bob_id: 50.0}
@@ -159,23 +159,23 @@ def test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches(db):
 
 
 def test_set_quotites_compte_sur_un_compte_vide_ne_leve_pas(db):
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Vide", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Vide", None)
     alice_id = _creer_detenteur(db, "Alice")
 
-    comptes_service.set_quotites_compte(db, ID_UTILISATEUR_TEST, compte, [(alice_id, 100.0)])  # ne lève pas
+    comptes_service.set_quotites_compte(db, ID_FOYER_TEST, compte, [(alice_id, 100.0)])  # ne lève pas
 
 
 def test_set_zone_geo_compte_applique_la_meme_zone_a_chaque_ligne(db):
     """Retour utilisateur du 17/09/2026 (§ AP.3) : « pouvoir éditer sur un compte
     entier... la géographie », même patron que les quotités — jamais les lignes
     d'un AUTRE compte."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Bricks", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Bricks", None)
     h1 = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id)
     h2 = make_holding(db, ticker="BRICKS-BBB", type_actif="BOND", compte_id=compte.id)
-    autre_compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    autre_compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     h3 = make_holding(db, ticker="CCC", compte_id=autre_compte.id)
 
-    nb = comptes_service.set_zone_geo_compte(db, ID_UTILISATEUR_TEST, compte, "Europe")
+    nb = comptes_service.set_zone_geo_compte(db, ID_FOYER_TEST, compte, "Europe")
 
     assert nb == 2
     db.refresh(h1)
@@ -187,31 +187,31 @@ def test_set_zone_geo_compte_applique_la_meme_zone_a_chaque_ligne(db):
 
 
 def test_set_zone_geo_compte_none_efface_la_declaration(db):
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Bricks", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Bricks", None)
     h1 = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id, zone_geo="Europe")
 
-    comptes_service.set_zone_geo_compte(db, ID_UTILISATEUR_TEST, compte, None)
+    comptes_service.set_zone_geo_compte(db, ID_FOYER_TEST, compte, None)
 
     db.refresh(h1)
     assert h1.zone_geo is None
 
 
 def test_set_zone_geo_compte_sur_un_compte_vide_ne_leve_pas(db):
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Vide", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Vide", None)
 
-    assert comptes_service.set_zone_geo_compte(db, ID_UTILISATEUR_TEST, compte, "Europe") == 0
+    assert comptes_service.set_zone_geo_compte(db, ID_FOYER_TEST, compte, "Europe") == 0
 
 
 def test_set_secteur_compte_applique_le_meme_secteur_a_chaque_ligne(db):
     """Même mécanique que `set_zone_geo_compte` ci-dessus, pour le secteur (retour
     utilisateur du 17/09/2026, § AP.3)."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Bricks", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Bricks", None)
     h1 = make_holding(db, ticker="BRICKS-AAA", type_actif="BOND", compte_id=compte.id)
     h2 = make_holding(db, ticker="BRICKS-BBB", type_actif="BOND", compte_id=compte.id)
-    autre_compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    autre_compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     h3 = make_holding(db, ticker="CCC", compte_id=autre_compte.id)
 
-    nb = comptes_service.set_secteur_compte(db, ID_UTILISATEUR_TEST, compte, "Immobilier")
+    nb = comptes_service.set_secteur_compte(db, ID_FOYER_TEST, compte, "Immobilier")
 
     assert nb == 2
     db.refresh(h1)
@@ -226,8 +226,8 @@ def test_solde_par_compte_couvre_tous_les_types_actif(db):
     """Contrairement à `analysis_service.repartition_par_compte` (portefeuille
     financier seul), `solde_par_compte` doit couvrir aussi l'immobilier/l'épargne —
     c'est exactement le trou que l'écran Comptes comble."""
-    compte_financier = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "CTO", None)
-    compte_immo = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Résidence", None)
+    compte_financier = comptes_service.create_compte(db, ID_FOYER_TEST, "CTO", None)
+    compte_immo = comptes_service.create_compte(db, ID_FOYER_TEST, "Résidence", None)
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0, compte_id=compte_financier.id)
     make_holding(
         db,
@@ -240,7 +240,7 @@ def test_solde_par_compte_couvre_tous_les_types_actif(db):
     )
     make_holding(db, ticker="SANS_COMPTE", type_actif="STOCK", quantite=1, prix_revient_moyen=50.0)
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     par_id = {r["compte"].id if r["compte"] else None: r for r in resultats}
     assert par_id[compte_financier.id]["solde"] == 1000.0
@@ -249,9 +249,9 @@ def test_solde_par_compte_couvre_tous_les_types_actif(db):
 
 
 def test_solde_par_compte_inclut_un_compte_vide_a_zero(db):
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Tout juste créé", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Tout juste créé", None)
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert len(resultats) == 1
     assert resultats[0]["compte"].id == compte.id
@@ -263,36 +263,36 @@ def test_solde_par_compte_derniere_maj_reflete_la_ligne_la_plus_recemment_modifi
     """Demande directe du 16/09/2026 — le plus récent entre le compte lui-même
     (`Compte.updated_at`) et ses lignes (`Holding.updated_at`), jamais la
     fraîcheur d'un cours de marché."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
     assert resultats[0]["derniere_maj"] == holding.updated_at
 
     plus_tard = holding.updated_at + timedelta(days=1)
     holding.updated_at = plus_tard
     db.commit()
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
     assert resultats[0]["derniere_maj"] == plus_tard
 
 
 def test_solde_par_compte_derniere_maj_absente_pour_le_bucket_sans_compte(db):
     make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0)  # aucun compte_id
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["compte"] is None
     assert resultats[0]["derniere_maj"] is None
 
 
 def test_solde_par_compte_avec_perimetre_invite_omet_les_comptes_sans_ligne_visible(db):
-    compte_visible = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Visible", None)
-    compte_invisible = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Invisible", None)
+    compte_visible = comptes_service.create_compte(db, ID_FOYER_TEST, "Visible", None)
+    compte_invisible = comptes_service.create_compte(db, ID_FOYER_TEST, "Invisible", None)
     h_visible = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte_visible.id)
     make_holding(db, ticker="BBB", quantite=1, prix_revient_moyen=100.0, compte_id=compte_invisible.id)
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST, holdings_visibles_ids={h_visible.id})
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST, holdings_visibles_ids={h_visible.id})
 
     noms = {r["compte"].nom for r in resultats if r["compte"] is not None}
     assert noms == {"Visible"}
@@ -301,21 +301,21 @@ def test_solde_par_compte_avec_perimetre_invite_omet_les_comptes_sans_ligne_visi
 def test_solde_par_compte_repartition_jamais_commencee_nest_pas_incomplete(db):
     """Aucune ligne `QuotiteHolding` : état valide et délibéré (implicitement 100 %
     foyer, cf. `models.QuotiteHolding`) — ne doit JAMAIS déclencher l'alerte."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["repartition_incomplete"] is False
 
 
 def test_solde_par_compte_repartition_complete_a_100_nest_pas_incomplete(db):
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
     alice_id = _creer_detenteur(db, "Alice")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice_id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, holding, [(alice_id, 100.0)])
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["repartition_incomplete"] is False
 
@@ -327,13 +327,13 @@ def test_solde_par_compte_repartition_rompue_est_incomplete(db):
     laisse `delete_detenteur` en supprimant celle d'un second détenteur qui portait
     les 40 % manquants (`set_quotites_holding` seul ne peut jamais produire cet état,
     `_valider_quotites` le refuserait à l'écriture)."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
     alice_id = _creer_detenteur(db, "Alice")
     db.add(QuotiteHolding(holding_id=holding.id, detenteur_id=alice_id, quotite_pct=60.0))
     db.commit()
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["repartition_incomplete"] is True
 
@@ -342,12 +342,12 @@ def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incompl
     """Même règle, côté emprunt (`QuotiteLoan`) — reportée sur le HOLDING auquel il
     est rattaché : cette vue affiche des lignes de portefeuille, jamais un emprunt
     isolément."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Résidence", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Résidence", None)
     holding = make_holding(
         db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, valeur_estimee=250000.0, compte_id=compte.id
     )
     pret = Loan(
-        user_id=ID_UTILISATEUR_TEST,
+        user_id=ID_FOYER_TEST,
         libelle="Crédit immobilier",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,
@@ -362,7 +362,7 @@ def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incompl
     db.add(QuotiteLoan(loan_id=pret.id, detenteur_id=alice_id, quotite_pct=60.0))
     db.commit()
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["repartition_incomplete"] is True
 
@@ -370,34 +370,34 @@ def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incompl
 def test_solde_par_compte_non_renseignee_absente_avec_un_seul_detenteur(db):
     """Retour utilisateur du 20/09/2026 : sans au moins deux détenteurs déclarés, il
     n'y a personne entre qui répartir — jamais d'invitation à le faire."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
     _creer_detenteur(db, "Alice")
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["repartition_non_renseignee"] is False
 
 
 def test_solde_par_compte_non_renseignee_avec_deux_detenteurs_et_aucune_quotite(db):
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
     _creer_detenteur(db, "Alice")
     _creer_detenteur(db, "Bob")
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["repartition_non_renseignee"] is True
 
 
 def test_solde_par_compte_non_renseignee_fausse_des_qu_une_quotite_existe(db):
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
     alice_id = _creer_detenteur(db, "Alice")
     _creer_detenteur(db, "Bob")
-    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice_id, 100.0)])
+    detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, holding, [(alice_id, 100.0)])
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     assert resultats[0]["repartition_non_renseignee"] is False
 
@@ -410,7 +410,7 @@ def test_solde_par_compte_non_renseignee_jamais_sur_le_bucket_sans_compte(db):
     _creer_detenteur(db, "Alice")
     _creer_detenteur(db, "Bob")
 
-    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
     sans_compte = next(r for r in resultats if r["compte"] is None)
     assert sans_compte["repartition_non_renseignee"] is False
@@ -419,7 +419,7 @@ def test_solde_par_compte_non_renseignee_jamais_sur_le_bucket_sans_compte(db):
 def _creer_detenteur(db, nom: str) -> int:
     from app.models import Detenteur
 
-    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom=nom)
+    detenteur = Detenteur(user_id=ID_FOYER_TEST, nom=nom)
     db.add(detenteur)
     db.commit()
     db.refresh(detenteur)
@@ -431,8 +431,8 @@ def test_repartir_un_compte_est_atomique(db, monkeypatch):
     à mi-parcours laissait le compte à moitié réparti — sans que rien n'indique où.
     Du point de vue de l'utilisateur, « répartir ce compte » est UNE action : elle
     aboutit, ou elle ne change rien."""
-    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Compte atomique", None)
-    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Atomique Alice")
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "Compte atomique", None)
+    alice = detenteurs_service.create_detenteur(db, ID_FOYER_TEST, "Atomique Alice")
     lignes = [make_holding(db, ticker=f"ATOM{i}") for i in range(3)]
     for h in lignes:
         h.compte_id = compte.id
@@ -452,7 +452,7 @@ def test_repartir_un_compte_est_atomique(db, monkeypatch):
     monkeypatch.setattr(detenteurs_service, "set_quotites_holding", _echoue_a_la_troisieme)
 
     with pytest.raises(ValueError, match="panne simulée"):
-        comptes_service.set_quotites_compte(db, ID_UTILISATEUR_TEST, compte, [(alice.id, 100.0)])
+        comptes_service.set_quotites_compte(db, ID_FOYER_TEST, compte, [(alice.id, 100.0)])
 
     # Aucune des trois lignes ne doit porter de répartition.
     for h in lignes:

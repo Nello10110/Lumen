@@ -18,7 +18,16 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import database
-from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, AuthToken, User
+from ..models import (
+    ROLE_PROPRIETAIRE,
+    ROLES_ASSIGNABLES,
+    STATUT_FOYER_ACTIF,
+    AccessLogEntry,
+    Appartenance,
+    AuthToken,
+    Foyer,
+    User,
+)
 
 PBKDF2_ITERATIONS = 260_000
 TOKEN_TTL_JOURS = 30
@@ -59,25 +68,135 @@ def utilisateur_par_username(db: Session, username: str) -> User | None:
     return db.query(User).filter(User.username == username.strip()).first()
 
 
+class AucunFoyerError(RuntimeError):
+    """Un compte sans foyer courant n'a accès à aucune donnée. Les routes de données
+    le refusent en amont (`auth.get_membre_foyer`) : cette erreur ne signale donc
+    qu'un appel oublié de cette dépendance."""
+
+
 def id_foyer(user: User) -> int:
-    """Identifiant de compte propriétaire des données consultées/modifiées : celui de
-    l'utilisateur lui-même pour un propriétaire, celui de son `owner_user_id` pour un
-    membre/invité — permet à tous les routeurs de continuer à filtrer par un seul
-    `user_id`, sans dupliquer la logique de rattachement au foyer à chaque endroit."""
-    return user.owner_user_id or user.id
+    """Foyer des données consultées ou modifiées : le foyer COURANT de la session,
+    posé par l'authentification (`adopter_foyer`). Jamais `user.id` en repli — un
+    compte n'est pas un foyer, et un repli silencieux écrirait dans le mauvais."""
+    if user.foyer_courant_id is None:
+        raise AucunFoyerError(user.id)
+    return user.foyer_courant_id
 
 
-def ouvrir_perimetre(db: Session, user: User) -> None:
-    """Restreint la session au foyer de `user` (§ BI.5) : sous Postgres, la base ne
-    lui montre plus que les lignes de ce foyer, quels que soient les filtres écrits
-    dans le code. À appeler dès que l'utilisateur est authentifié."""
-    database.fixer_foyer(db, id_foyer(user), user.id)
+def appartenance_active(db: Session, user_id: int, foyer_id: int | None) -> Appartenance | None:
+    """L'appartenance de `user_id` à `foyer_id`, si ce foyer est actif."""
+    if foyer_id is None:
+        return None
+    return (
+        db.query(Appartenance)
+        .join(Foyer, Foyer.id == Appartenance.foyer_id)
+        .filter(Appartenance.user_id == user_id, Appartenance.foyer_id == foyer_id, Foyer.statut == STATUT_FOYER_ACTIF)
+        .first()
+    )
 
 
-def creer_utilisateur(
-    db: Session, username: str, password: str, *, role: str = ROLE_PROPRIETAIRE, owner_user_id: int | None = None
-) -> User:
-    user = User(username=username.strip(), password_hash=hash_password(password), role=role, owner_user_id=owner_user_id)
+def _appartenance_par_defaut(db: Session, user_id: int) -> Appartenance | None:
+    """Le foyer rouvert à la connexion : le dernier utilisé."""
+    return (
+        db.query(Appartenance)
+        .join(Foyer, Foyer.id == Appartenance.foyer_id)
+        .filter(Appartenance.user_id == user_id, Foyer.statut == STATUT_FOYER_ACTIF)
+        .order_by(Appartenance.derniere_utilisation.desc().nulls_last(), Appartenance.id)
+        .first()
+    )
+
+
+def adopter_foyer(db: Session, user: User, appartenance: Appartenance | None) -> None:
+    """Pose sur `user` son foyer courant et son rôle DANS ce foyer, et restreint la
+    session à ce foyer (§ BI.5) — sous Postgres, la base ne montre plus que ses lignes,
+    quels que soient les filtres du code. Sans appartenance : aucun foyer, aucun rôle."""
+    user.foyer_courant_id = appartenance.foyer_id if appartenance is not None else None
+    user.role = appartenance.role if appartenance is not None else None
+    database.fixer_foyer(db, user.foyer_courant_id, user.id)
+
+
+def reprendre_session(db: Session, user: User, auth_token: AuthToken) -> None:
+    """Rend à une requête le foyer de sa session, après vérification en base de
+    l'appartenance et du statut du foyer : une appartenance retirée ou un foyer
+    suspendu font repasser la session sans foyer sur-le-champ."""
+    # Le compte seul d'abord : il ne voit que ses appartenances, le temps de vérifier.
+    database.fixer_foyer(db, None, user.id)
+    appartenance = appartenance_active(db, user.id, auth_token.foyer_id)
+    if appartenance is None and auth_token.foyer_id is not None:
+        auth_token.foyer_id = None
+        db.commit()
+    adopter_foyer(db, user, appartenance)
+
+
+def ouvrir_session(db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None) -> AuthToken:
+    """Connexion réussie : le foyer de la session est le dernier utilisé par ce compte."""
+    database.fixer_foyer(db, None, user.id)
+    appartenance = _appartenance_par_defaut(db, user.id)
+    adopter_foyer(db, user, appartenance)
+    if appartenance is not None:
+        maintenant = _maintenant_naif()
+        appartenance.derniere_utilisation = maintenant
+        db.get(Foyer, appartenance.foyer_id).derniere_activite = maintenant
+    return creer_token(db, user, ip=ip, user_agent=user_agent)
+
+
+def creer_foyer(db: Session, proprietaire: User, *, langue: str | None = None) -> Foyer:
+    """Crée un foyer dont `proprietaire` est le propriétaire. Sous Postgres, un foyer
+    neuf n'est encore celui de personne : la séparation des foyers le refuserait, d'où
+    la restriction levée le temps de sa création."""
+    with database.tous_les_foyers_le_temps(db):
+        foyer = Foyer(langue=langue) if langue is not None else Foyer()
+        db.add(foyer)
+        db.flush()
+        db.add(Appartenance(user_id=proprietaire.id, foyer_id=foyer.id, role=ROLE_PROPRIETAIRE))
+        db.commit()
+    return foyer
+
+
+def ajouter_au_foyer(db: Session, user: User, foyer_id: int, role: str) -> Appartenance:
+    """Rattache `user` à un foyer existant, comme membre ou invité — jamais propriétaire,
+    qui naît avec le foyer (`creer_foyer`)."""
+    if role not in ROLES_ASSIGNABLES:
+        raise ValueError(role)
+    appartenance = Appartenance(user_id=user.id, foyer_id=foyer_id, role=role)
+    db.add(appartenance)
+    db.commit()
+    return appartenance
+
+
+def comptes_du_foyer(db: Session, foyer_id: int) -> list[tuple[User, Appartenance]]:
+    return (
+        db.query(User, Appartenance)
+        .join(Appartenance, Appartenance.user_id == User.id)
+        .filter(Appartenance.foyer_id == foyer_id)
+        .order_by(User.created_at)
+        .all()
+    )
+
+
+def installation_a_un_seul_foyer(db: Session) -> bool:
+    """Sous Postgres, un compte ne voit que ses foyers : le compte doit donc se faire
+    sans restriction."""
+    with database.tous_les_foyers_le_temps(db):
+        return db.query(Foyer).count() <= 1
+
+
+def assistant_termine(db: Session, user: User) -> bool:
+    """Assistant de bienvenue déjà vu (terminé ou passé) dans le foyer courant : il est
+    propre à chaque appartenance."""
+    appartenance = appartenance_active(db, user.id, user.foyer_courant_id)
+    return appartenance is not None and appartenance.assistant_termine_le is not None
+
+
+def marquer_assistant_termine(db: Session, user: User) -> None:
+    appartenance = appartenance_active(db, user.id, id_foyer(user))
+    if appartenance is not None and appartenance.assistant_termine_le is None:
+        appartenance.assistant_termine_le = _maintenant_naif()
+
+
+def creer_utilisateur(db: Session, username: str, password: str) -> User:
+    """Le compte seul : son foyer vient de `creer_foyer` ou de `ajouter_au_foyer`."""
+    user = User(username=username.strip(), password_hash=hash_password(password))
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -85,14 +204,7 @@ def creer_utilisateur(
 
 
 def creer_utilisateur_oidc(
-    db: Session,
-    username: str,
-    oidc_subject: str,
-    *,
-    role: str = ROLE_PROPRIETAIRE,
-    owner_user_id: int | None = None,
-    email: str | None = None,
-    nom: str | None = None,
+    db: Session, username: str, oidc_subject: str, *, email: str | None = None, nom: str | None = None
 ) -> User:
     """Miroir de `creer_utilisateur` pour un compte provisionné via SSO (OIDC) —
     `password_hash=None` : ce compte ne peut jamais se connecter par mot de passe,
@@ -100,15 +212,7 @@ def creer_utilisateur_oidc(
     un mot de passe sur un compte sans hash). `email`/`nom` : métadonnées d'affichage
     issues du claim mapping (cf. `services/oidc_service.py`), jamais utilisées pour
     l'authentification."""
-    user = User(
-        username=username.strip(),
-        password_hash=None,
-        oidc_subject=oidc_subject,
-        role=role,
-        owner_user_id=owner_user_id,
-        email=email,
-        nom=nom,
-    )
+    user = User(username=username.strip(), password_hash=None, oidc_subject=oidc_subject, email=email, nom=nom)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -141,11 +245,13 @@ def lier_oidc(db: Session, user: User, oidc_subject: str) -> None:
 
 
 def creer_token(db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None) -> AuthToken:
+    """La session emporte le foyer courant de `user` (`adopter_foyer`)."""
     maintenant = _maintenant_naif()
     token = AuthToken(
         token=secrets.token_hex(32),
         id_session=secrets.token_hex(8),
         user_id=user.id,
+        foyer_id=user.foyer_courant_id,
         created_at=maintenant,
         expires_at=maintenant + timedelta(days=TOKEN_TTL_JOURS),
         derniere_utilisation=maintenant,
@@ -237,13 +343,17 @@ def journaliser_acces(
     db.commit()
 
 
-def lister_journal_acces(db: Session, page: int, page_size: int) -> list[AccessLogEntry]:
-    """Journal global (pas filtré par foyer) : seul un propriétaire y accède
-    (`require_role(ROLE_PROPRIETAIRE)`), et la connexion elle-même précède la
-    résolution de tout foyer — un échec sur un identifiant inconnu n'a par
-    construction aucun foyer auquel le rattacher."""
+def lister_journal_acces(db: Session, foyer_id: int, page: int, page_size: int) -> list[AccessLogEntry]:
+    """Les connexions des comptes du foyer. Tant que l'installation n'a qu'un foyer, son
+    propriétaire en est de fait l'administrateur : il voit aussi ce qui ne se rattache
+    à aucun foyer (identifiant inconnu, compte supprimé), comme avant l'objet foyer —
+    au-delà, ces lignes reviendront à l'opérateur (lot BK.2d)."""
+    requete = db.query(AccessLogEntry)
+    if not installation_a_un_seul_foyer(db):
+        comptes = db.query(Appartenance.user_id).filter(Appartenance.foyer_id == foyer_id)
+        requete = requete.filter(AccessLogEntry.user_id.in_(comptes.scalar_subquery()))
     decalage = max(page - 1, 0) * page_size
-    return db.query(AccessLogEntry).order_by(AccessLogEntry.timestamp.desc()).offset(decalage).limit(page_size).all()
+    return requete.order_by(AccessLogEntry.timestamp.desc()).offset(decalage).limit(page_size).all()
 
 
 def verrouillage_actif(db: Session, username: str) -> datetime | None:

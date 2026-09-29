@@ -8,7 +8,7 @@ restent `None`."""
 
 from app.services import holding_detail_service, market_data_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_FOYER_TEST, make_holding
 
 
 def test_crypto_naffiche_jamais_demetteur_ni_de_resume(db, monkeypatch):
@@ -23,7 +23,7 @@ def test_crypto_naffiche_jamais_demetteur_ni_de_resume(db, monkeypatch):
 
     holding = make_holding(db, ticker="PKN", nom=None, type_actif="CRYPTO", quantite=100.0, prix_revient_moyen=0.4)
 
-    detail = holding_detail_service.build_holding_detail(db, holding.id, ID_UTILISATEUR_TEST)
+    detail = holding_detail_service.build_holding_detail(db, holding.id, ID_FOYER_TEST)
 
     assert detail is not None
     assert detail["emetteur"] is None
@@ -48,7 +48,7 @@ def test_stock_continue_dappeler_resolve_ticker_et_extra_info(db, monkeypatch):
 
     holding = make_holding(db, ticker="AAPL", nom="Apple Inc", type_actif="STOCK")
 
-    detail = holding_detail_service.build_holding_detail(db, holding.id, ID_UTILISATEUR_TEST)
+    detail = holding_detail_service.build_holding_detail(db, holding.id, ID_FOYER_TEST)
 
     assert detail is not None
     assert detail["resume"] == "Résumé Apple"

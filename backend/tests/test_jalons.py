@@ -4,9 +4,9 @@
 
 from datetime import datetime, timedelta
 
-from app.models import User
+from app.models import Foyer
 
-from .conftest import ID_UTILISATEUR_TEST, basculer_utilisateur, make_transaction
+from .conftest import ID_FOYER_TEST, basculer_utilisateur, make_transaction
 
 
 def test_aucun_jalon_atteint_par_defaut(client):
@@ -33,8 +33,8 @@ def test_premier_import_atteint_des_qu_une_transaction_existe(client, db):
 
 
 def test_trois_mois_et_un_an_de_suivi_selon_l_anciennete_du_compte(client, db):
-    utilisateur = db.get(User, ID_UTILISATEUR_TEST)
-    utilisateur.created_at = datetime.now() - timedelta(days=100)
+    foyer = db.get(Foyer, ID_FOYER_TEST)
+    foyer.cree_le = datetime.now() - timedelta(days=100)
     db.commit()
 
     corps = client.get("/api/jalons/").json()
@@ -47,8 +47,8 @@ def test_trois_mois_et_un_an_de_suivi_selon_l_anciennete_du_compte(client, db):
 def test_un_an_de_suivi_atteint_apres_365_jours(db, client):
     """Complète le test ci-dessus, qui ne vérifie `un_an_suivi` qu'à `False` (100
     jours) — jamais à `True` avant cet audit (20/09/2026)."""
-    utilisateur = db.get(User, ID_UTILISATEUR_TEST)
-    utilisateur.created_at = datetime.now() - timedelta(days=400)
+    foyer = db.get(Foyer, ID_FOYER_TEST)
+    foyer.cree_le = datetime.now() - timedelta(days=400)
     db.commit()
 
     corps = client.get("/api/jalons/").json()

@@ -21,7 +21,7 @@ from app.main import app
 @pytest.fixture
 def db_vide():
     """Base de test STRICTEMENT vide (contrairement à la fixture `db` de
-    `conftest.py`, qui pré-insère `ID_UTILISATEUR_TEST` comme toute première ligne)
+    `conftest.py`, qui pré-insère `ID_FOYER_TEST` comme toute première ligne)
     — indispensable ici : l'auto-inscription (2.L.2) n'est ouverte que pour créer le
     tout premier compte, un test qui hériterait d'un utilisateur déjà présent ne
     pourrait plus jamais s'inscrire."""
@@ -715,7 +715,8 @@ def test_modifier_le_role_dun_membre_dun_autre_foyer_renvoie_404(client_reel, db
     # Second foyer : `/register` se ferme après le tout premier compte (cf.
     # docstring de `register`) — on crée directement ce second propriétaire via le
     # service, comme le ferait un second déploiement/onboarding.
-    auth_service_module.creer_utilisateur(db_vide, "alice-intruse", "mot-de-passe-solide")
+    alice = auth_service_module.creer_utilisateur(db_vide, "alice-intruse", "mot-de-passe-solide")
+    auth_service_module.creer_foyer(db_vide, alice)
     token_alice = client_reel.post(
         "/api/auth/login", json={"username": "alice-intruse", "password": "mot-de-passe-solide"}
     ).json()["token"]

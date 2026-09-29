@@ -4,7 +4,15 @@ contrairement à `Holding.valeur_estimee`/`date_valeur_estimee`)."""
 
 from app.services import immobilier_service
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, NOM_UTILISATEUR_TEST, basculer_utilisateur, make_holding
+from .conftest import (
+    ID_FOYER_B,
+    ID_UTILISATEUR_B,
+    ID_UTILISATEUR_TEST,
+    NOM_UTILISATEUR_B,
+    NOM_UTILISATEUR_TEST,
+    basculer_utilisateur,
+    make_holding,
+)
 
 
 def _payload_immobilier(**overrides) -> dict:
@@ -58,7 +66,7 @@ def test_immobilier_sur_holding_introuvable_renvoie_404(client):
 
 def test_immobilier_sur_actif_dun_autre_utilisateur_est_refuse(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    holding_b = make_holding(db, ticker="MAISON_B", user_id=ID_UTILISATEUR_B, type_actif="REAL_ESTATE")
+    holding_b = make_holding(db, ticker="MAISON_B", user_id=ID_FOYER_B, type_actif="REAL_ESTATE")
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     reponse = client.put(f"/api/portfolio/holdings/{holding_b.id}/immobilier", json=_payload_immobilier())
@@ -402,7 +410,7 @@ def test_ligne_sans_valeur_estimee_na_aucun_point_dhistorique(client, db):
 
 def test_historique_dun_actif_dun_autre_utilisateur_est_refuse(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    holding_b = make_holding(db, ticker="MAISON_B", user_id=ID_UTILISATEUR_B, type_actif="REAL_ESTATE", valeur_estimee=100000.0)
+    holding_b = make_holding(db, ticker="MAISON_B", user_id=ID_FOYER_B, type_actif="REAL_ESTATE", valeur_estimee=100000.0)
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     reponse = client.get(f"/api/portfolio/holdings/{holding_b.id}/immobilier-history")
