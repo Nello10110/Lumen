@@ -18,10 +18,10 @@ import pytest
 
 from app import database
 from app.database import session_tous_foyers
-from app.models import Holding, ScheduledJobConfig
+from app.models import Foyer, Holding, ScheduledJobConfig
 from app.services import backup_service, justetf_service, market_data_refresh, market_data_service, scheduler_service
 
-from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
+from .conftest import ID_FOYER_TEST, attendre_fin_rafraichissement_arriere_plan, make_holding
 
 
 def _supprimer_config_job():
@@ -47,6 +47,30 @@ def _config_job_isolee():
     _supprimer_config_job()
     yield
     _supprimer_config_job()
+
+
+@pytest.fixture
+def foyer_de_fond():
+    """Ces tests écrivent via `session_tous_foyers`, sans la fixture `db` : le foyer
+    qui porte leurs lignes n'est donc pas créé pour eux. Postgres refuse une ligne
+    rattachée à un foyer inexistant (clé étrangère) ; on le crée le temps du test."""
+    db = session_tous_foyers()
+    try:
+        cree = db.get(Foyer, ID_FOYER_TEST) is None
+        if cree:
+            db.add(Foyer(id=ID_FOYER_TEST))
+            db.commit()
+    finally:
+        db.close()
+    yield ID_FOYER_TEST
+    if cree:
+        db = session_tous_foyers()
+        try:
+            db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).delete(synchronize_session=False)
+            db.query(Foyer).filter(Foyer.id == ID_FOYER_TEST).delete(synchronize_session=False)
+            db.commit()
+        finally:
+            db.close()
 
 
 def _lire_config_job(job_key: str = scheduler_service.MARKET_DATA_REFRESH) -> ScheduledJobConfig | None:
@@ -448,7 +472,7 @@ def test_cours_historiques_present_dans_jobs():
     assert scheduler_service.COURS_HISTORIQUES in scheduler_service.JOBS
 
 
-def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
+def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch, foyer_de_fond):
     """Vérifie les choses qui comptent : les titres détenus sont bien couverts, le
     rafraîchissement est FORCÉ (le job ne doit pas être bloqué par le délai de
     fraîcheur, sinon il ne sert à rien), un actif non cotable n'y entre pas, et
@@ -478,9 +502,9 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
     db = session_tous_foyers()
     try:
         db.query(Holding).delete()
-        db.add(Holding(user_id=1, ticker="AAA", quantite=1.0, type_actif="STOCK"))
-        db.add(Holding(user_id=1, ticker="BRICKS-ABC", quantite=1.0, type_actif="BOND"))
-        db.add(Holding(user_id=1, ticker="PKN", quantite=100.0, type_actif="CRYPTO"))
+        db.add(Holding(user_id=foyer_de_fond, ticker="AAA", quantite=1.0, type_actif="STOCK"))
+        db.add(Holding(user_id=foyer_de_fond, ticker="BRICKS-ABC", quantite=1.0, type_actif="BOND"))
+        db.add(Holding(user_id=foyer_de_fond, ticker="PKN", quantite=100.0, type_actif="CRYPTO"))
         db.commit()
     finally:
         db.close()
@@ -501,7 +525,7 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch):
     assert appels_crypto == [("PKN", True)]  # via CoinGecko, forcé comme le reste du job
 
 
-def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):
+def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch, foyer_de_fond):
     """Même exigence que les autres jobs : une panne ne doit ni arrêter le scheduler,
     ni rester invisible dans les Réglages."""
     from app.services import market_data_service
@@ -514,7 +538,7 @@ def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch):
     db = session_tous_foyers()
     try:
         db.query(Holding).delete()
-        db.add(Holding(user_id=1, ticker="AAA", quantite=1.0, type_actif="STOCK"))
+        db.add(Holding(user_id=foyer_de_fond, ticker="AAA", quantite=1.0, type_actif="STOCK"))
         db.commit()
     finally:
         db.close()

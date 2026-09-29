@@ -27,7 +27,7 @@ from app.models import HoldingValuationHistory
 from app.services import backup_service
 from scripts import sauvegarde
 
-from .conftest import ID_FOYER_TEST, creer_utilisateur, make_holding
+from .conftest import ID_FOYER_TEST, creer_foyer, make_holding
 
 URL = "postgresql+psycopg://lumen_app:m%40t%20de%2Fpasse@db.exemple:5433/lumen?sslmode=require"
 MOT_DE_PASSE = "m@t de/passe"
@@ -201,7 +201,7 @@ FOYER_B = 2
 def deux_foyers(db):
     """Une ligne, avec un point d'historique (table fille, sans `user_id`), dans
     chacun de deux foyers."""
-    creer_utilisateur(db, FOYER_B, "foyer-b")
+    creer_foyer(db, FOYER_B)
     for foyer, ticker in ((ID_FOYER_TEST, "A-SEUL"), (FOYER_B, "B-SEUL")):
         ligne = make_holding(db, user_id=foyer, ticker=ticker)
         db.add(HoldingValuationHistory(holding_id=ligne.id, valeur=1000.0, date_valeur=datetime(2026, 1, 1)))
