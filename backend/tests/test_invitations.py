@@ -264,7 +264,7 @@ def test_la_consultation_donne_le_foyer_le_role_et_le_libelle(client_jetons, db,
     reponse = _consulter(client_jetons, creee["jeton"])
 
     assert reponse.status_code == 200
-    assert reponse.json() == {"foyer_nom": "Les Martin", "role": "invite", "libelle": "Pour Léa", "langue": "en"}
+    assert reponse.json() == {"foyer_nom": "Les Martin", "role": "invite", "libelle": "Pour Léa", "langue": "en", "cree_un_foyer": False}
 
 
 def test_consulter_ne_consomme_pas_linvitation(client_jetons, proprietaire):

@@ -27,6 +27,7 @@ _RACINE_APP = Path(__file__).resolve().parent.parent / "app"
 FICHIERS_INTERNES = {
     "decimales.py",  # valeur non finie refusée par une colonne décimale : bug, pas saisie
     "backup_service.py",  # clé de sauvegarde absente : configuration du serveur
+    "cli.py",  # commandes d'exploitation (`python -m app.cli`) : lues par l'exploitant, pas dans l'interface
     "cles_chiffrement.py",  # phrase secrète trop courte : configuration du serveur
     "historique_cache.py",  # objet non sérialisable : bug
     "jalons_service.py",  # identifiant de jalon inconnu : appel interne erroné

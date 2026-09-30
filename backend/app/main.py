@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import ENV_CHARGE
-from .auth import get_membre_foyer, require_role
+from .auth import get_membre_foyer, require_operateur, require_proprietaire_sans_operateur, require_role
 from .config_env import CHEMIN_ENV, variables_chargees
 from .database import avertir_si_separation_contournee, session_tous_foyers, upgrade_schema
 from .i18n import MiddlewareLangue, a_traduire, traduire
@@ -36,6 +36,7 @@ from .routers import (
     jalons,
     loans,
     market_data,
+    operateur,
     partage,
     partage_public,
     patrimoine,
@@ -186,7 +187,8 @@ app.include_router(partage_public.router)
 app.include_router(invitations.router)
 
 # Protégées : toutes exigent un jeton valide (Milestone 1) et un foyer courant
-# (§ BK.2 : un compte sans foyer n'a accès à aucune donnée). Au-delà de la simple
+# (§ BK.2 : un compte sans foyer n'a accès à aucune donnée, et le compte opérateur, sans
+# foyer, n'en a aucune : § BK.2d). Au-delà de la simple
 # authentification, les rôles (backlog 2.L.2) restreignent certains routeurs
 # entièrement au propriétaire, ou au propriétaire+membre (invité exclu) — appliqué
 # ici au niveau `include_router` pour les routeurs à granularité uniforme ;
@@ -208,6 +210,14 @@ app.include_router(analysis.router, dependencies=_pas_invite)
 app.include_router(transactions.router, dependencies=_pas_invite)
 app.include_router(performance.router, dependencies=_pas_invite)
 app.include_router(settings.router, dependencies=_proprietaire_seul)
+# Réglages d'INSTALLATION (tâches planifiées, logo du bouton SSO) : les mêmes routes, deux
+# accès (§ BK.2d). Au propriétaire tant que l'installation n'a pas d'opérateur, comme avant ;
+# à l'opérateur ensuite, sous `/api/operateur`, dont le routeur porte sa propre garde.
+app.include_router(
+    settings.installation_router, prefix="/api/settings", dependencies=[Depends(require_proprietaire_sans_operateur)]
+)
+app.include_router(settings.installation_router, prefix="/api/operateur", dependencies=[Depends(require_operateur)])
+app.include_router(operateur.router)
 app.include_router(export.router, dependencies=_proprietaire_seul)
 # Export/import de TOUTES les données du foyer (backlog X.6) : propriétaire seul —
 # exporter emporte tout le patrimoine dans un fichier, importer l'efface et le

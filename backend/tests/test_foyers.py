@@ -11,7 +11,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models import ROLE_INVITE, ROLE_MEMBRE, AccessLogEntry, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
+from app.models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, AccessLogEntry, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
 from app.services import auth_service, detenteurs_service, oidc_service
 
 from .conftest import ID_FOYER_B, ID_FOYER_TEST, ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, creer_utilisateur, jeton_de_session, make_holding
@@ -142,22 +142,18 @@ def test_le_perimetre_dun_invite_se_lit_dans_le_foyer_courant(deux_foyers):
     assert detenteurs_service.perimetre_invite(deux_foyers, invite.id, ID_FOYER_TEST) == [detenteurs[0].id]
 
 
-def test_un_compte_sso_rejoint_le_foyer_unique(db):
+def test_un_compte_sso_cree_son_propre_foyer(db):
     compte = oidc_service.resoudre_ou_provisionner_utilisateur(db, config_defaut(), {"sub": "sub-n", "preferred_username": "nouveau"})
 
     appartenance = db.query(Appartenance).filter(Appartenance.user_id == compte.id).one()
-    assert (appartenance.foyer_id, appartenance.role) == (ID_FOYER_TEST, ROLE_MEMBRE)
-
-
-def test_un_compte_sso_nest_rattache_a_aucun_de_plusieurs_foyers(deux_foyers):
+    assert (appartenance.role, appartenance.foyer_id != ID_FOYER_TEST) == (ROLE_PROPRIETAIRE, True)
+def test_un_compte_sso_nest_rattache_a_aucun_des_foyers_existants(deux_foyers):
     """L'ancien code prenait le « premier » propriétaire venu : sur une installation à
     plusieurs foyers, un inconnu aurait vu le patrimoine d'une famille au hasard."""
-    with pytest.raises(oidc_service.OidcError):
-        oidc_service.resoudre_ou_provisionner_utilisateur(deux_foyers, config_defaut(), {"sub": "sub-n", "preferred_username": "nouveau"})
+    compte = oidc_service.resoudre_ou_provisionner_utilisateur(deux_foyers, config_defaut(), {"sub": "sub-n", "preferred_username": "nouveau"})
 
-    assert deux_foyers.query(User).filter(User.username == "nouveau").first() is None
-
-
+    foyers = {a.foyer_id for a in deux_foyers.query(Appartenance).filter(Appartenance.user_id == compte.id)}
+    assert len(foyers) == 1 and foyers.isdisjoint({ID_FOYER_TEST, ID_FOYER_B})
 def test_la_connexion_rouvre_le_dernier_foyer_utilise(db):
     user = db.get(User, ID_UTILISATEUR_TEST)
     creer_utilisateur(db, ID_UTILISATEUR_B, "voisin")

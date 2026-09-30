@@ -22,7 +22,7 @@ from app.models import (
     PerimetreInvite,
     User,
 )
-from app.services import auth_service, foyer_service, oidc_service
+from app.services import auth_service, foyer_service, installation_service, oidc_service
 
 from .conftest import ID_FOYER_B, ID_FOYER_TEST, ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, creer_utilisateur, jeton_de_session, make_holding
 from .test_auth_router import _configurer_oidc
@@ -314,7 +314,7 @@ def test_un_nom_de_foyer_trop_long_ou_une_langue_inconnue_sont_refuses(client_je
 def test_la_creation_de_foyer_suit_le_reglage_d_installation(client_jetons, deux_foyers):
     egare = _sans_foyer(deux_foyers)
     en_tete = jeton_de_session(deux_foyers, egare.id)
-    deux_foyers.add(Parametre(cle=foyer_service.CLE_CREATION_FOYER_SANS_FOYER, valeur="0"))
+    deux_foyers.add(Parametre(cle=installation_service.CLE_CREATION_FOYER_SANS_FOYER, valeur="0"))
     deux_foyers.commit()
 
     refusee = client_jetons.post("/api/auth/foyers", json={"langue": "fr"}, headers=en_tete)
@@ -323,13 +323,13 @@ def test_la_creation_de_foyer_suit_le_reglage_d_installation(client_jetons, deux
     assert client_jetons.get("/api/auth/me", headers=en_tete).json()["peut_creer_foyer"] is False
     assert deux_foyers.query(Appartenance).filter(Appartenance.user_id == egare.id).count() == 0
 
-    deux_foyers.get(Parametre, foyer_service.CLE_CREATION_FOYER_SANS_FOYER).valeur = "1"
+    deux_foyers.get(Parametre, installation_service.CLE_CREATION_FOYER_SANS_FOYER).valeur = "1"
     deux_foyers.commit()
     assert client_jetons.post("/api/auth/foyers", json={"langue": "fr"}, headers=en_tete).status_code == 200
 
 
 def test_la_creation_de_foyer_est_autorisee_par_defaut(deux_foyers):
-    assert foyer_service.creation_foyer_autorisee(deux_foyers) is True
+    assert installation_service.creation_foyer_par_compte_sans_foyer(deux_foyers) is True
 
 
 def test_un_compte_qui_a_deja_un_foyer_n_en_cree_pas_un_second(client_jetons, deux_foyers):
@@ -500,7 +500,7 @@ def test_la_liste_des_comptes_d_un_foyer_donne_le_role_de_ce_foyer(client_jetons
 
 
 def test_un_nouveau_compte_sso_d_invitation_n_a_aucun_foyer(db):
-    """Sans le drapeau, il rejoindrait le foyer unique en `membre` : le mauvais rôle."""
+    """Sans le drapeau, il créerait son propre foyer, vide : l'invitation, elle, lui donne le sien."""
     ordinaire = oidc_service.resoudre_ou_provisionner_utilisateur(db, config_defaut(), {"sub": "sub-a", "preferred_username": "ordinaire"})
     invite = oidc_service.resoudre_ou_provisionner_utilisateur(
         db, config_defaut(), {"sub": "sub-b", "preferred_username": "invite"}, pour_invitation=True
@@ -508,18 +508,7 @@ def test_un_nouveau_compte_sso_d_invitation_n_a_aucun_foyer(db):
 
     assert db.query(Appartenance).filter(Appartenance.user_id == ordinaire.id).count() == 1
     assert db.query(Appartenance).filter(Appartenance.user_id == invite.id).count() == 0
-    assert db.query(Foyer).count() == 1
-
-
-def test_le_drapeau_d_invitation_leve_aussi_le_refus_de_plusieurs_foyers(deux_foyers):
-    with pytest.raises(oidc_service.OidcError):
-        oidc_service.resoudre_ou_provisionner_utilisateur(deux_foyers, config_defaut(), {"sub": "sub-a", "preferred_username": "a"})
-
-    compte = oidc_service.resoudre_ou_provisionner_utilisateur(
-        deux_foyers, config_defaut(), {"sub": "sub-a", "preferred_username": "a"}, pour_invitation=True
-    )
-
-    assert deux_foyers.query(Appartenance).filter(Appartenance.user_id == compte.id).count() == 0
+    assert db.query(Foyer).count() == 2  # le foyer de test et celui de l'ordinaire
 
 
 def test_le_drapeau_d_invitation_ne_change_rien_pour_un_compte_deja_lie(db):
@@ -568,8 +557,7 @@ def test_le_retour_sso_d_invitation_cree_un_compte_sans_foyer_qui_accepte_ensuit
     assert (accepte["foyer_courant_id"], accepte["role"]) == (ID_FOYER_TEST, "invite")
 
 
-def test_le_retour_sso_ordinaire_rejoint_toujours_le_foyer_unique(client_jetons, db, monkeypatch):
-    """La liaison automatique et le rattachement au foyer unique (lot BK.2a) sont inchangés."""
+def test_le_retour_sso_ordinaire_cree_un_foyer_dont_le_compte_est_proprietaire(client_jetons, db, monkeypatch):
     service = _configurer_oidc(monkeypatch)
     monkeypatch.setattr(service, "echanger_code", lambda config, code, code_verifier: {"access_token": "at-123"})
     monkeypatch.setattr(service, "recuperer_identite", lambda config, access_token: {"sub": "sub-nouveau", "preferred_username": "nouveau"})
@@ -580,15 +568,5 @@ def test_le_retour_sso_ordinaire_rejoint_toujours_le_foyer_unique(client_jetons,
 
     en_tete = {"Authorization": f"Bearer {retour.headers['location'].split('#token=')[1]}"}
     moi = client_jetons.get("/api/auth/me", headers=en_tete).json()
-    assert (moi["foyer_courant_id"], moi["role"]) == (ID_FOYER_TEST, "membre")
-
-
-def test_l_ancienne_liaison_par_nom_d_utilisateur_est_inchangee(db):
-    """Retirée au lot BK.2d, pas avant : ce lot n'y touche pas."""
-    existant = db.get(User, ID_UTILISATEUR_TEST)
-
-    lie = oidc_service.resoudre_ou_provisionner_utilisateur(
-        db, config_defaut(), {"sub": "sub-lie", "preferred_username": existant.username}, pour_invitation=True
-    )
-
-    assert lie.id == existant.id
+    assert moi["role"] == "proprietaire"
+    assert moi["foyer_courant_id"] != ID_FOYER_TEST

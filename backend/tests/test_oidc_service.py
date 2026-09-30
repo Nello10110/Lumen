@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from app.models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, Appartenance, Foyer, User
+from app.models import ROLE_PROPRIETAIRE, Appartenance, Foyer, User
 from app.services import auth_service, oidc_service
 from tests.conftest import ID_UTILISATEUR_TEST
 
@@ -135,14 +135,14 @@ def test_state_valide_fait_laller_retour():
     verifier, _ = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(verifier, CLIENT_SECRET)
 
-    assert oidc_service.verifier_state(state, CLIENT_SECRET) == (verifier, False)
+    assert oidc_service.verifier_state(state, CLIENT_SECRET) == (verifier, False, None)
 
 
 def test_le_drapeau_dinvitation_voyage_dans_le_state_signe():
     verifier, _ = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(verifier, CLIENT_SECRET, pour_invitation=True)
 
-    assert oidc_service.verifier_state(state, CLIENT_SECRET) == (verifier, True)
+    assert oidc_service.verifier_state(state, CLIENT_SECRET) == (verifier, True, None)
 
 
 def test_le_drapeau_dinvitation_ne_se_retire_pas_sans_casser_la_signature():
@@ -376,7 +376,9 @@ def test_oidc_subject_deja_lie_renvoie_le_meme_compte(db_vide):
     assert db_vide.query(User).count() == 1
 
 
-def test_lie_un_compte_local_existant_non_encore_lie(db_vide):
+def test_un_compte_local_du_meme_nom_n_est_jamais_pris_par_une_identite_sso(db_vide):
+    """Faille corrigée au lot BK.2d : l'identité du fournisseur qui porte le nom d'un compte local
+    en prenait le contrôle. Elle crée désormais un compte distinct, le compte local reste intact."""
     compte_local = User(username="alice", password_hash="pbkdf2_sha256$1$sel$hash")
     db_vide.add(compte_local)
     db_vide.commit()
@@ -384,11 +386,12 @@ def test_lie_un_compte_local_existant_non_encore_lie(db_vide):
 
     resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-nouveau", "preferred_username": "alice"})
 
-    assert resultat.id == compte_local.id
-    assert resultat.oidc_subject == "sub-nouveau"
-    # Le mot de passe existant reste utilisable : le SSO s'AJOUTE, ne remplace rien.
-    assert resultat.password_hash == "pbkdf2_sha256$1$sel$hash"
-    assert db_vide.query(User).count() == 1
+    assert resultat.id != compte_local.id
+    assert resultat.username == "alice-2"
+    db_vide.refresh(compte_local)
+    assert compte_local.oidc_subject is None
+    assert compte_local.password_hash == "pbkdf2_sha256$1$sel$hash"
+    assert db_vide.query(User).count() == 2
 
 
 def test_premier_login_oidc_sur_base_vide_devient_proprietaire(db_vide):
@@ -401,7 +404,9 @@ def test_premier_login_oidc_sur_base_vide_devient_proprietaire(db_vide):
     assert resultat.password_hash is None
 
 
-def test_login_oidc_suivant_devient_membre_rattache_au_foyer_du_proprietaire(db_vide):
+def test_login_oidc_suivant_cree_son_propre_foyer(db_vide):
+    """Décision 5 : un nouveau compte SSO ne rejoint plus le foyer d'un autre (ni « le foyer
+    unique » ni `.first()`) : il crée le sien et en est le propriétaire."""
     proprietaire = User(username="proprietaire", password_hash="x")
     db_vide.add(proprietaire)
     db_vide.commit()
@@ -409,11 +414,10 @@ def test_login_oidc_suivant_devient_membre_rattache_au_foyer_du_proprietaire(db_
 
     resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-2", "preferred_username": "bob"})
 
-    assert resultat.username == "bob"
-    # Bug trouvé en vérification bout en bout : sans rattachement, ce compte
-    # devenait son propre foyer vide plutôt que de rejoindre le patrimoine partagé.
     appartenance = _appartenance(db_vide, resultat)
-    assert (appartenance.foyer_id, appartenance.role) == (foyer.id, ROLE_MEMBRE)
+    assert appartenance.role == ROLE_PROPRIETAIRE
+    assert appartenance.foyer_id != foyer.id
+    assert db_vide.query(Foyer).count() == 2
 
 
 def test_provisioning_deduplique_le_nom_utilisateur_en_collision(db_vide):

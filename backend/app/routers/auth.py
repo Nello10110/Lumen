@@ -3,6 +3,9 @@ backlog 2.L.2, foyers § BK.2). `register`/`login` sont les deux seules routes d
 toute l'API à rester accessibles sans jeton — cf. `main.py`, qui protège tous les
 autres routeurs via `dependencies=[Depends(get_membre_foyer)]`."""
 
+import contextlib
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -25,8 +28,11 @@ from ..schemas import (
     HouseholdMemberOut,
     HouseholdMemberUpdate,
     LangueFoyerUpdate,
+    LienSsoOut,
     LoginRequest,
     OidcStatus,
+    OperateurCreate,
+    OperateurOut,
     RegisterRequest,
     SessionOut,
     SuppressionCompteRequest,
@@ -41,6 +47,7 @@ from ..services import (
     foyer_service,
     logo_oidc_service,
     oidc_service,
+    operateur_service,
     preferences_service,
 )
 
@@ -62,6 +69,15 @@ MESSAGE_PROPRIETAIRE_AVEC_MEMBRES = (
 MESSAGE_CIBLE_TRANSFERT_INVALIDE = "Seul un membre du foyer peut en devenir propriétaire : un invité ne le peut pas."
 MESSAGE_CONFIRMATION_TRANSFERT_INCORRECTE = "Confirmation incorrecte. Saisissez le nom d'utilisateur du nouveau propriétaire."
 MESSAGE_CONFIRMATION_COMPTE_INCORRECTE = "Confirmation incorrecte. Saisissez votre nom d'utilisateur pour confirmer."
+MESSAGE_SSO_NON_CONFIGURE = "Connexion SSO non configurée sur ce déploiement."
+MESSAGE_COMPTE_DEJA_LIE_SSO = "Ce compte est déjà lié à une identité SSO."
+MESSAGE_COMPTE_NON_LIE_SSO = "Ce compte n'est lié à aucune identité SSO."
+MESSAGE_DELIAISON_SSO_IMPOSSIBLE = "Ce compte n'a pas de mot de passe : sans le SSO, il ne pourrait plus se connecter."
+MESSAGE_OPERATEUR_EXISTE = "Un compte opérateur existe déjà sur cette installation."
+MESSAGE_AMORCAGE_IMPOSSIBLE = (
+    "Le compte opérateur ne peut plus se créer depuis un foyer : cette installation en accueille plusieurs. "
+    "Utilisez la commande « python -m app.cli operateur creer »."
+)
 MESSAGE_COMPTE_PLUSIEURS_FOYERS = (
     "Ce compte appartient à plusieurs foyers : son nom d'utilisateur ne peut pas être modifié depuis ce foyer."
 )
@@ -78,6 +94,9 @@ def construire_user_out(db: Session, user: User) -> UserOut:
     (`register`/`login`/`me`), afin que le frontend connaisse l'état de l'assistant
     de configuration initiale dès la connexion, sans appel supplémentaire."""
     sortie = UserOut.model_validate(user)
+    sortie.sso_lie = user.oidc_subject is not None
+    sortie.operateur_existe = auth_service.operateur_existe(db)
+    sortie.peut_amorcer_operateur = user.role == ROLE_PROPRIETAIRE and operateur_service.amorcage_possible(db)
     # Les foyers du compte se décrivent même sans foyer courant : c'est ce que propose
     # l'écran « aucun foyer ».
     foyers = auth_service.foyers_du_compte(db, user.id)
@@ -166,29 +185,67 @@ def oidc_login(invitation: bool = False):
     voyage dans le `state` signé, pas dans le retour du fournisseur, que rien ne protège."""
     config = oidc_service.charger_config()
     if config is None:
-        raise HTTPException(status_code=404, detail="Connexion SSO non configurée sur ce déploiement.")
+        raise HTTPException(status_code=404, detail=MESSAGE_SSO_NON_CONFIGURE)
     code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(code_verifier, config.client_secret, pour_invitation=invitation)
     return RedirectResponse(oidc_service.url_autorisation(config, state, code_challenge))
+
+
+@router.post("/oidc/lier", response_model=LienSsoOut)
+def oidc_lier(current_user: User = Depends(get_current_user)):
+    """« Lier mon compte SSO » (§ BK.2d) : le compte CONNECTÉ demande à rattacher une identité du
+    fournisseur. Renvoie l'adresse d'autorisation, que le navigateur ouvre (une redirection ne
+    porterait pas l'en-tête `Authorization`) ; le compte à lier voyage dans le `state` signé. Au
+    retour, `oidc_callback` lie l'identité à ce compte — jamais à un compte du même nom — et
+    renvoie à l'interface avec `?oidc_liaison=ok` ou `?oidc_liaison_erreur=<message>`, sans
+    ouvrir de session. 403 pour l'opérateur (mot de passe seulement), 409 si le compte est déjà
+    lié."""
+    config = oidc_service.charger_config()
+    if config is None:
+        raise HTTPException(status_code=404, detail=MESSAGE_SSO_NON_CONFIGURE)
+    if current_user.est_operateur:
+        raise HTTPException(status_code=403, detail=oidc_service.MESSAGE_OPERATEUR_SANS_SSO)
+    if current_user.oidc_subject is not None:
+        raise HTTPException(status_code=409, detail=MESSAGE_COMPTE_DEJA_LIE_SSO)
+    code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
+    state = oidc_service.construire_state(code_verifier, config.client_secret, lier_compte_id=current_user.id)
+    return LienSsoOut(url=oidc_service.url_autorisation(config, state, code_challenge))
+
+
+@router.post("/oidc/delier", response_model=UserOut)
+def oidc_delier(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """« Délier » : retire l'identité SSO du compte connecté. Refusé (409) si le compte n'est pas
+    lié, ou s'il n'a pas de mot de passe (il ne pourrait plus se connecter)."""
+    if current_user.oidc_subject is None:
+        raise HTTPException(status_code=409, detail=MESSAGE_COMPTE_NON_LIE_SSO)
+    if current_user.password_hash is None:
+        raise HTTPException(status_code=409, detail=MESSAGE_DELIAISON_SSO_IMPOSSIBLE)
+    auth_service.delier_oidc(db, current_user)
+    return construire_user_out(db, current_user)
 
 
 @router.get("/oidc/callback")
 def oidc_callback(request: Request, db: Session = Depends(get_db)):
     config = oidc_service.charger_config()
     if config is None:
-        raise HTTPException(status_code=404, detail="Connexion SSO non configurée sur ce déploiement.")
+        raise HTTPException(status_code=404, detail=MESSAGE_SSO_NON_CONFIGURE)
+
+    code = request.query_params.get("code")
+    state_recu = request.query_params.get("state")
+    # Le `state` dit s'il s'agit d'une LIAISON (§ BK.2d) : l'utilisateur est alors déjà connecté,
+    # et les erreurs lui reviennent sur un paramètre à part, pas sur l'écran de connexion.
+    pour_liaison = False
+    if state_recu:
+        with contextlib.suppress(oidc_service.OidcError):
+            pour_liaison = oidc_service.verifier_state(state_recu, config.client_secret).lier_compte_id is not None
 
     def _redirection_erreur(message: str) -> RedirectResponse:
-        from urllib.parse import quote
-
-        return RedirectResponse(f"{config.frontend_url}/?oidc_error={quote(message)}")
+        parametre = "oidc_liaison_erreur" if pour_liaison else "oidc_error"
+        return RedirectResponse(f"{config.frontend_url}/?{parametre}={quote(message)}")
 
     erreur_fournisseur = request.query_params.get("error")
     if erreur_fournisseur:
         return _redirection_erreur(tr("Connexion SSO refusée ({cause}).", cause=erreur_fournisseur))
-
-    code = request.query_params.get("code")
-    state_recu = request.query_params.get("state")
     if not code or not state_recu:
         return _redirection_erreur(tr("Réponse du fournisseur SSO incomplète. Réessayez."))
 
@@ -197,11 +254,23 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
         etat = oidc_service.verifier_state(state_recu, config.client_secret)
         jeton_fournisseur = oidc_service.echanger_code(config, code, etat.code_verifier)
         claims = oidc_service.recuperer_identite(config, jeton_fournisseur["access_token"])
+        if etat.lier_compte_id is not None:
+            compte = db.get(User, etat.lier_compte_id)
+            if compte is None:
+                raise oidc_service.OidcError("Connexion SSO invalide (state altéré). Réessayez.")
+            oidc_service.lier_identite(db, compte, claims, config)
+            auth_service.journaliser_acces(db, compte.username, compte.id, ip, "succes", None, action="liaison_sso")
+            return RedirectResponse(f"{config.frontend_url}/?oidc_liaison=ok")
         user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims, pour_invitation=etat.pour_invitation)
     except oidc_service.OidcError as err:
         auth_service.journaliser_acces(db, "?", None, ip, "echec", "oidc_echec")
         return _redirection_erreur(traduire(str(err)))
 
+    if user.est_operateur:
+        # Un compte opérateur n'a aucune identité SSO (la liaison le refuse) : ceci ne devrait
+        # jamais arriver, et si la base l'a été à la main, la porte reste fermée.
+        auth_service.journaliser_acces(db, user.username, user.id, ip, "echec", "operateur_sans_sso")
+        return _redirection_erreur(traduire(oidc_service.MESSAGE_OPERATEUR_SANS_SSO))
     verrouille_jusqua = auth_service.verrouillage_actif(db, user.username)
     if verrouille_jusqua is not None:
         auth_service.journaliser_acces(db, user.username, user.id, ip, "echec", "compte_verrouille")
@@ -283,6 +352,24 @@ def creer_foyer(
     except foyer_service.CreationFoyerRefuseeError as erreur:
         raise HTTPException(status_code=403, detail=MESSAGE_CREATION_FOYER_REFUSEE) from erreur
     return construire_user_out(db, current_user)
+
+
+@router.post("/operateur", response_model=OperateurOut, status_code=201)
+def amorcer_operateur(
+    payload: OperateurCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))
+):
+    """Amorçage de l'opérateur par le propriétaire (§ BK.2d) : crée un compte opérateur DISTINCT du
+    sien (nom et mot de passe), seulement tant qu'aucun opérateur n'existe (409 sinon) ET que
+    l'installation n'a qu'un foyer (403 sinon : il se crée alors en ligne de commande). Ce compte
+    n'appartient à aucun foyer : il se connecte ensuite par `login`, et voit la console."""
+    try:
+        return operateur_service.amorcer_operateur(db, payload.username, payload.password)
+    except operateur_service.OperateurDejaExistantError as erreur:
+        raise HTTPException(status_code=409, detail=MESSAGE_OPERATEUR_EXISTE) from erreur
+    except operateur_service.AmorcageImpossibleError as erreur:
+        raise HTTPException(status_code=403, detail=MESSAGE_AMORCAGE_IMPOSSIBLE) from erreur
+    except auth_service.NomUtilisateurPrisError as erreur:
+        raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE) from erreur
 
 
 @router.get("/compte/apercu-suppression", response_model=ApercuSuppressionCompteOut)

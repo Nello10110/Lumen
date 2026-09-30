@@ -43,9 +43,8 @@ from urllib.parse import urlencode
 import requests
 from sqlalchemy.orm import Session
 
-from .. import database
-from ..models import ROLE_MEMBRE, Foyer, User
-from . import auth_service
+from ..models import User
+from . import auth_service, installation_service
 
 VARIABLE_ENABLED = "PATRIMOINE_OIDC_ENABLED"
 VARIABLE_ISSUER = "PATRIMOINE_OIDC_ISSUER"
@@ -69,6 +68,9 @@ VARIABLES_OBLIGATOIRES = (
 
 DRAPEAU_INVITATION = "i"
 DRAPEAU_ORDINAIRE = "n"
+# « Lier mon compte SSO » : le drapeau porte l'identifiant du compte connecté qui demande la
+# liaison (`l12`), signé avec le reste du `state`.
+PREFIXE_DRAPEAU_LIAISON = "l"
 STATE_TTL_SECONDES = 300  # 5 minutes : largement suffisant pour l'aller-retour vers le fournisseur SSO
 SCOPES = "openid profile email"
 
@@ -80,10 +82,8 @@ CLAIM_USERNAME_PAR_DEFAUT = "preferred_username"
 CLAIM_EMAIL_PAR_DEFAUT = "email"
 CLAIM_NOM_PAR_DEFAUT = "name"
 
-MESSAGE_PLUSIEURS_FOYERS = (
-    "Ce serveur accueille plusieurs foyers : un nouveau compte SSO ne peut rejoindre aucun d'eux "
-    "automatiquement. Demandez au propriétaire de votre foyer de créer votre compte."
-)
+MESSAGE_SSO_DEJA_LIE_AILLEURS = "Cette identité SSO est déjà liée à un autre compte."
+MESSAGE_OPERATEUR_SANS_SSO = "Un compte opérateur se connecte uniquement par mot de passe : il ne peut pas utiliser le SSO."
 
 _discovery_cache: dict[str, dict] = {}
 
@@ -94,11 +94,12 @@ class OidcError(Exception):
 
 
 class EtatVerifie(NamedTuple):
-    """Ce que porte un `state` authentique : le `code_verifier` PKCE, et le drapeau
-    « pour une invitation »."""
+    """Ce que porte un `state` authentique : le `code_verifier` PKCE, le drapeau « pour une
+    invitation », et — pour « Lier mon compte SSO » — le compte connecté à lier."""
 
     code_verifier: str
     pour_invitation: bool
+    lier_compte_id: int | None
 
 
 @dataclass
@@ -170,17 +171,25 @@ def code_verifier_et_challenge() -> tuple[str, str]:
     return verifier, challenge
 
 
-def construire_state(code_verifier: str, client_secret: str, *, pour_invitation: bool = False) -> str:
+def construire_state(
+    code_verifier: str, client_secret: str, *, pour_invitation: bool = False, lier_compte_id: int | None = None
+) -> str:
     """`state` auto-porteur et signé — aucune table ni session serveur nécessaire
     pour le vérifier au retour du fournisseur SSO (fonctionne même avec plusieurs
     workers). Signé avec `client_secret` (préoccupation propre à cette application,
     pas au fournisseur SSO) plutôt qu'une variable d'environnement dédiée. Format :
     `nonce.horodatage.code_verifier.drapeau.signature`, chaque partie en base64url.
-    `drapeau` (`i` ou `n`, signé avec le reste) : la connexion sert à accepter une
-    invitation (§ BK.2b), un nouveau compte ne doit alors rejoindre ni créer aucun foyer."""
+    `drapeau` (`i`, `n` ou `l<id>`, signé avec le reste) : la connexion sert à accepter une
+    invitation (§ BK.2b) — un nouveau compte ne doit alors rejoindre ni créer aucun foyer —, ou
+    à LIER l'identité au compte connecté `id` (§ BK.2d : la liaison est décidée par le
+    titulaire du compte, jamais déduite d'un nom d'utilisateur)."""
     nonce = secrets.token_urlsafe(16)
     horodatage = str(int(time.time()))
-    charge = f"{nonce}.{horodatage}.{code_verifier}.{DRAPEAU_INVITATION if pour_invitation else DRAPEAU_ORDINAIRE}"
+    if lier_compte_id is not None:
+        drapeau = f"{PREFIXE_DRAPEAU_LIAISON}{lier_compte_id}"
+    else:
+        drapeau = DRAPEAU_INVITATION if pour_invitation else DRAPEAU_ORDINAIRE
+    charge = f"{nonce}.{horodatage}.{code_verifier}.{drapeau}"
     signature = hmac.new(client_secret.encode("utf-8"), charge.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{charge}.{signature}"
 
@@ -188,8 +197,8 @@ def construire_state(code_verifier: str, client_secret: str, *, pour_invitation:
 def verifier_state(state_recu: str, client_secret: str) -> EtatVerifie:
     """Vérifie la signature (comparaison à temps constant) et la fraîcheur du
     `state` reçu. Renvoie le `code_verifier` PKCE encodé dedans, à réutiliser pour
-    l'échange de code, et le drapeau d'invitation. Lève `OidcError` sinon (jamais de
-    détail technique exposé)."""
+    l'échange de code, le drapeau d'invitation et le compte à lier. Lève `OidcError` sinon
+    (jamais de détail technique exposé)."""
     parties = state_recu.split(".")
     if len(parties) != 5:
         raise OidcError("Connexion SSO invalide (state malformé). Réessayez.")
@@ -200,7 +209,13 @@ def verifier_state(state_recu: str, client_secret: str) -> EtatVerifie:
         raise OidcError("Connexion SSO invalide (state altéré). Réessayez.")
     if time.time() - int(horodatage) > STATE_TTL_SECONDES:
         raise OidcError("La connexion SSO a expiré. Réessayez.")
-    return EtatVerifie(code_verifier, drapeau == DRAPEAU_INVITATION)
+    lier_compte_id = None
+    if drapeau.startswith(PREFIXE_DRAPEAU_LIAISON):
+        try:
+            lier_compte_id = int(drapeau.removeprefix(PREFIXE_DRAPEAU_LIAISON))
+        except ValueError as erreur:
+            raise OidcError("Connexion SSO invalide (state malformé). Réessayez.") from erreur
+    return EtatVerifie(code_verifier, drapeau == DRAPEAU_INVITATION, lier_compte_id)
 
 
 def url_autorisation(config: OidcConfig, state: str, code_challenge: str) -> str:
@@ -268,24 +283,20 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
        mais jamais `username`, qui reste l'identifiant de connexion figé après sa
        création (cf. docstring de `User` : le réécrire silencieusement risquerait une
        collision avec un autre compte ou une confusion dans "Comptes du foyer").
-    2. Sinon, un compte local du même `username` existe et n'a encore aucun
-       `oidc_subject` → on le lie (le SSO devient un second moyen de connexion à un
-       compte déjà créé à la main), rôle et mot de passe inchangés ; `email`/`nom`
-       peuplés au moment de ce premier lien.
-    3. Sinon, auto-provisionne (backlog SSO, décision utilisateur) : propriétaire d'un
-       foyer neuf seulement si aucun foyer n'existe encore (bootstrap, même logique que
-       `POST /api/auth/register`), sinon `membre` **du foyer unique de l'installation**
-       — sans ça, le compte devenait son propre foyer vide, sans accès au patrimoine
-       partagé (§ L.3). Refusé s'il y a plusieurs foyers : jamais un rattachement au
-       hasard (§ BK.2 ; un compte SSO créera son propre foyer au lot BK.2d). Jamais un
-       rôle plus privilégié auto-attribué à un compte non créé à la main. `username`
-       dérivé du claim configuré (`config.claim_username`, une seule fois) ;
-       `email`/`nom` peuplés dès la création.
+    2. Sinon, auto-provisionne (backlog SSO) : un NOUVEAU compte, qui crée son propre foyer et
+       en est le propriétaire (§ BK.2d, décision 5) — ou reste SANS foyer, en attente d'une
+       invitation, si l'opérateur a coupé ce réglage (`installation_service.sso_cree_son_foyer`).
+       `username` dérivé du claim configuré (`config.claim_username`, une seule fois, avec un
+       suffixe si le nom est pris) ; `email`/`nom` peuplés dès la création.
+
+       **Jamais de liaison à un compte existant par ressemblance de nom.** Une identité du
+       fournisseur qui porterait le nom d'un compte local d'un autre foyer en prendrait le
+       contrôle (faille corrigée au lot BK.2d) : un compte local se lie explicitement, depuis
+       sa session (`lier_identite`, « Lier mon compte SSO »).
+
        `pour_invitation` (§ BK.2b, `state` signé) : la connexion sert à accepter une
        invitation, qui donnera au compte son foyer et son rôle — un NOUVEAU compte est
-       alors créé SANS appartenance (sinon il rejoindrait le foyer unique avec le mauvais
-       rôle, ou en créerait un vide), et le nombre de foyers de l'installation ne compte
-       plus."""
+       alors créé SANS appartenance, quel que soit le réglage."""
     sub = claims["sub"]
     email = claims.get(config.claim_email)
     nom = claims.get(config.claim_nom)
@@ -296,36 +307,28 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
         return existant
 
     username_souhaite = _nom_utilisateur_depuis_claims(claims, config.claim_username)
-    par_username = auth_service.utilisateur_par_username(db, username_souhaite)
-    if par_username is not None and par_username.oidc_subject is None:
-        auth_service.lier_oidc(db, par_username, sub)
-        auth_service.mettre_a_jour_profil_oidc(db, par_username, email=email, nom=nom)
-        return par_username
-
-    # Le foyer à rejoindre se cherche parmi TOUS les foyers : c'est l'installation qui
-    # décide, pas un foyer que le nouveau venu verrait déjà.
-    foyers: list[int] = []
-    if not pour_invitation:
-        with database.tous_les_foyers_le_temps(db):
-            foyers = [foyer_id for (foyer_id,) in db.query(Foyer.id).limit(2).all()]
-    if len(foyers) > 1:
-        # Rattacher un inconnu à l'un de plusieurs foyers, c'est lui ouvrir le
-        # patrimoine d'une famille au hasard.
-        raise OidcError(MESSAGE_PLUSIEURS_FOYERS)
     username_final = username_souhaite
     suffixe = 2
     while auth_service.utilisateur_par_username(db, username_final) is not None:
         username_final = f"{username_souhaite[:29]}-{suffixe}"
         suffixe += 1
     user = auth_service.creer_utilisateur_oidc(db, username_final, sub, email=email, nom=nom)
-    if pour_invitation:
-        return user
-    if foyers:
-        # Le rappel SSO n'a aucun foyer courant : la politique d'`appartenances` refuserait
-        # l'insertion. Rejoindre le foyer unique est une décision de l'installation, levée
-        # le temps de cette seule écriture.
-        with database.tous_les_foyers_le_temps(db):
-            auth_service.ajouter_au_foyer(db, user, foyers[0], ROLE_MEMBRE)
-    else:
+    if not pour_invitation and installation_service.sso_cree_son_foyer(db):
         auth_service.creer_foyer(db, user)
     return user
+
+
+def lier_identite(db: Session, user: User, claims: dict, config: OidcConfig) -> None:
+    """« Lier mon compte SSO » : rattache l'identité du fournisseur (`sub`) au compte CONNECTÉ
+    `user`, qui l'a demandé — c'est ce qui remplace la liaison automatique par nom d'utilisateur.
+    `email`/`nom` sont repris de l'identité. Lève `OidcError` pour un compte opérateur (mot de
+    passe seulement), ou si cette identité est déjà liée à un autre compte. Une identité déjà
+    liée à CE compte est un succès, sans rien changer."""
+    if user.est_operateur:
+        raise OidcError(MESSAGE_OPERATEUR_SANS_SSO)
+    sub = claims["sub"]
+    deja = auth_service.utilisateur_par_oidc_subject(db, sub)
+    if deja is not None and deja.id != user.id:
+        raise OidcError(MESSAGE_SSO_DEJA_LIE_AILLEURS)
+    auth_service.lier_oidc(db, user, sub)
+    auth_service.mettre_a_jour_profil_oidc(db, user, email=claims.get(config.claim_email), nom=claims.get(config.claim_nom))

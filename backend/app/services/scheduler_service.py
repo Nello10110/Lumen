@@ -351,7 +351,11 @@ def run_job_now(db: Session, job_key: str, forcer_non_cotables: bool = False) ->
         # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf.
         # docs/BACKLOG.md § 2.I.1) : le cache de marché reste global, partagé par
         # tous les comptes — ce job doit couvrir les tickers de tout le monde.
-        items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
+        # Sous Postgres, la session d'une requête ne voit que les lignes de son foyer — et celle de
+        # l'opérateur (§ BK.2d), aucune : la restriction est levée le temps de lire les seuls
+        # tickers distincts.
+        with database.tous_les_foyers_le_temps(db):
+            items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
 
         def _sur_fin(etat) -> None:
             # Session dédiée : ce callback s'exécute dans le fil de fond, bien après

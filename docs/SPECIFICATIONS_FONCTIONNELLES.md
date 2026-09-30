@@ -760,6 +760,35 @@ Principe (décision du 30/09/2026) : **un compte n'est supprimé que par lui-mê
 - **Suppression du foyer** (`SupprimerFoyerModale`, ouverte depuis la carte « Sauvegarde complète des données », sous « Réinitialiser le foyer »). À l'ouverture : `GET /api/auth/foyer/apercu-suppression` — lignes de patrimoine par table (mêmes libellés que l'aperçu d'un import, `utils/libelleTableDonnees.ts`), liens de partage, invitations, nombre de comptes, dont combien resteront sans foyer et combien en gardent un autre. Un bloc propose « Exporter mes données (JSON) » (`utils/exportDonnees.ts`, le même téléchargement que la carte) et rappelle que le foyer supprimé peut subsister dans les sauvegardes chiffrées du serveur jusqu'à leur rotation. Confirmation par la phrase `confirmation_attendue` renvoyée par l'aperçu (nom du foyer, sinon `SUPPRIMER`). Succès : `rechargerApplication()` — la session a rouvert un autre foyer, ou n'en a plus et affiche l'écran « aucun foyer ».
 - **Suppression de son compte** (`SupprimerCompteModale`, une seule implémentation : élément « Supprimer mon compte » du menu du compte de la barre latérale, de la feuille « Plus » mobile, et lien de l'écran « aucun foyer »). À l'ouverture : `GET /api/auth/compte/apercu-suppression`. Si `peut_supprimer` est faux, seule l'explication s'affiche (foyers bloquants et nombre de leurs autres comptes, marche à suivre : transférer la propriété ou supprimer le foyer) avec un bouton « Fermer » : aucune confirmation n'est proposée. Sinon : foyers supprimés avec le compte, foyers quittés, puis confirmation par le nom d'utilisateur (`confirmation_attendue`). Succès : `logout()` (le compte et ses sessions n'existent plus : il ne reste qu'à effacer le jeton local), l'application retombe sur l'écran de connexion.
 
+### 3.27 Opérateur et naissance des foyers — contrat serveur (backlog § BK.2d)
+
+**L'opérateur** est un compte distinct (`users.est_operateur`), sans aucune appartenance (refusé par le service, et sous Postgres par la politique d'`appartenances`), qui se connecte par mot de passe local uniquement. Sa session prend le périmètre `app.operateur` de la base : aucune politique de patrimoine ne le connaît, il n'y lit aucune ligne, même en SQL direct. `get_membre_foyer` lui répond 403 sur toute route de foyer ; `/api/auth/me` porte `est_operateur`, `operateur_existe`, `peut_amorcer_operateur` et `sso_lie`. Test générique : toutes les routes de l'application hors `/api/operateur` et `/api/auth` répondent 403 à un jeton d'opérateur.
+
+**Création de l'opérateur.** `POST /api/auth/operateur {username, password}` (propriétaire ; 201 `{id, username, created_at}`) tant qu'aucun opérateur n'existe (409 sinon) et que l'installation n'a qu'un foyer (403 sinon) ; `python -m app.cli operateur creer <nom>` / `operateur mot-de-passe <nom>` (mot de passe demandé au terminal, jamais en argument ; la seconde ne vaut que pour un opérateur et coupe ses sessions).
+
+**Routes** (`/api/operateur`, `require_operateur`) :
+
+| Route | Corps → réponse |
+| --- | --- |
+| `GET /foyers` | `[{id, nom, langue, statut, cree_le, suspendu_le, derniere_activite, proprietaire, nombre_comptes, confirmation_attendue}]` |
+| `POST /foyers/{id}/suspendre`, `/reactiver` | foyer ci-dessus ; 404 inconnu. Suspendre : sessions sans foyer, liens de partage et invitations du foyer en 404, données intactes |
+| `POST /foyers/{id}/supprimer {confirmation}` | 204 ; confirmation = `confirmation_attendue` (nom du foyer, sinon `SUPPRIMER`), 400 sinon ; comptes conservés |
+| `GET /foyers/{id}/comptes` | `[{id, username, role}]` |
+| `POST /foyers/{id}/proprietaire {membre_id}` | foyer ; 404 compte hors du foyer, 400 invité ou propriétaire actuel |
+| `GET`/`POST /invitations-foyer`, `DELETE /invitations-foyer/{id}` | liens « créer votre foyer » : `{libelle?, duree_jours}` → `InvitationCreeeOut` (`jeton` seulement ici) ; liste de tous les liens ; révocation (404, 409 si plus en attente) |
+| `GET /comptes-sans-foyer` | `[{id, username, created_at, derniere_connexion}]` |
+| `POST /comptes-sans-foyer/{id}/supprimer {confirmation}` | 204 ; confirmation = nom du compte ; 404 inconnu ou opérateur, 409 s'il a un foyer |
+| `GET`/`PUT /reglages` | `{mode_naissance_foyers, sso_cree_son_foyer, creation_foyer_par_compte_sans_foyer, moteur, separation_par_la_base}` ; `PUT` : champs facultatifs, 400 pour un mode inconnu |
+| `GET /journal-acces?page&page_size` | journal complet (tentatives sur identifiant inconnu comprises) |
+| `GET /jobs`, `PUT /jobs/{clé}`, `POST /jobs/{clé}/run-now`, `GET /etat-rafraichissement` | tâches planifiées (les routes de `/api/settings/jobs`, déplacées) et suivi d'un rafraîchissement |
+| `GET`/`PUT`/`POST`/`DELETE /logo-connexion-sso…` | logo du bouton SSO (routes de `/api/settings`, déplacées) |
+
+Tant qu'aucun opérateur n'existe, `/api/settings/jobs…` et `/api/settings/logo-connexion-sso…` restent ceux du propriétaire ; ensuite ils lui répondent 403. Jamais un montant dans une réponse de la console (test).
+
+**Naissance d'un foyer.** Mode `ferme` (défaut) : seul l'opérateur crée un foyer. Mode `invitation` : un propriétaire peut aussi générer un lien (`POST /api/invitations/foyer {libelle?, duree_jours}`, `GET /api/invitations/foyer`, `DELETE /api/invitations/foyer/{id}` ; 403 en mode `ferme`, où ses liens déjà créés s'éteignent). Un lien est une invitation `foyer_id` vide, rôle `proprietaire`, figé côté serveur. `POST /api/invitations/consulter` renvoie alors `{foyer_nom: null, role: "proprietaire", libelle, langue: null, cree_un_foyer: true}` (la page garde la langue de l'appareil). `accepter-nouveau-compte` et `accepter` prennent un champ `langue` facultatif : le foyer naît à l'acceptation dans cette langue, l'accepteur en est le propriétaire (l'assistant de bienvenue se joue). Un compte existant garde ses autres foyers ; un opérateur est refusé (403).
+
+**SSO.** Un nouveau compte SSO crée son propre foyer (ou reste sans foyer si `sso_cree_son_foyer` est à non). Plus aucune liaison automatique par nom d'utilisateur : `POST /api/auth/oidc/lier` (compte connecté ; `{url}` à ouvrir ; 404 SSO non configuré, 403 opérateur, 409 déjà lié) puis retour sur `/?oidc_liaison=ok` ou `/?oidc_liaison_erreur=…` sans session ouverte ; `POST /api/auth/oidc/delier` (409 si non lié ou sans mot de passe).
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |

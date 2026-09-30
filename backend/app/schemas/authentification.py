@@ -13,24 +13,22 @@ MESSAGE_NOM_UTILISATEUR_INVALIDE = "Le nom d'utilisateur doit contenir entre 2 e
 MESSAGE_LANGUE_INCONNUE = "Langue non proposée : {langues}"
 
 
-def _valider_langue(v: str) -> str:
+def valider_langue(v: str) -> str:
     if v not in LANGUES_DISPONIBLES:
         raise ValueError(tr(MESSAGE_LANGUE_INCONNUE, langues=", ".join(LANGUES_DISPONIBLES)))
     return v
 
 
-class RegisterRequest(BaseModel):
+def valider_langue_facultative(v: str | None) -> str | None:
+    return None if v is None else valider_langue(v)
+
+
+class NouveauCompte(BaseModel):
+    """Identifiants d'un compte qu'on crée : nom d'utilisateur et mot de passe, avec les règles
+    de l'inscription."""
+
     username: str
     password: str
-    # Langue dans laquelle le premier compte crée son foyer (backlog § BL) : celle que
-    # l'écran de connexion affichait déjà (dernier choix sur cet appareil, ou langue
-    # du navigateur). Facultative — absente, le foyer reste au défaut, le français.
-    langue: str | None = None
-
-    @field_validator("langue")
-    @classmethod
-    def _valider_langue(cls, v: str | None) -> str | None:
-        return None if v is None else _valider_langue(v)
 
     @field_validator("username")
     @classmethod
@@ -46,6 +44,27 @@ class RegisterRequest(BaseModel):
         if len(v) < 8:
             raise ValueError(MESSAGE_MOT_DE_PASSE_TROP_COURT)
         return v
+
+
+class RegisterRequest(NouveauCompte):
+    # Langue dans laquelle le premier compte crée son foyer (backlog § BL) : celle que
+    # l'écran de connexion affichait déjà (dernier choix sur cet appareil, ou langue
+    # du navigateur). Facultative — absente, le foyer reste au défaut, le français.
+    langue: str | None = None
+
+    _valider_langue = field_validator("langue")(valider_langue_facultative)
+
+
+class OperateurCreate(NouveauCompte):
+    """Le compte opérateur, créé par le propriétaire tant qu'aucun n'existe (§ BK.2d)."""
+
+
+class OperateurOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    created_at: datetime
 
 
 class LoginRequest(BaseModel):
@@ -103,6 +122,16 @@ class UserOut(BaseModel):
     foyers: list[FoyerResume] = []
     foyer_courant_id: int | None = None
     peut_creer_foyer: bool = False
+    # Administrateur de l'installation (§ BK.2d) : aucun foyer, une console à la place de
+    # l'application. Lu sur le compte (`User.est_operateur`).
+    est_operateur: bool = False
+    # Un opérateur existe-t-il sur cette installation ? Si oui, les réglages d'installation
+    # (tâches planifiées, logo SSO) ne sont plus ceux du propriétaire. Et le propriétaire
+    # peut-il en créer un (`POST /api/auth/operateur`) : aucun n'existe et un seul foyer.
+    operateur_existe: bool = False
+    peut_amorcer_operateur: bool = False
+    # Le compte est-il lié à une identité SSO (« Lier mon compte SSO » / « Délier ») ?
+    sso_lie: bool = False
 
 
 class AuthResponse(BaseModel):
@@ -121,6 +150,14 @@ class OidcStatus(BaseModel):
     # `services/logo_oidc_service.py`. `None` tant qu'aucun logo n'est configuré :
     # le bouton n'affiche alors que `display_name`, comme avant ce lot.
     logo: str | None = None
+
+
+class LienSsoOut(BaseModel):
+    """Adresse d'autorisation du fournisseur SSO, où le navigateur doit se rendre pour lier son
+    compte. Une route authentifiée la renvoie, plutôt qu'une redirection : une navigation ne
+    porte pas l'en-tête `Authorization`."""
+
+    url: str
 
 
 class SessionOut(BaseModel):
@@ -248,10 +285,7 @@ class FoyerNomUpdate(BaseModel):
 class LangueFoyerUpdate(BaseModel):
     langue: str
 
-    @field_validator("langue")
-    @classmethod
-    def _valider(cls, v: str) -> str:
-        return _valider_langue(v)
+    _valider = field_validator("langue")(valider_langue)
 
 
 class FoyerCourantUpdate(BaseModel):
@@ -277,10 +311,7 @@ class FoyerCreate(BaseModel):
             raise ValueError(MESSAGE_NOM_FOYER_INVALIDE)
         return v
 
-    @field_validator("langue")
-    @classmethod
-    def _valider_langue(cls, v: str) -> str:
-        return _valider_langue(v)
+    _valider_langue = field_validator("langue")(valider_langue)
 
 
 class SuppressionCompteRequest(BaseModel):

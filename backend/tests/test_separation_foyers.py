@@ -30,9 +30,17 @@ from app.models import (
     User,
 )
 from app.routers import portfolio
-from app.services import auth_service, foyer_service, invitation_service
+from app.services import auth_service, foyer_service, installation_service, invitation_service
 
-from .conftest import ID_FOYER_B, ID_FOYER_TEST, ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, creer_utilisateur, make_holding
+from .conftest import (
+    DECALAGE_FOYER,
+    ID_FOYER_B,
+    ID_FOYER_TEST,
+    ID_UTILISATEUR_B,
+    ID_UTILISATEUR_TEST,
+    creer_utilisateur,
+    make_holding,
+)
 from .peuplement_foyer import peupler_foyer
 from .test_suppression_foyer import _compter, _rattachements
 
@@ -422,3 +430,185 @@ def test_supprimer_son_compte_sous_rls_efface_le_foyer_solo_et_quitte_les_autres
     assert db.get(Holding, ligne_solo) is None
     assert _lignes_hors_appartenances(db, ID_FOYER_B) == avant_b
     assert db.query(Appartenance).filter(Appartenance.foyer_id == ID_FOYER_B).count() == appartenances_b - 1
+
+
+# --- Opérateur (§ BK.2d) ------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def operateur_id(db) -> int:
+    """Un compte opérateur, sans appartenance."""
+    operateur = User(username="operateur", password_hash="x", est_operateur=True)
+    db.add(operateur)
+    db.commit()
+    return operateur.id
+
+
+def _session_operateur(operateur_id: int):
+    session = database.SessionLocal()
+    database.fixer_operateur(session, operateur_id)
+    return session
+
+
+# Tables rattachées à un foyer que l'opérateur LIT, par politique (ou qui n'ont pas de politique) : les autres
+# doivent lui rester vides.
+TABLES_VISIBLES_DE_L_OPERATEUR = {"foyers", "appartenances", "auth_tokens"}
+
+
+def test_l_operateur_ne_voit_aucune_ligne_de_patrimoine(db, deux_foyers_remplis, operateur_id):
+    """Aucune politique de patrimoine ne connaît l'état opérateur : même en SQL direct, sans filtre, zéro ligne
+    — table par table, celles qu'une table ajoutée plus tard apportera comprises (`_rattachements` lit
+    `Base.metadata`)."""
+    tables = {table.name: table for table in database.Base.metadata.sorted_tables}
+    a_verifier = sorted(set(_rattachements()) - TABLES_VISIBLES_DE_L_OPERATEUR)
+    assert len(a_verifier) > 15  # le patrimoine, ses tables filles, les réglages, les invitations
+
+    with _session_operateur(operateur_id) as session:
+        for nom in a_verifier:
+            assert _compter(session, tables[nom]) == 0, nom
+            assert session.execute(text(f'SELECT count(*) FROM "{nom}"')).scalar() == 0, nom
+        # Les historiques en cache d'un foyer, rattachés par leur clé.
+        assert session.query(HistoriqueCache).filter(HistoriqueCache.cle.like("historique_%:%")).count() == 0
+
+
+def test_l_operateur_voit_les_foyers_les_appartenances_et_les_comptes(db, deux_foyers_remplis, operateur_id):
+    with _session_operateur(operateur_id) as session:
+        assert {f.id for f in session.query(Foyer)} >= {ID_FOYER_TEST, ID_FOYER_B}
+        assert {(a.user_id, a.foyer_id) for a in session.query(Appartenance)} >= {
+            (ID_UTILISATEUR_TEST, ID_FOYER_TEST),
+            (ID_UTILISATEUR_B, ID_FOYER_B),
+        }
+        assert session.query(User).filter(User.id == ID_UTILISATEUR_B).count() == 1
+
+
+def test_l_operateur_suspend_reactive_et_designe_un_proprietaire(db, deux_foyers_remplis, operateur_id):
+    supprime, _ = deux_foyers_remplis
+
+    with _session_operateur(operateur_id) as session:
+        foyer_service.suspendre_foyer(session, ID_FOYER_TEST)
+        foyer_service.designer_proprietaire(session, ID_FOYER_TEST, supprime.membre.id)
+        foyer_service.suspendre_foyer(session, ID_FOYER_B)
+        foyer_service.reactiver_foyer(session, ID_FOYER_B)
+
+    db.expire_all()
+    assert (db.get(Foyer, ID_FOYER_TEST).statut, db.get(Foyer, ID_FOYER_B).statut) == ("suspendu", "actif")
+    roles = {a.user_id: a.role for a in db.query(Appartenance).filter(Appartenance.foyer_id == ID_FOYER_TEST)}
+    assert roles[supprime.membre.id] == ROLE_PROPRIETAIRE and roles[ID_UTILISATEUR_TEST] == ROLE_MEMBRE
+
+
+def test_un_proprietaire_ne_suspend_pas_un_foyer(db, deux_foyers):
+    """Seul l'opérateur écrit sur `foyers` hors du foyer courant : l'UPDATE d'un foyer invisible ne touche rien."""
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        touchees = session.query(Foyer).filter(Foyer.id == ID_FOYER_B).update({"statut": "suspendu"}, synchronize_session=False)
+        session.commit()
+    assert touchees == 0
+    db.expire_all()
+    assert db.get(Foyer, ID_FOYER_B).statut == "actif"
+
+
+def test_l_operateur_ne_donne_jamais_d_appartenance_a_un_operateur(db, deux_foyers, operateur_id):
+    """Même avec le périmètre de l'opérateur, qui peut pourtant écrire dans `appartenances`."""
+    with _session_operateur(operateur_id) as session:
+        session.add(Appartenance(user_id=operateur_id, foyer_id=ID_FOYER_TEST, role=ROLE_MEMBRE))
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            session.commit()
+
+
+def test_l_operateur_supprime_un_foyer_en_se_restreignant_a_lui(db, deux_foyers_remplis, operateur_id):
+    """La suppression ouvre le périmètre de CE foyer le temps de l'effacement — l'opérateur ne lit jamais le patrimoine
+    d'un autre — puis lui rend le sien."""
+    avant_b = _lignes_par_table(db, ID_FOYER_B)
+
+    with _session_operateur(operateur_id) as session:
+        foyer_service.supprimer_foyer(session, ID_FOYER_TEST)
+        assert session.execute(text("SELECT current_setting('app.operateur', true)")).scalar() == "on"
+        assert session.execute(text("SELECT current_setting('app.foyer_id', true)")).scalar() in (None, "")
+        assert session.query(Holding).count() == 0
+
+    assert set(_lignes_par_table(db, ID_FOYER_TEST).values()) == {0}
+    assert _lignes_par_table(db, ID_FOYER_B) == avant_b
+
+
+def test_l_operateur_supprime_un_compte_sans_foyer(db, deux_foyers, operateur_id):
+    egare = User(username="egare", password_hash="x")
+    db.add(egare)
+    db.commit()
+    egare_id = egare.id
+
+    with _session_operateur(operateur_id) as session:
+        foyer_service.supprimer_compte_sans_foyer(session, session.get(User, egare_id))
+
+    db.expire_all()
+    assert db.get(User, egare_id) is None
+
+
+def test_l_operateur_refuse_de_supprimer_un_compte_qui_a_un_foyer(db, deux_foyers, operateur_id):
+    with _session_operateur(operateur_id) as session, pytest.raises(foyer_service.CompteAvecFoyerError):
+        foyer_service.supprimer_compte_sans_foyer(session, session.get(User, ID_UTILISATEUR_B))
+
+
+def _session_de_compte(utilisateur_id: int, operateur_id: int):
+    """La session de l'opérateur, ou celle du propriétaire de son foyer (compte + 10)."""
+    if utilisateur_id == operateur_id:
+        return _session_operateur(operateur_id)
+    return _session_du_foyer(utilisateur_id + DECALAGE_FOYER, utilisateur_id)
+
+
+@pytest.fixture
+def liens_de_creation(db, deux_foyers, operateur_id):
+    """Un lien « créer votre foyer » de l'opérateur et un de chaque propriétaire (mode `invitation`), plus une
+    invitation de foyer. Renvoie les jetons."""
+    installation_service.enregistrer_reglages(db, mode_naissance=installation_service.MODE_INVITATION)
+    jetons = {}
+    for nom, createur_id in (("operateur", operateur_id), ("a", ID_UTILISATEUR_TEST), ("b", ID_UTILISATEUR_B)):
+        with _session_de_compte(createur_id, operateur_id) as session:
+            _, jetons[nom] = invitation_service.creer_invitation_foyer(session, session.get(User, createur_id), libelle=nom, duree_jours=7)
+    invitation_service.creer_invitation(db, ID_FOYER_TEST, ID_UTILISATEUR_TEST, role="membre", libelle=None, duree_jours=7, detenteur_ids=[])
+    return jetons
+
+
+def test_un_lien_de_creation_est_a_son_createur_et_l_operateur_les_voit_tous(db, liens_de_creation, operateur_id):
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        assert [v.libelle for v in invitation_service.lister_invitations_foyer(session, ID_UTILISATEUR_TEST)] == ["a"]
+        # Les invitations de son foyer, à part.
+        assert len(invitation_service.lister_invitations(session, ID_FOYER_TEST)) == 1
+        assert {i.libelle for i in session.query(Invitation).filter(Invitation.foyer_id.is_(None))} == {"a"}
+    with _session_du_foyer(ID_FOYER_B, ID_UTILISATEUR_B) as session:
+        assert [v.libelle for v in invitation_service.lister_invitations_foyer(session, ID_UTILISATEUR_B)] == ["b"]
+    with _session_operateur(operateur_id) as session:
+        assert {v.libelle for v in invitation_service.lister_invitations_foyer(session, None)} == {"operateur", "a", "b"}
+        # Les invitations d'un foyer lui restent invisibles.
+        assert session.query(Invitation).filter(Invitation.foyer_id.is_not(None)).count() == 0
+
+
+def test_un_proprietaire_ne_cree_pas_un_lien_au_nom_d_un_autre(db, deux_foyers):
+    maintenant = datetime.now()
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        session.add(
+            Invitation(
+                foyer_id=None,
+                role="proprietaire",
+                jeton_hash="y" * 64,
+                cree_par=ID_UTILISATEUR_B,
+                cree_le=maintenant,
+                expire_le=maintenant + timedelta(days=1),
+            )
+        )
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            session.commit()
+
+
+def test_accepter_un_lien_de_creation_fait_naitre_le_foyer_sans_appartenance_prealable(db, liens_de_creation):
+    avant = db.query(Foyer).count()
+
+    with database.SessionLocal() as session:
+        apercu = invitation_service.consulter(session, liens_de_creation["operateur"])
+        assert apercu.cree_un_foyer is True
+        user = invitation_service.accepter_nouveau_compte(session, liens_de_creation["operateur"], "lea", "motdepasse-solide", "it")
+        assert session.query(Foyer).count() == 0  # la restriction est revenue
+
+    db.expire_all()
+    assert db.query(Foyer).count() == avant + 1
+    appartenance = db.query(Appartenance).filter(Appartenance.user_id == user.id).one()
+    assert appartenance.role == ROLE_PROPRIETAIRE
+    assert db.get(Foyer, appartenance.foyer_id).langue == "it"
