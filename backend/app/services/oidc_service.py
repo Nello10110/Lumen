@@ -321,7 +321,11 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
     if pour_invitation:
         return user
     if foyers:
-        auth_service.ajouter_au_foyer(db, user, foyers[0], ROLE_MEMBRE)
+        # Le rappel SSO n'a aucun foyer courant : la politique d'`appartenances` refuserait
+        # l'insertion. Rejoindre le foyer unique est une décision de l'installation, levée
+        # le temps de cette seule écriture.
+        with database.tous_les_foyers_le_temps(db):
+            auth_service.ajouter_au_foyer(db, user, foyers[0], ROLE_MEMBRE)
     else:
         auth_service.creer_foyer(db, user)
     return user
