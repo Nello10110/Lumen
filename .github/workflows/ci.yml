@@ -358,3 +358,109 @@ jobs:
       - name: Journaux en cas d'echec
         if: failure()
         run: docker compose --profile postgres logs --no-color
+
+  # La montee de version (backlog § BK.2) : une base creee par l'image PUBLIEE
+  # precedente (`latest`, construite sur main par docker-publish.yml) est migree par
+  # l'image construite depuis cette branche, sur le meme volume -- ce que fait
+  # `docker compose pull && docker compose up -d` chez l'exploitant. Prouve que la
+  # session ouverte avant la mise a jour reste valide et que le contenu se relit a
+  # l'identique, sous SQLite comme sous Postgres. Si l'image publiee est introuvable,
+  # le job echoue (aucun repli silencieux). Le contenu de test et ses controles sont
+  # dans scripts/ci-montee-version.sh.
+  montee-version:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        moteur: [sqlite, postgres]
+    defaults:
+      run:
+        shell: bash
+    env:
+      API: http://127.0.0.1:8080/api
+      MOTEUR: ${{ matrix.moteur }}
+      SCRIPT: scripts/ci-montee-version.sh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tire les images publiees (la version precedente)
+        run: |
+          for image in lumen-backend lumen-frontend; do
+            docker pull "ghcr.io/nello10110/$image:latest" \
+              || { echo "::error::image publiee introuvable : ghcr.io/nello10110/$image:latest (docker-publish.yml n'a jamais publie sur main, ou le package n'est plus public)"; exit 1; }
+          done
+
+      - name: Construit les images de la branche (sans publier)
+        run: |
+          docker build -t ghcr.io/nello10110/lumen-backend:ci ./backend
+          docker build -t ghcr.io/nello10110/lumen-frontend:ci ./frontend
+
+      - name: .env de test, version precedente
+        # Secrets tires au hasard, propres a ce job ; aucun n'est ecrit dans le depot.
+        run: |
+          cle=$(openssl rand -hex 32)
+          echo "::add-mask::$cle"
+          {
+            echo "LUMEN_VERSION=latest"
+            echo "PATRIMOINE_BACKUP_KEY=$cle"
+          } > .env
+          if [ "$MOTEUR" = "postgres" ]; then
+            admin=$(openssl rand -hex 16)
+            appli=$(openssl rand -hex 16)
+            echo "::add-mask::$admin"
+            echo "::add-mask::$appli"
+            {
+              echo "COMPOSE_PROFILES=postgres"
+              echo "LUMEN_POSTGRES_ADMIN_PASSWORD=$admin"
+              echo "LUMEN_POSTGRES_APP_PASSWORD=$appli"
+            } >> .env
+          fi
+
+      - name: Demarre la pile avec l'image publiee
+        run: |
+          docker compose up -d --wait --wait-timeout 300
+          test "$(docker compose ps backend --format '{{.Image}}')" = "ghcr.io/nello10110/lumen-backend:latest"
+          docker compose images
+
+      - name: Contenu de test, par l'API, avec l'image publiee
+        run: |
+          bash "$SCRIPT" creer
+          revision=$(bash "$SCRIPT" revision)
+          test -n "$revision"
+          echo "REVISION_AVANT=$revision" >> "$GITHUB_ENV"
+          echo "revision de la base creee par l'image publiee : $revision"
+          # La base vient bien de l'image publiee : c'est elle qui l'a migree.
+          docker compose logs --no-color backend > "$RUNNER_TEMP/backend-avant.log"
+          grep -q "Running upgrade" "$RUNNER_TEMP/backend-avant.log"
+
+      - name: Monte de version -- arrete le backend, relance avec l'image de la branche
+        run: |
+          docker compose stop backend
+          sed -i 's/^LUMEN_VERSION=.*/LUMEN_VERSION=ci/' .env
+          docker compose up -d --wait --wait-timeout 300
+          test "$(docker compose ps backend --format '{{.Image}}')" = "ghcr.io/nello10110/lumen-backend:ci"
+
+      - name: Migrations jouees jusqu'a la derniere revision
+        run: |
+          tete=$(bash "$SCRIPT" tete)
+          apres=$(bash "$SCRIPT" revision)
+          echo "avant : $REVISION_AVANT / tete du code : $tete / base : $apres"
+          test -n "$tete" && test "$apres" = "$tete"
+          docker compose logs --no-color backend > "$RUNNER_TEMP/backend-apres.log"
+          if [ "$REVISION_AVANT" = "$tete" ]; then
+            echo "::notice::aucune nouvelle revision Alembic dans cette branche : la base etait deja a jour"
+          else
+            grep -q "Running upgrade $REVISION_AVANT -> " "$RUNNER_TEMP/backend-apres.log"
+            grep -Eq "Running upgrade .* -> $tete" "$RUNNER_TEMP/backend-apres.log"
+          fi
+
+      - name: Session d'avant conservee, contenu identique, ecriture possible
+        run: bash "$SCRIPT" verifier
+
+      - name: Journaux en cas d'echec
+        if: failure()
+        run: |
+          docker compose logs --no-color || true
+          for journal in backend-avant backend-apres; do
+            echo "=== $journal ==="; cat "$RUNNER_TEMP/$journal.log" 2>/dev/null || true
+          done
