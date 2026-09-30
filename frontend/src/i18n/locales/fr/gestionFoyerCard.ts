@@ -15,7 +15,6 @@ const gestionFoyerCard = {
   tropDeTentativesDeConnexion: "Trop de tentatives de connexion échouées récentes",
   verrouilleJusquA: "Verrouillé jusqu'à",
   role: "Rôle",
-  supprimer: "Supprimer",
   nomDUtilisateur: "Nom d'utilisateur",
   motDePasse: "Mot de passe",
   membreDuFoyer: "Membre du foyer",
@@ -32,11 +31,17 @@ const gestionFoyerCard = {
   derniereConnexion: "Dernière connexion {date}",
   sessionsActives: { one: "{n} session active", other: "{n} sessions actives" },
   ariaRole: "Rôle de {nom}",
-  ariaSupprimerCompte: "Supprimer le compte {nom}",
   inviterTitre: "Inviter quelqu'un",
   inviterIntro: "Génère un lien à transmettre à la personne : elle crée son compte, ou utilise celui qu'elle a déjà, et rejoint ce foyer avec le rôle choisi. Le lien ne sert qu'une fois et expire au bout de la durée choisie.",
   creationDirecteTitre: "Créer directement un compte",
   creationDirecteIntro: "Pour quelqu'un sans e-mail ni SSO (un enfant, par exemple) : tu choisis son mot de passe. Ce compte n'appartiendra qu'à ce foyer.",
+  retirer: "Retirer du foyer",
+  ariaRetirerDuFoyer: "Retirer {nom} du foyer",
+  retraitExplication: "Retirer un membre ne fait que l'écarter de ce foyer : son compte est conservé, et il peut rejoindre un autre foyer.",
+  transfertTitre: "Transférer la propriété",
+  transfertIntro: "Confie le foyer à l'un de ses membres : il en devient propriétaire, et tu deviens simple membre. Un invité ne peut pas devenir propriétaire.",
+  transfertAucunMembre: "Pour transférer la propriété, il faut un autre membre dans le foyer (un invité ne peut pas devenir propriétaire) : invite d'abord quelqu'un comme membre.",
+  transfertOuvrir: "Transférer la propriété…",
 } as const
 
 export default gestionFoyerCard

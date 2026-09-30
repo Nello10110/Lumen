@@ -5,39 +5,11 @@ import { useAuth } from '../hooks/useAuth'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import Modale from './Modale'
+import SupprimerFoyerModale from './SupprimerFoyerModale'
 import { SecondaryButton } from './Controls'
 import { localeCourante, t } from '../i18n'
-
-/** Libellés lisibles des tables du fichier d'export — le décompte brut
- * (`holding_valuation_history: 12`) ne dit rien à un utilisateur. Une table absente
- * de cette table de correspondance s'affiche sous son nom technique plutôt que
- * d'être masquée : mieux vaut un libellé imparfait qu'un contenu invisible. */
-const TABLES_CONNUES = [
-  'etablissements',
-  'comptes',
-  'detenteurs',
-  'holdings',
-  'holding_immobilier_details',
-  'holding_valuation_history',
-  'quotites_holdings',
-  'loans',
-  'quotites_loans',
-  'transactions',
-  'salaires',
-  'categories_budget',
-  'mouvements_bancaires',
-  'regles_categorisation',
-  'budget_cibles',
-  'user_parametres',
-] as const
-type TableConnue = (typeof TABLES_CONNUES)[number]
-
-function libelle(table: string): string {
-  // Traduit à l'appel (§ BL.2) : une table de module figerait la langue du chargement.
-  return (TABLES_CONNUES as readonly string[]).includes(table)
-    ? t(`sauvegardeDonneesCard.table.${table as TableConnue}`)
-    : table
-}
+import { telechargerExportDonnees } from '../utils/exportDonnees'
+import { libelleTableDonnees } from '../utils/libelleTableDonnees'
 
 /** Sauvegarde complète : export JSON de tout le patrimoine du foyer, et import
  * qui le REMPLACE intégralement (backlog X.6).
@@ -65,6 +37,7 @@ export default function SauvegardeDonneesCard() {
   const [wipeOuverte, setWipeOuverte] = useState(false)
   const [confirmationSaisie, setConfirmationSaisie] = useState('')
   const [wipeEnCours, setWipeEnCours] = useState(false)
+  const [suppressionFoyerOuverte, setSuppressionFoyerOuverte] = useState(false)
 
   /** Remet le choix de fichier à zéro (ferme la confirmation, vide le champ) SANS
    * toucher au message d'erreur : cette fonction est appelée depuis les `catch`,
@@ -81,16 +54,7 @@ export default function SauvegardeDonneesCard() {
     setErreur(null)
     setSucces(null)
     try {
-      const blob = await api.downloadExportDonnees()
-      // Téléchargement piloté côté client (plutôt qu'un simple `<a href>`) : la
-      // route exige l'en-tête d'authentification, qu'une navigation directe du
-      // navigateur ne porterait pas — même raison que la déclaration PDF.
-      const url = URL.createObjectURL(blob)
-      const lien = document.createElement('a')
-      lien.href = url
-      lien.download = `patrimoine-export-${new Date().toISOString().slice(0, 10)}.json`
-      lien.click()
-      URL.revokeObjectURL(url)
+      await telechargerExportDonnees()
     } catch (err) {
       setErreur((err as Error).message)
     }
@@ -180,6 +144,18 @@ export default function SauvegardeDonneesCard() {
         >{t('sauvegardeDonneesCard.reinitialiserLeFoyer')}</button>
       </div>
 
+      {/* Suppression du foyer lui-même (backlog § BK.2c) : à côté de la remise à zéro, qui
+          vide le foyer mais le garde. */}
+      <div className="mt-6 border-t border-bordure pt-4">
+        <p className="mb-1 text-sm font-medium text-texte">{t('supprimerFoyer.carteTitre')}</p>
+        <p className="mb-3 text-sm text-texte-attenue">{t('supprimerFoyer.carteExplication')}</p>
+        <button
+          type="button"
+          onClick={() => setSuppressionFoyerOuverte(true)}
+          className="rounded-control border border-negatif px-4 py-2 text-sm font-medium text-negatif"
+        >{t('supprimerFoyer.ouvrir')}</button>
+      </div>
+
       {succes && <p className="mt-3 text-sm text-positif">{succes}</p>}
       {erreur && <EtatErreur message={erreur} />}
 
@@ -193,7 +169,7 @@ export default function SauvegardeDonneesCard() {
               <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-texte">
                 {Object.entries(apercu.contenu).map(([table, nombre]) => (
                   <li key={table} className="flex justify-between gap-4">
-                    <span className="text-texte-attenue">{libelle(table)}</span>
+                    <span className="text-texte-attenue">{libelleTableDonnees(table)}</span>
                     <span className="font-medium tabular-nums">{nombre}</span>
                   </li>
                 ))}
@@ -218,6 +194,8 @@ export default function SauvegardeDonneesCard() {
           )}
         </Modale>
       )}
+
+      {suppressionFoyerOuverte && <SupprimerFoyerModale onClose={() => setSuppressionFoyerOuverte(false)} />}
 
       {wipeOuverte && (
         <Modale

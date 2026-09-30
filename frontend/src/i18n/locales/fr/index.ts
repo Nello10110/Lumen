@@ -105,6 +105,9 @@ import sessionsCard from './sessionsCard'
 import simulateurAchatLocationCard from './simulateurAchatLocationCard'
 import simulateurProjectionSection from './simulateurProjectionSection'
 import skeleton from './skeleton'
+import supprimerCompte from './supprimerCompte'
+import supprimerFoyer from './supprimerFoyer'
+import transfertPropriete from './transfertPropriete'
 import tuileSourceImport from './tuileSourceImport'
 import valorisationHistoriqueCard from './valorisationHistoriqueCard'
 
@@ -215,6 +218,9 @@ const espaces = {
   simulateurAchatLocationCard,
   simulateurProjectionSection,
   skeleton,
+  supprimerCompte,
+  supprimerFoyer,
+  transfertPropriete,
   tuileSourceImport,
   valorisationHistoriqueCard,
 } as const

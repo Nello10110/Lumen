@@ -16,12 +16,6 @@ const aucunFoyer: Structure<typeof fr> = {
   creerTitre: "Create your own household",
   nomFoyerLabel: "Household name (optional)",
   creer: "Create my household",
-  supprimer: "Delete my account",
-  supprimerTitre: "Delete my account",
-  supprimerExplication: "Your account, its login sessions and its access log will be permanently erased. This cannot be undone.",
-  confirmationLabel: "To confirm, type your username: {nom}",
-  annuler: "Cancel",
-  supprimerConfirmer: "Delete permanently",
   deconnexion: "Sign out",
 }
 

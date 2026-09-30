@@ -16,12 +16,6 @@ const aucunFoyer: Structure<typeof fr> = {
   creerTitre: "Eigenen Haushalt erstellen",
   nomFoyerLabel: "Name des Haushalts (optional)",
   creer: "Meinen Haushalt erstellen",
-  supprimer: "Mein Konto löschen",
-  supprimerTitre: "Mein Konto löschen",
-  supprimerExplication: "Ihr Konto, seine Anmeldesitzungen und sein Zugriffsprotokoll werden endgültig gelöscht. Diese Aktion ist nicht umkehrbar.",
-  confirmationLabel: "Zur Bestätigung geben Sie Ihren Benutzernamen ein: {nom}",
-  annuler: "Abbrechen",
-  supprimerConfirmer: "Endgültig löschen",
   deconnexion: "Abmelden",
 }
 

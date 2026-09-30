@@ -10,6 +10,8 @@ vi.mock('../api/client', () => ({
     apercuImportDonnees: vi.fn(),
     importerDonnees: vi.fn(),
     effacerFoyer: vi.fn(),
+    apercuSuppressionFoyer: vi.fn(),
+    supprimerFoyer: vi.fn(),
   },
 }))
 
@@ -233,5 +235,29 @@ describe('SauvegardeDonneesCard — réinitialisation du foyer (revue du 05/09/2
     renderCard(null)
 
     expect(screen.getByText(/comptes du foyer/)).toBeInTheDocument()
+  })
+})
+
+describe('SauvegardeDonneesCard — suppression du foyer (§ BK.2c)', () => {
+  it('« Supprimer le foyer… » ouvre l’aperçu de la suppression, distinct de la réinitialisation, sans rien supprimer', async () => {
+    vi.mocked(api.apercuSuppressionFoyer).mockResolvedValue({
+      foyer_nom: null,
+      confirmation_attendue: 'SUPPRIMER',
+      patrimoine: {},
+      liens_partage: 0,
+      invitations: 0,
+      comptes: 1,
+      comptes_sans_foyer: 1,
+      comptes_gardant_un_foyer: 0,
+    })
+    renderCard(null)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer le foyer…' }))
+
+    const modale = await screen.findByRole('dialog')
+    expect(within(modale).getByRole('heading', { name: 'Supprimer le foyer ?' })).toBeInTheDocument()
+    expect(await within(modale).findByText(/1 compte se retrouvera sans foyer/)).toBeInTheDocument()
+    expect(api.supprimerFoyer).not.toHaveBeenCalled()
+    expect(api.effacerFoyer).not.toHaveBeenCalled()
   })
 })

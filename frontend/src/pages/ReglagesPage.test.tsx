@@ -397,7 +397,7 @@ describe('ReglagesPage — écran d’administration des comptes du foyer (revue
     // aussi, 404 — cf. `test_modifier_le_role_dun_membre_dun_autre_foyer_renvoie_404`
     // côté backend, même check IDOR appliqué à `current_user.id`).
     expect(screen.queryByLabelText('Rôle de testeur')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Supprimer le compte testeur' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retirer testeur du foyer' })).not.toBeInTheDocument()
   })
 
   it('le propriétaire et un membre coexistent, seul le membre reste éditable/supprimable', async () => {
@@ -411,7 +411,7 @@ describe('ReglagesPage — écran d’administration des comptes du foyer (revue
     await screen.findByText('conjoint')
     expect(screen.queryByLabelText('Rôle de testeur')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Rôle de conjoint')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Supprimer le compte conjoint' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retirer conjoint du foyer' })).toBeInTheDocument()
   })
 })
 

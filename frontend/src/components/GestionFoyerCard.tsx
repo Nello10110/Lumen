@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Detenteur, HouseholdMember } from '../api/types'
 import Card from './Card'
-import { PrimaryButton } from './Controls'
+import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
 import SectionInvitations from './SectionInvitations'
 import { SkeletonTexte } from './Skeleton'
+import TransfertProprieteModale from './TransfertProprieteModale'
 import { formatDateHeure } from '../utils/format'
 import { libelleRole } from '../utils/libelleRole'
 import { t } from '../i18n'
@@ -39,6 +40,7 @@ export default function GestionFoyerCard() {
   // Renommage inline (édition en place) : même patron que `EtablissementsCard.tsx`.
   const [idUsernameEnEdition, setIdUsernameEnEdition] = useState<number | null>(null)
   const [usernameEdition, setUsernameEdition] = useState('')
+  const [transfertOuvert, setTransfertOuvert] = useState(false)
 
   function load() {
     setLoading(true)
@@ -124,6 +126,9 @@ export default function GestionFoyerCard() {
   function toggleDetenteur(id: number) {
     setDetenteurIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
   }
+
+  // Un invité ne peut pas devenir propriétaire : seuls les membres sont proposés.
+  const candidatsTransfert = membres.filter((m) => m.role === 'membre')
 
   return (
     <Card title={t('gestionFoyerCard.comptesDuFoyer')}>
@@ -222,9 +227,9 @@ export default function GestionFoyerCard() {
                       </label>
                       <button
                         onClick={() => handleDelete(m.id)}
-                        aria-label={t('gestionFoyerCard.ariaSupprimerCompte', { nom: m.username })}
+                        aria-label={t('gestionFoyerCard.ariaRetirerDuFoyer', { nom: m.username })}
                         className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline"
-                      >{t('gestionFoyerCard.supprimer')}</button>
+                      >{t('gestionFoyerCard.retirer')}</button>
                     </>
                   )}
                 </div>
@@ -234,7 +239,21 @@ export default function GestionFoyerCard() {
         </ul>
       )}
 
+      {/* Retirer un membre ne supprime jamais son compte (décision du 30/09/2026, § BK.2c) :
+          il perd sa place dans ce foyer, et garde son compte. */}
+      {membres.length > 1 && <p className="mb-4 text-xs text-texte-attenue">{t('gestionFoyerCard.retraitExplication')}</p>}
+
       <div className="border-t border-bordure pt-4">
+        <h3 className="text-sm font-semibold text-texte">{t('gestionFoyerCard.transfertTitre')}</h3>
+        <p className="mb-3 mt-1 text-xs text-texte-attenue">
+          {candidatsTransfert.length > 0 ? t('gestionFoyerCard.transfertIntro') : t('gestionFoyerCard.transfertAucunMembre')}
+        </p>
+        {candidatsTransfert.length > 0 && (
+          <SecondaryButton onClick={() => setTransfertOuvert(true)}>{t('gestionFoyerCard.transfertOuvrir')}</SecondaryButton>
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-bordure pt-4">
         <h3 className="text-sm font-semibold text-texte">{t('gestionFoyerCard.inviterTitre')}</h3>
         <p className="mb-3 mt-1 text-xs text-texte-attenue">{t('gestionFoyerCard.inviterIntro')}</p>
         <SectionInvitations />
@@ -274,6 +293,8 @@ export default function GestionFoyerCard() {
       )}
 
       {error && <EtatErreur message={error} onReessayer={load} />}
+
+      {transfertOuvert && <TransfertProprieteModale membres={candidatsTransfert} onClose={() => setTransfertOuvert(false)} />}
     </Card>
   )
 }

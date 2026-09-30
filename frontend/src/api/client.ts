@@ -38,6 +38,8 @@ import type {
   HouseholdMember,
   HouseholdMemberInput,
   ApercuInvitation,
+  ApercuSuppressionCompte,
+  ApercuSuppressionFoyer,
   Invitation,
   InvitationCreee,
   InvitationInput,
@@ -264,6 +266,18 @@ export const api = {
   // `confirmation` : le nom d'utilisateur du compte. Refusé tant que le compte appartient à un foyer.
   supprimerMonCompte: (confirmation: string) =>
     request<void>('/auth/compte/supprimer', { method: 'POST', body: JSON.stringify({ confirmation }) }),
+  apercuSuppressionCompte: () => request<ApercuSuppressionCompte>('/auth/compte/apercu-suppression'),
+
+  // Cycle de vie du foyer (backlog § BK.2c), propriétaire seulement. `confirmation` : le nom
+  // d'utilisateur du futur propriétaire (transfert), le nom du foyer ou `SUPPRIMER` (suppression).
+  transfererPropriete: (membreId: number, confirmation: string) =>
+    request<AuthUser>('/auth/foyer/transferer-propriete', {
+      method: 'POST',
+      body: JSON.stringify({ membre_id: membreId, confirmation }),
+    }),
+  apercuSuppressionFoyer: () => request<ApercuSuppressionFoyer>('/auth/foyer/apercu-suppression'),
+  supprimerFoyer: (confirmation: string) =>
+    request<AuthUser>('/auth/foyer/supprimer', { method: 'POST', body: JSON.stringify({ confirmation }) }),
 
   // Invitations : côté propriétaire, puis routes publiques (le jeton voyage dans le
   // CORPS, jamais dans l'URL) et acceptation par un compte connecté.

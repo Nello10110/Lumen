@@ -7,6 +7,7 @@ import EtatErreur from '../components/EtatErreur'
 import { Field, Input } from '../components/Field'
 import { GlassPanel } from '../components/GlassPanel'
 import LumenMark from '../components/LumenMark'
+import SupprimerCompteModale from '../components/SupprimerCompteModale'
 import { useAuth } from '../hooks/useAuth'
 import { langueActive, t } from '../i18n'
 import { extraireJeton } from '../utils/invitation'
@@ -19,9 +20,9 @@ import { libelleRole } from '../utils/libelleRole'
  * - rejoindre un foyer avec un lien d'invitation (le lien complet ou le jeton seul) ;
  * - créer le sien, si l'installation l'autorise (`peut_creer_foyer`) ; l'assistant de
  *   bienvenue se joue ensuite ;
- * - supprimer son compte, après confirmation par son nom d'utilisateur — le compte
- *   survit à la perte de son dernier foyer (décision du 30/09/2026), c'est donc ici que
- *   se prend la décision de l'effacer ;
+ * - supprimer son compte (`SupprimerCompteModale`, le même que dans le menu du compte) —
+ *   le compte survit à la perte de son dernier foyer (décision du 30/09/2026), c'est donc
+ *   ici que se prend la décision de l'effacer ;
  * - se déconnecter.
  *
  * `foyers` peut être non vide (foyer courant suspendu ou retiré pendant la session) :
@@ -38,9 +39,8 @@ export default function AucunFoyerPage({
   const { user, logout, refetchUser } = useAuth()
   const [lien, setLien] = useState('')
   const [nomFoyer, setNomFoyer] = useState('')
-  const [confirmation, setConfirmation] = useState('')
   const [suppressionOuverte, setSuppressionOuverte] = useState(false)
-  const [action, setAction] = useState<'rejoindre' | 'creer' | 'supprimer' | 'ouvrir' | null>(null)
+  const [action, setAction] = useState<'rejoindre' | 'creer' | 'ouvrir' | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [erreurRejoindre, setErreurRejoindre] = useState<string | null>(null)
 
@@ -85,20 +85,6 @@ export default function AucunFoyerPage({
     try {
       await api.changerFoyerCourant(foyerId)
       rechargerApplication()
-    } catch (err) {
-      setErreur((err as Error).message)
-      setAction(null)
-    }
-  }
-
-  async function supprimer(e: React.FormEvent) {
-    e.preventDefault()
-    setAction('supprimer')
-    setErreur(null)
-    try {
-      await api.supprimerMonCompte(confirmation)
-      // Le compte n'existe plus, ni ses sessions : `logout` n'a plus qu'à effacer le jeton local.
-      logout()
     } catch (err) {
       setErreur((err as Error).message)
       setAction(null)
@@ -179,52 +165,24 @@ export default function AucunFoyerPage({
           </div>
         )}
 
-        <div className="mt-8 border-t border-hairline pt-4">
-          {suppressionOuverte ? (
-            <form onSubmit={supprimer} className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold text-negatif">{t('aucunFoyer.supprimerTitre')}</h2>
-              <p className="text-xs text-ink3">{t('aucunFoyer.supprimerExplication')}</p>
-              <Field label={t('aucunFoyer.confirmationLabel', { nom: user.username })}>
-                <Input
-                  value={confirmation}
-                  onChange={(e) => setConfirmation(e.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </Field>
-              <div className="flex gap-2.5">
-                <SecondaryButton onClick={() => setSuppressionOuverte(false)} disabled={action !== null}>
-                  {t('aucunFoyer.annuler')}
-                </SecondaryButton>
-                <button
-                  type="submit"
-                  disabled={action !== null || confirmation.trim() !== user.username}
-                  className="flex min-h-11 items-center justify-center rounded-control bg-negatif px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 md:min-h-0 md:py-2"
-                >
-                  {t('aucunFoyer.supprimerConfirmer')}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => setSuppressionOuverte(true)}
-                className="inline-flex min-h-11 items-center text-sm text-negatif hover:underline md:min-h-0"
-              >
-                {t('aucunFoyer.supprimer')}
-              </button>
-              <button
-                type="button"
-                onClick={logout}
-                className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline md:min-h-0"
-              >
-                {t('aucunFoyer.deconnexion')}
-              </button>
-            </div>
-          )}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4">
+          <button
+            type="button"
+            onClick={() => setSuppressionOuverte(true)}
+            className="inline-flex min-h-11 items-center text-sm text-negatif hover:underline md:min-h-0"
+          >
+            {t('supprimerCompte.menu')}
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline md:min-h-0"
+          >
+            {t('aucunFoyer.deconnexion')}
+          </button>
         </div>
       </GlassPanel>
+      {suppressionOuverte && <SupprimerCompteModale onClose={() => setSuppressionOuverte(false)} />}
     </div>
   )
 }

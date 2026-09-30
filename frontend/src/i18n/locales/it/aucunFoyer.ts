@@ -16,12 +16,6 @@ const aucunFoyer: Structure<typeof fr> = {
   creerTitre: "Creare il Suo nucleo",
   nomFoyerLabel: "Nome del nucleo (facoltativo)",
   creer: "Crea il mio nucleo",
-  supprimer: "Elimina il mio account",
-  supprimerTitre: "Elimina il mio account",
-  supprimerExplication: "Il Suo account, le sue sessioni di accesso e il registro degli accessi saranno cancellati definitivamente. L'azione è irreversibile.",
-  confirmationLabel: "Per confermare, digiti il Suo nome utente: {nom}",
-  annuler: "Annulla",
-  supprimerConfirmer: "Elimina definitivamente",
   deconnexion: "Esci",
 }
 

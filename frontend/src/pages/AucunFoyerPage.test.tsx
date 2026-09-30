@@ -10,6 +10,7 @@ vi.mock('../api/client', () => ({
     accepterInvitation: vi.fn(),
     creerFoyer: vi.fn(),
     supprimerMonCompte: vi.fn(),
+    apercuSuppressionCompte: vi.fn(),
     changerFoyerCourant: vi.fn(),
   },
 }))
@@ -117,18 +118,26 @@ describe('AucunFoyerPage', () => {
     await waitFor(() => expect(api.creerFoyer).toHaveBeenCalledWith(null, 'fr'))
   })
 
-  it('supprimer le compte exige de saisir le nom d’utilisateur', async () => {
+  it('supprimer le compte ouvre la fenêtre commune, qui exige de saisir le nom d’utilisateur', async () => {
+    vi.mocked(api.apercuSuppressionCompte).mockResolvedValue({
+      confirmation_attendue: 'sophie',
+      foyers_supprimes: [],
+      foyers_quittes: [],
+      foyers_bloquants: [],
+      peut_supprimer: true,
+    })
     vi.mocked(api.supprimerMonCompte).mockResolvedValue(undefined)
     const { contexte } = rendre()
 
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer mon compte' }))
+    const champ = await screen.findByLabelText(/Pour confirmer, saisissez votre nom d'utilisateur/)
     const confirmer = screen.getByRole('button', { name: 'Supprimer définitivement' })
     expect(confirmer).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText(/Pour confirmer, saisissez votre nom d'utilisateur/), { target: { value: 'autre' } })
+    fireEvent.change(champ, { target: { value: 'autre' } })
     expect(confirmer).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText(/Pour confirmer, saisissez votre nom d'utilisateur/), { target: { value: 'sophie' } })
+    fireEvent.change(champ, { target: { value: 'sophie' } })
     expect(confirmer).toBeEnabled()
     fireEvent.click(confirmer)
 

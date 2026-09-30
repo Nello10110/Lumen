@@ -13,12 +13,6 @@ const aucunFoyer = {
   creerTitre: "Créer votre propre foyer",
   nomFoyerLabel: "Nom du foyer (facultatif)",
   creer: "Créer mon foyer",
-  supprimer: "Supprimer mon compte",
-  supprimerTitre: "Supprimer mon compte",
-  supprimerExplication: "Votre compte, ses sessions de connexion et son journal d'accès seront effacés définitivement. Cette action est irréversible.",
-  confirmationLabel: "Pour confirmer, saisissez votre nom d'utilisateur : {nom}",
-  annuler: "Annuler",
-  supprimerConfirmer: "Supprimer définitivement",
   deconnexion: "Se déconnecter",
 } as const
 

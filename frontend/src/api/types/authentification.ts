@@ -46,6 +46,37 @@ export interface AuthUser {
   peut_creer_foyer?: boolean
 }
 
+// Aperçu de la suppression du foyer courant (backlog § BK.2c) : des nombres, jamais un
+// montant. `patrimoine` : lignes par table de l'export (tables vides omises) ; les comptes
+// sont TOUS conservés, `comptes_sans_foyer` en restant sans foyer.
+export interface ApercuSuppressionFoyer {
+  foyer_nom: string | null
+  confirmation_attendue: string
+  patrimoine: Record<string, number>
+  liens_partage: number
+  invitations: number
+  comptes: number
+  comptes_sans_foyer: number
+  comptes_gardant_un_foyer: number
+}
+
+// Aperçu de la suppression de son propre compte : `foyers_supprimes` disparaissent avec lui,
+// `foyers_quittes` : il n'y perd que sa place, `foyers_bloquants` : à transférer ou à
+// supprimer d'abord (`peut_supprimer` est alors faux).
+export interface FoyerBloquant {
+  id: number
+  nom: string | null
+  autres_comptes: number
+}
+
+export interface ApercuSuppressionCompte {
+  confirmation_attendue: string
+  foyers_supprimes: FoyerResume[]
+  foyers_quittes: FoyerResume[]
+  foyers_bloquants: FoyerBloquant[]
+  peut_supprimer: boolean
+}
+
 export interface AuthResponse {
   token: string
   user: AuthUser

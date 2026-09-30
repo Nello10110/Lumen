@@ -212,6 +212,31 @@ export function SecondaryButton({
   )
 }
 
+/** Bouton d'une action destructrice et irréversible (suppression d'un foyer ou d'un
+ * compte) — rouge plein, seul de son écran, toujours derrière une confirmation saisie. */
+export function DangerButton({
+  children,
+  onClick,
+  type = 'button',
+  disabled = false,
+}: {
+  children: ReactNode
+  onClick?: () => void
+  type?: 'button' | 'submit'
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className="flex min-h-11 items-center justify-center rounded-control bg-negatif px-4 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 md:min-h-0 md:py-2"
+    >
+      {children}
+    </button>
+  )
+}
+
 /** Badge de variation — remplace les `text-positif` / `text-negatif` épars. */
 export function DeltaBadge({ valeur, positif }: { valeur: string; positif: boolean }) {
   return (
