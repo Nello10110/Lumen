@@ -8,7 +8,12 @@ jamais le compte : il peut appartenir à d'autres foyers, que celui qui le retir
 pas. **Un compte n'est supprimé que par lui-même** (décision du 30/09/2026, qui amende la
 décision 4 de la fiche) : quitter son dernier foyer, être retiré par le propriétaire ou
 voir son foyer supprimé le laisse SANS foyer — il peut rejoindre un autre foyer, en
-créer un, ou supprimer son compte. Seul le lot BK.2d ajoutera l'opérateur à cette liste.
+créer un, ou supprimer son compte. Seul l'OPÉRATEUR (lot BK.2d) peut aussi supprimer un
+compte, et seulement un compte sans foyer (`supprimer_compte_sans_foyer`).
+
+**L'opérateur** administre les foyers sans en voir le patrimoine : il suspend et réactive un
+foyer, désigne un nouveau propriétaire parmi ses membres, supprime un foyer
+(`supprimer_foyer`, qui restreint la session à ce seul foyer le temps de l'effacement).
 
 **Périmètre de la base (Postgres).** Un propriétaire ne voit que son foyer courant : ce
 qui doit franchir cette limite est un nombre (`nombre_appartenances`, les aperçus) ou
@@ -17,6 +22,7 @@ l'effacement d'UN foyer (`foyer_le_temps`), jamais une lecture sans restriction.
 
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
@@ -25,6 +31,8 @@ from .. import database
 from ..models import (
     ROLE_MEMBRE,
     ROLE_PROPRIETAIRE,
+    STATUT_FOYER_ACTIF,
+    STATUT_FOYER_SUSPENDU,
     AccessLogEntry,
     Appartenance,
     AuthToken,
@@ -33,22 +41,21 @@ from ..models import (
     Invitation,
     InvitationPerimetre,
     LienPartage,
-    Parametre,
     PerimetreInvite,
     User,
 )
-from . import auth_service, donnees_service, historique_cache
+from . import auth_service, donnees_service, historique_cache, installation_service
 
 logger = logging.getLogger("patrimoine.foyer_service")
-
-# Réglage d'INSTALLATION (table `parametres`) : un compte sans foyer peut-il en créer un ?
-# Autorisé tant que rien n'est écrit ; l'opérateur pourra le couper (lot BK.2d).
-CLE_CREATION_FOYER_SANS_FOYER = "creation_foyer_par_compte_sans_foyer"
-VALEUR_REFUSEE = "0"
 
 # Phrase à taper pour confirmer une opération destructrice sur le foyer, tant qu'aucun nom
 # ne lui a été donné — sinon, le nom du foyer lui-même.
 PHRASE_CONFIRMATION_PAR_DEFAUT = "SUPPRIMER"
+
+
+def _maintenant() -> datetime:
+    """Horodatage naïf (UTC implicite), comme le reste de l'authentification."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class ProprietaireNeQuittePasError(Exception):
@@ -57,6 +64,10 @@ class ProprietaireNeQuittePasError(Exception):
 
 class CreationFoyerRefuseeError(Exception):
     """Réglage d'installation à « non »."""
+
+
+class CompteAvecFoyerError(Exception):
+    """L'opérateur ne supprime qu'un compte SANS foyer : celui-ci appartient encore à un foyer."""
 
 
 class DejaUnFoyerError(Exception):
@@ -77,16 +88,15 @@ class ProprietaireAvecMembresError(Exception):
     (ou supprime le foyer) avant de supprimer son compte."""
 
 
-def creation_foyer_autorisee(db: Session) -> bool:
-    parametre = db.get(Parametre, CLE_CREATION_FOYER_SANS_FOYER)
-    return parametre is None or parametre.valeur != VALEUR_REFUSEE
-
-
 def compte_peut_creer_foyer(db: Session, user: User) -> bool:
     """Ce qu'affiche l'écran « aucun foyer » : créer le sien, si l'installation l'autorise,
     pour un compte qui n'appartient à aucun foyer (suspendu compris) et n'est pas
     opérateur."""
-    return not user.est_operateur and creation_foyer_autorisee(db) and auth_service.nombre_appartenances(db, user.id) == 0
+    return (
+        not user.est_operateur
+        and installation_service.creation_foyer_par_compte_sans_foyer(db)
+        and auth_service.nombre_appartenances(db, user.id) == 0
+    )
 
 
 def retirer_du_foyer(db: Session, user_id: int, appartenance: Appartenance) -> None:
@@ -146,13 +156,60 @@ def transferer_la_propriete(db: Session, foyer_id: int, proprietaire: User, memb
     nouvelle = auth_service.appartenance_active(db, membre_id, foyer_id)
     if nouvelle is None:
         raise LookupError(membre_id)
+    _echanger_proprietaire(db, ancienne, nouvelle)
+    return ancienne
+
+
+def _echanger_proprietaire(db: Session, ancienne: Appartenance | None, nouvelle: Appartenance) -> None:
+    """`nouvelle`, celle d'un MEMBRE (`CibleTransfertInvalideError` sinon), devient la
+    propriétaire ; `ancienne`, si le foyer en a une, redevient membre. Commite."""
     if nouvelle.role != ROLE_MEMBRE:
         raise CibleTransfertInvalideError
-    ancienne.role = ROLE_MEMBRE
-    db.flush()
+    if ancienne is not None:
+        ancienne.role = ROLE_MEMBRE
+        db.flush()
     nouvelle.role = ROLE_PROPRIETAIRE
     db.commit()
-    return ancienne
+
+
+def designer_proprietaire(db: Session, foyer_id: int, membre_id: int) -> None:
+    """L'opérateur désigne un nouveau propriétaire parmi les MEMBRES du foyer (le propriétaire a
+    disparu, ou ne répond plus) : l'éventuel propriétaire actuel redevient membre. Il ne voit
+    pour cela que des noms de comptes. Le foyer peut être suspendu. `LookupError` : ce compte
+    n'appartient pas à ce foyer ; `CibleTransfertInvalideError` : un invité, ou le propriétaire
+    lui-même."""
+    nouvelle = db.query(Appartenance).filter(Appartenance.user_id == membre_id, Appartenance.foyer_id == foyer_id).first()
+    if nouvelle is None:
+        raise LookupError(membre_id)
+    ancienne = db.query(Appartenance).filter(Appartenance.foyer_id == foyer_id, Appartenance.role == ROLE_PROPRIETAIRE).first()
+    _echanger_proprietaire(db, ancienne, nouvelle)
+
+
+def suspendre_foyer(db: Session, foyer_id: int) -> Foyer:
+    """Le foyer n'est plus sélectionnable : ses sessions repassent sans foyer sur-le-champ, ses
+    liens de partage et ses invitations répondent 404. Les données restent intactes.
+    `LookupError` si le foyer n'existe pas. Sans effet sur un foyer déjà suspendu."""
+    foyer = db.get(Foyer, foyer_id)
+    if foyer is None:
+        raise LookupError(foyer_id)
+    if foyer.statut != STATUT_FOYER_SUSPENDU:
+        foyer.statut = STATUT_FOYER_SUSPENDU
+        foyer.suspendu_le = _maintenant()
+    db.query(AuthToken).filter(AuthToken.foyer_id == foyer_id).update({"foyer_id": None}, synchronize_session=False)
+    db.commit()
+    return foyer
+
+
+def reactiver_foyer(db: Session, foyer_id: int) -> Foyer:
+    """Symétrique de `suspendre_foyer`. Les sessions qui avaient perdu ce foyer le retrouvent
+    par le sélecteur ou à la prochaine connexion."""
+    foyer = db.get(Foyer, foyer_id)
+    if foyer is None:
+        raise LookupError(foyer_id)
+    foyer.statut = STATUT_FOYER_ACTIF
+    foyer.suspendu_le = None
+    db.commit()
+    return foyer
 
 
 def creer_foyer_du_compte(db: Session, user: User, auth_token: AuthToken, *, nom: str | None, langue: str) -> None:
@@ -163,7 +220,7 @@ def creer_foyer_du_compte(db: Session, user: User, auth_token: AuthToken, *, nom
         raise auth_service.CompteOperateurError
     if auth_service.nombre_appartenances(db, user.id) > 0:
         raise DejaUnFoyerError
-    if not creation_foyer_autorisee(db):
+    if not installation_service.creation_foyer_par_compte_sans_foyer(db):
         raise CreationFoyerRefuseeError
     auth_service.creer_foyer(db, user, nom=nom, langue=langue)
     appartenance = auth_service.appartenance_par_defaut(db, user.id)
@@ -378,3 +435,14 @@ def supprimer_son_compte(db: Session, user: User) -> None:
         logger.exception("suppression du compte annulee (compte %s)", user.id)
         raise
     logger.info("compte %s supprime (foyers supprimes avec lui : %s)", user.id, [f.id for f in apercu.foyers_supprimes])
+
+
+def supprimer_compte_sans_foyer(db: Session, user: User) -> None:
+    """L'opérateur supprime un compte qui n'appartient à aucun foyer (§ BK.2d) : le compte, ses
+    sessions et son journal d'accès, comme `supprimer_son_compte`. Refusé
+    (`CompteAvecFoyerError`) pour un compte qui a encore un foyer, ou qui est opérateur : ce
+    compte-là ne se supprime que lui-même. À appeler avec le périmètre de l'opérateur, qui voit
+    toutes les appartenances."""
+    if user.est_operateur or db.query(Appartenance.id).filter(Appartenance.user_id == user.id).first() is not None:
+        raise CompteAvecFoyerError
+    supprimer_son_compte(db, user)

@@ -485,19 +485,15 @@ def test_oidc_callback_expose_email_et_nom_sur_me_et_household_members(client_re
     assert moi["email"] == "paul@example.com"
     assert moi["nom"] == "Paul"
 
-    # Second compte OIDC : membre rattaché au foyer, visible dans "Comptes du foyer"
-    # avec son email/nom exposés.
-    _connecter({"sub": "sub-dave", "preferred_username": "dave", "email": "dave@example.com", "name": "Dave Dupont"})
+    # Second compte OIDC (lot BK.2d) : il crée SON foyer, propriétaire de celui-ci, avec son email/nom
+    # exposés dans sa propre liste « Comptes du foyer » — le foyer de paul ne le voit pas.
+    jeton_dave = _connecter({"sub": "sub-dave", "preferred_username": "dave", "email": "dave@example.com", "name": "Dave Dupont"})
 
-    membres = client_reel.get(
-        "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
-    ).json()
-    # Le propriétaire (paul) apparaît aussi désormais, en première position (revue du
-    # 04/09/2026) — on cible dave explicitement plutôt qu'un index fixe.
-    assert len(membres) == 2
-    dave = next(m for m in membres if m["username"] == "dave")
-    assert dave["email"] == "dave@example.com"
-    assert dave["nom"] == "Dave Dupont"
+    assert len(client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}).json()) == 1
+    membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_dave}"}).json()
+    assert [m["username"] for m in membres] == ["dave"]
+    assert membres[0]["email"] == "dave@example.com"
+    assert membres[0]["nom"] == "Dave Dupont"
 
 
 def test_creer_un_membre_du_foyer_refuse_a_un_non_proprietaire(client_reel):
@@ -601,15 +597,14 @@ def test_liste_des_membres_signale_un_compte_provisionne_par_oidc(client_reel, d
     monkeypatch.setattr(oidc_service, "recuperer_identite", lambda config, access_token: {"sub": "sub-2", "preferred_username": "bob"})
     verifier2, _ = oidc_service.code_verifier_et_challenge()
     state2 = oidc_service.construire_state(verifier2, "secret-xyz")
-    client_reel.get(f"/api/auth/oidc/callback?code=un-code&state={state2}", follow_redirects=False)
+    jeton_bob = client_reel.get(
+        f"/api/auth/oidc/callback?code=un-code&state={state2}", follow_redirects=False
+    ).headers["location"].split("#token=")[1]
 
-    membres = client_reel.get(
-        "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
-    ).json()
-
-    assert len(membres) == 2
-    bob = next(m for m in membres if m["username"] == "bob")
-    assert bob["oidc_display_name"] == "Authentik"
+    # Lot BK.2d : bob crée son propre foyer au lieu de rejoindre celui d'alice.
+    assert len(client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}).json()) == 1
+    membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_bob}"}).json()
+    assert [(m["username"], m["role"], m["oidc_display_name"]) for m in membres] == [("bob", "proprietaire", "Authentik")]
 
 
 def test_liste_des_membres_reflete_la_derniere_connexion_reussie(client_reel):

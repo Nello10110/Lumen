@@ -73,6 +73,10 @@ class CompteOperateurError(Exception):
     créer un (§ BK.2)."""
 
 
+class NomUtilisateurPrisError(Exception):
+    pass
+
+
 class AucunFoyerError(RuntimeError):
     """Un compte sans foyer courant n'a accès à aucune donnée. Les routes de données
     le refusent en amont (`auth.get_membre_foyer`) : cette erreur ne signale donc
@@ -114,10 +118,15 @@ def appartenance_par_defaut(db: Session, user_id: int) -> Appartenance | None:
 def adopter_foyer(db: Session, user: User, appartenance: Appartenance | None) -> None:
     """Pose sur `user` son foyer courant et son rôle DANS ce foyer, et restreint la
     session à ce foyer (§ BI.5) — sous Postgres, la base ne montre plus que ses lignes,
-    quels que soient les filtres du code. Sans appartenance : aucun foyer, aucun rôle."""
+    quels que soient les filtres du code. Sans appartenance : aucun foyer, aucun rôle.
+    Le compte opérateur (§ BK.2d) n'a jamais de foyer : sa session prend le périmètre de
+    l'opérateur, qui ne montre aucune ligne de patrimoine."""
     user.foyer_courant_id = appartenance.foyer_id if appartenance is not None else None
     user.role = appartenance.role if appartenance is not None else None
-    database.fixer_foyer(db, user.foyer_courant_id, user.id)
+    if user.est_operateur:
+        database.fixer_operateur(db, user.id)
+    else:
+        database.fixer_foyer(db, user.foyer_courant_id, user.id)
 
 
 def reprendre_session(db: Session, user: User, auth_token: AuthToken) -> None:
@@ -218,6 +227,12 @@ def comptes_du_foyer(db: Session, foyer_id: int) -> list[tuple[User, Appartenanc
     )
 
 
+def operateur_existe(db: Session) -> bool:
+    """L'installation a-t-elle un compte opérateur ? Tant que non, elle se règle comme avant
+    le lot BK.2d : par le propriétaire de son foyer. Aucune politique ne filtre `users`."""
+    return db.query(User.id).filter(User.est_operateur.is_(True)).first() is not None
+
+
 def installation_a_un_seul_foyer(db: Session) -> bool:
     """Sous Postgres, un compte ne voit que ses foyers : le compte doit donc se faire
     sans restriction."""
@@ -238,9 +253,10 @@ def marquer_assistant_termine(db: Session, user: User) -> None:
         appartenance.assistant_termine_le = _maintenant_naif()
 
 
-def creer_utilisateur(db: Session, username: str, password: str) -> User:
-    """Le compte seul : son foyer vient de `creer_foyer` ou de `ajouter_au_foyer`."""
-    user = User(username=username.strip(), password_hash=hash_password(password))
+def creer_utilisateur(db: Session, username: str, password: str, *, est_operateur: bool = False) -> User:
+    """Le compte seul : son foyer vient de `creer_foyer` ou de `ajouter_au_foyer`. Un compte
+    opérateur (§ BK.2d) n'en a jamais."""
+    user = User(username=username.strip(), password_hash=hash_password(password), est_operateur=est_operateur)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -281,10 +297,17 @@ def mettre_a_jour_profil_oidc(db: Session, user: User, *, email: str | None, nom
 
 
 def lier_oidc(db: Session, user: User, oidc_subject: str) -> None:
-    """Ajoute le SSO comme second moyen de connexion à un compte déjà créé à la
-    main (même `username`) — le mot de passe existant, s'il y en a un, reste utilisable
-    tel quel : lier ne retire jamais un moyen de connexion, seulement en ajoute un."""
+    """Ajoute le SSO comme second moyen de connexion à un compte, à la demande de son titulaire
+    connecté (« Lier mon compte SSO ») — le mot de passe existant reste utilisable tel quel :
+    lier ne retire jamais un moyen de connexion, seulement en ajoute un. Jamais déduit d'une
+    ressemblance de nom : c'est le compte connecté qui désigne le compte à lier."""
     user.oidc_subject = oidc_subject
+    db.commit()
+
+
+def delier_oidc(db: Session, user: User) -> None:
+    """Retire le SSO des moyens de connexion du compte (le mot de passe reste)."""
+    user.oidc_subject = None
     db.commit()
 
 
@@ -387,17 +410,28 @@ def journaliser_acces(
     db.commit()
 
 
-def lister_journal_acces(db: Session, foyer_id: int, page: int, page_size: int) -> list[AccessLogEntry]:
-    """Les connexions des comptes du foyer. Tant que l'installation n'a qu'un foyer, son
-    propriétaire en est de fait l'administrateur : il voit aussi ce qui ne se rattache
-    à aucun foyer (identifiant inconnu, compte supprimé), comme avant l'objet foyer —
-    au-delà, ces lignes reviendront à l'opérateur (lot BK.2d)."""
-    requete = db.query(AccessLogEntry)
-    if not installation_a_un_seul_foyer(db):
-        comptes = db.query(Appartenance.user_id).filter(Appartenance.foyer_id == foyer_id)
-        requete = requete.filter(AccessLogEntry.user_id.in_(comptes.scalar_subquery()))
+def _page_du_journal(requete, page: int, page_size: int) -> list[AccessLogEntry]:
     decalage = max(page - 1, 0) * page_size
     return requete.order_by(AccessLogEntry.timestamp.desc()).offset(decalage).limit(page_size).all()
+
+
+def lister_journal_acces(db: Session, foyer_id: int, page: int, page_size: int) -> list[AccessLogEntry]:
+    """Les connexions des comptes du foyer. Tant que l'installation n'a qu'un foyer ET pas
+    d'opérateur, son propriétaire en est de fait l'administrateur : il voit aussi ce qui ne se
+    rattache à aucun foyer (identifiant inconnu, compte supprimé), comme avant l'objet foyer.
+    Dès qu'il y a un opérateur ou plusieurs foyers, ces lignes reviennent à l'opérateur
+    (`lister_journal_complet`)."""
+    requete = db.query(AccessLogEntry)
+    if operateur_existe(db) or not installation_a_un_seul_foyer(db):
+        comptes = db.query(Appartenance.user_id).filter(Appartenance.foyer_id == foyer_id)
+        requete = requete.filter(AccessLogEntry.user_id.in_(comptes.scalar_subquery()))
+    return _page_du_journal(requete, page, page_size)
+
+
+def lister_journal_complet(db: Session, page: int, page_size: int) -> list[AccessLogEntry]:
+    """Toutes les connexions de l'installation, tentatives sur un identifiant inconnu comprises :
+    le journal de l'opérateur (§ BK.2d)."""
+    return _page_du_journal(db.query(AccessLogEntry), page, page_size)
 
 
 def verrouillage_actif(db: Session, username: str) -> datetime | None:

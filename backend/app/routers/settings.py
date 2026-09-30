@@ -1,7 +1,12 @@
-"""Réglages : configuration des tâches planifiées (activation, intervalle,
-déclenchement manuel — non bloquant depuis le LOT 4B, cf. `run_job_now` ci-dessous)
-et préférences applicatives (LOT 5B, cf. `get_preferences`/`update_preferences`
-ci-dessous), consommés par la page Réglages du frontend."""
+"""Réglages : préférences applicatives d'un foyer (LOT 5B, cf. `get_preferences`/
+`update_preferences` ci-dessous) et réglages d'INSTALLATION — configuration des tâches
+planifiées (activation, intervalle, déclenchement manuel — non bloquant depuis le LOT 4B, cf.
+`run_job_now` ci-dessous) et logo du bouton de connexion SSO —, consommés par la page Réglages
+du frontend.
+
+Les réglages d'installation vivent dans `installation_router`, sans préfixe : `main.py` l'inclut
+DEUX fois, sous `/api/settings` pour le propriétaire tant qu'aucun opérateur n'existe (comme
+avant le lot BK.2d), et sous `/api/operateur` pour l'opérateur, chacun avec sa dépendance."""
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -30,6 +35,7 @@ from ..services import (
 )
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
+installation_router = APIRouter(tags=["installation"])
 
 
 @router.get("/preferences", response_model=Preferences)
@@ -68,19 +74,19 @@ def update_preferences(payload: PreferencesUpdate, db: Session = Depends(get_db)
     )
 
 
-@router.get("/jobs", response_model=list[ScheduledJobOut])
+@installation_router.get("/jobs", response_model=list[ScheduledJobOut])
 def list_jobs(db: Session = Depends(get_db)):
     return scheduler_service.list_jobs(db)
 
 
-@router.put("/jobs/{job_key}", response_model=ScheduledJobOut)
+@installation_router.put("/jobs/{job_key}", response_model=ScheduledJobOut)
 def update_job(job_key: str, payload: ScheduledJobUpdate, db: Session = Depends(get_db)):
     if job_key not in scheduler_service.JOBS:
         raise HTTPException(status_code=404, detail="Tâche inconnue")
     return scheduler_service.update_job_config(db, job_key, payload.enabled, payload.intervalle_heures)
 
 
-@router.post("/jobs/{job_key}/run-now", response_model=ScheduledJobOut, status_code=202)
+@installation_router.post("/jobs/{job_key}/run-now", response_model=ScheduledJobOut, status_code=202)
 def run_job_now(job_key: str, forcer_non_cotables: bool = False, db: Session = Depends(get_db)):
     """Démarre l'exécution manuelle sans bloquer la requête (LOT 4B) : renvoie
     tout de suite la config actuelle (202, pas encore mise à jour par cette
@@ -111,21 +117,17 @@ def run_job_now(job_key: str, forcer_non_cotables: bool = False, db: Session = D
 # secret — elle s'affiche sur la page de connexion, avant toute authentification.
 # Justification complète dans `services/logo_oidc_service.py`.
 #
-# Routeur enregistré `_proprietaire_seul` dans `main.py` : c'est une décoration de
-# l'installation entière, pas un réglage de foyer.
+# `installation_router` : c'est une décoration de l'installation entière, pas un réglage de
+# foyer — au propriétaire tant qu'aucun opérateur n'existe, puis à l'opérateur.
 
 
-@router.get("/logo-connexion-sso", response_model=LogoConnexionSso)
-def get_logo_connexion_sso(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@installation_router.get("/logo-connexion-sso", response_model=LogoConnexionSso)
+def get_logo_connexion_sso(db: Session = Depends(get_db)):
     return LogoConnexionSso(logo=logo_oidc_service.lire_data_uri(db))
 
 
-@router.put("/logo-connexion-sso/url", response_model=LogoConnexionSso)
-def definir_logo_connexion_sso_depuis_url(
-    payload: EtablissementLogoUrlInput,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+@installation_router.put("/logo-connexion-sso/url", response_model=LogoConnexionSso)
+def definir_logo_connexion_sso_depuis_url(payload: EtablissementLogoUrlInput, db: Session = Depends(get_db)):
     """Récupération CÔTÉ SERVEUR, jamais par le navigateur : c'est ce qui rend la
     page de connexion autonome (un SSO joignable seulement en interne fournit quand
     même son logo) — et ce qui impose la garde anti-SSRF de
@@ -138,12 +140,8 @@ def definir_logo_connexion_sso_depuis_url(
     return LogoConnexionSso(logo=logo_oidc_service.lire_data_uri(db))
 
 
-@router.post("/logo-connexion-sso/fichier", response_model=LogoConnexionSso)
-async def televerser_logo_connexion_sso(
-    file: UploadFile,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+@installation_router.post("/logo-connexion-sso/fichier", response_model=LogoConnexionSso)
+async def televerser_logo_connexion_sso(file: UploadFile, db: Session = Depends(get_db)):
     contenu = await file.read()
     try:
         upload_limits.verifier_taille_fichier(contenu)
@@ -157,7 +155,7 @@ async def televerser_logo_connexion_sso(
     return LogoConnexionSso(logo=logo_oidc_service.lire_data_uri(db))
 
 
-@router.delete("/logo-connexion-sso", response_model=LogoConnexionSso)
-def supprimer_logo_connexion_sso(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@installation_router.delete("/logo-connexion-sso", response_model=LogoConnexionSso)
+def supprimer_logo_connexion_sso(db: Session = Depends(get_db)):
     logo_oidc_service.supprimer(db)
     return LogoConnexionSso(logo=None)

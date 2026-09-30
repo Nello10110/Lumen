@@ -150,7 +150,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Le PÉRIMÈTRE d'une session vit dans `session.info` et il est reposé au début de
 # chaque transaction (`set_config(..., true)` : local à la transaction, il disparaît
 # au commit — jamais de fuite d'une requête à la suivante par le pool de connexions).
-# Trois cas :
+# Quatre cas :
 #
 # - aucun périmètre (défaut) : la base ne montre AUCUNE ligne de foyer. C'est l'état
 #   d'une requête avant authentification ; un oubli se voit, il ne fuit pas ;
@@ -161,20 +161,26 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # - `tous_les_foyers` : explicite, pour les tâches de fond qui parcourent tous les
 #   foyers (rafraîchissement des cours, démarrage, planificateur) — voir
 #   `session_tous_foyers` — ou le temps d'une opération (`tous_les_foyers_le_temps` ; ou
-#   `foyer_le_temps`, qui ne lève rien de plus que le périmètre d'UN autre foyer).
+#   `foyer_le_temps`, qui ne lève rien de plus que le périmètre d'UN autre foyer) ;
+# - `fixer_operateur` : le compte opérateur (§ BK.2d), sans foyer, qui administre
+#   l'installation. `app.operateur = on` avec un `app.foyer_id` vide : les politiques des
+#   tables de patrimoine ne mentionnent JAMAIS cet état, la base ne lui en montre donc aucune
+#   ligne quoi que fasse le code ; seules celles de `foyers`, `appartenances` et des
+#   invitations « créer un foyer » l'autorisent.
 #
 # Sous SQLite, rien de tout cela n'existe : le périmètre est noté, jamais appliqué.
-_SANS_PERIMETRE = ("", "", "off")
+type Perimetre = tuple[str, str, str, str]  # foyer, compte connecté, « tous les foyers », opérateur
+_SANS_PERIMETRE: Perimetre = ("", "", "off", "off")
 
 
 def _appliquer_perimetre(session: Session, connexion) -> None:
-    foyer, utilisateur, tous = session.info.get("perimetre", _SANS_PERIMETRE)
+    foyer, utilisateur, tous, operateur = session.info.get("perimetre", _SANS_PERIMETRE)
     connexion.execute(
         text(
             "SELECT set_config('app.foyer_id', :foyer, true), set_config('app.utilisateur_id', :utilisateur, true), "
-            "set_config('app.tous_foyers', :tous, true)"
+            "set_config('app.tous_foyers', :tous, true), set_config('app.operateur', :operateur, true)"
         ),
-        {"foyer": foyer, "utilisateur": utilisateur, "tous": tous},
+        {"foyer": foyer, "utilisateur": utilisateur, "tous": tous, "operateur": operateur},
     )
 
 
@@ -184,7 +190,7 @@ def _poser_perimetre(session: Session, _transaction, connexion) -> None:
         _appliquer_perimetre(session, connexion)
 
 
-def _changer_perimetre(session: Session, perimetre: tuple[str, str, str]) -> None:
+def _changer_perimetre(session: Session, perimetre: Perimetre) -> None:
     session.info["perimetre"] = perimetre
     # Transaction déjà ouverte (l'authentification vient de lire le jeton) : le
     # nouveau périmètre doit valoir tout de suite, pas au prochain commit. Une
@@ -201,18 +207,25 @@ def fixer_foyer(session: Session, foyer_id: int | None, utilisateur_id: int | No
     compte connecté, ne lui ouvre que ses propres appartenances."""
     foyer = "" if foyer_id is None else str(foyer_id)
     utilisateur = "" if utilisateur_id is None else str(utilisateur_id)
-    _changer_perimetre(session, (foyer, utilisateur, "off"))
+    _changer_perimetre(session, (foyer, utilisateur, "off", "off"))
+
+
+def fixer_operateur(session: Session, utilisateur_id: int) -> None:
+    """Périmètre du compte opérateur (§ BK.2d) : aucun foyer, `app.operateur = on`. Il voit
+    les foyers, les appartenances et les invitations « créer un foyer » ; jamais une ligne
+    de patrimoine (aucune politique de patrimoine ne connaît cet état)."""
+    _changer_perimetre(session, ("", str(utilisateur_id), "off", "on"))
 
 
 def tous_les_foyers(session: Session) -> Session:
     """Lève la restriction, explicitement : réservé aux traitements qui portent par
     nature sur tous les foyers."""
-    _changer_perimetre(session, ("", "", "on"))
+    _changer_perimetre(session, ("", "", "on", "off"))
     return session
 
 
 @contextmanager
-def _perimetre_le_temps(session: Session, perimetre: tuple[str, str, str]) -> Iterator[Session]:
+def _perimetre_le_temps(session: Session, perimetre: Perimetre) -> Iterator[Session]:
     precedent = session.info.get("perimetre", _SANS_PERIMETRE)
     _changer_perimetre(session, perimetre)
     try:
@@ -225,7 +238,7 @@ def tous_les_foyers_le_temps(session: Session) -> AbstractContextManager[Session
     """Lève la restriction le temps d'une opération qui ne peut s'en passer — créer un
     foyer, qui n'est encore celui de personne ; compter les foyers — puis rend à la
     session le périmètre qu'elle avait."""
-    return _perimetre_le_temps(session, ("", "", "on"))
+    return _perimetre_le_temps(session, ("", "", "on", "off"))
 
 
 def foyer_le_temps(session: Session, foyer_id: int) -> AbstractContextManager[Session]:
@@ -234,7 +247,7 @@ def foyer_le_temps(session: Session, foyer_id: int) -> AbstractContextManager[Se
     son compte, l'opérateur) —, puis rend à la session le périmètre qu'elle avait. Bien
     moins large que `tous_les_foyers_le_temps` : la base garde les autres foyers hors
     de portée."""
-    return _perimetre_le_temps(session, (str(foyer_id), "", "off"))
+    return _perimetre_le_temps(session, (str(foyer_id), "", "off", "off"))
 
 
 def sans_perimetre(session: Session) -> None:
@@ -247,16 +260,22 @@ def session_tous_foyers() -> Session:
     return tous_les_foyers(SessionLocal())
 
 
-def avertir_si_separation_contournee() -> bool:
+def separation_contournee() -> bool:
     """Un superutilisateur ou un rôle `BYPASSRLS` échappe à toute politique RLS : la
-    séparation des foyers ne tiendrait plus qu'aux filtres du code, sans que rien ne
-    le montre. Dit au démarrage, en clair. Renvoie `True` si c'est le cas."""
+    séparation des foyers ne tiendrait plus qu'aux filtres du code. Toujours faux sous
+    SQLite, où la séparation n'existe pas (`EST_SQLITE`)."""
     if EST_SQLITE:
         return False
     with engine.connect() as connexion:
-        contournee = connexion.execute(
-            text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user")
-        ).scalar()
+        return bool(
+            connexion.execute(text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user")).scalar()
+        )
+
+
+def avertir_si_separation_contournee() -> bool:
+    """Le dit au démarrage, en clair, sans que rien d'autre ne le montre. Renvoie `True`
+    si la séparation est contournée."""
+    contournee = separation_contournee()
     if contournee:
         logger.warning(
             "le rôle de connexion à la base est superutilisateur ou BYPASSRLS : la séparation des foyers "

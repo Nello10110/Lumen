@@ -36,8 +36,11 @@ from .authentification import (  # noqa: F401
     HouseholdMemberOut,
     HouseholdMemberUpdate,
     LangueFoyerUpdate,
+    LienSsoOut,
     LoginRequest,
     OidcStatus,
+    OperateurCreate,
+    OperateurOut,
     RegisterRequest,
     SessionOut,
     SuppressionCompteRequest,
@@ -119,15 +122,26 @@ from .export import (  # noqa: F401
     DeclarationPatrimoineRequest,
 )
 from .invitations import (  # noqa: F401
+    AcceptationCompteExistant,
     AcceptationNouveauCompte,
     ApercuInvitationOut,
     InvitationCreate,
     InvitationCreeeOut,
+    InvitationFoyerCreate,
     InvitationOut,
     JetonInvitation,
 )
 from .jalons import (  # noqa: F401
     JalonOut,
+)
+from .operateur import (  # noqa: F401
+    CompteFoyerOperateurOut,
+    CompteSansFoyerOut,
+    DesignationProprietaire,
+    FoyerOperateurOut,
+    ReglagesInstallationOut,
+    ReglagesInstallationUpdate,
+    SuppressionCompteSansFoyerRequest,
 )
 from .partage import (  # noqa: F401
     LienPartageCreate,

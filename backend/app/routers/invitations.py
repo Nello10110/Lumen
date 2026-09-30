@@ -1,10 +1,12 @@
-"""Invitations à rejoindre un foyer (backlog § BK.2, lot BK.2b).
+"""Invitations à rejoindre un foyer, ou à en créer un (backlog § BK.2, lots BK.2b et BK.2d).
 
 Deux familles de routes, enregistrées ensemble dans `main.py` SANS dépendance de routeur :
 
 - **propriétaire** (créer, lister, révoquer) : `require_role(ROLE_PROPRIETAIRE)` sur
   chaque route, vers SON foyer courant — l'identifiant d'une invitation d'un autre foyer
-  est introuvable (404), jamais interdit ;
+  est introuvable (404), jamais interdit. Sous `/foyer`, ses invitations à CRÉER un foyer
+  (mode de naissance `invitation` de l'installation seulement, § BK.2d) ; l'opérateur a les
+  siennes sous `/api/operateur` ;
 - **publiques** (consulter, accepter en créant un compte) : aucune authentification, la
   protection est le jeton lui-même, envoyé dans le CORPS de la requête et jamais dans
   l'URL. Accepter avec un compte existant exige d'être connecté, foyer facultatif :
@@ -20,11 +22,13 @@ from ..database import get_db
 from ..i18n import tr
 from ..models import ROLE_PROPRIETAIRE, AuthToken, User
 from ..schemas import (
+    AcceptationCompteExistant,
     AcceptationNouveauCompte,
     ApercuInvitationOut,
     AuthResponse,
     InvitationCreate,
     InvitationCreeeOut,
+    InvitationFoyerCreate,
     InvitationOut,
     JetonInvitation,
     UserOut,
@@ -38,6 +42,7 @@ MESSAGE_INVITATION_INTROUVABLE = "Invitation introuvable, expirée ou déjà uti
 MESSAGE_INVITATION_NON_REVOCABLE = "Cette invitation n'est plus en attente."
 MESSAGE_DETENTEUR_INTROUVABLE = "Détenteur introuvable"
 MESSAGE_DEJA_MEMBRE = "Vous appartenez déjà à ce foyer."
+MESSAGE_CREATION_FOYER_PAR_INVITATION_REFUSEE = "Sur cette installation, seul l'opérateur peut créer un foyer."
 
 
 def _adresse_client(request: Request) -> str | None:
@@ -107,6 +112,42 @@ def revoquer_invitation(
         raise HTTPException(status_code=409, detail=MESSAGE_INVITATION_NON_REVOCABLE) from erreur
 
 
+@router.post("/foyer", response_model=InvitationCreeeOut)
+def creer_invitation_foyer(
+    payload: InvitationFoyerCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))
+):
+    """Lien « créer votre foyer » pour un proche (§ BK.2d) : `foyer_id` vide, rôle
+    `proprietaire` figé côté serveur. Réservé au mode de naissance `invitation` de
+    l'installation (403 en mode `ferme`, où seul l'opérateur crée un foyer). Le jeton n'est
+    renvoyé qu'ici, une seule fois."""
+    try:
+        vue, jeton = invitation_service.creer_invitation_foyer(
+            db, current_user, libelle=payload.libelle, duree_jours=payload.duree_jours
+        )
+    except invitation_service.CreationFoyerParInvitationRefuseeError as erreur:
+        raise HTTPException(status_code=403, detail=MESSAGE_CREATION_FOYER_PAR_INVITATION_REFUSEE) from erreur
+    return InvitationCreeeOut(**InvitationOut.model_validate(vue).model_dump(), jeton=jeton)
+
+
+@router.get("/foyer", response_model=list[InvitationOut])
+def lister_invitations_foyer(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+    """Les liens « créer votre foyer » de CE propriétaire (jamais ceux d'un autre), listés même
+    si le mode de naissance est repassé à `ferme` : ils ne s'acceptent plus, mais se révoquent."""
+    return invitation_service.lister_invitations_foyer(db, current_user.id)
+
+
+@router.delete("/foyer/{invitation_id}", status_code=204)
+def revoquer_invitation_foyer(
+    invitation_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))
+):
+    try:
+        invitation_service.revoquer_invitation_foyer(db, current_user.id, invitation_id)
+    except invitation_service.InvitationIntrouvableError as erreur:
+        raise HTTPException(status_code=404, detail=MESSAGE_INVITATION_INTROUVABLE) from erreur
+    except invitation_service.InvitationNonRevocableError as erreur:
+        raise HTTPException(status_code=409, detail=MESSAGE_INVITATION_NON_REVOCABLE) from erreur
+
+
 # --- Côté public -----------------------------------------------------------------------
 
 
@@ -123,13 +164,14 @@ def consulter_invitation(payload: JetonInvitation, request: Request, db: Session
 @router.post("/accepter-nouveau-compte", response_model=AuthResponse)
 def accepter_avec_nouveau_compte(payload: AcceptationNouveauCompte, request: Request, db: Session = Depends(get_db)):
     """Crée un compte, l'appartenance au foyer de l'invitation, et ouvre une session sur
-    ce foyer — même réponse que `login`."""
+    ce foyer — même réponse que `login`. Pour une invitation à créer un foyer, le foyer naît
+    ici, dans `langue` (celle de l'appareil), et le compte en est le propriétaire."""
     ip = _controler_debit(request)
     try:
-        user = invitation_service.accepter_nouveau_compte(db, payload.jeton, payload.username, payload.password)
+        user = invitation_service.accepter_nouveau_compte(db, payload.jeton, payload.username, payload.password, payload.langue)
     except invitation_service.InvitationIntrouvableError as erreur:
         raise _introuvable(ip) from erreur
-    except invitation_service.NomUtilisateurPrisError as erreur:
+    except auth_service.NomUtilisateurPrisError as erreur:
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE) from erreur
     token = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "invitation")
@@ -138,17 +180,18 @@ def accepter_avec_nouveau_compte(payload: AcceptationNouveauCompte, request: Req
 
 @router.post("/accepter", response_model=UserOut)
 def accepter_avec_compte_existant(
-    payload: JetonInvitation,
+    payload: AcceptationCompteExistant,
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     token_row: AuthToken = Depends(get_current_token),
 ):
     """Ajoute le foyer aux appartenances du compte connecté et bascule sa session dessus.
-    Refusé (409) s'il en est déjà membre, (403) s'il est opérateur."""
+    Refusé (409) s'il en est déjà membre, (403) s'il est opérateur. Pour une invitation à créer
+    un foyer, le foyer naît ici (dans `langue`) et le compte en devient propriétaire."""
     ip = _controler_debit(request)
     try:
-        appartenance = invitation_service.accepter_compte_existant(db, payload.jeton, current_user)
+        appartenance = invitation_service.accepter_compte_existant(db, payload.jeton, current_user, payload.langue)
     except invitation_service.InvitationIntrouvableError as erreur:
         raise _introuvable(ip) from erreur
     except invitation_service.DejaMembreError as erreur:

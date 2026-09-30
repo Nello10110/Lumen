@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from .. import database
-from ..models import LienPartage, PartageAcces
+from ..models import STATUT_FOYER_ACTIF, Foyer, LienPartage, PartageAcces
 from . import auth_service, budget_service, patrimoine_service, performance_service
 
 SEUIL_TENTATIVES = 5
@@ -77,20 +77,25 @@ def revoquer_lien(db: Session, lien: LienPartage) -> None:
 
 
 def lien_valide_par_token(db: Session, token: str) -> LienPartage | None:
-    """`None` si le jeton est absent, révoqué, ou expiré — la route publique répond
-    404 de façon identique dans les trois cas, pour ne jamais laisser deviner lequel
-    des trois s'applique.
+    """`None` si le jeton est absent, révoqué, expiré, ou d'un foyer suspendu (§ BK.2d) — la
+    route publique répond 404 de façon identique dans tous les cas, pour ne jamais laisser
+    deviner lequel s'applique.
 
     Route publique, sans utilisateur (§ BI.5) : le jeton EST l'autorisation. La
     recherche porte donc sur tous les foyers, et la session est aussitôt restreinte
     au foyer du lien — ou à aucun, si le jeton ne vaut rien."""
     database.tous_les_foyers(db)
     lien = db.query(LienPartage).filter(LienPartage.token == token).first()
-    if lien is None or lien.revoked_at is not None or lien.expires_at < _maintenant_naif():
+    if lien is None or lien.revoked_at is not None or lien.expires_at < _maintenant_naif() or not _foyer_actif(db, lien.user_id):
         database.sans_perimetre(db)
         return None
     database.fixer_foyer(db, lien.user_id, None)
     return lien
+
+
+def _foyer_actif(db: Session, foyer_id: int) -> bool:
+    foyer = db.get(Foyer, foyer_id)
+    return foyer is not None and foyer.statut == STATUT_FOYER_ACTIF
 
 
 def verrouillage_actif(db: Session, lien_id: int) -> datetime | None:

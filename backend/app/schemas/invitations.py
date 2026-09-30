@@ -7,11 +7,26 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from ..i18n import tr
 from ..models import ROLES_ASSIGNABLES
 from ..services.invitation_service import DUREE_PAR_DEFAUT_JOURS, DUREES_JOURS, LONGUEUR_MAX_LIBELLE
-from .authentification import MESSAGE_MOT_DE_PASSE_TROP_COURT, MESSAGE_NOM_UTILISATEUR_INVALIDE
+from .authentification import NouveauCompte, valider_langue_facultative
 
 MESSAGE_ROLE_INVITATION_INVALIDE = "Le rôle doit être 'membre' ou 'invite'"
 MESSAGE_DUREE_INVALIDE = "La durée d'une invitation doit être de 1, 7 ou 30 jours."
 MESSAGE_LIBELLE_TROP_LONG = "Le libellé ne doit pas dépasser {maximum} caractères."
+
+
+def _valider_duree(v: int) -> int:
+    if v not in DUREES_JOURS:
+        raise ValueError(MESSAGE_DUREE_INVALIDE)
+    return v
+
+
+def _valider_libelle(v: str | None) -> str | None:
+    if v is None:
+        return None
+    v = v.strip()
+    if len(v) > LONGUEUR_MAX_LIBELLE:
+        raise ValueError(tr(MESSAGE_LIBELLE_TROP_LONG, maximum=LONGUEUR_MAX_LIBELLE))
+    return v or None
 
 
 class InvitationCreate(BaseModel):
@@ -30,22 +45,19 @@ class InvitationCreate(BaseModel):
             raise ValueError(MESSAGE_ROLE_INVITATION_INVALIDE)
         return v
 
-    @field_validator("duree_jours")
-    @classmethod
-    def _valider_duree(cls, v: int) -> int:
-        if v not in DUREES_JOURS:
-            raise ValueError(MESSAGE_DUREE_INVALIDE)
-        return v
+    _valider_duree = field_validator("duree_jours")(_valider_duree)
+    _valider_libelle = field_validator("libelle")(_valider_libelle)
 
-    @field_validator("libelle")
-    @classmethod
-    def _valider_libelle(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        v = v.strip()
-        if len(v) > LONGUEUR_MAX_LIBELLE:
-            raise ValueError(tr(MESSAGE_LIBELLE_TROP_LONG, maximum=LONGUEUR_MAX_LIBELLE))
-        return v or None
+
+class InvitationFoyerCreate(BaseModel):
+    """Invitation à CRÉER un foyer (§ BK.2d) : le rôle (`proprietaire`) est figé côté serveur, et
+    il n'y a pas de périmètre — le foyer n'existe pas encore."""
+
+    libelle: str | None = None
+    duree_jours: int = DUREE_PAR_DEFAUT_JOURS
+
+    _valider_duree = field_validator("duree_jours")(_valider_duree)
+    _valider_libelle = field_validator("libelle")(_valider_libelle)
 
 
 class InvitationOut(BaseModel):
@@ -92,27 +104,25 @@ class ApercuInvitationOut(BaseModel):
     foyer_nom: str | None
     role: str
     libelle: str | None
-    langue: str
+    # `None` pour une invitation à créer un foyer : la page garde la langue de l'appareil.
+    langue: str | None
+    # Vrai pour une invitation à CRÉER un foyer (§ BK.2d) : l'accepteur en sera le propriétaire.
+    cree_un_foyer: bool = False
 
 
-class AcceptationNouveauCompte(JetonInvitation):
+class AcceptationNouveauCompte(JetonInvitation, NouveauCompte):
     """Le compte créé par l'acceptation, avec les règles de l'inscription. Sa langue est
-    celle du foyer qui l'invite (§ BL : un réglage du foyer)."""
+    celle du foyer qui l'invite (§ BL : un réglage du foyer) ; pour une invitation à créer un
+    foyer, `langue` est celle de l'appareil de l'accepteur, qui devient celle du foyer neuf."""
 
-    username: str
-    password: str
+    langue: str | None = None
 
-    @field_validator("username")
-    @classmethod
-    def _valider_username(cls, v: str) -> str:
-        v = v.strip()
-        if not (2 <= len(v) <= 32):
-            raise ValueError(MESSAGE_NOM_UTILISATEUR_INVALIDE)
-        return v
+    _valider_langue = field_validator("langue")(valider_langue_facultative)
 
-    @field_validator("password")
-    @classmethod
-    def _valider_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError(MESSAGE_MOT_DE_PASSE_TROP_COURT)
-        return v
+
+class AcceptationCompteExistant(JetonInvitation):
+    """Un compte connecté accepte : `langue` ne sert qu'à une invitation à créer un foyer."""
+
+    langue: str | None = None
+
+    _valider_langue = field_validator("langue")(valider_langue_facultative)
