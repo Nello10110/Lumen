@@ -47,7 +47,7 @@ from app.auth import get_current_user
 from app.database import Base, get_db
 from app.main import app
 from app.models import ROLE_PROPRIETAIRE, Appartenance, Compte, Foyer, Holding, Transaction, User
-from app.services import coingecko_service, justetf_service, market_data_refresh
+from app.services import auth_service, coingecko_service, justetf_service, market_data_refresh
 
 _compteur_transaction_id = itertools.count(1)
 _compteur_compte_nom = itertools.count(1)
@@ -165,6 +165,37 @@ def client(db):
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture
+def client_jetons(db):
+    """Jetons de session RÉELS, sans substitution de `get_current_user` : c'est
+    l'authentification elle-même qui est exercée (foyer courant de la session, rôle de
+    l'appartenance). Chaque requête ouvre sa propre session de base, comme en production
+    — sous Postgres, sans périmètre tant que l'authentification ne l'a pas posé."""
+    fabrique = sessionmaker(bind=db.get_bind()) if database.EST_SQLITE else database.SessionLocal
+
+    def _db_par_requete():
+        session = fabrique()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = _db_par_requete
+    try:
+        with TestClient(app) as client:
+            yield client
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+def jeton_de_session(db, user_id: int) -> dict:
+    """En-têtes d'une session ouverte pour `user_id` (sur son dernier foyer utilisé)."""
+    user = db.get(User, user_id)
+    jeton = auth_service.ouvrir_session(db, user).token
+    database.tous_les_foyers(db)  # le banc de test reprend la main sur tous les foyers
+    return {"Authorization": f"Bearer {jeton}"}
 
 
 def en_session(utilisateur: User, foyer_id: int | None, role: str | None = ROLE_PROPRIETAIRE) -> User:

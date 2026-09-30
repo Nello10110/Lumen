@@ -68,6 +68,11 @@ def utilisateur_par_username(db: Session, username: str) -> User | None:
     return db.query(User).filter(User.username == username.strip()).first()
 
 
+class CompteOperateurError(Exception):
+    """Un compte opérateur n'appartient à aucun foyer : il ne peut ni en rejoindre un ni en
+    créer un (§ BK.2)."""
+
+
 class AucunFoyerError(RuntimeError):
     """Un compte sans foyer courant n'a accès à aucune donnée. Les routes de données
     le refusent en amont (`auth.get_membre_foyer`) : cette erreur ne signale donc
@@ -95,7 +100,7 @@ def appartenance_active(db: Session, user_id: int, foyer_id: int | None) -> Appa
     )
 
 
-def _appartenance_par_defaut(db: Session, user_id: int) -> Appartenance | None:
+def appartenance_par_defaut(db: Session, user_id: int) -> Appartenance | None:
     """Le foyer rouvert à la connexion : le dernier utilisé."""
     return (
         db.query(Appartenance)
@@ -131,21 +136,40 @@ def reprendre_session(db: Session, user: User, auth_token: AuthToken) -> None:
 def ouvrir_session(db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None) -> AuthToken:
     """Connexion réussie : le foyer de la session est le dernier utilisé par ce compte."""
     database.fixer_foyer(db, None, user.id)
-    appartenance = _appartenance_par_defaut(db, user.id)
+    appartenance = appartenance_par_defaut(db, user.id)
     adopter_foyer(db, user, appartenance)
     if appartenance is not None:
-        maintenant = _maintenant_naif()
-        appartenance.derniere_utilisation = maintenant
-        db.get(Foyer, appartenance.foyer_id).derniere_activite = maintenant
+        _marquer_utilisation(db, appartenance)
     return creer_token(db, user, ip=ip, user_agent=user_agent)
 
 
-def creer_foyer(db: Session, proprietaire: User, *, langue: str | None = None) -> Foyer:
+def _marquer_utilisation(db: Session, appartenance: Appartenance) -> None:
+    """Le foyer est ouvert à l'instant : c'est celui que la prochaine connexion rouvrira.
+    À appeler une fois le périmètre de la session posé sur ce foyer (`adopter_foyer`) —
+    sous Postgres, seul le foyer courant est inscriptible."""
+    maintenant = _maintenant_naif()
+    appartenance.derniere_utilisation = maintenant
+    db.get(Foyer, appartenance.foyer_id).derniere_activite = maintenant
+
+
+def changer_foyer_courant(db: Session, user: User, auth_token: AuthToken, appartenance: Appartenance) -> None:
+    """Bascule la session sur le foyer de `appartenance`, que l'appelant a vérifiée
+    (appartenance et foyer actif) : elle ne se fie à aucun identifiant fourni par le
+    client. Le périmètre de la base passe d'abord au nouveau foyer."""
+    adopter_foyer(db, user, appartenance)
+    auth_token.foyer_id = appartenance.foyer_id
+    _marquer_utilisation(db, appartenance)
+    db.commit()
+
+
+def creer_foyer(db: Session, proprietaire: User, *, nom: str | None = None, langue: str | None = None) -> Foyer:
     """Crée un foyer dont `proprietaire` est le propriétaire. Sous Postgres, un foyer
     neuf n'est encore celui de personne : la séparation des foyers le refuserait, d'où
     la restriction levée le temps de sa création."""
     with database.tous_les_foyers_le_temps(db):
-        foyer = Foyer(langue=langue) if langue is not None else Foyer()
+        foyer = Foyer(nom=nom)
+        if langue is not None:
+            foyer.langue = langue
         db.add(foyer)
         db.flush()
         db.add(Appartenance(user_id=proprietaire.id, foyer_id=foyer.id, role=ROLE_PROPRIETAIRE))
@@ -162,6 +186,26 @@ def ajouter_au_foyer(db: Session, user: User, foyer_id: int, role: str) -> Appar
     db.add(appartenance)
     db.commit()
     return appartenance
+
+
+def foyers_du_compte(db: Session, user_id: int) -> list[tuple[Foyer, Appartenance]]:
+    """Les foyers ACTIFS auxquels `user_id` peut accéder, avec son appartenance — ce que
+    propose le sélecteur de foyer. Un foyer suspendu n'est plus sélectionnable."""
+    return (
+        db.query(Foyer, Appartenance)
+        .join(Appartenance, Appartenance.foyer_id == Foyer.id)
+        .filter(Appartenance.user_id == user_id, Foyer.statut == STATUT_FOYER_ACTIF)
+        .order_by(Appartenance.id)
+        .all()
+    )
+
+
+def nombre_appartenances(db: Session, user_id: int) -> int:
+    """Tous les foyers du compte, suspendus compris. Sous Postgres, un propriétaire ne
+    voit que les appartenances de SON foyer : pour savoir si un compte en a d'autres, la
+    restriction est levée le temps du comptage (il n'en sort qu'un nombre)."""
+    with database.tous_les_foyers_le_temps(db):
+        return db.query(Appartenance).filter(Appartenance.user_id == user_id).count()
 
 
 def comptes_du_foyer(db: Session, foyer_id: int) -> list[tuple[User, Appartenance]]:

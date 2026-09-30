@@ -25,7 +25,10 @@ from .authentification import (  # noqa: F401
     MESSAGE_NOM_UTILISATEUR_INVALIDE,
     AccessLogEntryOut,
     AuthResponse,
+    FoyerCourantUpdate,
+    FoyerCreate,
     FoyerNomUpdate,
+    FoyerResume,
     HouseholdMemberCreate,
     HouseholdMemberOut,
     HouseholdMemberUpdate,
@@ -34,6 +37,7 @@ from .authentification import (  # noqa: F401
     OidcStatus,
     RegisterRequest,
     SessionOut,
+    SuppressionCompteRequest,
     UserOut,
 )
 from .budget import (  # noqa: F401
@@ -108,6 +112,14 @@ from .emprunts import (  # noqa: F401
 )
 from .export import (  # noqa: F401
     DeclarationPatrimoineRequest,
+)
+from .invitations import (  # noqa: F401
+    AcceptationNouveauCompte,
+    ApercuInvitationOut,
+    InvitationCreate,
+    InvitationCreeeOut,
+    InvitationOut,
+    JetonInvitation,
 )
 from .jalons import (  # noqa: F401
     JalonOut,

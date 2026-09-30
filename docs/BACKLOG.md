@@ -7075,8 +7075,9 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 
 #### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
 
-**État au 29/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
-détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; prochain lot **BK.2b**, puis BK.2c à BK.2e (§ 9).
+**État au 30/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
+détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** : **partie serveur
+réalisée** (« Lot BK.2b — réalisé (serveur) »), interface et vérification par la CI Postgres à venir ; puis BK.2c à BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7308,8 +7309,11 @@ Table `invitations` : `foyer_id` (`NULL` pour une invitation à **créer** un fo
   données restent au foyer. Le propriétaire ne peut pas partir sans transférer ; seul compte du foyer,
   partir revient à supprimer le foyer. Le renommage d'un nom d'utilisateur par le propriétaire
   (`routers/auth.py:361-364`) n'est plus permis que pour un compte qui n'appartient qu'à son foyer.
-- **Compte qui n'appartient plus à aucun foyer** : supprimé avec ses sessions (comportement actuel de
-  `delete_household_member`), sauf choix contraire de l'utilisateur (§ 10).
+- **Compte qui n'appartient plus à aucun foyer** : **conservé, sans foyer** (décision du 30/09/2026, § 10,
+  décision 10, qui amende la décision 4). Il se connecte toujours ; il peut rejoindre un foyer par une
+  invitation, créer le sien si l'installation l'autorise, ou supprimer son propre compte (sessions et journal
+  d'accès compris). Seul le propriétaire qui retire un compte n'appartenant qu'à son foyer le supprime encore,
+  avec ses sessions (`delete_household_member`) ; un compte d'un autre foyer n'y perd que son appartenance.
 - **Suspension** (opérateur) : `statut = suspendu` ; le foyer n'est plus sélectionnable, ses sessions
   repassent sans foyer, ses liens de partage et invitations répondent 404, les données restent.
   Réactivation symétrique.
@@ -7467,8 +7471,8 @@ Validées par l'utilisateur le 29/09/2026 (recommandations de la fiche acceptée
    à « non », le compte est créé sans foyer et attend une invitation.
 3. **L'opérateur est un compte distinct** du compte du propriétaire, créé par un bandeau ou par la
    commande : c'est ce qui permet à la base de garantir qu'il ne voit rien.
-4. **Compte sans aucun foyer** : supprimé, comme aujourd'hui (moins de données, droit à l'effacement) ;
-   un compte SSO se recrée à la connexion suivante, avec son propre foyer.
+4. **Compte sans aucun foyer** : ~~supprimé, comme aujourd'hui~~ — **amendée le 30/09/2026 (décision 10)** :
+   conservé, sans foyer.
 5. **Propriétaire disparu** : l'opérateur peut désigner un nouveau propriétaire parmi les membres (il
    ne voit que des noms de comptes) ; le propriétaire lui-même ne part qu'après un transfert.
 6. **Rôles d'un foyer à l'autre** : un invité d'un foyer peut être propriétaire d'un autre (le rôle
@@ -7482,6 +7486,11 @@ Validées par l'utilisateur le 29/09/2026 (recommandations de la fiche acceptée
    les comptes déjà liés ne changent pas.
 9. **Création directe d'un compte par le propriétaire** (avec mot de passe) : conservée, limitée à un
    compte qui n'appartient qu'à ce foyer.
+10. **Compte qui quitte son dernier foyer** (décision de l'utilisateur du 30/09/2026, en cours du lot BK.2b —
+    amende la décision 4) : le compte **n'est pas supprimé** ; il reste sans foyer. Il peut alors (a) créer son
+    propre foyer, s'il y est autorisé par un réglage d'installation `creation_foyer_par_compte_sans_foyer`
+    (table `parametres`), **autorisé par défaut** — l'opérateur pourra le couper au lot BK.2d ; (b) supprimer
+    son propre compte, ce qui efface aussi ses sessions et son journal d'accès ; (c) accepter une invitation.
 
 ##### Lot BK.2a — réalisé (29/09/2026), `traité (30/09/2026)`
 
@@ -7543,6 +7552,80 @@ l'opérateur (Postgres).
 encore d'usage applicatif, et rien ne suspend encore un foyer (`statut` est lu, jamais changé) — lot
 BK.2d ; le renommage `user_id` → `foyer_id` (BK.2e). Un compte laissé sans foyer par la migration voit
 une application vide (403 sur les données) jusqu'à l'écran « aucun foyer » de BK.2b.
+
+##### Lot BK.2b — réalisé (serveur, 30/09/2026)
+
+Partie serveur du lot « Invitations et appartenance multiple » (§ 9) ; l'interface (page `/invitation`,
+sélecteur de foyer, écran « aucun foyer », « Quitter ce foyer », étape d'assistant « Inviter ») reste à faire.
+Vérifié sous SQLite (suite backend complète) ; les tests Postgres (`test_separation_foyers.py`, étendu) tournent
+en CI.
+
+**Ce qui change.**
+
+- **Migration `d1a7c5e3b9f4`** : `invitations` (`foyer_id` facultatif pour BK.2d, `role`, `libelle`, `jeton_hash`
+  unique, `cree_par`, `cree_le`, `expire_le`, `utilisee_le`, `utilisee_par`, `revoquee_le`) et
+  `invitations_perimetres` (`invitation_id`, `detenteur_id`). Sous Postgres, `FORCE ROW LEVEL SECURITY` : une
+  invitation appartient à son foyer, ses périmètres à leur invitation. Descente testée.
+- **Invitations** (`services/invitation_service.py`, `routers/invitations.py`) : le propriétaire crée, liste et
+  révoque, vers son foyer courant seulement. Rôle `membre` ou `invite`, jamais `proprietaire` (refusé à la
+  validation) ; périmètre d'invité limité aux détenteurs du foyer (404 sinon, ignoré pour un membre) ; durée 1,
+  7 (défaut) ou 30 jours ; libellé de 80 caractères au plus. Jeton `secrets.token_urlsafe(32)` renvoyé **une
+  seule fois** ; seul son SHA-256 est stocké. Lien : `<origine>/invitation#<jeton>`.
+- **Consultation publique** (`POST /api/invitations/consulter`, jeton dans le corps) : nom du foyer, rôle,
+  libellé et langue du foyer. Même 404 pour un jeton absent, expiré, révoqué, utilisé ou d'un foyer suspendu.
+  Limitation de débit : dix jetons inconnus en quinze minutes par adresse valent un 429 (compteur en mémoire,
+  sans écriture en base sur une route publique).
+- **Acceptation atomique**, en une transaction : un `UPDATE … WHERE jeton_hash = :h AND utilisee_le IS NULL AND
+  revoquee_le IS NULL AND expire_le > :maintenant` (et foyer actif) qui doit toucher exactement une ligne, puis
+  l'appartenance au rôle figé par l'invitation (`assistant_termine_le` renseigné : pas d'assistant pour un
+  membre ou un invité) et, pour un invité, le périmètre recopié dans `perimetres_invites`. Deux voies :
+  nouveau compte (mêmes règles de nom et de mot de passe que l'inscription ; ouvre une session sur le foyer) ;
+  compte existant connecté (409 s'il est déjà membre, 403 s'il est opérateur ; sa session bascule sur le foyer
+  rejoint). La consultation et l'acceptation lèvent la restriction de la base le temps de leur opération
+  (`tous_les_foyers_le_temps`), et rien d'autre.
+- **SSO** : le `state` signé porte un drapeau « pour une invitation » (`/api/auth/oidc/login?invitation=true`,
+  format `nonce.horodatage.verifier.drapeau.signature`) ; avec lui, un NOUVEAU compte SSO est créé sans
+  appartenance (ni foyer unique, ni foyer neuf, ni refus « plusieurs foyers »). La liaison automatique par nom
+  d'utilisateur (lignes 273-278) n'est pas touchée : lot BK.2d.
+- **Foyers du compte** : `/api/auth/me` renvoie `foyers` (`id`, `nom`, `role`, foyers actifs seulement),
+  `foyer_courant_id` et `peut_creer_foyer` ; il répond aussi pour un compte sans foyer. `PUT
+  /api/auth/foyer-courant` vérifie l'appartenance et le statut en base, répond 404 uniforme sinon (foyer d'un
+  autre, inconnu, suspendu), met à jour `auth_tokens.foyer_id` et `appartenances.derniere_utilisation`. La
+  bascule ne touche que la session courante.
+- **Quitter un foyer** (`POST /api/auth/quitter-foyer`) : supprime l'appartenance, ses `perimetres_invites` de ce
+  foyer, et remet à `NULL` les `auth_tokens.foyer_id` qui le désignaient ; le propriétaire ne peut pas (403).
+  Le compte n'est jamais supprimé. La session courante rouvre le dernier foyer utilisé parmi ceux qui restent,
+  sinon aucun.
+- **Compte sans foyer** : `POST /api/auth/foyers` (nom facultatif, langue de l'appareil) crée un foyer dont il
+  devient propriétaire (l'assistant de bienvenue se joue) — refusé si le réglage d'installation est à `0`, si le
+  compte a déjà un foyer, ou s'il est opérateur. `POST /api/auth/compte/supprimer` (confirmation par le nom
+  d'utilisateur) supprime le compte, ses sessions et son journal d'accès, seulement sans aucune appartenance
+  (409 sinon) ; les invitations qu'il a créées ou acceptées perdent le renvoi vers lui.
+- **Correctifs de sécurité** : `delete_household_member` ne supprimait que le compte ; il retire désormais
+  seulement l'appartenance (avec périmètre et sessions de ce foyer) quand le compte appartient à un autre foyer.
+  Le renommage d'un nom d'utilisateur par le propriétaire est refusé (403) pour un tel compte. Sous Postgres,
+  ces deux contrôles comptent les appartenances du compte en levant un instant la restriction : un
+  propriétaire ne voit que les appartenances de son foyer, et croirait sinon le compte à lui seul. Le
+  périmètre d'invité filtrait déjà sur le foyer courant (lot BK.2a) ; verrouillé par un test.
+- **Nettoyage des détenteurs** : `_supprimer_donnees_du_foyer` (remise à zéro **et import**) efface désormais les
+  périmètres d'invité (`perimetres_invites` et `invitations_perimetres`) des détenteurs qu'elle supprime ;
+  `delete_detenteur` efface aussi `invitations_perimetres`. Avant, l'import laissait des périmètres pointer
+  vers des identifiants de détenteurs disparus (que SQLite redonne au suivant).
+- **Messages** : 13 messages dans le catalogue des 5 langues.
+
+**Tests.** `test_invitations.py` (jeton haché et montré une fois, rôle `proprietaire` refusé, périmètre d'un autre
+foyer refusé, droits, IDOR de révocation, 404 uniforme, limitation de débit, rejeu, expiration, révocation,
+atomicité, deux acceptations simultanées — nouveaux comptes, comptes existants, révocation contre acceptation —,
+déjà membre, opérateur) ; `test_appartenance_multiple.py` (bascule et son IDOR, foyer suspendu, quitter dont le
+dernier foyer, propriétaire, création de foyer et réglage, suppression de son compte, correctifs du § 9 de la
+fiche, SSO avec drapeau) ; `test_migration_invitations.py` ; `test_separation_foyers.py` étendu
+(Postgres : un foyer ne voit pas les invitations d'un autre, écriture croisée refusée, consultation et
+acceptation sans périmètre). Les fixtures `client_jetons` et `jeton_de_session` passent dans `conftest.py`.
+
+**Gardé pour plus tard, volontairement** : aucune interface pour le réglage `creation_foyer_par_compte_sans_foyer`
+(lot BK.2d) ; les invitations à créer un foyer (`foyer_id` vide) et le mode « sur invitation » (BK.2d) ; le
+transfert de propriété et le retrait d'un membre avec ses données (BK.2c) ; la limitation de débit est propre à
+chaque processus (elle ne se partage pas entre plusieurs workers).
 
 
 ### BL. Application multilingue (cadrée le 23/09/2026)

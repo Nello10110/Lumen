@@ -135,7 +135,25 @@ def test_state_valide_fait_laller_retour():
     verifier, _ = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(verifier, CLIENT_SECRET)
 
-    assert oidc_service.verifier_state(state, CLIENT_SECRET) == verifier
+    assert oidc_service.verifier_state(state, CLIENT_SECRET) == (verifier, False)
+
+
+def test_le_drapeau_dinvitation_voyage_dans_le_state_signe():
+    verifier, _ = oidc_service.code_verifier_et_challenge()
+    state = oidc_service.construire_state(verifier, CLIENT_SECRET, pour_invitation=True)
+
+    assert oidc_service.verifier_state(state, CLIENT_SECRET) == (verifier, True)
+
+
+def test_le_drapeau_dinvitation_ne_se_retire_pas_sans_casser_la_signature():
+    """Un state ordinaire ne devient pas un state d'invitation (ni l'inverse) en changeant
+    le drapeau : il est couvert par la signature."""
+    verifier, _ = oidc_service.code_verifier_et_challenge()
+    state = oidc_service.construire_state(verifier, CLIENT_SECRET, pour_invitation=True)
+    nonce, horodatage, code, _drapeau, signature = state.split(".")
+
+    with pytest.raises(oidc_service.OidcError):
+        oidc_service.verifier_state(f"{nonce}.{horodatage}.{code}.n.{signature}", CLIENT_SECRET)
 
 
 def test_state_altere_est_rejete():

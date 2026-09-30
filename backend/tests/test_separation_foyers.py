@@ -6,7 +6,7 @@ le fait — mais ce qui tient QUAND UN FILTRE MANQUE : la base, seule. Postgres 
 (SQLite ne connaît pas la sécurité au niveau des lignes) ; la suite s'y exécute avec un
 rôle ordinaire (`conftest.py` racine), faute de quoi la base ne protégerait rien."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,15 +18,18 @@ from app.main import app
 from app.models import (
     ROLE_MEMBRE,
     Appartenance,
+    Detenteur,
     Foyer,
     FoyerParametre,
     HistoriqueCache,
     Holding,
     HoldingValuationHistory,
+    Invitation,
+    InvitationPerimetre,
     User,
 )
 from app.routers import portfolio
-from app.services import auth_service
+from app.services import auth_service, invitation_service
 
 from .conftest import ID_FOYER_B, ID_FOYER_TEST, ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, creer_utilisateur, make_holding
 
@@ -206,3 +209,105 @@ def test_lien_public_restreint_au_foyer_du_lien(deux_foyers):
         assert [h.ticker for h in session.query(Holding).all()] == ["B-SEUL"]
         assert partage_service.lien_valide_par_token(session, "jeton-bidon") is None
         assert session.query(Holding).count() == 0
+
+
+# --- Invitations (§ BK.2b) -----------------------------------------------------------------
+
+
+@pytest.fixture
+def invitations_des_deux_foyers(deux_foyers):
+    """Une invitation de rôle `invite`, avec un détenteur dans son périmètre, dans chaque
+    foyer. Renvoie les jetons en clair, par foyer."""
+    jetons = {}
+    for foyer in (ID_FOYER_TEST, ID_FOYER_B):
+        detenteur = Detenteur(user_id=foyer, nom=f"Détenteur {foyer}")
+        deux_foyers.add(detenteur)
+        deux_foyers.commit()
+        vue, jeton = invitation_service.creer_invitation(
+            deux_foyers, foyer, foyer - 10, role="invite", libelle=None, duree_jours=7, detenteur_ids=[detenteur.id]
+        )
+        jetons[foyer] = jeton
+    return jetons
+
+
+def test_un_foyer_ne_voit_pas_les_invitations_d_un_autre(invitations_des_deux_foyers):
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        assert [i.foyer_id for i in session.query(Invitation).all()] == [ID_FOYER_TEST]
+        # Table fille, sans `foyer_id` : filtrée par son invitation.
+        assert session.query(InvitationPerimetre).count() == 1
+
+
+def test_sans_perimetre_la_base_ne_montre_aucune_invitation(invitations_des_deux_foyers):
+    with database.SessionLocal() as session:
+        assert session.query(Invitation).count() == 0
+        assert session.query(InvitationPerimetre).count() == 0
+
+
+def test_ecrire_une_invitation_dans_un_autre_foyer_est_refuse(invitations_des_deux_foyers):
+    maintenant = datetime.now()
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        session.add(
+            Invitation(foyer_id=ID_FOYER_B, role="membre", jeton_hash="x" * 64, cree_le=maintenant, expire_le=maintenant + timedelta(days=1))
+        )
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            session.commit()
+
+
+def test_rattacher_un_perimetre_a_l_invitation_d_un_autre_foyer_est_refuse(invitations_des_deux_foyers, deux_foyers):
+    invitation_b = deux_foyers.query(Invitation).filter(Invitation.foyer_id == ID_FOYER_B).one()
+    detenteur_a = deux_foyers.query(Detenteur).filter(Detenteur.user_id == ID_FOYER_TEST).one()
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        session.add(InvitationPerimetre(invitation_id=invitation_b.id, detenteur_id=detenteur_a.id))
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            session.commit()
+
+
+def test_un_membre_ne_lit_que_les_invitations_du_foyer_courant(invitations_des_deux_foyers, deux_foyers):
+    """Membre des deux foyers : dans l'un, jamais les invitations de l'autre."""
+    membre = User(id=ID_MEMBRE_DES_DEUX, username="membre-des-deux", password_hash="x")
+    deux_foyers.add(membre)
+    deux_foyers.commit()
+    for foyer in (ID_FOYER_TEST, ID_FOYER_B):
+        deux_foyers.add(Appartenance(user_id=ID_MEMBRE_DES_DEUX, foyer_id=foyer, role=ROLE_MEMBRE))
+    deux_foyers.commit()
+
+    with _session_du_foyer(ID_FOYER_B, ID_MEMBRE_DES_DEUX) as session:
+        assert [i.foyer_id for i in session.query(Invitation).all()] == [ID_FOYER_B]
+
+
+def test_consulter_une_invitation_precede_toute_appartenance(invitations_des_deux_foyers):
+    """La consultation est publique : sans compte ni foyer, la base ne montre rien, et
+    l'opération lève elle-même la restriction, le temps de lire cette seule invitation."""
+    with database.SessionLocal() as session:
+        apercu = invitation_service.consulter(session, invitations_des_deux_foyers[ID_FOYER_B])
+
+        assert apercu.role == "invite"
+        # La restriction est revenue : la session ne voit toujours rien.
+        assert session.query(Invitation).count() == 0
+
+
+def test_accepter_une_invitation_precede_l_appartenance(invitations_des_deux_foyers, deux_foyers):
+    with database.SessionLocal() as session:
+        invitation_service.accepter_nouveau_compte(session, invitations_des_deux_foyers[ID_FOYER_TEST], "lea", "motdepasse-solide")
+        assert session.query(Appartenance).count() == 0  # la restriction est revenue
+
+    deux_foyers.expire_all()
+    lea = deux_foyers.query(User).filter(User.username == "lea").one()
+    appartenances = deux_foyers.query(Appartenance).filter(Appartenance.user_id == lea.id)
+    assert [(a.foyer_id, a.role) for a in appartenances] == [(ID_FOYER_TEST, "invite")]
+    invitation = deux_foyers.query(Invitation).filter(Invitation.foyer_id == ID_FOYER_TEST).one()
+    assert invitation.utilisee_par == lea.id
+
+
+def test_un_compte_d_un_autre_foyer_accepte_une_invitation_sans_pouvoir_s_inscrire_ailleurs(invitations_des_deux_foyers, deux_foyers):
+    """Le compte B, connecté à SON foyer, rejoint le foyer A par l'invitation — et seulement
+    par elle : `test_se_rattacher_a_un_autre_foyer_est_refuse` reste vrai hors invitation."""
+    with _session_du_foyer(ID_FOYER_B, ID_UTILISATEUR_B) as session:
+        utilisateur = session.get(User, ID_UTILISATEUR_B)
+        invitation_service.accepter_compte_existant(session, invitations_des_deux_foyers[ID_FOYER_TEST], utilisateur)
+
+    deux_foyers.expire_all()
+    assert sorted(a.foyer_id for a in deux_foyers.query(Appartenance).filter(Appartenance.user_id == ID_UTILISATEUR_B)) == [
+        ID_FOYER_TEST,
+        ID_FOYER_B,
+    ]

@@ -10,11 +10,14 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_token, get_current_user, get_membre_foyer, require_role
 from ..database import get_db
 from ..i18n import tr, traduire
-from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
+from ..models import ROLE_PROPRIETAIRE, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
 from ..schemas import (
     AccessLogEntryOut,
     AuthResponse,
+    FoyerCourantUpdate,
+    FoyerCreate,
     FoyerNomUpdate,
+    FoyerResume,
     HouseholdMemberCreate,
     HouseholdMemberOut,
     HouseholdMemberUpdate,
@@ -23,9 +26,18 @@ from ..schemas import (
     OidcStatus,
     RegisterRequest,
     SessionOut,
+    SuppressionCompteRequest,
     UserOut,
 )
-from ..services import auth_service, budget_categories_service, comptes_service, logo_oidc_service, oidc_service, preferences_service
+from ..services import (
+    auth_service,
+    budget_categories_service,
+    comptes_service,
+    foyer_service,
+    logo_oidc_service,
+    oidc_service,
+    preferences_service,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -33,21 +45,36 @@ MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE = "Ce nom d'utilisateur est déjà pris."
 MESSAGE_IDENTIFIANTS_INVALIDES = "Nom d'utilisateur ou mot de passe incorrect."
 MESSAGE_INSCRIPTION_FERMEE = "L'inscription ouverte est fermée. Demandez à votre propriétaire de foyer de créer votre compte."
 MESSAGE_COMPTE_SSO_SEUL = "Ce compte se connecte uniquement via SSO."
+MESSAGE_FOYER_INTROUVABLE = "Foyer introuvable"
+MESSAGE_PROPRIETAIRE_NE_QUITTE_PAS = "Le propriétaire ne peut pas quitter son foyer."
+MESSAGE_CREATION_FOYER_REFUSEE = "La création d'un foyer par un compte sans foyer n'est pas autorisée sur cette installation."
+MESSAGE_DEJA_UN_FOYER = "Ce compte appartient déjà à un foyer."
+MESSAGE_OPERATEUR_SANS_FOYER = "Un compte opérateur n'appartient à aucun foyer et ne peut pas en rejoindre ni en créer."
+MESSAGE_COMPTE_ENCORE_MEMBRE = "Ce compte appartient encore à un foyer : quittez-le avant de supprimer votre compte."
+MESSAGE_CONFIRMATION_COMPTE_INCORRECTE = "Confirmation incorrecte. Saisissez votre nom d'utilisateur pour confirmer."
+MESSAGE_COMPTE_PLUSIEURS_FOYERS = (
+    "Ce compte appartient à plusieurs foyers : son nom d'utilisateur ne peut pas être modifié depuis ce foyer."
+)
 
 
 def _adresse_client(request: Request) -> str | None:
     return request.client.host if request.client else None
 
 
-def _user_out(db: Session, user: User) -> UserOut:
+def construire_user_out(db: Session, user: User) -> UserOut:
     """`UserOut.model_validate` seul ne remplit jamais `onboarding_termine` (pas une
     colonne de `User`, cf. schémas) — ce helper centralise le calcul, sur le foyer
     courant posé par l'authentification, pour les routes qui renvoient un utilisateur complet
     (`register`/`login`/`me`), afin que le frontend connaisse l'état de l'assistant
     de configuration initiale dès la connexion, sans appel supplémentaire."""
     sortie = UserOut.model_validate(user)
+    # Les foyers du compte se décrivent même sans foyer courant : c'est ce que propose
+    # l'écran « aucun foyer ».
+    foyers = auth_service.foyers_du_compte(db, user.id)
+    sortie.foyers = [FoyerResume(id=foyer.id, nom=foyer.nom, role=appartenance.role) for foyer, appartenance in foyers]
+    sortie.peut_creer_foyer = foyer_service.compte_peut_creer_foyer(db, user)
     if user.foyer_courant_id is None:
-        # Compte sans foyer : ni données, ni réglages de foyer à décrire.
+        # Compte sans foyer courant : ni données, ni réglages de foyer à décrire.
         return sortie
     foyer = auth_service.id_foyer(user)
     sortie.onboarding_termine = auth_service.assistant_termine(db, user)
@@ -73,7 +100,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     # Le premier compte crée son foyer, dans la langue de son appareil.
     auth_service.creer_foyer(db, user, langue=payload.langue)
     token = auth_service.ouvrir_session(db, user)
-    return AuthResponse(token=token.token, user=_user_out(db, user))
+    return AuthResponse(token=token.token, user=construire_user_out(db, user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -98,7 +125,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
     token = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, payload.username, user.id, ip, "succes", None)
-    return AuthResponse(token=token.token, user=_user_out(db, user))
+    return AuthResponse(token=token.token, user=construire_user_out(db, user))
 
 
 # --- Connexion SSO (OIDC applicatif) ----------------------------------------------
@@ -124,12 +151,14 @@ def oidc_status(db: Session = Depends(get_db)):
 
 
 @router.get("/oidc/login")
-def oidc_login():
+def oidc_login(invitation: bool = False):
+    """`invitation` : la connexion sert à accepter une invitation (§ BK.2b). Le drapeau
+    voyage dans le `state` signé, pas dans le retour du fournisseur, que rien ne protège."""
     config = oidc_service.charger_config()
     if config is None:
         raise HTTPException(status_code=404, detail="Connexion SSO non configurée sur ce déploiement.")
     code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
-    state = oidc_service.construire_state(code_verifier, config.client_secret)
+    state = oidc_service.construire_state(code_verifier, config.client_secret, pour_invitation=invitation)
     return RedirectResponse(oidc_service.url_autorisation(config, state, code_challenge))
 
 
@@ -155,10 +184,10 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
 
     ip = _adresse_client(request)
     try:
-        code_verifier = oidc_service.verifier_state(state_recu, config.client_secret)
-        jeton_fournisseur = oidc_service.echanger_code(config, code, code_verifier)
+        etat = oidc_service.verifier_state(state_recu, config.client_secret)
+        jeton_fournisseur = oidc_service.echanger_code(config, code, etat.code_verifier)
         claims = oidc_service.recuperer_identite(config, jeton_fournisseur["access_token"])
-        user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims)
+        user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims, pour_invitation=etat.pour_invitation)
     except oidc_service.OidcError as err:
         auth_service.journaliser_acces(db, "?", None, ip, "echec", "oidc_echec")
         return _redirection_erreur(traduire(str(err)))
@@ -185,7 +214,80 @@ def logout(
 
 @router.get("/me", response_model=UserOut)
 def me(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return _user_out(db, current_user)
+    return construire_user_out(db, current_user)
+
+
+@router.put("/foyer-courant", response_model=UserOut)
+def changer_foyer_courant(
+    payload: FoyerCourantUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    token_row: AuthToken = Depends(get_current_token),
+):
+    """Bascule de foyer (§ BK.2b). L'identifiant fourni ne vaut que s'il est confirmé en
+    base : une appartenance du compte à un foyer actif. 404 pour tout autre — foyer
+    inconnu, d'un autre, suspendu — sans les distinguer (IDOR). Le foyer courant est
+    celui de la SESSION : les autres appareils du compte gardent le leur."""
+    appartenance = auth_service.appartenance_active(db, current_user.id, payload.foyer_id)
+    if appartenance is None:
+        raise HTTPException(status_code=404, detail=MESSAGE_FOYER_INTROUVABLE)
+    auth_service.changer_foyer_courant(db, current_user, token_row, appartenance)
+    return construire_user_out(db, current_user)
+
+
+@router.post("/quitter-foyer", response_model=UserOut)
+def quitter_foyer(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_membre_foyer),
+    token_row: AuthToken = Depends(get_current_token),
+):
+    """Un membre ou un invité quitte son foyer courant. Le propriétaire ne le peut pas.
+    Le compte n'est jamais supprimé, même s'il quitte son dernier foyer : il reste sans
+    foyer (décision du 30/09/2026). La session rouvre le dernier foyer utilisé parmi
+    ceux qui restent, s'il y en a."""
+    try:
+        foyer_service.quitter_foyer(db, current_user, token_row)
+    except foyer_service.ProprietaireNeQuittePasError as erreur:
+        raise HTTPException(status_code=403, detail=MESSAGE_PROPRIETAIRE_NE_QUITTE_PAS) from erreur
+    except LookupError as erreur:
+        raise HTTPException(status_code=404, detail=MESSAGE_FOYER_INTROUVABLE) from erreur
+    return construire_user_out(db, current_user)
+
+
+@router.post("/foyers", response_model=UserOut)
+def creer_foyer(
+    payload: FoyerCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    token_row: AuthToken = Depends(get_current_token),
+):
+    """Un compte SANS foyer crée le sien, dont il devient propriétaire (§ BK.2b). Refusé
+    si l'installation l'interdit (réglage `creation_foyer_par_compte_sans_foyer`), si le
+    compte a déjà un foyer, ou s'il est opérateur."""
+    try:
+        foyer_service.creer_foyer_du_compte(db, current_user, token_row, nom=payload.nom, langue=payload.langue)
+    except auth_service.CompteOperateurError as erreur:
+        raise HTTPException(status_code=403, detail=MESSAGE_OPERATEUR_SANS_FOYER) from erreur
+    except foyer_service.DejaUnFoyerError as erreur:
+        raise HTTPException(status_code=403, detail=MESSAGE_DEJA_UN_FOYER) from erreur
+    except foyer_service.CreationFoyerRefuseeError as erreur:
+        raise HTTPException(status_code=403, detail=MESSAGE_CREATION_FOYER_REFUSEE) from erreur
+    return construire_user_out(db, current_user)
+
+
+@router.post("/compte/supprimer", status_code=204)
+def supprimer_mon_compte(
+    payload: SuppressionCompteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """Un compte qui n'appartient à AUCUN foyer supprime le sien : compte, sessions et
+    journal d'accès (droit à l'effacement), après confirmation par son nom d'utilisateur.
+    Tant qu'il appartient à un foyer, il le quitte d'abord."""
+    if payload.confirmation.strip() != current_user.username:
+        raise HTTPException(status_code=400, detail=MESSAGE_CONFIRMATION_COMPTE_INCORRECTE)
+    try:
+        foyer_service.supprimer_son_compte(db, current_user)
+    except foyer_service.CompteEncoreMembreError as erreur:
+        raise HTTPException(status_code=409, detail=MESSAGE_COMPTE_ENCORE_MEMBRE) from erreur
 
 
 @router.patch("/foyer", response_model=UserOut)
@@ -198,7 +300,7 @@ def renommer_foyer(
     réservé au propriétaire comme les autres actions d'administration du foyer
     (comptes du foyer, export/import/remise à zéro des données)."""
     preferences_service.enregistrer_nom_foyer(db, auth_service.id_foyer(current_user), payload.nom)
-    return _user_out(db, current_user)
+    return construire_user_out(db, current_user)
 
 
 @router.patch("/foyer/langue", response_model=UserOut)
@@ -217,7 +319,7 @@ def changer_langue_foyer(
         db, foyer, preferences_service.lire_langue_foyer(db, foyer), payload.langue
     )
     preferences_service.enregistrer_langue_foyer(db, foyer, payload.langue)
-    return _user_out(db, current_user)
+    return construire_user_out(db, current_user)
 
 
 @router.post("/onboarding/terminer", response_model=UserOut)
@@ -231,7 +333,7 @@ def terminer_onboarding(db: Session = Depends(get_db), current_user: User = Depe
     ne ferait que marquer son propre drapeau, sans effet visible pour personne d'autre."""
     auth_service.marquer_assistant_termine(db, current_user)
     db.commit()
-    return _user_out(db, current_user)
+    return construire_user_out(db, current_user)
 
 
 @router.get("/sessions", response_model=list[SessionOut])
@@ -365,6 +467,10 @@ def update_household_member(
 ):
     membre, appartenance = _membre_du_foyer(db, id, current_user)
     if payload.username is not None and payload.username != membre.username:
+        # Un compte partagé avec un autre foyer n'appartient pas à celui-ci : changer son
+        # identifiant de connexion, c'est agir sur des gens que ce propriétaire ne voit pas.
+        if auth_service.nombre_appartenances(db, membre.id) > 1:
+            raise HTTPException(status_code=403, detail=MESSAGE_COMPTE_PLUSIEURS_FOYERS)
         if auth_service.utilisateur_par_username(db, payload.username) is not None:
             raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
         membre.username = payload.username
@@ -376,17 +482,8 @@ def update_household_member(
 
 @router.delete("/household-members/{id}", status_code=204)
 def delete_household_member(id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+    """Retire un compte du foyer. Un compte qui n'appartient qu'à ce foyer est supprimé
+    avec ses sessions ; un compte d'un autre foyer aussi n'y perd que son appartenance à
+    celui-ci — jamais le compte (`foyer_service.retirer_un_membre`)."""
     membre, appartenance = _membre_du_foyer(db, id, current_user)
-    db.query(PerimetreInvite).filter(PerimetreInvite.user_id == membre.id).delete()
-    db.query(AuthToken).filter(AuthToken.user_id == membre.id).delete()
-    # Le journal d'accès SURVIT à la suppression du compte, par conception (cf.
-    # docstring d'`AccessLogEntry`) : effacer les traces de connexion en supprimant
-    # un membre viderait le journal de son intérêt. On détache donc la référence au
-    # lieu de supprimer les lignes — `username_saisi` continue de dire QUI s'était
-    # connecté. Sans ce détachement, la ligne gardait un `user_id` pointant dans le
-    # vide : 10 entrées orphelines constatées en base réelle lors de la revue du
-    # 03/09/2026 (`PRAGMA foreign_key_check`).
-    db.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre.id).update({"user_id": None})
-    db.delete(appartenance)
-    db.delete(membre)
-    db.commit()
+    foyer_service.retirer_un_membre(db, membre, appartenance)

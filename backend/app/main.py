@@ -32,6 +32,7 @@ from .routers import (
     donnees,
     export,
     imports,
+    invitations,
     jalons,
     loans,
     market_data,
@@ -179,6 +180,10 @@ app.include_router(auth.router)
 # comme `auth.router` — la protection de cette route est le jeton opaque dans
 # l'URL (et le code optionnel), jamais un compte connecté.
 app.include_router(partage_public.router)
+# Invitations à rejoindre un foyer (§ BK.2b) : routes publiques (consulter, accepter en
+# créant un compte) et routes du propriétaire dans le même routeur — aucune dépendance
+# de routeur, chaque route porte la sienne (cf. `routers/invitations.py`).
+app.include_router(invitations.router)
 
 # Protégées : toutes exigent un jeton valide (Milestone 1) et un foyer courant
 # (§ BK.2 : un compte sans foyer n'a accès à aucune donnée). Au-delà de la simple

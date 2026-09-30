@@ -982,6 +982,44 @@ class PerimetreInvite(Base):
     detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
 
 
+class Invitation(Base):
+    """Invitation à rejoindre un foyer (backlog § BK.2, lot BK.2b). Le jeton, montré une
+    seule fois à celui qui invite, n'est jamais stocké : seul son SHA-256 l'est
+    (`jeton_hash`) — un jeton aléatoire de 256 bits n'a pas besoin d'un hachage lent, et
+    la recherche doit être déterministe. Usage unique : `utilisee_le` est posé par un
+    `UPDATE` conditionnel (`services/invitation_service`).
+
+    `foyer_id` est facultatif pour le lot BK.2d (invitation à CRÉER un foyer, qui
+    n'existe pas encore) ; `role` est figé à la création, côté serveur. `cree_par` et
+    `utilisee_par` deviennent `None` si le compte est supprimé : l'historique du foyer
+    survit à ses comptes."""
+
+    __tablename__ = "invitations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    foyer_id: Mapped[int | None] = mapped_column(ForeignKey("foyers.id"), nullable=True, index=True)
+    role: Mapped[str] = mapped_column(String)
+    libelle: Mapped[str | None] = mapped_column(String, nullable=True)
+    jeton_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
+    cree_par: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    cree_le: Mapped[datetime] = mapped_column(DateTime)
+    expire_le: Mapped[datetime] = mapped_column(DateTime)
+    utilisee_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    utilisee_par: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    revoquee_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class InvitationPerimetre(Base):
+    """Détenteurs auxquels une invitation de rôle `invite` donnera accès : recopiés dans
+    `perimetres_invites` à l'acceptation. Effacés avec le détenteur, comme
+    `PerimetreInvite` (`detenteurs_service.delete_detenteur`)."""
+
+    __tablename__ = "invitations_perimetres"
+
+    invitation_id: Mapped[int] = mapped_column(ForeignKey("invitations.id"), primary_key=True)
+    detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), primary_key=True, index=True)
+
+
 class AuthToken(Base):
     """Jeton de session opaque (pas de JWT : un simple `DELETE` suffit à le révoquer,
     pas de secret de signature à gérer). Vraie `ForeignKey` ici, contrairement au
