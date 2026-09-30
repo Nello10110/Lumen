@@ -1,0 +1,28 @@
+/** Textes français — espace « invitationPage » (backlog § BK.2b). */
+const invitationPage = {
+  titre: "Invitation à rejoindre un foyer",
+  lienInvalide: "Ce lien d'invitation est invalide, expiré ou déjà utilisé. Demandez un nouveau lien à la personne qui vous a invité.",
+  retourAccueil: "Retour à l'application",
+  inviteAvecNom: "{foyer} vous invite à rejoindre son foyer. Rôle proposé : {role}.",
+  inviteSansNom: "Vous êtes invité à rejoindre un foyer. Rôle proposé : {role}.",
+  pour: "Invitation destinée à : {libelle}",
+  nomUtilisateur: "Nom d'utilisateur",
+  motDePasse: "Mot de passe",
+  huitCaracteres: "8 caractères minimum",
+  confirmation: "Confirmer le mot de passe",
+  motsDePasseDifferents: "Les deux mots de passe ne sont pas identiques.",
+  creerEtRejoindre: "Créer mon compte et rejoindre le foyer",
+  seConnecterEtRejoindre: "Me connecter et rejoindre le foyer",
+  unInstant: "Un instant...",
+  ou: "ou",
+  continuerAvec: "Continuer avec {fournisseur}",
+  dejaUnCompte: "J'ai déjà un compte",
+  pasDeCompte: "Je n'ai pas encore de compte",
+  connecteEn: "Vous êtes connecté en tant que {nom}.",
+  ajouteAuxFoyers: "Ce foyer s'ajoutera à ceux de ce compte, s'il en a déjà : la barre latérale permettra de passer de l'un à l'autre.",
+  rejoindre: "Rejoindre ce foyer",
+  autreCompte: "Utiliser un autre compte",
+  ouvrirApplication: "Ouvrir l'application sans rejoindre",
+} as const
+
+export default invitationPage

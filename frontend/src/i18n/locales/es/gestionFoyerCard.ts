@@ -3,7 +3,7 @@ import type { Structure } from '../../types'
 
 /** Espagnol — espace « gestionFoyerCard » (backlog § BL.2), traduit depuis le français. */
 const gestionFoyerCard: Structure<typeof fr> = {
-  comptesDuFoyer: "Cuentas del hogar",
+  comptesDuFoyer: "Miembros e invitaciones",
   unMembrePeutConsulterEt: "Un miembro puede consultar e introducir activos/préstamos/transacciones del hogar, pero no los indicadores de situación ni la seguridad. Un invitado solo ve, en modo lectura, el patrimonio neto y la cartera de los titulares que se le asignan abajo.",
   aucunCompteAAfficher: "Ninguna cuenta que mostrar.",
   ajouteUnMembreOuUn: "Añade un miembro o un invitado con el formulario de abajo.",
@@ -35,6 +35,10 @@ const gestionFoyerCard: Structure<typeof fr> = {
   sessionsActives: { one: "{n} sesión activa", other: "{n} sesiones activas" },
   ariaRole: "Rol de {nom}",
   ariaSupprimerCompte: "Eliminar la cuenta {nom}",
+  inviterTitre: "Invitar a alguien",
+  inviterIntro: "Genera un enlace para enviar a la persona: crea su cuenta, o usa la que ya tiene, y se une a este hogar con el rol elegido. El enlace sirve una sola vez y caduca pasada la duración elegida.",
+  creationDirecteTitre: "Crear una cuenta directamente",
+  creationDirecteIntro: "Para alguien sin correo ni SSO (un niño, por ejemplo): tú eliges su contraseña. Esta cuenta solo pertenecerá a este hogar.",
 }
 
 export default gestionFoyerCard

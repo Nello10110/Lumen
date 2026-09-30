@@ -4,7 +4,7 @@
 // n'ait à changer.
 
 export type { AnalysisResponse, BenchmarkOption, CategoryCompositionItem, CategoryCompositionResponse, ComparaisonBenchmark, ComparaisonBenchmarkPoint, CoutGestionConsolide, DividendeLigne, DividendeMois, HoldingPriceHistoryResponse, HoldingPricePoint, InvestissementMensuelMoyen, MetriquesAvancees, PerformanceSummary, PortfolioHistoryPoint, PortfolioHistoryResponse, QualiteDonnees, RevenusPassifsProjetes, RiskIndicators } from './types/analyse'
-export type { AccessLogEntry, AuthResponse, AuthUser, HouseholdMember, HouseholdMemberInput, LogoConnexionSso, OidcStatus, Role, Session } from './types/authentification'
+export type { AccessLogEntry, ApercuInvitation, AuthResponse, AuthUser, FoyerResume, HouseholdMember, HouseholdMemberInput, Invitation, InvitationCreee, InvitationInput, LogoConnexionSso, OidcStatus, Role, Session, StatutInvitation } from './types/authentification'
 export type { ApercuFusionCategorie, BudgetCible, BudgetColumnMapping, BudgetImportPreview, BudgetImportResult, BudgetSummary, CategorieBudget, CompteImportBancaire, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RecurrencesBudget, RegleCategorisation, RegleReapplicationResult, RepartitionSortieItem } from './types/budget'
 export type { Detenteur, QuotiteDetenteurItem, QuotiteEntree } from './types/detenteurs'
 export type { ApercuImportDonnees, BricksApercu, BricksImportConfirmInput, BricksImportResult, CleCompte, ColumnMapping, DernierImport, ImportPreview, ImportResult, LedgerDeviseApercu, LedgerImportApercu, LedgerImportConfirmInput, LedgerImportResult, TransactionImportApercu, TransactionImportConfirmInput, TransactionImportResult } from './types/import_donnees'

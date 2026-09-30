@@ -101,6 +101,7 @@ const en: Dictionnaire = {
       preferences: 'Preferences',
       detenteurs: 'Household members',
       comptes: 'Accounts',
+      inviter: "Invite household members",
       demarrage: 'Start the portfolio',
       termine: 'Done',
     },
@@ -128,6 +129,8 @@ const en: Dictionnaire = {
       sansEtablissement: 'No institution',
       supprimer: 'Delete',
     },
+    inviter:
+      "The other members of the household (spouse, children, a relative with view-only access…) can have their own account: invite them with a link that you send them yourself. This step is optional; you can invite whenever you like from Settings → Accounts & security.",
     demarrage: {
       dejaAvant: 'The portfolio already contains',
       positions: { one: '{n} position', other: '{n} positions' },

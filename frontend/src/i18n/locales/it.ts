@@ -102,6 +102,7 @@ const it: Dictionnaire = {
       preferences: 'Preferenze',
       detenteurs: 'Titolari del nucleo',
       comptes: 'Conti',
+      inviter: "Invita i membri del nucleo",
       demarrage: 'Avvia il portafoglio',
       termine: 'Fatto',
     },
@@ -129,6 +130,8 @@ const it: Dictionnaire = {
       sansEtablissement: 'Senza istituto',
       supprimer: 'Elimina',
     },
+    inviter:
+      "Gli altri membri del nucleo (coniuge, figli, un familiare in sola consultazione…) possono avere un proprio account: invitali con un link che invii tu stesso. Questo passo è facoltativo; potrai invitare quando vuoi da Impostazioni → Account e sicurezza.",
     demarrage: {
       dejaAvant: 'Il portafoglio contiene già',
       positions: { one: '{n} posizione', other: '{n} posizioni' },

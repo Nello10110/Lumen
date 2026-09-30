@@ -1,7 +1,8 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router-dom'
 import { api } from './api/client'
-import type { Jalon } from './api/types'
+import type { AuthUser, Jalon, Role } from './api/types'
+import AccueilFoyer from './components/AccueilFoyer'
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
 import CelebrationJalon from './components/CelebrationJalon'
@@ -20,9 +21,12 @@ import { RafraichissementCoursProvider } from './contexts/RafraichissementCoursC
 import { useAuth } from './hooks/useAuth'
 import { PAGE_COMPONENTS } from './layout/pageComponents'
 import { ROUTES } from './layout/routes'
+import AucunFoyerPage from './pages/AucunFoyerPage'
 import LoginPage from './pages/LoginPage'
 import PageIntrouvablePage from './pages/PageIntrouvablePage'
 import { useTendancePatrimoine } from './hooks/useTendancePatrimoine'
+import { rechargerApplication } from './auth/changementFoyer'
+import { invitationGardee, oublierInvitation } from './auth/invitationEnAttente'
 import { consommerFlashConnexion } from './utils/flashConnexion'
 import { estLangue } from './i18n'
 import { LangueProvider } from './i18n/LangueProvider'
@@ -32,6 +36,8 @@ import { useLangue } from './i18n/useLangue'
 // (réservé aux écrans de l'application authentifiée) : lazy-chargée séparément de
 // `layout/pageComponents.ts`.
 const PartagePublicPage = lazy(() => import('./pages/PartagePublicPage'))
+// `/invitation` (backlog § BK.2b) : même statut — page publique, hors `AuthProvider`.
+const InvitationPage = lazy(() => import('./pages/InvitationPage'))
 
 // Anciennes URL (avant le renommage backlog 2.K.2) : redirigées plutôt que
 // supprimées, pour ne pas casser les marque-pages ou l'historique du navigateur.
@@ -54,6 +60,60 @@ function useTitreDocument() {
   }, [location.pathname])
 }
 
+/** Foyer rejoint depuis l'écran d'accueil de l'application : ce qu'`AccueilFoyer` affiche. */
+interface FoyerRejoint {
+  foyerNom: string | null
+  role: Role
+}
+
+/** Invitation acceptée par l'application elle-même (backlog § BK.2b), dans deux cas :
+ * - au retour d'une connexion SSO lancée depuis la page `/invitation` : le jeton gardé
+ *   en `sessionStorage` est accepté tout seul, puis effacé — UNE seule tentative, jamais
+ *   rejouée par un rechargement ;
+ * - depuis l'écran « aucun foyer », où l'utilisateur colle un lien (`accueillir`).
+ *
+ * Tenu ici, au-dessus de la `key={langue}` de `ContenuAuthentifie`, et non dans ce
+ * dernier : un changement de langue (celle du foyer, dès que l'utilisateur est connu)
+ * le remonte, et emporterait l'état de cet accueil en cours de route.
+ *
+ * Le jeton gardé n'est accepté que s'il a été ARMÉ pour un retour SSO
+ * (`armerRetourSso`) : un lien simplement ouvert puis abandonné ne doit jamais être
+ * accepté par la connexion suivante, faite pour tout autre chose. */
+function useInvitationAcceptee() {
+  const { user, loading } = useAuth()
+  const [enCours, setEnCours] = useState(() => invitationGardee()?.apresSso === true)
+  const [accueil, setAccueil] = useState<FoyerRejoint | null>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const traitee = useRef(false)
+
+  const accueillir = useCallback((utilisateur: AuthUser) => {
+    setAccueil({ foyerNom: utilisateur.foyer_nom ?? null, role: utilisateur.role ?? 'membre' })
+  }, [])
+
+  useEffect(() => {
+    if (loading || traitee.current) return
+    traitee.current = true
+    const attente = invitationGardee()
+    if (!attente?.apresSso) {
+      setEnCours(false)
+      return
+    }
+    oublierInvitation()
+    if (!user) {
+      // Retour de SSO sans session : la connexion a échoué, il n'y a rien à accepter.
+      setEnCours(false)
+      return
+    }
+    api
+      .accepterInvitation(attente.jeton)
+      .then(accueillir)
+      .catch((err) => setErreur((err as Error).message))
+      .finally(() => setEnCours(false))
+  }, [loading, user, accueillir])
+
+  return { enCours, accueil, erreur, accueillir }
+}
+
 // Multi-utilisateur (Milestone 1) : tant que la connexion n'est pas vérifiée
 // (`loading`), ou pas établie, seul l'écran de connexion est affiché — pas de route
 // dédiée `/login`, l'état de connexion décide seul ce qui est rendu (plus simple
@@ -66,6 +126,7 @@ function useTitreDocument() {
 function AppAuthentifiee() {
   const { user } = useAuth()
   const { langue, changerLangue } = useLangue()
+  const invitation = useInvitationAcceptee()
   const langueFoyer = user?.langue
   useEffect(() => {
     if (!estLangue(langueFoyer) || langueFoyer === langue) return
@@ -73,10 +134,10 @@ function AppAuthentifiee() {
     changerLangue(langueFoyer).catch(() => {})
   }, [langueFoyer, langue, changerLangue])
 
-  return <ContenuAuthentifie key={langue} />
+  return <ContenuAuthentifie key={langue} invitation={invitation} />
 }
 
-function ContenuAuthentifie() {
+function ContenuAuthentifie({ invitation }: { invitation: ReturnType<typeof useInvitationAcceptee> }) {
   const { user, loading } = useAuth()
   useTitreDocument()
 
@@ -129,12 +190,12 @@ function ContenuAuthentifie() {
   // (comme le reste de cette fonction) plutôt que suivie en continu — un effet
   // d'AMBIANCE n'a pas besoin d'être recalculé à chaque changement du portefeuille
   // pendant la session, seulement de refléter la tendance générale du moment.
-  const tendance = useTendancePatrimoine(!!user)
+  const tendance = useTendancePatrimoine(!!user && user.role !== null)
   const ambiance = tendance && (
     <div aria-hidden="true" className={`pointer-events-none fixed inset-0 -z-10 lumen-ambiance-${tendance}`} />
   )
 
-  if (loading) {
+  if (loading || invitation.enCours) {
     // Backlog § AD.4 (15/09/2026) : un point lumineux qui grandit jusqu'au logo
     // plein (< 600 ms, `animate-lumen-allumage` posée dans `index.css`), plutôt
     // qu'un squelette de texte générique — cet écran, vu à chaque connexion, ne
@@ -148,6 +209,15 @@ function ContenuAuthentifie() {
     )
   }
   if (!user) return <LoginPage />
+  // Foyer tout juste rejoint (backlog § BK.2b) : court accueil — le nom du foyer et le
+  // rôle — puis rechargement complet sur le nouveau foyer. Ce n'est pas l'assistant de
+  // bienvenue : un membre ou un invité ne règle pas un foyer qui existe déjà.
+  if (invitation.accueil)
+    return <AccueilFoyer foyerNom={invitation.accueil.foyerNom} role={invitation.accueil.role} onContinuer={rechargerApplication} />
+  // Compte sans foyer courant : pas de données (403), donc pas d'application. Rejoindre,
+  // créer son foyer, supprimer son compte — ou se déconnecter.
+  if (user.role === null)
+    return <AucunFoyerPage onInvitationAcceptee={invitation.accueillir} erreurInvitation={invitation.erreur} />
   // Assistant de configuration initiale (welcome board, backlog nouveau) : réservé au
   // propriétaire (créateur du foyer, seul à voir les réglages qu'il couvre) — un
   // membre/invité, créé par lui via `POST /household-members`, n'a jamais besoin de
@@ -259,8 +329,8 @@ function ContenuAuthentifie() {
   )
 }
 
-// `/partage/:token` (backlog 2.Q.1) est une page PUBLIQUE, consultée par un
-// visiteur anonyme sans compte : montée en dehors d'`AuthProvider`, jamais
+// `/partage/:token` (backlog 2.Q.1) et `/invitation` (§ BK.2b) sont des pages PUBLIQUES,
+// consultées par un visiteur anonyme sans compte : montée en dehors d'`AuthProvider`, jamais
 // derrière l'écran de connexion — sinon un visiteur sans jeton n'y accéderait
 // jamais. `Suspense` dédié : `AppAuthentifiee` (ci-dessus) n'est pas montée sur
 // cette route, donc son propre `Suspense` ne la couvre pas.
@@ -280,6 +350,7 @@ function App() {
       <Suspense fallback={<div className="p-6"><SkeletonTexte /></div>}>
         <Routes>
           <Route path="/partage/:token" element={<PartagePublicPage />} />
+          <Route path="/invitation" element={<InvitationPage />} />
           <Route
             path="/*"
             element={

@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { Label } from './Field'
 import { routesDuRang } from '../layout/routes'
-import { IconDeconnexion } from './icons'
+import { IconDeconnexion, IconMaison } from './icons'
+import QuitterFoyerModale from './QuitterFoyerModale'
 import { t } from '../i18n'
 
 // Avatar généré (initiale + couleur dérivée du nom d'utilisateur — déterministe,
@@ -22,6 +23,10 @@ function couleurAvatar(nom: string): string {
 export default function MenuCompte({ compact = false }: { compact?: boolean }) {
   const { user, logout } = useAuth()
   const [ouvert, setOuvert] = useState(false)
+  // Hors du menu : la modale est rendue dans un portail, donc « à l'extérieur » du
+  // conteneur — le clic qu'elle reçoit refermerait le menu, et avec lui la modale si
+  // elle en dépendait.
+  const [quitterOuvert, setQuitterOuvert] = useState(false)
   const conteneurRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -97,6 +102,23 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
               que cachée derrière l'ouverture de ce menu. */}
           <div className="my-1 border-t border-bordure" />
 
+          {/* Quitter le foyer (backlog § BK.2b) : ici et non dans Réglages, que ni un
+              membre ni un invité ne voient. Le propriétaire, lui, ne peut pas partir. */}
+          {(user.role === 'membre' || user.role === 'invite') && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOuvert(false)
+                setQuitterOuvert(true)
+              }}
+              className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-texte hover:bg-surface-elevee"
+            >
+              <IconMaison className="h-4 w-4 text-texte-attenue" />
+              {t('quitterFoyer.menu')}
+            </button>
+          )}
+
           <button
             type="button"
             role="menuitem"
@@ -111,6 +133,8 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
           </button>
         </div>
       )}
+
+      {quitterOuvert && <QuitterFoyerModale onClose={() => setQuitterOuvert(false)} />}
     </div>
   )
 }

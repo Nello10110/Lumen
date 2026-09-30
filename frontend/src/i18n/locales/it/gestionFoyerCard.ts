@@ -3,7 +3,7 @@ import type { Structure } from '../../types'
 
 /** Italien — espace « gestionFoyerCard » (backlog § BL.2), traduit depuis le français. */
 const gestionFoyerCard: Structure<typeof fr> = {
-  comptesDuFoyer: "Account del nucleo",
+  comptesDuFoyer: "Membri e inviti",
   unMembrePeutConsulterEt: "Un membro può consultare e inserire attivi/prestiti/transazioni del nucleo, ma non gli indicatori di situazione né la sicurezza. Un ospite vede solo, in sola lettura, il patrimonio netto e il portafoglio dei titolari che gli sono assegnati qui sotto.",
   aucunCompteAAfficher: "Nessun account da mostrare.",
   ajouteUnMembreOuUn: "Aggiungi un membro o un ospite con il modulo qui sotto.",
@@ -35,6 +35,10 @@ const gestionFoyerCard: Structure<typeof fr> = {
   sessionsActives: { one: "{n} sessione attiva", other: "{n} sessioni attive" },
   ariaRole: "Ruolo di {nom}",
   ariaSupprimerCompte: "Elimina l’account {nom}",
+  inviterTitre: "Invita qualcuno",
+  inviterIntro: "Genera un link da inviare alla persona: crea il suo account, o usa quello che ha già, ed entra in questo nucleo con il ruolo scelto. Il link vale una sola volta e scade dopo la durata scelta.",
+  creationDirecteTitre: "Crea direttamente un account",
+  creationDirecteIntro: "Per chi non ha e-mail né SSO (un bambino, per esempio): scegli tu la password. Questo account apparterrà solo a questo nucleo.",
 }
 
 export default gestionFoyerCard

@@ -1,25 +1,21 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, HouseholdMember, Role } from '../api/types'
+import type { Detenteur, HouseholdMember } from '../api/types'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
+import SectionInvitations from './SectionInvitations'
 import { SkeletonTexte } from './Skeleton'
 import { formatDateHeure } from '../utils/format'
+import { libelleRole } from '../utils/libelleRole'
 import { t } from '../i18n'
 
-// Getters : la table est une constante de module, elle doit suivre la langue du foyer (§ BL.2).
-const ROLE_LABELS: Record<Role, string> = {
-  get proprietaire() { return t('gestionFoyerCard.roleProprietaire') },
-  get membre() { return t('gestionFoyerCard.roleMembre') },
-  get invite() { return t('gestionFoyerCard.roleInvite') },
-}
-
-/** Comptes du foyer (backlog 2.L.2, écran d'administration étendu le 04/09/2026) :
- * le propriétaire crée les comptes membre/invité — l'auto-inscription se ferme après
- * le tout premier compte (`routers/auth.py`). Un invité doit se voir assigner au
+/** Membres et invitations du foyer (backlog 2.L.2, écran d'administration étendu le
+ * 04/09/2026, invitations au lot BK.2b) : le propriétaire invite par un lien
+ * (`SectionInvitations`) ou crée directement un compte membre/invité avec un mot de
+ * passe (utile à quelqu'un sans e-mail ni SSO). Un invité doit se voir assigner au
  * moins un détenteur pour voir quoi que ce soit (périmètre vide par défaut, jamais
  * "tout le foyer" implicitement). Origine locale/SSO, dernière connexion, sessions
  * actives, verrouillage en cours et rôle éditable calculés côté serveur
@@ -210,7 +206,7 @@ export default function GestionFoyerCard() {
                     // qu'un par foyer) ni se supprimer lui-même — lecture seule, pas
                     // seulement par prudence côté IHM : le backend refuse aussi ces
                     // deux actions sur son propre compte (404, cf. docstring de la route).
-                    <span className="text-xs text-texte-attenue">{ROLE_LABELS.proprietaire}</span>
+                    <span className="text-xs text-texte-attenue">{libelleRole('proprietaire')}</span>
                   ) : (
                     <>
                       <label className="flex items-center gap-1.5 text-xs text-texte-attenue">{t('gestionFoyerCard.role')}<Select
@@ -220,8 +216,8 @@ export default function GestionFoyerCard() {
                           onChange={(e) => handleRoleChange(m.id, e.target.value as 'membre' | 'invite')}
                           className="w-auto"
                         >
-                          <option value="membre">{ROLE_LABELS.membre}</option>
-                          <option value="invite">{ROLE_LABELS.invite}</option>
+                          <option value="membre">{libelleRole('membre')}</option>
+                          <option value="invite">{libelleRole('invite')}</option>
                         </Select>
                       </label>
                       <button
@@ -238,7 +234,18 @@ export default function GestionFoyerCard() {
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
+      <div className="border-t border-bordure pt-4">
+        <h3 className="text-sm font-semibold text-texte">{t('gestionFoyerCard.inviterTitre')}</h3>
+        <p className="mb-3 mt-1 text-xs text-texte-attenue">{t('gestionFoyerCard.inviterIntro')}</p>
+        <SectionInvitations />
+      </div>
+
+      <div className="mt-4 border-t border-bordure pt-4">
+        <h3 className="text-sm font-semibold text-texte">{t('gestionFoyerCard.creationDirecteTitre')}</h3>
+        <p className="mb-3 mt-1 text-xs text-texte-attenue">{t('gestionFoyerCard.creationDirecteIntro')}</p>
+      </div>
+
+      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
         <Field label={t('gestionFoyerCard.nomDUtilisateur')} className="w-36">
           <Input value={username} onChange={(e) => setUsername(e.target.value)} />
         </Field>

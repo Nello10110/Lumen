@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { PreferencesAffichageContext, type Lentille } from './preferencesAffichageContextObject'
+import { CLE_DETENTEUR, PreferencesAffichageContext, type Lentille } from './preferencesAffichageContextObject'
 import { estPeriodeRelativeConnue, PERIODE_DEFAUT, type Periode } from '../utils/periode'
 
 const CLE_LENTILLE = 'patrimoine:lentille'
 const CLE_MONTANTS_MASQUES = 'patrimoine:montants-masques'
-const CLE_DETENTEUR = 'patrimoine:detenteur-id'
 const CLE_PERIODE = 'patrimoine:periode'
 const CLE_LANGAGE_SIMPLE = 'patrimoine:langage-simple'
 const LENTILLES: Lentille[] = ['net', 'brut', 'financier']

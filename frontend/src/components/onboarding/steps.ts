@@ -3,6 +3,7 @@ import EtapeBienvenue from './EtapeBienvenue'
 import EtapeComptes from './EtapeComptes'
 import EtapeDemarragePortefeuille from './EtapeDemarragePortefeuille'
 import EtapeDetenteurs from './EtapeDetenteurs'
+import EtapeInviter from './EtapeInviter'
 import EtapePreferences from './EtapePreferences'
 import EtapeTermine from './EtapeTermine'
 import { t } from '../../i18n'
@@ -44,6 +45,7 @@ export const ETAPES_ONBOARDING: EtapeAssistant[] = [
   { key: 'preferences', get titre() { return t('assistant.etapes.preferences') }, Contenu: EtapePreferences },
   { key: 'detenteurs', get titre() { return t('assistant.etapes.detenteurs') }, Contenu: EtapeDetenteurs },
   { key: 'comptes', get titre() { return t('assistant.etapes.comptes') }, Contenu: EtapeComptes },
+  { key: 'inviter', get titre() { return t('assistant.etapes.inviter') }, Contenu: EtapeInviter },
   { key: 'demarrage', get titre() { return t('assistant.etapes.demarrage') }, Contenu: EtapeDemarragePortefeuille },
   { key: 'termine', get titre() { return t('assistant.etapes.termine') }, Contenu: EtapeTermine },
 ]

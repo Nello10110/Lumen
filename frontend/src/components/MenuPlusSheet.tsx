@@ -3,8 +3,9 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang, type RouteMeta } from '../layout/routes'
 import BasculeTheme from './BasculeTheme'
-import { IconDeconnexion, IconPlusOptions } from './icons'
+import { IconDeconnexion, IconMaison, IconPlusOptions } from './icons'
 import Modale from './Modale'
+import QuitterFoyerModale from './QuitterFoyerModale'
 import { t } from '../i18n'
 
 /** Entrée "Plus" de la barre de navigation inférieure (backlog 2.K.4, mobile) —
@@ -18,6 +19,7 @@ import { t } from '../i18n'
 export default function MenuPlusSheet({ routesConsultationRestantes }: { routesConsultationRestantes: RouteMeta[] }) {
   const { user, logout } = useAuth()
   const [ouvert, setOuvert] = useState(false)
+  const [quitterOuvert, setQuitterOuvert] = useState(false)
 
   if (!user) return null
 
@@ -83,6 +85,20 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
               <BasculeTheme />
               <div className="my-1 border-t border-bordure" />
 
+              {(user.role === 'membre' || user.role === 'invite') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOuvert(false)
+                    setQuitterOuvert(true)
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-texte hover:bg-surface-elevee"
+                >
+                  <IconMaison className="h-5 w-5 text-texte-attenue" />
+                  {t('quitterFoyer.menu')}
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
@@ -98,6 +114,8 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
           )}
         </Modale>
       )}
+
+      {quitterOuvert && <QuitterFoyerModale onClose={() => setQuitterOuvert(false)} />}
     </>
   )
 }

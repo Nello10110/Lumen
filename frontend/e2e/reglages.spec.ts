@@ -23,7 +23,7 @@ test.describe('Réglages', () => {
     // dernière connexion, rôle éditable — ce test couvre le cycle complet plutôt que
     // la seule création, désormais qu'il y a plus à vérifier sur la ligne créée.
     await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
-    await expect(page.getByText('Comptes du foyer')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
 
     const nomMembre = `e2e_membre_${Date.now().toString().slice(-6)}`
     await page.getByLabel("Nom d'utilisateur").fill(nomMembre)
@@ -146,6 +146,10 @@ test.describe('Réglages', () => {
       .filter({ has: page.getByRole('button', { name: 'Modifier' }) })
       .filter({ hasText: 'Banque E2E' })
     await expect(ligneEtablissement).toContainText('Banque E2E')
+    await assistant.getByRole('button', { name: 'Suivant' }).click()
+    // Étape facultative « Inviter les membres du foyer » (backlog § BK.2b).
+    await expect(assistant.getByRole('heading', { name: 'Inviter les membres du foyer' })).toBeVisible()
+    await expect(assistant.getByRole('button', { name: "Créer l'invitation" })).toBeVisible()
     await assistant.getByRole('button', { name: 'Suivant' }).click()
     await expect(assistant.getByRole('heading', { name: 'Démarrer le portefeuille' })).toBeVisible()
     // Adaptatif à l'état réel (backlog du 2026-09-01) : le compte seedé a déjà des

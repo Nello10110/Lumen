@@ -1,4 +1,5 @@
 // Généré par `scripts/i18n-agreger.mjs` — ne pas modifier à la main.
+import accueilFoyer from './accueilFoyer'
 import aidePage from './aidePage'
 import ajoutCompteForm from './ajoutCompteForm'
 import ajoutDetenteurModale from './ajoutDetenteurModale'
@@ -8,6 +9,7 @@ import alerteFraicheurCard from './alerteFraicheurCard'
 import allocationBarChart from './allocationBarChart'
 import allocationChartCard from './allocationChartCard'
 import analysePage from './analysePage'
+import aucunFoyer from './aucunFoyer'
 import badgesCard from './badgesCard'
 import budgetPage from './budgetPage'
 import catalogueEtablissementPicker from './catalogueEtablissementPicker'
@@ -54,6 +56,7 @@ import importPage from './importPage'
 import importRelevePositionsSection from './importRelevePositionsSection'
 import importTransactionsSection from './importTransactionsSection'
 import indicateursSituationCard from './indicateursSituationCard'
+import invitationPage from './invitationPage'
 import jobCard from './jobCard'
 import journalAccesCard from './journalAccesCard'
 import labelAdaptatif from './labelAdaptatif'
@@ -81,6 +84,7 @@ import portfolioHistoryChart from './portfolioHistoryChart'
 import positionsTable from './positionsTable'
 import preferencesCard from './preferencesCard'
 import qualiteDonneesCard from './qualiteDonneesCard'
+import quitterFoyer from './quitterFoyer'
 import rafraichissementCoursIndicateur from './rafraichissementCoursIndicateur'
 import rapportPage from './rapportPage'
 import rattrapageComptes from './rattrapageComptes'
@@ -93,8 +97,10 @@ import revenusSection from './revenusSection'
 import salairePage from './salairePage'
 import sauvegardeDonneesCard from './sauvegardeDonneesCard'
 import scorePatrimonialCard from './scorePatrimonialCard'
+import sectionInvitations from './sectionInvitations'
 import selecteurCompte from './selecteurCompte'
 import selecteurEtablissement from './selecteurEtablissement'
+import selecteurFoyer from './selecteurFoyer'
 import sessionsCard from './sessionsCard'
 import simulateurAchatLocationCard from './simulateurAchatLocationCard'
 import simulateurProjectionSection from './simulateurProjectionSection'
@@ -103,6 +109,7 @@ import tuileSourceImport from './tuileSourceImport'
 import valorisationHistoriqueCard from './valorisationHistoriqueCard'
 
 const espaces = {
+  accueilFoyer,
   aidePage,
   ajoutCompteForm,
   ajoutDetenteurModale,
@@ -112,6 +119,7 @@ const espaces = {
   allocationBarChart,
   allocationChartCard,
   analysePage,
+  aucunFoyer,
   badgesCard,
   budgetPage,
   catalogueEtablissementPicker,
@@ -158,6 +166,7 @@ const espaces = {
   importRelevePositionsSection,
   importTransactionsSection,
   indicateursSituationCard,
+  invitationPage,
   jobCard,
   journalAccesCard,
   labelAdaptatif,
@@ -185,6 +194,7 @@ const espaces = {
   positionsTable,
   preferencesCard,
   qualiteDonneesCard,
+  quitterFoyer,
   rafraichissementCoursIndicateur,
   rapportPage,
   rattrapageComptes,
@@ -197,8 +207,10 @@ const espaces = {
   salairePage,
   sauvegardeDonneesCard,
   scorePatrimonialCard,
+  sectionInvitations,
   selecteurCompte,
   selecteurEtablissement,
+  selecteurFoyer,
   sessionsCard,
   simulateurAchatLocationCard,
   simulateurProjectionSection,

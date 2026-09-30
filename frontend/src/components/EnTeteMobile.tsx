@@ -9,6 +9,7 @@ import { ROUTES } from '../layout/routes'
 import { SegmentedControl } from './Controls'
 import { IconOeil, IconOeilBarre } from './icons'
 import Modale from './Modale'
+import SelecteurFoyer from './SelecteurFoyer'
 import { t } from '../i18n'
 
 // Fonctions, pas constantes de module : lues à l'affichage, dans la langue active
@@ -106,6 +107,9 @@ export default function EnTeteMobile() {
               <h2 id={titleId} className="text-[15px] font-semibold text-ink">
                 {t('controles.reglagesAffichage')}
               </h2>
+
+              {/* Foyer (backlog § BK.2b) : rien tant que le compte n'en a qu'un. */}
+              <SelecteurFoyer avecEtiquette />
 
               <div className="space-y-1.5">
                 <span className="text-xs font-semibold uppercase tracking-wide text-ink3">{t('controles.vue')}</span>

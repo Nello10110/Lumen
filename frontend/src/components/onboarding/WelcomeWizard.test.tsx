@@ -36,6 +36,11 @@ vi.mock('../../api/client', () => ({
     createCompte: vi.fn(),
     deleteCompte: vi.fn(),
     updateLangueFoyer: vi.fn().mockResolvedValue(undefined),
+    // Étape « Inviter les membres du foyer » (backlog § BK.2b) : `SectionInvitations`,
+    // embarquée telle quelle, liste les invitations existantes (aucune par défaut).
+    listInvitations: vi.fn().mockResolvedValue([]),
+    createInvitation: vi.fn(),
+    revoquerInvitation: vi.fn(),
   },
 }))
 
@@ -174,12 +179,36 @@ describe('WelcomeWizard', () => {
     expect(api.listComptes).toHaveBeenCalled()
   })
 
+  it("l'étape « Inviter les membres du foyer » embarque le formulaire d'invitation et les invitations déjà créées", async () => {
+    vi.mocked(api.listInvitations).mockResolvedValue([
+      {
+        id: 4,
+        role: 'membre',
+        libelle: 'Sophie',
+        statut: 'en_attente',
+        cree_le: '2026-09-30T10:00:00',
+        expire_le: '2026-10-07T10:00:00',
+        utilisee_le: null,
+        utilisee_par: null,
+        revoquee_le: null,
+        detenteur_ids: [],
+      },
+    ])
+    renderWizard(utilisateurFactice())
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+
+    expect(screen.getByRole('heading', { name: 'Inviter les membres du foyer' })).toBeInTheDocument()
+    expect(await screen.findByText('Sophie')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Créer l'invitation" })).toBeInTheDocument()
+  })
+
   it("l'étape \"Démarrer le portefeuille\" reconnaît les positions déjà existantes plutôt que de proposer de repartir à vide", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([
       { ticker: 'AAPL', quantite: 10 } as never,
       { ticker: 'MSFT', quantite: 5 } as never,
     ])
     renderWizard(utilisateurFactice())
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
@@ -196,6 +225,7 @@ describe('WelcomeWizard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
 
     await screen.findByRole('heading', { name: 'Ajouter une ligne manuellement' })
     expect(screen.getByRole('heading', { name: 'Historique de transactions (format détecté automatiquement)' })).toBeInTheDocument()
@@ -205,6 +235,7 @@ describe('WelcomeWizard', () => {
   it('ajouter une position depuis le formulaire embarqué met à jour le compteur affiché, en direct', async () => {
     vi.mocked(api.createHolding).mockResolvedValue({ ticker: 'AAPL', quantite: 10 } as never)
     renderWizard(utilisateurFactice())
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
@@ -244,6 +275,7 @@ describe('WelcomeWizard', () => {
       comptes_crees: 1,
     })
     renderWizard(utilisateurFactice())
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))

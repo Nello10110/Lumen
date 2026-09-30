@@ -92,6 +92,9 @@ vi.mock('../api/client', () => ({
     getLogoConnexionSso: vi.fn().mockResolvedValue({ logo: null }),
     getAccessLog: vi.fn().mockResolvedValue([]),
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
+    // Invitations (backlog § BK.2b) : `SectionInvitations`, montée dans « Membres et
+    // invitations » — hors de l'objet de ce fichier, liste vide.
+    listInvitations: vi.fn().mockResolvedValue([]),
     createHouseholdMember: vi.fn(),
     updateHouseholdMember: vi.fn(),
     deleteHouseholdMember: vi.fn(),

@@ -2,6 +2,14 @@
 // `/auth/register` et `/auth/login`.
 export type Role = 'proprietaire' | 'membre' | 'invite'
 
+// Un foyer du sélecteur (backlog § BK.2b) : son nom (`null` tant qu'il n'en a pas) et le
+// rôle du compte DANS ce foyer.
+export interface FoyerResume {
+  id: number
+  nom: string | null
+  role: Role
+}
+
 export interface AuthUser {
   id: number
   username: string
@@ -30,6 +38,12 @@ export interface AuthUser {
   // `i18n/langues.ts`, « fr » tant que le foyer n'en a jamais choisi. Éditable par
   // le propriétaire seul (`PATCH /auth/foyer/langue`).
   langue?: string
+  // Foyers du compte (backlog § BK.2b) : ceux qu'il peut ouvrir (actifs seulement), le
+  // foyer courant de SA session (`null` : session sans foyer) et si l'écran « aucun
+  // foyer » propose d'en créer un. Le sélecteur de foyer n'apparaît qu'à partir de deux.
+  foyers?: FoyerResume[]
+  foyer_courant_id?: number | null
+  peut_creer_foyer?: boolean
 }
 
 export interface AuthResponse {
@@ -104,4 +118,41 @@ export interface HouseholdMember {
   derniere_connexion?: string | null
   sessions_actives?: number
   verrouille_jusqua?: string | null
+}
+
+// Invitations à rejoindre un foyer (backlog § BK.2b). Le jeton n'existe que dans la
+// réponse à la création (`InvitationCreee`) : le serveur n'en garde que l'empreinte.
+export type StatutInvitation = 'en_attente' | 'acceptee' | 'revoquee' | 'expiree'
+
+export interface InvitationInput {
+  role: 'membre' | 'invite'
+  libelle?: string
+  duree_jours: 1 | 7 | 30
+  detenteur_ids?: number[]
+}
+
+export interface Invitation {
+  id: number
+  role: Role
+  libelle: string | null
+  statut: StatutInvitation
+  cree_le: string
+  expire_le: string
+  utilisee_le: string | null
+  // Nom d'utilisateur du compte qui l'a acceptée ; `null` s'il a été supprimé depuis.
+  utilisee_par: string | null
+  revoquee_le: string | null
+  detenteur_ids: number[]
+}
+
+export interface InvitationCreee extends Invitation {
+  jeton: string
+}
+
+// Ce que voit celui qui ouvre le lien, avant de s'engager (route publique).
+export interface ApercuInvitation {
+  foyer_nom: string | null
+  role: Role
+  libelle: string | null
+  langue: string
 }
