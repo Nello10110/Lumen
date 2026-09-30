@@ -25,6 +25,10 @@ function navigateurVierge(browser: Browser, baseURL: string | undefined): Promis
 async function inviter(page: Page, libelle: string): Promise<string> {
   await page.goto('/reglages?onglet=securite')
   await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
+  // Les listes de la page (membres, invitations, sessions...) arrivent après le titre et
+  // décalent le formulaire : un clic parti pendant ce décalage peut ne jamais atteindre le
+  // bouton (aucune requête envoyée, observé une fois sur ~25 passages).
+  await expect(page.getByRole('status', { name: 'Chargement en cours' })).toHaveCount(0)
   await page.getByLabel('Pour qui ? (facultatif)').fill(libelle)
   await page.getByRole('button', { name: "Créer l'invitation" }).click()
   const champ = page.getByLabel("Lien d'invitation")
@@ -86,7 +90,17 @@ async function supprimerMonCompteSansFoyer(page: Page, username: string): Promis
   const modale = page.getByRole('dialog')
   await modale.getByLabel(/Pour confirmer, saisissez votre nom d'utilisateur/).fill(username)
   await modale.getByRole('button', { name: 'Supprimer définitivement' }).click()
-  await expect(page.getByLabel("Nom d'utilisateur")).toBeVisible()
+  // Attendre le VRAI écran de connexion. `getByLabel("Nom d'utilisateur")` seul ne le
+  // désigne pas : la recherche par libellé est une sous-chaîne insensible à la casse, et le
+  // champ de confirmation de la modale (« Pour confirmer, saisissez votre nom d'utilisateur »)
+  // la satisfait aussi tant que `logout()` n'a pas rendu la main. Le test enchaînait alors
+  // sa saisie dans ce champ de la modale, aussitôt démontée : le nom se perdait, le mot de
+  // passe (libellé sans ambiguïté) arrivait, lui, dans le bon formulaire. Ce n'est pas un
+  // défaut de l'application (l'écran de connexion n'est jamais remonté après `logout`) :
+  // c'est l'attente qui était trop large.
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Bon retour' })).toBeVisible()
+  await expect(page.getByLabel("Nom d'utilisateur", { exact: true })).toBeVisible()
 }
 
 test("suppression d'un foyer : les comptes sont conservés sans foyer, la reconnexion mène à l'écran « aucun foyer », puis le compte se supprime", async ({
@@ -129,7 +143,6 @@ test("suppression d'un foyer : les comptes sont conservés sans foyer, la reconn
 
   // Sans foyer, sans blocage : le compte se supprime, puis ne se connecte plus.
   await supprimerMonCompteSansFoyer(pageSolo, username)
-  await pageSolo.reload()
   await pageSolo.getByLabel("Nom d'utilisateur").fill(username)
   await pageSolo.getByLabel('Mot de passe').fill(MOT_DE_PASSE)
   await pageSolo.locator('form').getByRole('button', { name: 'Se connecter' }).click()
