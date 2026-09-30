@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) serveur et interface réalisés, vérification par la CI Postgres à venir |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; prochain lot **BK.2c** (cycle de vie côté foyer) |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -100,7 +100,8 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
 - **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : `traité (29/09/2026)`, vérifié par la CI ;
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
   partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) `traité (30/09/2026)`, vérifié par la CI
-  Postgres ; lot BK.2b réalisé (serveur et interface), puis BK.2c à BK.2e** (§ BK.2, point 9).
+  Postgres ; lot BK.2b (invitations) `traité (30/09/2026)`, vérifié par la CI
+  Postgres ; prochain lot BK.2c (cycle de vie côté foyer), puis BK.2d et BK.2e** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7076,8 +7077,9 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 #### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
 
 **État au 30/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
-détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** : **serveur et interface
-réalisés** (« Lot BK.2b — réalisé »), vérification par la CI Postgres à venir ; puis BK.2c à BK.2e (§ 9).
+détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
+(invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; prochain lot **BK.2c** (cycle de vie côté foyer),
+puis BK.2d et BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7553,7 +7555,9 @@ encore d'usage applicatif, et rien ne suspend encore un foyer (`statut` est lu, 
 BK.2d ; le renommage `user_id` → `foyer_id` (BK.2e). Un compte laissé sans foyer par la migration voit
 une application vide (403 sur les données) jusqu'à l'écran « aucun foyer » de BK.2b.
 
-##### Lot BK.2b — réalisé (serveur et interface, 30/09/2026)
+##### Lot BK.2b — réalisé (serveur et interface, 30/09/2026), `traité (30/09/2026)`
+
+**Vérification (30/09/2026).** CI verte sur la pull request n° 8 : les huit jobs, dont `backend-postgres`, `e2e-postgres` (83 tests), `deploiement-postgres` et le nouveau job `montee-version` (SQLite et Postgres : base créée par l'image publiée de main, migrée par celle de la branche, session et contenu conservés). Le premier passage a révélé un défaut hérité de BK.2a : sous Postgres, un nouveau compte SSO ne pouvait pas rejoindre le foyer unique (la politique d'`appartenances` refusait l'insertion, la session du rappel SSO n'ayant pas de foyer courant) ; corrigé en levant la restriction le temps de cette seule écriture (`oidc_service.resoudre_ou_provisionner_utilisateur`).
 
 Lot « Invitations et appartenance multiple » (§ 9) : la partie serveur d'abord, puis l'interface (« Interface »
 plus bas). Vérifié sous SQLite (suite backend complète, suite Vitest, E2E Playwright) ; les tests Postgres
