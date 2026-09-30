@@ -20,6 +20,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..database import obtenir_ou_creer
@@ -200,3 +201,15 @@ def invalider_historiques_patrimoine(db: Session) -> None:
     service`/`market_data_refresh` n'invalidaient jusqu'ici que `historique_portefeuille:`."""
     db.query(HistoriqueCache).filter(HistoriqueCache.cle.like("historique_patrimoine:%")).delete(synchronize_session=False)
     db.commit()
+
+
+def supprimer_historiques_du_foyer(db: Session, foyer_id: int) -> None:
+    """Efface les historiques mis en cache pour CE foyer seul : la clé du portefeuille
+    (`historique_portefeuille:{foyer}`) et celles du patrimoine
+    (`historique_patrimoine:{foyer}:…`), avec leurs variantes filtrées. Le foyer est
+    comparé en entier — le suffixe `:` empêche « 11 » de prendre aussi « 111 » —, et
+    les historiques de marché (ligne, indice), communs à tous, ne sont pas touchés.
+    Ne commite pas : appelée dans la transaction de suppression d'un foyer."""
+    racines = (f"historique_portefeuille:{foyer_id}", f"historique_patrimoine:{foyer_id}")
+    conditions = [condition for racine in racines for condition in (HistoriqueCache.cle == racine, HistoriqueCache.cle.like(f"{racine}:%"))]
+    db.query(HistoriqueCache).filter(or_(*conditions)).delete(synchronize_session=False)

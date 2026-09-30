@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; prochain lot **BK.2c** (cycle de vie côté foyer) |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) : serveur réalisé (30/09/2026), interface à venir |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -101,7 +101,8 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
   partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2b (invitations) `traité (30/09/2026)`, vérifié par la CI
-  Postgres ; prochain lot BK.2c (cycle de vie côté foyer), puis BK.2d et BK.2e** (§ BK.2, point 9).
+  Postgres ; lot BK.2c (cycle de vie côté foyer) : serveur réalisé le 30/09/2026, interface à venir ; puis BK.2d et
+  BK.2e** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7078,8 +7079,8 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 
 **État au 30/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
 détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
-(invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; prochain lot **BK.2c** (cycle de vie côté foyer),
-puis BK.2d et BK.2e (§ 9).
+(invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2c** (cycle de vie côté foyer) : serveur
+réalisé le 30/09/2026 (« Lot BK.2c — réalisé (serveur) »), interface à venir ; puis BK.2d et BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7308,14 +7309,17 @@ Table `invitations` : `foyer_id` (`NULL` pour une invitation à **créer** un fo
   disparu (il ne voit pour cela que des noms de comptes).
 - **Départ d'un membre** (il part, ou le propriétaire le retire) : suppression de l'appartenance, de
   ses `perimetres_invites` dans ce foyer, remise à `NULL` de `auth_tokens.foyer_id` pour ce foyer. Les
-  données restent au foyer. Le propriétaire ne peut pas partir sans transférer ; seul compte du foyer,
-  partir revient à supprimer le foyer. Le renommage d'un nom d'utilisateur par le propriétaire
-  (`routers/auth.py:361-364`) n'est plus permis que pour un compte qui n'appartient qu'à son foyer.
+  données restent au foyer, **et le compte aussi** (décision 10 : le propriétaire qui retire un membre ne
+  supprime jamais son compte, même s'il n'avait que ce foyer). Le propriétaire ne peut pas partir sans
+  transférer ; seul compte du foyer, il le supprime (ou supprime son compte, ce qui le supprime avec lui).
+  Le renommage d'un nom d'utilisateur par le propriétaire (`routers/auth.py:361-364`) n'est plus permis que
+  pour un compte qui n'appartient qu'à son foyer.
 - **Compte qui n'appartient plus à aucun foyer** : **conservé, sans foyer** (décision du 30/09/2026, § 10,
   décision 10, qui amende la décision 4). Il se connecte toujours ; il peut rejoindre un foyer par une
   invitation, créer le sien si l'installation l'autorise, ou supprimer son propre compte (sessions et journal
-  d'accès compris). Seul le propriétaire qui retire un compte n'appartenant qu'à son foyer le supprime encore,
-  avec ses sessions (`delete_household_member`) ; un compte d'un autre foyer n'y perd que son appartenance.
+  d'accès compris). **Un compte n'est supprimé que par lui-même** (ou par l'opérateur, lot BK.2d) : ni un
+  membre retiré, ni un compte dont le foyer est supprimé, ni le propriétaire de ce foyer ne sont supprimés
+  par ces opérations.
 - **Suspension** (opérateur) : `statut = suspendu` ; le foyer n'est plus sélectionnable, ses sessions
   repassent sans foyer, ses liens de partage et invitations répondent 404, les données restent.
   Réactivation symétrique.
@@ -7326,16 +7330,20 @@ Table `invitations` : `foyer_id` (`NULL` pour une invitation à **créer** un fo
      `holding_immobilier_details`, `quotites_holdings`, `quotites_loans`, puis les 13 tables) ;
   3. `historique_cache` (clés `historique_portefeuille:{foyer}` et `historique_patrimoine:{foyer}:…`),
      `foyer_parametres` ;
-  4. comptes dont c'était le seul foyer : `auth_tokens`, `access_log_entries` (par `user_id`, et les
-     lignes sans `user_id` dont `username_saisi` est le leur), puis `users` ;
-  5. autres comptes : `auth_tokens.foyer_id` remis à `NULL` ;
-  6. `appartenances`, puis `foyers`.
-  Non touchés : données de marché, `parametres`, `scheduled_job_config`. **Limite à documenter** : le
-  foyer effacé survit dans les sauvegardes chiffrées jusqu'à leur rotation. L'export JSON (§ Y.1) est
-  proposé avant la confirmation.
-- **Suppression de son propre compte** : retire toutes ses appartenances (refusée s'il est propriétaire
-  d'un foyer qui a d'autres membres, tant qu'il n'a pas transféré), puis le compte, ses sessions et son
-  journal.
+  4. **tous les comptes du foyer sont conservés** (décision du 30/09/2026 : ceux dont c'était le seul foyer,
+     propriétaire compris, restent sans foyer) : leurs `auth_tokens.foyer_id` qui désignaient ce foyer sont
+     remis à `NULL` — les sessions et le journal d'accès ne sont pas touchés ;
+  5. `appartenances`, puis `foyers`.
+  Non touchés : `users`, `access_log_entries`, données de marché, `parametres`, `scheduled_job_config`.
+  **Limite à documenter** : le foyer effacé survit dans les sauvegardes chiffrées jusqu'à leur rotation. L'export
+  JSON (§ Y.1) est proposé avant la confirmation. Une seule fonction, `foyer_service.supprimer_foyer(db, foyer_id)`,
+  distincte de la route : l'opérateur (lot BK.2d) la réutilise.
+- **Suppression de son propre compte** : la seule façon de supprimer un compte (avec l'opérateur, lot BK.2d).
+  Retire toutes ses appartenances ; **refusée** (409) tant qu'il est propriétaire d'un foyer qui a d'autres
+  comptes — il transfère la propriété, ou supprime ce foyer, d'abord. Seul compte d'un foyer dont il est
+  propriétaire, ce foyer est **supprimé avec lui** (aperçu préalable, confirmation par le nom d'utilisateur).
+  Puis le compte, ses sessions et son journal d'accès, dans une transaction. Le cas du compte sans foyer est le
+  même cas, sans foyer à supprimer.
 
 ##### 6. Migration d'une installation existante, et installation neuve
 
@@ -7454,7 +7462,7 @@ précédente, puis montée par la nouvelle.
 | --- | --- | --- | --- | --- |
 | **BK.2a** — Objet `Foyer`, invisible | `foyers`, `appartenances`, `foyer_parametres`, `auth_tokens.foyer_id` ; `id_foyer` et `require_role` lisent le foyer courant ; `startup_maintenance` par foyer ; journal d'accès filtré ; SSO : rattachement au foyer unique au lieu de `.first()` | § 6 complète, descente comprise | Migration sur la vraie base : sauvegarde préalable ; `current_user.id` pris pour un foyer | Fixture à ids décalés, test de montée sur base d'avant, suite entière deux moteurs, E2E inchangés |
 | **BK.2b** — Invitations et appartenance multiple | Invitations vers un foyer existant (nouveau compte ou compte existant), sélecteur, bascule, écran « aucun foyer », « Quitter ce foyer », étape d'assistant « Inviter » | `invitations`, `invitations_perimetres` + politiques | Jeton ; bascule mal vérifiée | Unicité sous concurrence, rejeu, expiration, IDOR de bascule ; E2E invitation puis bascule |
-| **BK.2c** — Cycle de vie côté foyer | Transfert de propriété, retrait d'un membre, suppression d'un foyer par son propriétaire, suppression de son compte | Aucune | Suppression incomplète ou trop large | Test générique par `Base.metadata` ; E2E suppression puis reconnexion refusée |
+| **BK.2c** — Cycle de vie côté foyer | Transfert de propriété, retrait d'un membre, suppression d'un foyer par son propriétaire, suppression de son compte | Aucune | Suppression incomplète ou trop large | Test générique par `Base.metadata` ; E2E suppression du foyer puis reconnexion des comptes conservés, sans foyer |
 | **BK.2d** — Opérateur et naissance des foyers | Compte opérateur (bandeau, commande), console, création de foyer par lien propriétaire, suspension, suppression, nouveau propriétaire, modes `fermé` / `invitation`, SSO qui crée son foyer, **correction de la faille de liaison SSO par nom d'utilisateur** (`resoudre_ou_provisionner_utilisateur`, lignes 273-278 : liaison retirée, remplacée par « Lier mon compte SSO » depuis Réglages), réglages d'installation déplacés | `users.est_operateur` déjà là ; état `app.operateur` dans les politiques | Opérateur qui voit un patrimoine ; SSO | Test générique des routes avec jeton d'opérateur ; RLS : zéro ligne de patrimoine sous périmètre opérateur ; E2E console |
 | **BK.2e** — Durcissement | RLS sur `users`, `auth_tokens`, `access_log_entries` (état « authentification ») ; jetons de session et de partage hachés ; renommage `user_id` → `foyer_id` (option C) | Politiques ; hachage des jetons existants (sessions conservées) ; renommage | Connexion cassée sous Postgres | Suite Postgres ; test d'intrusion : lister `users` d'un autre foyer, filtre retiré |
 
@@ -7493,6 +7501,12 @@ Validées par l'utilisateur le 29/09/2026 (recommandations de la fiche acceptée
     propre foyer, s'il y est autorisé par un réglage d'installation `creation_foyer_par_compte_sans_foyer`
     (table `parametres`), **autorisé par défaut** — l'opérateur pourra le couper au lot BK.2d ; (b) supprimer
     son propre compte, ce qui efface aussi ses sessions et son journal d'accès ; (c) accepter une invitation.
+11. **Un compte n'est supprimé que par lui-même** (décision de l'utilisateur du 30/09/2026, au lancement du lot
+    BK.2c — généralise la décision 10 ; l'opérateur pourra aussi le faire, lot BK.2d) : ni le retrait d'un membre
+    par le propriétaire (`DELETE /api/auth/household-members/{id}`, qui supprimait le compte d'un membre n'ayant que
+    ce foyer), ni la suppression d'un foyer (propriétaire compris) ne suppriment de compte : ils restent sans foyer.
+    Supprimer son compte sait, lui, supprimer avec lui le foyer dont il est propriétaire ET seul compte. Le
+    propriétaire d'un foyer qui a d'autres comptes doit d'abord transférer la propriété, ou supprimer le foyer.
 
 ##### Lot BK.2a — réalisé (29/09/2026), `traité (30/09/2026)`
 
@@ -7670,8 +7684,79 @@ acceptation sans périmètre). Les fixtures `client_jetons` et `jeton_de_session
 
 **Gardé pour plus tard, volontairement** : aucune interface pour le réglage `creation_foyer_par_compte_sans_foyer`
 (lot BK.2d) ; les invitations à créer un foyer (`foyer_id` vide) et le mode « sur invitation » (BK.2d) ; le
-transfert de propriété et le retrait d'un membre avec ses données (BK.2c) ; la limitation de débit est propre à
+transfert de propriété (fait en BK.2c) et le retrait d'un membre avec ses données (écarté : les données restent
+au foyer) ; la limitation de débit est propre à
 chaque processus (elle ne se partage pas entre plusieurs workers).
+
+
+##### Lot BK.2c — réalisé (serveur, 30/09/2026)
+
+Lot « Cycle de vie côté foyer » (§ 9), partie serveur ; l'interface est un lot séparé. **Aucune migration** : le
+schéma de BK.2a et BK.2b suffit. Vérifié sous SQLite (suite backend complète) ; les tests Postgres
+(`test_separation_foyers.py`, étendu) et l'ensemble de la suite sous Postgres tournent en CI.
+
+**Décision de l'utilisateur au lancement (30/09/2026)** : un compte n'est supprimé que par lui-même (§ 10,
+décision 11) ; la fiche (§ 5, § 10) est adaptée en conséquence.
+
+**Routes** (toutes sous `/api/auth`, messages traduits dans le catalogue des cinq langues) :
+
+| Route | Qui | Corps | Réponse |
+| --- | --- | --- | --- |
+| `POST /foyer/transferer-propriete` | propriétaire du foyer courant | `{membre_id, confirmation}` (`confirmation` = nom d'utilisateur du nouveau propriétaire) | `UserOut` de la session (rôle désormais `membre`) ; 404 « Compte introuvable » (hors foyer, inconnu, soi-même), 400 (invité ; confirmation incorrecte), 403 (non propriétaire) |
+| `DELETE /household-members/{id}` | propriétaire | — | 204 ; le **compte est conservé** ; 404 hors foyer ou pour le propriétaire lui-même |
+| `GET /foyer/apercu-suppression` | propriétaire | — | `{foyer_nom, confirmation_attendue, patrimoine{table: n}, liens_partage, invitations, comptes, comptes_sans_foyer, comptes_gardant_un_foyer}` |
+| `POST /foyer/supprimer` | propriétaire | `{confirmation}` (nom du foyer, sinon `SUPPRIMER`) | `UserOut` de la session (rouvre un autre foyer du compte, sinon `foyer_courant_id = null`) ; 400 si confirmation incorrecte |
+| `GET /compte/apercu-suppression` | tout compte connecté | — | `{confirmation_attendue, foyers_supprimes[], foyers_quittes[], foyers_bloquants[{id, nom, autres_comptes}], peut_supprimer}` |
+| `POST /compte/supprimer` | tout compte connecté | `{confirmation}` (son nom d'utilisateur) | 204 ; 409 tant qu'il est propriétaire d'un foyer qui a d'autres comptes ; 400 si confirmation incorrecte |
+
+**Ce qui change.**
+
+- **Transfert** (`foyer_service.transferer_la_propriete`) : en une transaction, l'ancien propriétaire devient membre
+  (écriture et `flush`), puis le membre choisi devient propriétaire — l'index unique partiel « un seul propriétaire
+  par foyer » n'admet pas deux propriétaires, même un instant. Aucune donnée à ré-ancrer. Un invité est refusé (400),
+  un compte hors du foyer ou le propriétaire lui-même est un 404 uniforme (IDOR). Une appartenance de propriétaire
+  déjà cédée (transfert concurrent) est refusée (403). Les droits suivent aussitôt sur les sessions déjà ouvertes (le
+  rôle est relu à chaque requête).
+- **Retrait d'un membre** : ne retire plus que l'appartenance, son périmètre d'invité dans ce foyer et le foyer courant
+  des sessions qui le désignaient (`foyer_service.retirer_du_foyer`). `retirer_un_membre`, qui supprimait le compte d'un
+  membre n'ayant que ce foyer, disparaît.
+- **Suppression d'un foyer** (`foyer_service.supprimer_foyer(db, foyer_id)`, sans contrôle de droits — c'est le rôle de
+  la route, et l'opérateur du lot BK.2d l'appellera) : une transaction, tout ou rien, dans l'ordre du § 5 ; comptes,
+  sessions (elles perdent seulement leur foyer) et journal d'accès conservés. Le patrimoine est effacé par
+  `donnees_service.supprimer_patrimoine_du_foyer`, extrait de `reinitialiser_foyer` (qui n'est plus qu'une transaction
+  autour de lui) ; les historiques en cache du foyer par `historique_cache.supprimer_historiques_du_foyer` (foyer 11 ne
+  prend pas 111). **Périmètre de la base (Postgres)** : `database.foyer_le_temps` restreint la session à CE foyer le temps
+  de l'opération — les politiques de toutes ses tables l'y autorisent —, sans lever la restriction sur les autres ; la
+  session retrouve ensuite son périmètre d'origine. Les aperçus ne lèvent la restriction que pour compter les
+  appartenances qu'un propriétaire ne voit pas (nombres seulement).
+- **Suppression de son compte** (`foyer_service.supprimer_son_compte`) : un seul chemin pour le compte sans foyer (BK.2b) et
+  le compte qui en a encore. `apercu_suppression_compte` classe ses foyers en supprimés (propriétaire et seul compte), quittés
+  (membre ou invité) et bloquants ; s'il y en a un bloquant, 409. Sinon, en une transaction : foyers solo effacés, puis compte,
+  appartenances, périmètres, sessions et journal d'accès. Le paramètre `effacer_journal` de `supprimer_compte` disparaît : le
+  journal d'un compte supprimé s'efface toujours (plus aucun chemin ne le détachait). `CompteEncoreMembreError` et son
+  message (« quittez-le avant de supprimer votre compte ») disparaissent.
+- **`database._changer_perimetre`** ne touche plus la connexion d'une transaction en attente d'annulation : l'erreur
+  d'origine d'une suppression échouée n'est plus masquée par un `PendingRollbackError` au moment de rendre le périmètre.
+- **Remise à zéro** : efface désormais aussi `journal_import` (« dernier import de tel courtier »), que ni la remise à zéro
+  ni l'export ne traitaient — le test générique l'a révélé, la suppression d'un foyer échouait sur la clé étrangère.
+  `PHRASE_CONFIRMATION_PAR_DEFAUT` (`SUPPRIMER`) passe dans `foyer_service`, avec `confirmation_attendue`.
+
+**Tests.** `test_suppression_foyer.py` : test **générique** par `Base.metadata.sorted_tables` — chaque table qui se rattache à un
+foyer (clé étrangère vers `foyers`, ou vers une table déjà rattachée) doit avoir zéro ligne du foyer supprimé et le témoin intact,
+ni trop ni trop peu de lignes en tout ; le jeu de données (`peuplement_foyer.py`) doit remplir chacune de ces tables, sinon le test
+échoue ; une table ajoutée plus tard entre d'office, et si elle n'est rattachée par aucune clé il faut la classer, avec sa raison,
+dans `TABLES_EXCLUES` (données de marché, `parametres`, `scheduled_job_config`, `users`, `access_log_entries`, `historique_cache`
+par sa clé). `auth_tokens`, qui a une clé vers `foyers`, est vérifiée comme les autres (aucune session ne désigne le foyer
+supprimé, aucune n'est supprimée). Aussi : comptes et sessions conservés, historiques (« 11 » contre « 111 »), tout ou rien,
+aperçu. `test_cycle_de_vie_foyer.py` : transfert (échange des rôles et des droits, confirmation, non-propriétaire, invité, IDOR,
+transfert concurrent), retrait, suppression du foyer (comptes conservés sans foyer, session qui rouvre un autre foyer,
+invitations mortes, confirmation, droits), suppression du compte (membre, propriétaire seul, bloquée puis débloquée par un
+transfert ou un retrait, plusieurs foyers, tout ou rien), aperçus. `test_separation_foyers.py` (Postgres) : suppression sous
+RLS qui n'affecte pas l'autre foyer, depuis la session du foyer ou d'un autre, périmètre rendu, transfert, aperçu qui compte
+ce que la restriction cache, suppression de son compte depuis un autre foyer.
+
+**Gardé pour plus tard** : l'interface (menu de transfert, confirmation, zone « Supprimer le foyer », aperçu de la
+suppression du compte, E2E) ; l'opérateur qui désigne un nouveau propriétaire et supprime un foyer (BK.2d).
 
 
 ### BL. Application multilingue (cadrée le 23/09/2026)

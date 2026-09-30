@@ -17,6 +17,7 @@ from app import database
 from app.main import app
 from app.models import (
     ROLE_MEMBRE,
+    ROLE_PROPRIETAIRE,
     Appartenance,
     Detenteur,
     Foyer,
@@ -29,9 +30,11 @@ from app.models import (
     User,
 )
 from app.routers import portfolio
-from app.services import auth_service, invitation_service
+from app.services import auth_service, foyer_service, invitation_service
 
 from .conftest import ID_FOYER_B, ID_FOYER_TEST, ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, creer_utilisateur, make_holding
+from .peuplement_foyer import peupler_foyer
+from .test_suppression_foyer import _compter, _rattachements
 
 pytestmark = pytest.mark.skipif(database.EST_SQLITE, reason="sécurité au niveau des lignes : Postgres seulement (§ BI.5)")
 
@@ -311,3 +314,111 @@ def test_un_compte_d_un_autre_foyer_accepte_une_invitation_sans_pouvoir_s_inscri
         ID_FOYER_TEST,
         ID_FOYER_B,
     ]
+
+
+# --- Cycle de vie d'un foyer (§ BK.2c) ---------------------------------------------------------------
+
+
+@pytest.fixture
+def deux_foyers_remplis(db):
+    """Chaque foyer avec une ligne dans toutes ses tables, comptes de chaque rôle compris."""
+    creer_utilisateur(db, ID_UTILISATEUR_B, "foyer-b")
+    return peupler_foyer(db, ID_FOYER_TEST, "a"), peupler_foyer(db, ID_FOYER_B, "b")
+
+
+def _lignes_par_table(db, foyer_id: int) -> dict[str, int]:
+    tables = {table.name: table for table in database.Base.metadata.sorted_tables}
+    return {nom: _compter(db, tables[nom], condition(foyer_id)) for nom, condition in _rattachements().items()}
+
+
+def _lignes_hors_appartenances(db, foyer_id: int) -> dict[str, int]:
+    return {nom: n for nom, n in _lignes_par_table(db, foyer_id).items() if nom != "appartenances"}
+
+
+def test_supprimer_son_foyer_sous_rls_n_affecte_pas_l_autre(db, deux_foyers_remplis):
+    """Le propriétaire supprime son foyer AVEC la restriction de la base : sa session ne voit que
+    ce foyer, et l'opération s'y tient. Le foyer voisin n'a pas une ligne de moins."""
+    avant_b = _lignes_par_table(db, ID_FOYER_B)
+    assert all(nombre > 0 for nombre in _lignes_par_table(db, ID_FOYER_TEST).values())
+    assert all(nombre > 0 for nombre in avant_b.values())
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        foyer_service.supprimer_foyer(session, ID_FOYER_TEST)
+
+    assert set(_lignes_par_table(db, ID_FOYER_TEST).values()) == {0}
+    assert _lignes_par_table(db, ID_FOYER_B) == avant_b
+    # Les historiques en cache : ceux du foyer supprimé partent, ceux du voisin restent.
+    assert db.query(HistoriqueCache).filter(HistoriqueCache.cle.like(f"%:{ID_FOYER_TEST}%")).count() == 0
+    assert db.query(HistoriqueCache).filter(HistoriqueCache.cle.like(f"%:{ID_FOYER_B}%")).count() == 4
+
+
+def test_supprimer_un_foyer_qui_n_est_pas_celui_de_la_session_se_limite_a_ce_foyer(db, deux_foyers_remplis):
+    """Session restreinte à B qui supprime A (un propriétaire de deux foyers ; l'opérateur du lot
+    BK.2d) : A disparaît, B n'est pas touché, et la session garde sa restriction d'origine."""
+    avant_b = _lignes_par_table(db, ID_FOYER_B)
+
+    with _session_du_foyer(ID_FOYER_B, ID_UTILISATEUR_B) as session:
+        foyer_service.supprimer_foyer(session, ID_FOYER_TEST)
+        assert sorted(h.ticker for h in session.query(Holding)) == ["AAA-b", "MAISON-b"]
+        assert session.execute(text("SELECT current_setting('app.foyer_id', true)")).scalar() == str(ID_FOYER_B)
+        assert session.execute(text("SELECT current_setting('app.tous_foyers', true)")).scalar() in (None, "", "off")
+
+    assert set(_lignes_par_table(db, ID_FOYER_TEST).values()) == {0}
+    assert _lignes_par_table(db, ID_FOYER_B) == avant_b
+
+
+def test_le_transfert_de_propriete_se_fait_sous_rls(db, deux_foyers_remplis):
+    supprime, _ = deux_foyers_remplis
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        foyer_service.transferer_la_propriete(session, ID_FOYER_TEST, session.get(User, ID_UTILISATEUR_TEST), supprime.membre.id)
+
+    roles = {a.user_id: a.role for a in db.query(Appartenance).filter(Appartenance.foyer_id == ID_FOYER_TEST)}
+    assert roles[supprime.membre.id] == ROLE_PROPRIETAIRE
+    assert roles[ID_UTILISATEUR_TEST] == ROLE_MEMBRE
+    assert sum(1 for role in roles.values() if role == ROLE_PROPRIETAIRE) == 1
+    # Le foyer voisin garde son propriétaire.
+    assert db.query(Appartenance).filter(Appartenance.foyer_id == ID_FOYER_B, Appartenance.role == ROLE_PROPRIETAIRE).one().user_id == ID_UTILISATEUR_B
+
+
+def test_l_apercu_compte_les_appartenances_qu_un_proprietaire_ne_voit_pas(db, deux_foyers_remplis):
+    """Sous la restriction, un propriétaire ne voit que les appartenances de son foyer : l'aperçu
+    lève un instant la restriction pour COMPTER ce qu'il ne peut pas lire."""
+    supprime, _ = deux_foyers_remplis
+    db.add(Appartenance(user_id=supprime.membre.id, foyer_id=ID_FOYER_B, role=ROLE_MEMBRE))
+    db.commit()
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        assert {a.foyer_id for a in session.query(Appartenance)} == {ID_FOYER_TEST}
+        apercu = foyer_service.apercu_suppression_foyer(session, ID_FOYER_TEST)
+        # Le membre a un autre foyer : l'aperçu le sait, sans le montrer.
+        assert (apercu.comptes, apercu.comptes_gardant_un_foyer, apercu.comptes_sans_foyer) == (3, 1, 2)
+        assert {a.foyer_id for a in session.query(Appartenance)} == {ID_FOYER_TEST}
+
+
+def test_supprimer_son_compte_sous_rls_efface_le_foyer_solo_et_quitte_les_autres(db, deux_foyers_remplis):
+    """Propriétaire seul d'un foyer S et membre de B, connecté à B : S disparaît avec lui, il quitte
+    B — qui n'a pas une ligne de moins. S est hors de portée de sa session : la suppression s'y
+    restreint le temps de l'opération."""
+    utilisateur = User(username="double", password_hash="x")
+    db.add(utilisateur)
+    db.commit()
+    solo_id = auth_service.creer_foyer(db, utilisateur, nom="Le solo").id
+    ligne_solo = make_holding(db, user_id=solo_id, ticker="SOLO").id
+    utilisateur_id = utilisateur.id
+    db.add(Appartenance(user_id=utilisateur_id, foyer_id=ID_FOYER_B, role=ROLE_MEMBRE))
+    db.commit()
+    avant_b = _lignes_hors_appartenances(db, ID_FOYER_B)
+    appartenances_b = db.query(Appartenance).filter(Appartenance.foyer_id == ID_FOYER_B).count()
+
+    with _session_du_foyer(ID_FOYER_B, utilisateur_id) as session:
+        apercu = foyer_service.apercu_suppression_compte(session, session.get(User, utilisateur_id))
+        assert ([f.id for f in apercu.foyers_supprimes], [f.id for f in apercu.foyers_quittes]) == ([solo_id], [ID_FOYER_B])
+        foyer_service.supprimer_son_compte(session, session.get(User, utilisateur_id))
+
+    db.expire_all()
+    assert db.get(User, utilisateur_id) is None
+    assert db.get(Foyer, solo_id) is None
+    assert db.get(Holding, ligne_solo) is None
+    assert _lignes_hors_appartenances(db, ID_FOYER_B) == avant_b
+    assert db.query(Appartenance).filter(Appartenance.foyer_id == ID_FOYER_B).count() == appartenances_b - 1

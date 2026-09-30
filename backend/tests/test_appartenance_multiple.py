@@ -384,16 +384,6 @@ def test_la_suppression_de_son_compte_exige_la_confirmation_par_le_nom(client_je
     assert _compte_existe(deux_foyers, egare.id)
 
 
-def test_on_ne_supprime_pas_son_compte_tant_qu_on_appartient_a_un_foyer(client_jetons, deux_foyers):
-    membre = _ajouter_membre_de_a(deux_foyers)
-
-    reponse = client_jetons.post("/api/auth/compte/supprimer", json={"confirmation": "conjoint"}, headers=jeton_de_session(deux_foyers, membre.id))
-
-    assert reponse.status_code == 409
-    assert _compte_existe(deux_foyers, membre.id)
-    assert deux_foyers.query(Appartenance).filter(Appartenance.user_id == membre.id).count() == 1
-
-
 def test_la_suppression_de_son_compte_exige_un_jeton(client_jetons):
     assert client_jetons.post("/api/auth/compte/supprimer", json={"confirmation": "x"}).status_code == 401
 
@@ -451,7 +441,8 @@ def test_retirer_un_compte_partage_ne_retire_que_son_appartenance(client_jetons,
     assert client_jetons.get("/api/auth/me", headers=session_chez_b).json()["foyer_courant_id"] == ID_FOYER_B
 
 
-def test_retirer_un_compte_qui_n_appartient_qu_a_ce_foyer_le_supprime_toujours(client_jetons, deux_foyers):
+def test_retirer_un_compte_qui_n_appartient_qu_a_ce_foyer_le_garde_sans_foyer(client_jetons, deux_foyers):
+    """Décision du 30/09/2026 : un compte n'est supprimé que par lui-même."""
     membre_id = _ajouter_membre_de_a(deux_foyers).id
     en_tete = jeton_de_session(deux_foyers, membre_id)
 
@@ -459,8 +450,10 @@ def test_retirer_un_compte_qui_n_appartient_qu_a_ce_foyer_le_supprime_toujours(c
 
     assert reponse.status_code == 204
     deux_foyers.expire_all()
-    assert not _compte_existe(deux_foyers, membre_id)
-    assert client_jetons.get("/api/auth/me", headers=en_tete).status_code == 401
+    assert _compte_existe(deux_foyers, membre_id)
+    assert deux_foyers.query(Appartenance).filter(Appartenance.user_id == membre_id).count() == 0
+    moi = client_jetons.get("/api/auth/me", headers=en_tete)
+    assert (moi.status_code, moi.json()["foyer_courant_id"], moi.json()["peut_creer_foyer"]) == (200, None, True)
 
 
 def test_le_proprietaire_ne_renomme_pas_un_compte_partage_avec_un_autre_foyer(client_jetons, deux_foyers):

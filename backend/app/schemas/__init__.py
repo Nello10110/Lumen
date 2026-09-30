@@ -24,7 +24,10 @@ from .authentification import (  # noqa: F401
     MESSAGE_MOT_DE_PASSE_TROP_COURT,
     MESSAGE_NOM_UTILISATEUR_INVALIDE,
     AccessLogEntryOut,
+    ApercuSuppressionCompteOut,
+    ApercuSuppressionFoyerOut,
     AuthResponse,
+    FoyerBloquantOut,
     FoyerCourantUpdate,
     FoyerCreate,
     FoyerNomUpdate,
@@ -38,6 +41,8 @@ from .authentification import (  # noqa: F401
     RegisterRequest,
     SessionOut,
     SuppressionCompteRequest,
+    SuppressionFoyerRequest,
+    TransfertProprieteRequest,
     UserOut,
 )
 from .budget import (  # noqa: F401

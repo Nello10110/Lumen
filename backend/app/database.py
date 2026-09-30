@@ -21,7 +21,7 @@ import logging
 import os
 import sqlite3
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 
 from sqlalchemy import create_engine, event, text
@@ -160,7 +160,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 #   courant avant de le poser ;
 # - `tous_les_foyers` : explicite, pour les tâches de fond qui parcourent tous les
 #   foyers (rafraîchissement des cours, démarrage, planificateur) — voir
-#   `session_tous_foyers` — ou le temps d'une opération (`tous_les_foyers_le_temps`).
+#   `session_tous_foyers` — ou le temps d'une opération (`tous_les_foyers_le_temps` ; ou
+#   `foyer_le_temps`, qui ne lève rien de plus que le périmètre d'UN autre foyer).
 #
 # Sous SQLite, rien de tout cela n'existe : le périmètre est noté, jamais appliqué.
 _SANS_PERIMETRE = ("", "", "off")
@@ -186,8 +187,10 @@ def _poser_perimetre(session: Session, _transaction, connexion) -> None:
 def _changer_perimetre(session: Session, perimetre: tuple[str, str, str]) -> None:
     session.info["perimetre"] = perimetre
     # Transaction déjà ouverte (l'authentification vient de lire le jeton) : le
-    # nouveau périmètre doit valoir tout de suite, pas au prochain commit.
-    if session.in_transaction():
+    # nouveau périmètre doit valoir tout de suite, pas au prochain commit. Une
+    # transaction en attente d'annulation (écriture échouée) n'ouvre plus de connexion :
+    # le périmètre noté s'appliquera à la suivante.
+    if session.in_transaction() and session.is_active:
         connexion = session.connection()
         if connexion.dialect.name == "postgresql":
             _appliquer_perimetre(session, connexion)
@@ -209,16 +212,29 @@ def tous_les_foyers(session: Session) -> Session:
 
 
 @contextmanager
-def tous_les_foyers_le_temps(session: Session) -> Iterator[Session]:
-    """Lève la restriction le temps d'une opération qui ne peut s'en passer — créer un
-    foyer, qui n'est encore celui de personne ; compter les foyers — puis rend à la
-    session le périmètre qu'elle avait."""
+def _perimetre_le_temps(session: Session, perimetre: tuple[str, str, str]) -> Iterator[Session]:
     precedent = session.info.get("perimetre", _SANS_PERIMETRE)
-    _changer_perimetre(session, ("", "", "on"))
+    _changer_perimetre(session, perimetre)
     try:
         yield session
     finally:
         _changer_perimetre(session, precedent)
+
+
+def tous_les_foyers_le_temps(session: Session) -> AbstractContextManager[Session]:
+    """Lève la restriction le temps d'une opération qui ne peut s'en passer — créer un
+    foyer, qui n'est encore celui de personne ; compter les foyers — puis rend à la
+    session le périmètre qu'elle avait."""
+    return _perimetre_le_temps(session, ("", "", "on"))
+
+
+def foyer_le_temps(session: Session, foyer_id: int) -> AbstractContextManager[Session]:
+    """Restreint la session à CE foyer le temps d'une opération qui n'y touche qu'à lui
+    — supprimer un foyer dont on n'est pas dans la session (le propriétaire qui supprime
+    son compte, l'opérateur) —, puis rend à la session le périmètre qu'elle avait. Bien
+    moins large que `tous_les_foyers_le_temps` : la base garde les autres foyers hors
+    de portée."""
+    return _perimetre_le_temps(session, (str(foyer_id), "", "off"))
 
 
 def sans_perimetre(session: Session) -> None:

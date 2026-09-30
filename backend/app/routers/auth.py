@@ -7,13 +7,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_token, get_current_user, get_membre_foyer, require_role
+from ..auth import MESSAGE_ROLE_INSUFFISANT, get_current_token, get_current_user, get_membre_foyer, require_role
 from ..database import get_db
 from ..i18n import tr, traduire
 from ..models import ROLE_PROPRIETAIRE, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
 from ..schemas import (
     AccessLogEntryOut,
+    ApercuSuppressionCompteOut,
+    ApercuSuppressionFoyerOut,
     AuthResponse,
+    FoyerBloquantOut,
     FoyerCourantUpdate,
     FoyerCreate,
     FoyerNomUpdate,
@@ -27,6 +30,8 @@ from ..schemas import (
     RegisterRequest,
     SessionOut,
     SuppressionCompteRequest,
+    SuppressionFoyerRequest,
+    TransfertProprieteRequest,
     UserOut,
 )
 from ..services import (
@@ -50,7 +55,12 @@ MESSAGE_PROPRIETAIRE_NE_QUITTE_PAS = "Le propriétaire ne peut pas quitter son f
 MESSAGE_CREATION_FOYER_REFUSEE = "La création d'un foyer par un compte sans foyer n'est pas autorisée sur cette installation."
 MESSAGE_DEJA_UN_FOYER = "Ce compte appartient déjà à un foyer."
 MESSAGE_OPERATEUR_SANS_FOYER = "Un compte opérateur n'appartient à aucun foyer et ne peut pas en rejoindre ni en créer."
-MESSAGE_COMPTE_ENCORE_MEMBRE = "Ce compte appartient encore à un foyer : quittez-le avant de supprimer votre compte."
+MESSAGE_PROPRIETAIRE_AVEC_MEMBRES = (
+    "Vous êtes propriétaire d'un foyer qui compte d'autres comptes : transférez-en la propriété, ou supprimez ce foyer, "
+    "avant de supprimer votre compte."
+)
+MESSAGE_CIBLE_TRANSFERT_INVALIDE = "Seul un membre du foyer peut en devenir propriétaire : un invité ne le peut pas."
+MESSAGE_CONFIRMATION_TRANSFERT_INCORRECTE = "Confirmation incorrecte. Saisissez le nom d'utilisateur du nouveau propriétaire."
 MESSAGE_CONFIRMATION_COMPTE_INCORRECTE = "Confirmation incorrecte. Saisissez votre nom d'utilisateur pour confirmer."
 MESSAGE_COMPTE_PLUSIEURS_FOYERS = (
     "Ce compte appartient à plusieurs foyers : son nom d'utilisateur ne peut pas être modifié depuis ce foyer."
@@ -275,19 +285,38 @@ def creer_foyer(
     return construire_user_out(db, current_user)
 
 
+@router.get("/compte/apercu-suppression", response_model=ApercuSuppressionCompteOut)
+def apercu_suppression_compte(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Ce qu'entraînerait la suppression de son propre compte (§ BK.2c) : les foyers qui
+    disparaîtraient avec lui (propriétaire et seul compte), ceux qu'il quitterait, et les
+    foyers qui bloquent la suppression (propriétaire d'un foyer qui a d'autres comptes).
+    Aucune écriture ; répond aussi à un compte sans foyer."""
+    apercu = foyer_service.apercu_suppression_compte(db, current_user)
+    return ApercuSuppressionCompteOut(
+        confirmation_attendue=current_user.username,
+        foyers_supprimes=[FoyerResume(id=f.id, nom=f.nom, role=f.role) for f in apercu.foyers_supprimes],
+        foyers_quittes=[FoyerResume(id=f.id, nom=f.nom, role=f.role) for f in apercu.foyers_quittes],
+        foyers_bloquants=[FoyerBloquantOut(id=f.id, nom=f.nom, autres_comptes=f.autres_comptes) for f in apercu.foyers_bloquants],
+        peut_supprimer=apercu.peut_supprimer,
+    )
+
+
 @router.post("/compte/supprimer", status_code=204)
 def supprimer_mon_compte(
     payload: SuppressionCompteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    """Un compte qui n'appartient à AUCUN foyer supprime le sien : compte, sessions et
-    journal d'accès (droit à l'effacement), après confirmation par son nom d'utilisateur.
-    Tant qu'il appartient à un foyer, il le quitte d'abord."""
+    """Le compte se supprime lui-même : compte, appartenances, sessions et journal d'accès
+    (droit à l'effacement), après confirmation par son nom d'utilisateur. Il n'a pas
+    besoin d'avoir quitté ses foyers : les foyers dont il est propriétaire ET seul
+    compte disparaissent avec lui (l'aperçu les annonce). 409 tant qu'il est propriétaire
+    d'un foyer qui compte d'autres comptes : il le transfère, ou le supprime, d'abord.
+    Cas d'un compte sans foyer inclus."""
     if payload.confirmation.strip() != current_user.username:
         raise HTTPException(status_code=400, detail=MESSAGE_CONFIRMATION_COMPTE_INCORRECTE)
     try:
         foyer_service.supprimer_son_compte(db, current_user)
-    except foyer_service.CompteEncoreMembreError as erreur:
-        raise HTTPException(status_code=409, detail=MESSAGE_COMPTE_ENCORE_MEMBRE) from erreur
+    except foyer_service.ProprietaireAvecMembresError as erreur:
+        raise HTTPException(status_code=409, detail=MESSAGE_PROPRIETAIRE_AVEC_MEMBRES) from erreur
 
 
 @router.patch("/foyer", response_model=UserOut)
@@ -300,6 +329,64 @@ def renommer_foyer(
     réservé au propriétaire comme les autres actions d'administration du foyer
     (comptes du foyer, export/import/remise à zéro des données)."""
     preferences_service.enregistrer_nom_foyer(db, auth_service.id_foyer(current_user), payload.nom)
+    return construire_user_out(db, current_user)
+
+
+@router.get("/foyer/apercu-suppression", response_model=ApercuSuppressionFoyerOut)
+def apercu_suppression_foyer(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+    """Ce que la suppression du foyer courant effacerait (§ BK.2c) : lignes de patrimoine
+    par table, liens de partage, invitations, et le sort de ses comptes — qui sont
+    TOUS conservés, ceux dont c'est le seul foyer se retrouvant sans foyer. Aucune
+    écriture."""
+    return ApercuSuppressionFoyerOut.model_validate(
+        foyer_service.apercu_suppression_foyer(db, auth_service.id_foyer(current_user)), from_attributes=True
+    )
+
+
+@router.post("/foyer/supprimer", response_model=UserOut)
+def supprimer_foyer(
+    payload: SuppressionFoyerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
+    token_row: AuthToken = Depends(get_current_token),
+):
+    """Suppression COMPLÈTE et irréversible du foyer courant, réservée à son propriétaire,
+    confirmée par le nom du foyer (ou `SUPPRIMER` tant qu'il n'en a pas), comme la remise
+    à zéro : patrimoine, réglages, liens de partage, invitations, appartenances. Les
+    comptes sont conservés — ceux qui n'avaient que ce foyer restent sans foyer, propriétaire
+    compris —, et leurs sessions qui le désignaient n'ont plus de foyer. Répond avec
+    l'utilisateur de la session, qui rouvre un autre de ses foyers s'il en a."""
+    foyer = auth_service.id_foyer(current_user)
+    attendu = foyer_service.confirmation_attendue(db, foyer)
+    if payload.confirmation.strip() != attendu:
+        raise HTTPException(
+            status_code=400, detail=tr("Confirmation incorrecte. Tapez exactement « {attendu} » pour confirmer.", attendu=attendu)
+        )
+    foyer_service.supprimer_foyer_courant(db, current_user, token_row)
+    return construire_user_out(db, current_user)
+
+
+@router.post("/foyer/transferer-propriete", response_model=UserOut)
+def transferer_propriete(
+    payload: TransfertProprieteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
+):
+    """Le propriétaire du foyer courant en confie la propriété à un MEMBRE de ce foyer
+    (§ BK.2c) : en une transaction, lui devient membre et l'autre propriétaire. Confirmé par
+    le nom d'utilisateur du nouveau propriétaire. 404 pour un compte qui n'est pas du
+    foyer (ou le propriétaire lui-même), 400 pour un invité. Répond avec l'utilisateur de la
+    session, dont le rôle est désormais `membre`."""
+    membre, _ = _membre_du_foyer(db, payload.membre_id, current_user)
+    if payload.confirmation.strip() != membre.username:
+        raise HTTPException(status_code=400, detail=MESSAGE_CONFIRMATION_TRANSFERT_INCORRECTE)
+    try:
+        ancienne = foyer_service.transferer_la_propriete(db, auth_service.id_foyer(current_user), current_user, membre.id)
+    except foyer_service.CibleTransfertInvalideError as erreur:
+        raise HTTPException(status_code=400, detail=MESSAGE_CIBLE_TRANSFERT_INVALIDE) from erreur
+    except foyer_service.ProprietaireRequisError as erreur:
+        raise HTTPException(status_code=403, detail=MESSAGE_ROLE_INSUFFISANT) from erreur
+    auth_service.adopter_foyer(db, current_user, ancienne)
     return construire_user_out(db, current_user)
 
 
@@ -482,8 +569,10 @@ def update_household_member(
 
 @router.delete("/household-members/{id}", status_code=204)
 def delete_household_member(id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
-    """Retire un compte du foyer. Un compte qui n'appartient qu'à ce foyer est supprimé
-    avec ses sessions ; un compte d'un autre foyer aussi n'y perd que son appartenance à
-    celui-ci — jamais le compte (`foyer_service.retirer_un_membre`)."""
+    """Retire un compte du foyer : il n'y perd que son appartenance (avec son périmètre
+    d'invité et ses sessions qui y pointaient), jamais le compte, même s'il n'avait que ce
+    foyer — il reste alors sans foyer (décision du 30/09/2026 : un compte n'est supprimé
+    que par lui-même). Le propriétaire ne se retire pas : 404, comme pour tout compte
+    hors du foyer (`_membre_du_foyer`)."""
     membre, appartenance = _membre_du_foyer(db, id, current_user)
-    foyer_service.retirer_un_membre(db, membre, appartenance)
+    foyer_service.retirer_du_foyer(db, membre.id, appartenance)

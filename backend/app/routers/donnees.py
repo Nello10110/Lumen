@@ -23,7 +23,7 @@ from ..database import get_db
 from ..i18n import tr, traduire
 from ..models import User
 from ..schemas import EffacerFoyerRequest
-from ..services import auth_service, donnees_service, historique_cache, preferences_service
+from ..services import auth_service, donnees_service, foyer_service, historique_cache
 
 logger = logging.getLogger("patrimoine.import")
 
@@ -33,11 +33,6 @@ router = APIRouter(prefix="/api/donnees", tags=["donnees"])
 # lignes de patrimoine, pas des pièces jointes). Ce plafond écarte surtout l'envoi
 # accidentel d'un fichier sans rapport, avant même de tenter de le désérialiser.
 TAILLE_MAX_IMPORT = 50 * 1024 * 1024
-
-# Phrase à taper pour confirmer une remise à zéro complète du foyer, quand aucun nom
-# de foyer n'a été renseigné (cf. `effacer` ci-dessous) — sinon, le nom du foyer lui-même.
-PHRASE_CONFIRMATION_PAR_DEFAUT = "SUPPRIMER"
-
 
 @router.get("/export")
 def exporter(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -118,11 +113,12 @@ def effacer(
 
     Confirmation exigée dans le corps de la requête (`confirmation`), vérifiée ici
     plutôt que de faire confiance à la seule confirmation côté IHM (`Modale.tsx`) :
-    le nom du foyer s'il est renseigné, sinon le mot `PHRASE_CONFIRMATION_PAR_DEFAUT`
+    le nom du foyer s'il est renseigné, sinon le mot `SUPPRIMER`
+    (`foyer_service.confirmation_attendue`)
     — même principe que la confirmation par nom avant suppression d'un dépôt GitHub.
     """
     user_id = auth_service.id_foyer(current_user)
-    attendu = preferences_service.lire_nom_foyer(db, user_id) or PHRASE_CONFIRMATION_PAR_DEFAUT
+    attendu = foyer_service.confirmation_attendue(db, user_id)
     if payload.confirmation.strip() != attendu:
         raise HTTPException(
             status_code=400, detail=tr("Confirmation incorrecte. Tapez exactement « {attendu} » pour confirmer.", attendu=attendu)
