@@ -546,6 +546,17 @@ refusé à l'analyse, avant toute modification.
 les comptes de connexion (propriétaire, membres, invités) restent, vides. Confirmation par saisie exacte du nom du foyer (ou du mot « SUPPRIMER » s'il
 n'a pas de nom), vérifiée aussi par le serveur.
 
+**Supprimer le foyer** (même carte, juste en dessous) est plus radical : le foyer lui-même disparaît, avec
+son patrimoine, ses réglages, ses liens de partage et ses invitations. La fenêtre commence par un **aperçu**
+de ce qui sera effacé (lignes de patrimoine par nature, liens de partage, invitations) et du sort des comptes :
+**aucun compte n'est supprimé** — ceux dont c'était le seul foyer (le vôtre compris) restent, sans foyer, et
+l'aperçu dit combien ; ceux qui appartiennent aussi à un autre foyer le gardent. Elle propose ensuite
+d'**exporter vos données (JSON)** avant d'effacer : c'est le seul moyen de les garder, et le fichier peut être
+importé dans un autre foyer. Confirmation par saisie exacte du nom du foyer (ou de « SUPPRIMER » s'il n'en a pas),
+vérifiée aussi par le serveur. Ensuite, l'application se recharge : vous arrivez sur un autre de vos foyers si
+vous en avez un, sinon sur l'écran « Vous n'appartenez à aucun foyer » (voir plus bas). Le foyer supprimé peut
+subsister dans les sauvegardes chiffrées du serveur jusqu'à leur rotation.
+
 #### Déclaration de patrimoine
 
 Contrairement au relevé PDF ci-dessus (figé, tout le patrimoine), la déclaration est **paramétrable** — pensée pour un dossier de prêt, une donation, une succession. Le bouton ouvre une fenêtre de sélection :
@@ -578,6 +589,14 @@ Section visible uniquement par le propriétaire du compte.
   - **Inviter quelqu'un** (voir la section « Inviter, rejoindre un foyer » plus bas).
   - **Créer directement un compte** (nom d'utilisateur, mot de passe, rôle) : pour quelqu'un sans
     adresse e-mail ni SSO, un enfant par exemple. Ce compte n'appartient qu'à ce foyer.
+  - **Retirer du foyer** (bouton en bout de ligne d'un membre ou d'un invité) : la personne perd sa place dans
+    ce foyer, mais **son compte n'est pas supprimé** — seul son titulaire peut le supprimer. Elle garde ses autres
+    foyers ; si celui-ci était le seul, elle se retrouve sans foyer.
+  - **Transférer la propriété** : le propriétaire confie le foyer à un **membre** (un invité ne peut pas
+    devenir propriétaire : passez-le d'abord en membre). La fenêtre demande de choisir le membre, puis de saisir
+    son nom d'utilisateur pour confirmer. Vous devenez simple membre — les données ne bougent pas — et
+    l'application se recharge : Réglages ne vous est plus accessible, seul le nouveau propriétaire peut vous rendre
+    la propriété. Le bouton n'apparaît que s'il y a un membre à qui la confier.
 - **Sessions actives** : chaque appareil ou navigateur connecté avec ce compte, avec sa dernière
   activité. « Révoquer » déconnecte immédiatement cet appareil précis, sans toucher aux autres — la
   session en cours d'utilisation ne peut pas se révoquer elle-même.
@@ -623,7 +642,8 @@ connecté.
 **Quitter un foyer.** Un membre ou un invité peut quitter son foyer depuis le **menu du compte** (en bas
 de la barre latérale, ou « Plus » sur mobile) : « Quitter ce foyer », avec confirmation. Les données restent
 au foyer ; pour y revenir, il faudra une nouvelle invitation. Le propriétaire, lui, ne peut pas quitter son
-foyer. Si c'est **votre dernier foyer**, la confirmation le dit : votre compte n'est pas supprimé, mais vous
+foyer : il transfère d'abord la propriété à un membre (voir *Membres et invitations*), ou supprime le foyer. Si
+c'est **votre dernier foyer**, la confirmation le dit : votre compte n'est pas supprimé, mais vous
 n'aurez plus accès à aucune donnée tant que vous n'aurez pas rejoint ou créé un foyer.
 
 **Compte sans foyer.** Un compte qui n'appartient (ou n'appartient plus) à aucun foyer se connecte, mais
@@ -633,9 +653,24 @@ voit l'écran **« Vous n'appartenez à aucun foyer »**, sans aucune donnée. I
   le « # ») ;
 - **créer mon foyer** (nom facultatif ; dans la langue de l'appareil), si l'installation l'autorise — l'assistant
   de bienvenue se joue ensuite ;
-- **supprimer mon compte** : efface le compte, ses sessions de connexion et son journal d'accès, après
-  confirmation en saisissant son nom d'utilisateur (irréversible) ;
+- **supprimer mon compte** (voir ci-dessous) ;
 - **se déconnecter**.
+
+**Supprimer mon compte.** Tout compte connecté peut supprimer le sien : « Supprimer mon compte » dans le
+**menu du compte** (barre latérale, ou « Plus » sur mobile), et sur l'écran « Vous n'appartenez à aucun foyer »
+— c'est la même fenêtre. Personne d'autre ne peut le faire à votre place : ni le propriétaire d'un foyer que
+vous quittez, ni la suppression d'un foyer. La fenêtre commence par un **aperçu** :
+
+- les foyers qui **seront supprimés avec votre compte**, avec toutes leurs données : ceux dont vous êtes le
+  propriétaire et le seul compte ;
+- les foyers que vous **quitterez** (vous y êtes membre ou invité), dont les données restent à leurs autres membres ;
+- si vous êtes **propriétaire d'un foyer qui compte d'autres comptes**, la suppression est **bloquée** : la
+  fenêtre nomme ces foyers et n'offre aucune confirmation. Ouvrez le foyer concerné (sélecteur de foyer), puis
+  **transférez-en la propriété** (Réglages → Comptes & sécurité) ou **supprimez-le** (Réglages → Général) ; revenez
+  ensuite ici.
+
+Sinon, confirmez en saisissant votre **nom d'utilisateur** : le compte, ses sessions de connexion et son journal
+d'accès sont effacés définitivement (irréversible), et vous revenez à l'écran de connexion.
 
 #### Logo du bouton de connexion SSO
 

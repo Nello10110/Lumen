@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) : serveur réalisé (30/09/2026), interface à venir |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) : serveur et interface réalisés (30/09/2026), en attente de la CI |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -101,7 +101,7 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
   partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2b (invitations) `traité (30/09/2026)`, vérifié par la CI
-  Postgres ; lot BK.2c (cycle de vie côté foyer) : serveur réalisé le 30/09/2026, interface à venir ; puis BK.2d et
+  Postgres ; lot BK.2c (cycle de vie côté foyer) : serveur et interface réalisés le 30/09/2026, en attente de la CI ; puis BK.2d et
   BK.2e** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
@@ -7080,7 +7080,7 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 **État au 30/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
 détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
 (invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2c** (cycle de vie côté foyer) : serveur
-réalisé le 30/09/2026 (« Lot BK.2c — réalisé (serveur) »), interface à venir ; puis BK.2d et BK.2e (§ 9).
+et interface réalisés le 30/09/2026 (« Lot BK.2c — réalisé »), en attente de la CI ; puis BK.2d et BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7689,9 +7689,9 @@ au foyer) ; la limitation de débit est propre à
 chaque processus (elle ne se partage pas entre plusieurs workers).
 
 
-##### Lot BK.2c — réalisé (serveur, 30/09/2026)
+##### Lot BK.2c — réalisé (serveur et interface, 30/09/2026)
 
-Lot « Cycle de vie côté foyer » (§ 9), partie serveur ; l'interface est un lot séparé. **Aucune migration** : le
+Lot « Cycle de vie côté foyer » (§ 9) : la partie serveur d'abord, puis l'interface (« Interface », plus bas). **Aucune migration** : le
 schéma de BK.2a et BK.2b suffit. Vérifié sous SQLite (suite backend complète) ; les tests Postgres
 (`test_separation_foyers.py`, étendu) et l'ensemble de la suite sous Postgres tournent en CI.
 
@@ -7755,8 +7755,49 @@ transfert ou un retrait, plusieurs foyers, tout ou rien), aperçus. `test_separa
 RLS qui n'affecte pas l'autre foyer, depuis la session du foyer ou d'un autre, périmètre rendu, transfert, aperçu qui compte
 ce que la restriction cache, suppression de son compte depuis un autre foyer.
 
-**Gardé pour plus tard** : l'interface (menu de transfert, confirmation, zone « Supprimer le foyer », aperçu de la
-suppression du compte, E2E) ; l'opérateur qui désigne un nouveau propriétaire et supprime un foyer (BK.2d).
+**Interface (frontend, 30/09/2026).** Quatre actions, chacune dans une fenêtre (`Modale`) dont le bouton rouge
+(`DangerButton`, nouveau dans `Controls.tsx`) reste fermé tant que la saisie de confirmation n'est pas exacte ; le serveur
+la vérifie de nouveau.
+
+- **Transfert de propriété** (`TransfertProprieteModale`, depuis « Membres et invitations ») : liste des seuls
+  `membre` (l'appelant filtre — un invité n'est jamais proposé), confirmation par le nom d'utilisateur du destinataire (champ
+  affiché une fois le membre choisi, vidé si on en change), puis `rechargerApplication()` : l'appelant est devenu membre,
+  Réglages lui est fermé. Sans candidat, une phrase explique qu'il faut un autre membre.
+- **Retrait d'un membre** : « Supprimer » devient « Retirer du foyer » (`aria-label` « Retirer {nom} du foyer ») et une phrase sous la
+  liste dit que le compte est conservé ; les cinq langues corrigées (clés `supprimer` et `ariaSupprimerCompte` de
+  `gestionFoyerCard` remplacées par `retirer` et `ariaRetirerDuFoyer`).
+- **Suppression du foyer** (`SupprimerFoyerModale`, dans « Sauvegarde complète des données », sous la remise à zéro) : aperçu
+  (`GET /foyer/apercu-suppression`) — lignes de patrimoine (libellés de `utils/libelleTableDonnees.ts`, extraits de la carte
+  pour être partagés avec l'aperçu d'un import), liens de partage, invitations, comptes dont ceux qui resteront sans foyer ;
+  bouton « Exporter mes données (JSON) » (`utils/exportDonnees.ts`, extrait de la carte, même téléchargement) et rappel que le
+  foyer supprimé peut subsister dans les sauvegardes chiffrées du serveur jusqu'à leur rotation ; confirmation par la phrase
+  `confirmation_attendue` du serveur ; `rechargerApplication()` (autre foyer du compte, ou écran « aucun foyer »).
+- **Suppression de son compte** (`SupprimerCompteModale`) : un seul composant, appelé par le menu du compte (`MenuCompte`), la
+  feuille « Plus » (`MenuPlusSheet`) et l'écran « aucun foyer » (dont le formulaire interne, ses cinq clés i18n devenues
+  inutiles et son code disparaissent). Aperçu (`GET /compte/apercu-suppression`) : foyers supprimés avec le compte, foyers
+  quittés ; si `peut_supprimer` est faux, seules les explications s'affichent (foyers bloquants, nombre de leurs autres comptes,
+  marche à suivre) avec « Fermer », sans confirmation. Sinon confirmation par le nom d'utilisateur, `logout()` — le compte n'existe
+  plus, il ne reste qu'à effacer le jeton local — et retour à l'écran de connexion.
+- **Client API** : `transfererPropriete`, `apercuSuppressionFoyer`, `supprimerFoyer`, `apercuSuppressionCompte` ; types
+  `ApercuSuppressionFoyer`, `ApercuSuppressionCompte`, `FoyerBloquant`. **i18n** : trois nouveaux espaces (`transfertPropriete`,
+  `supprimerFoyer`, `supprimerCompte`) et des ajouts à `gestionFoyerCard`, dans les cinq langues (tutoiement dans « Membres et
+  invitations » et le transfert, vouvoiement pour la suppression du foyer et du compte, comme les zones voisines).
+- **Tests** : Vitest (`TransfertProprieteModale`, `SupprimerFoyerModale`, `SupprimerCompteModale` avec et sans blocage,
+  `GestionFoyerCard`, et les tests de `MenuCompte`, `SauvegardeDonneesCard`, `AucunFoyerPage`, `ReglagesPage` adaptés) ; E2E
+  `e2e/cycle-de-vie-foyer.spec.ts` — (1) un compte neuf, seul dans son foyer, supprime ce foyer (aperçu, export téléchargé,
+  confirmation par le nom), se reconnecte et arrive sur l'écran « aucun foyer », puis supprime son compte ; (2) transfert de
+  propriété entre deux comptes (l'ancien propriétaire n'a plus Réglages, le nouveau oui), suppression de compte bloquée puis
+  expliquée, suppression du foyer, puis des deux comptes. Ils partent d'invitations du propriétaire seedé et détruisent tout ce
+  qu'ils créent : le foyer seedé n'est jamais touché. `e2e/reglages.spec.ts` suit la nouvelle copie (« Retirer … du foyer »).
+- **Écarts assumés** : le retrait d'un membre reste sans confirmation, comme avant (l'action ne détruit rien : le compte et
+  les données restent, et une nouvelle invitation suffit à revenir) ; la fenêtre de suppression du foyer n'est proposée
+  qu'au propriétaire du foyer courant — pour un foyer bloquant d'un autre compte, l'explication demande de l'ouvrir d'abord
+  avec le sélecteur de foyer.
+
+**Vérification locale (SQLite)** : `tsc -b`, `oxlint` sans alerte, Vitest 1 001 tests (102 fichiers), Playwright 85 tests.
+
+**Gardé pour plus tard** : l'opérateur qui désigne un nouveau propriétaire et supprime un foyer (BK.2d) ; la vérification par
+la CI (les E2E tournent aussi sous Postgres).
 
 
 ### BL. Application multilingue (cadrée le 23/09/2026)

@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { api } from '../api/client'
 import { AuthContext, type AuthContextValue } from '../contexts/authContextObject'
 import MenuCompte from './MenuCompte'
+
+vi.mock('../api/client', () => ({ api: { apercuSuppressionCompte: vi.fn(), supprimerMonCompte: vi.fn() } }))
 
 function renderMenu() {
   const logout = vi.fn()
@@ -54,6 +57,26 @@ describe('MenuCompte (backlog 2.K.2 / 2.K.7)', () => {
 
     fireEvent.click(screen.getByRole('menuitem', { name: /Se déconnecter/ }))
     expect(logout).toHaveBeenCalledTimes(1)
+  })
+
+  // Backlog § BK.2c : tout compte connecté peut supprimer le sien, quel que soit son rôle
+  // (et même sans foyer, depuis l'écran « aucun foyer », qui réutilise la même fenêtre).
+  it('« Supprimer mon compte » ouvre la fenêtre de suppression, sans supprimer quoi que ce soit', async () => {
+    vi.mocked(api.apercuSuppressionCompte).mockResolvedValue({
+      confirmation_attendue: 'testeur',
+      foyers_supprimes: [],
+      foyers_quittes: [],
+      foyers_bloquants: [],
+      peut_supprimer: true,
+    })
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'testeur' }))
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Supprimer mon compte' }))
+
+    expect(await screen.findByRole('heading', { name: 'Supprimer mon compte ?' })).toBeInTheDocument()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(api.supprimerMonCompte).not.toHaveBeenCalled()
   })
 
   it('se ferme au clic extérieur', async () => {

@@ -17,7 +17,6 @@ const gestionFoyerCard: Structure<typeof fr> = {
   tropDeTentativesDeConnexion: "Troppi tentativi di accesso falliti di recente",
   verrouilleJusquA: "Bloccato fino a",
   role: "Ruolo",
-  supprimer: "Elimina",
   nomDUtilisateur: "Nome utente",
   motDePasse: "Password",
   membreDuFoyer: "Membro del nucleo",
@@ -34,11 +33,17 @@ const gestionFoyerCard: Structure<typeof fr> = {
   derniereConnexion: "Ultimo accesso {date}",
   sessionsActives: { one: "{n} sessione attiva", other: "{n} sessioni attive" },
   ariaRole: "Ruolo di {nom}",
-  ariaSupprimerCompte: "Elimina l’account {nom}",
   inviterTitre: "Invita qualcuno",
   inviterIntro: "Genera un link da inviare alla persona: crea il suo account, o usa quello che ha già, ed entra in questo nucleo con il ruolo scelto. Il link vale una sola volta e scade dopo la durata scelta.",
   creationDirecteTitre: "Crea direttamente un account",
   creationDirecteIntro: "Per chi non ha e-mail né SSO (un bambino, per esempio): scegli tu la password. Questo account apparterrà solo a questo nucleo.",
+  retirer: "Rimuovi dal nucleo",
+  ariaRetirerDuFoyer: "Rimuovi {nom} dal nucleo",
+  retraitExplication: "Rimuovere un membro lo allontana solo da questo nucleo: il suo account resta e può entrare in un altro nucleo.",
+  transfertTitre: "Trasferisci la proprietà",
+  transfertIntro: "Affida il nucleo a uno dei suoi membri: diventa proprietario e tu diventi un semplice membro. Un ospite non può diventare proprietario.",
+  transfertAucunMembre: "Per trasferire la proprietà serve un altro membro nel nucleo (un ospite non può diventare proprietario): invita prima qualcuno come membro.",
+  transfertOuvrir: "Trasferisci la proprietà…",
 }
 
 export default gestionFoyerCard

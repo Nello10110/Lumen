@@ -59,10 +59,11 @@ test.describe('Réglages', () => {
     await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
     await expect(page.getByLabel(`Rôle de ${nomRenomme}`)).toHaveValue('invite')
 
-    // Nettoyage : ce compte n'existe que pour ce test. Nom du bouton précisé
-    // (`aria-label`, `GestionFoyerCard.tsx`) : "Supprimer" seul serait ambigu si un
-    // autre membre du foyer existait déjà sur cette instance.
-    await page.getByRole('button', { name: `Supprimer le compte ${nomRenomme}` }).click()
+    // Nettoyage : ce membre n'a de raison d'être que pour ce test. Le retirer ne supprime
+    // pas son compte (§ BK.2c : il reste, sans foyer) — seule sa place dans le foyer
+    // disparaît. Nom du bouton précisé (`aria-label`, `GestionFoyerCard.tsx`) : « Retirer »
+    // seul serait ambigu si un autre membre du foyer existait déjà sur cette instance.
+    await page.getByRole('button', { name: `Retirer ${nomRenomme} du foyer` }).click()
     await expect(page.getByText(nomRenomme)).not.toBeVisible()
   })
 

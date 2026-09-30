@@ -3,8 +3,9 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { Label } from './Field'
 import { routesDuRang } from '../layout/routes'
-import { IconDeconnexion, IconMaison } from './icons'
+import { IconDeconnexion, IconMaison, IconPersonne } from './icons'
 import QuitterFoyerModale from './QuitterFoyerModale'
+import SupprimerCompteModale from './SupprimerCompteModale'
 import { t } from '../i18n'
 
 // Avatar généré (initiale + couleur dérivée du nom d'utilisateur — déterministe,
@@ -27,6 +28,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
   // conteneur — le clic qu'elle reçoit refermerait le menu, et avec lui la modale si
   // elle en dépendait.
   const [quitterOuvert, setQuitterOuvert] = useState(false)
+  const [supprimerOuvert, setSupprimerOuvert] = useState(false)
   const conteneurRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -119,6 +121,21 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
             </button>
           )}
 
+          {/* Supprimer son compte (backlog § BK.2c) : offert à tout compte connecté, quel que
+              soit son rôle — la fenêtre explique ce qui l'en empêche, le cas échéant. */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOuvert(false)
+              setSupprimerOuvert(true)
+            }}
+            className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-texte hover:bg-surface-elevee"
+          >
+            <IconPersonne className="h-4 w-4 text-texte-attenue" />
+            {t('supprimerCompte.menu')}
+          </button>
+
           <button
             type="button"
             role="menuitem"
@@ -135,6 +152,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
       )}
 
       {quitterOuvert && <QuitterFoyerModale onClose={() => setQuitterOuvert(false)} />}
+      {supprimerOuvert && <SupprimerCompteModale onClose={() => setSupprimerOuvert(false)} />}
     </div>
   )
 }

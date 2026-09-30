@@ -3,9 +3,10 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang, type RouteMeta } from '../layout/routes'
 import BasculeTheme from './BasculeTheme'
-import { IconDeconnexion, IconMaison, IconPlusOptions } from './icons'
+import { IconDeconnexion, IconMaison, IconPersonne, IconPlusOptions } from './icons'
 import Modale from './Modale'
 import QuitterFoyerModale from './QuitterFoyerModale'
+import SupprimerCompteModale from './SupprimerCompteModale'
 import { t } from '../i18n'
 
 /** Entrée "Plus" de la barre de navigation inférieure (backlog 2.K.4, mobile) —
@@ -20,6 +21,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
   const { user, logout } = useAuth()
   const [ouvert, setOuvert] = useState(false)
   const [quitterOuvert, setQuitterOuvert] = useState(false)
+  const [supprimerOuvert, setSupprimerOuvert] = useState(false)
 
   if (!user) return null
 
@@ -103,6 +105,18 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
                 type="button"
                 onClick={() => {
                   setOuvert(false)
+                  setSupprimerOuvert(true)
+                }}
+                className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-texte hover:bg-surface-elevee"
+              >
+                <IconPersonne className="h-5 w-5 text-texte-attenue" />
+                {t('supprimerCompte.menu')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOuvert(false)
                   logout()
                 }}
                 className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-negatif hover:bg-surface-elevee"
@@ -116,6 +130,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
       )}
 
       {quitterOuvert && <QuitterFoyerModale onClose={() => setQuitterOuvert(false)} />}
+      {supprimerOuvert && <SupprimerCompteModale onClose={() => setSupprimerOuvert(false)} />}
     </>
   )
 }

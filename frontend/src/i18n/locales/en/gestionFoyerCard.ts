@@ -17,7 +17,6 @@ const gestionFoyerCard: Structure<typeof fr> = {
   tropDeTentativesDeConnexion: "Too many recent failed login attempts",
   verrouilleJusquA: "Locked until",
   role: "Role",
-  supprimer: "Delete",
   nomDUtilisateur: "Username",
   motDePasse: "Password",
   membreDuFoyer: "Household member",
@@ -34,11 +33,17 @@ const gestionFoyerCard: Structure<typeof fr> = {
   derniereConnexion: "Last login {date}",
   sessionsActives: { one: "{n} active session", other: "{n} active sessions" },
   ariaRole: "Role of {nom}",
-  ariaSupprimerCompte: "Delete the account {nom}",
   inviterTitre: "Invite someone",
   inviterIntro: "Generate a link to send to the person: they create their account, or use the one they already have, and join this household with the chosen role. The link works only once and expires after the chosen duration.",
   creationDirecteTitre: "Create an account directly",
   creationDirecteIntro: "For someone without email or SSO (a child, for example): you choose their password. This account will belong to this household only.",
+  retirer: "Remove from household",
+  ariaRetirerDuFoyer: "Remove {nom} from the household",
+  retraitExplication: "Removing a member only takes them out of this household: their account is kept, and they can join another household.",
+  transfertTitre: "Transfer ownership",
+  transfertIntro: "Hand the household over to one of its members: they become the owner and you become a regular member. A guest cannot become the owner.",
+  transfertAucunMembre: "To transfer ownership, the household needs another member (a guest cannot become the owner): invite someone as a member first.",
+  transfertOuvrir: "Transfer ownership…",
 }
 
 export default gestionFoyerCard
