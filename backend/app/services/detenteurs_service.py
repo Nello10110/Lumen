@@ -14,6 +14,7 @@ from ..i18n import tr
 from ..models import (
     Detenteur,
     Holding,
+    InvitationPerimetre,
     LienPartage,
     Loan,
     PartageAcces,
@@ -99,6 +100,8 @@ def delete_detenteur(db: Session, detenteur: Detenteur) -> None:
     db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
     db.query(LienPartage).filter(LienPartage.detenteur_id == detenteur.id).delete(synchronize_session=False)
     db.query(PerimetreInvite).filter(PerimetreInvite.detenteur_id == detenteur.id).delete(synchronize_session=False)
+    # Idem pour le périmètre promis par une invitation en attente (§ BK.2b).
+    db.query(InvitationPerimetre).filter(InvitationPerimetre.detenteur_id == detenteur.id).delete(synchronize_session=False)
     db.delete(detenteur)
     db.commit()
 

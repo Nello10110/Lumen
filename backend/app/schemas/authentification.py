@@ -53,6 +53,15 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class FoyerResume(BaseModel):
+    """Un foyer du sélecteur : son nom (`None` tant qu'il n'en a pas) et le rôle du
+    compte DANS ce foyer."""
+
+    id: int
+    nom: str | None
+    role: str
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -88,6 +97,12 @@ class UserOut(BaseModel):
     # posée par `routers/auth.py` comme `foyer_nom` — l'interface s'y aligne dès la
     # connexion, sans appel supplémentaire.
     langue: str = "fr"
+    # Foyers (§ BK.2b) : ceux que le compte peut ouvrir (actifs seulement), et le foyer
+    # courant de SA session (`None` : session sans foyer). `peut_creer_foyer` : l'écran
+    # « aucun foyer » propose-t-il d'en créer un ? Posés par `routers/auth.py`.
+    foyers: list[FoyerResume] = []
+    foyer_courant_id: int | None = None
+    peut_creer_foyer: bool = False
 
 
 class AuthResponse(BaseModel):
@@ -237,3 +252,39 @@ class LangueFoyerUpdate(BaseModel):
     @classmethod
     def _valider(cls, v: str) -> str:
         return _valider_langue(v)
+
+
+class FoyerCourantUpdate(BaseModel):
+    foyer_id: int
+
+
+class FoyerCreate(BaseModel):
+    """Un compte sans foyer crée le sien. `langue` : celle de l'appareil, comme à
+    l'inscription du premier compte."""
+
+    nom: str | None = None
+    langue: str = "fr"
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if len(v) > 60:
+            raise ValueError(MESSAGE_NOM_FOYER_INVALIDE)
+        return v
+
+    @field_validator("langue")
+    @classmethod
+    def _valider_langue(cls, v: str) -> str:
+        return _valider_langue(v)
+
+
+class SuppressionCompteRequest(BaseModel):
+    """Confirmation par le nom d'utilisateur, comme la remise à zéro d'un foyer l'est par
+    son nom."""
+
+    confirmation: str

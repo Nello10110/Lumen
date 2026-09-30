@@ -37,6 +37,7 @@ import os
 import secrets
 import time
 from dataclasses import dataclass
+from typing import NamedTuple
 from urllib.parse import urlencode
 
 import requests
@@ -66,6 +67,8 @@ VARIABLES_OBLIGATOIRES = (
     VARIABLE_FRONTEND_URL,
 )
 
+DRAPEAU_INVITATION = "i"
+DRAPEAU_ORDINAIRE = "n"
 STATE_TTL_SECONDES = 300  # 5 minutes : largement suffisant pour l'aller-retour vers le fournisseur SSO
 SCOPES = "openid profile email"
 
@@ -88,6 +91,14 @@ _discovery_cache: dict[str, dict] = {}
 class OidcError(Exception):
     """Toute erreur du flux OIDC destinée à être affichée à l'utilisateur (message
     déjà en français, sûr à renvoyer tel quel dans `?oidc_error=`)."""
+
+
+class EtatVerifie(NamedTuple):
+    """Ce que porte un `state` authentique : le `code_verifier` PKCE, et le drapeau
+    « pour une invitation »."""
+
+    code_verifier: str
+    pour_invitation: bool
 
 
 @dataclass
@@ -159,34 +170,37 @@ def code_verifier_et_challenge() -> tuple[str, str]:
     return verifier, challenge
 
 
-def construire_state(code_verifier: str, client_secret: str) -> str:
+def construire_state(code_verifier: str, client_secret: str, *, pour_invitation: bool = False) -> str:
     """`state` auto-porteur et signé — aucune table ni session serveur nécessaire
     pour le vérifier au retour du fournisseur SSO (fonctionne même avec plusieurs
     workers). Signé avec `client_secret` (préoccupation propre à cette application,
     pas au fournisseur SSO) plutôt qu'une variable d'environnement dédiée. Format :
-    `nonce.horodatage.code_verifier.signature`, chaque partie en base64url."""
+    `nonce.horodatage.code_verifier.drapeau.signature`, chaque partie en base64url.
+    `drapeau` (`i` ou `n`, signé avec le reste) : la connexion sert à accepter une
+    invitation (§ BK.2b), un nouveau compte ne doit alors rejoindre ni créer aucun foyer."""
     nonce = secrets.token_urlsafe(16)
     horodatage = str(int(time.time()))
-    charge = f"{nonce}.{horodatage}.{code_verifier}"
+    charge = f"{nonce}.{horodatage}.{code_verifier}.{DRAPEAU_INVITATION if pour_invitation else DRAPEAU_ORDINAIRE}"
     signature = hmac.new(client_secret.encode("utf-8"), charge.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{charge}.{signature}"
 
 
-def verifier_state(state_recu: str, client_secret: str) -> str:
+def verifier_state(state_recu: str, client_secret: str) -> EtatVerifie:
     """Vérifie la signature (comparaison à temps constant) et la fraîcheur du
     `state` reçu. Renvoie le `code_verifier` PKCE encodé dedans, à réutiliser pour
-    l'échange de code. Lève `OidcError` sinon (jamais de détail technique exposé)."""
+    l'échange de code, et le drapeau d'invitation. Lève `OidcError` sinon (jamais de
+    détail technique exposé)."""
     parties = state_recu.split(".")
-    if len(parties) != 4:
+    if len(parties) != 5:
         raise OidcError("Connexion SSO invalide (state malformé). Réessayez.")
-    nonce, horodatage, code_verifier, signature_recue = parties
-    charge = f"{nonce}.{horodatage}.{code_verifier}"
+    nonce, horodatage, code_verifier, drapeau, signature_recue = parties
+    charge = f"{nonce}.{horodatage}.{code_verifier}.{drapeau}"
     signature_attendue = hmac.new(client_secret.encode("utf-8"), charge.encode("utf-8"), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature_recue, signature_attendue):
         raise OidcError("Connexion SSO invalide (state altéré). Réessayez.")
     if time.time() - int(horodatage) > STATE_TTL_SECONDES:
         raise OidcError("La connexion SSO a expiré. Réessayez.")
-    return code_verifier
+    return EtatVerifie(code_verifier, drapeau == DRAPEAU_INVITATION)
 
 
 def url_autorisation(config: OidcConfig, state: str, code_challenge: str) -> str:
@@ -248,7 +262,7 @@ def _nom_utilisateur_depuis_claims(claims: dict, claim_username: str) -> str:
     return (nettoye or "utilisateur")[:32] or "utilisateur"
 
 
-def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims: dict) -> User:
+def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims: dict, *, pour_invitation: bool = False) -> User:
     """1. `oidc_subject` déjà lié → ce compte, `email`/`nom` resynchronisés depuis les
        claims mappés (`config.claim_email`/`config.claim_nom`) à CHAQUE connexion —
        mais jamais `username`, qui reste l'identifiant de connexion figé après sa
@@ -266,7 +280,12 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
        hasard (§ BK.2 ; un compte SSO créera son propre foyer au lot BK.2d). Jamais un
        rôle plus privilégié auto-attribué à un compte non créé à la main. `username`
        dérivé du claim configuré (`config.claim_username`, une seule fois) ;
-       `email`/`nom` peuplés dès la création."""
+       `email`/`nom` peuplés dès la création.
+       `pour_invitation` (§ BK.2b, `state` signé) : la connexion sert à accepter une
+       invitation, qui donnera au compte son foyer et son rôle — un NOUVEAU compte est
+       alors créé SANS appartenance (sinon il rejoindrait le foyer unique avec le mauvais
+       rôle, ou en créerait un vide), et le nombre de foyers de l'installation ne compte
+       plus."""
     sub = claims["sub"]
     email = claims.get(config.claim_email)
     nom = claims.get(config.claim_nom)
@@ -285,8 +304,10 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
 
     # Le foyer à rejoindre se cherche parmi TOUS les foyers : c'est l'installation qui
     # décide, pas un foyer que le nouveau venu verrait déjà.
-    with database.tous_les_foyers_le_temps(db):
-        foyers = [foyer_id for (foyer_id,) in db.query(Foyer.id).limit(2).all()]
+    foyers: list[int] = []
+    if not pour_invitation:
+        with database.tous_les_foyers_le_temps(db):
+            foyers = [foyer_id for (foyer_id,) in db.query(Foyer.id).limit(2).all()]
     if len(foyers) > 1:
         # Rattacher un inconnu à l'un de plusieurs foyers, c'est lui ouvrir le
         # patrimoine d'une famille au hasard.
@@ -297,6 +318,8 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
         username_final = f"{username_souhaite[:29]}-{suffixe}"
         suffixe += 1
     user = auth_service.creer_utilisateur_oidc(db, username_final, sub, email=email, nom=nom)
+    if pour_invitation:
+        return user
     if foyers:
         auth_service.ajouter_au_foyer(db, user, foyers[0], ROLE_MEMBRE)
     else:

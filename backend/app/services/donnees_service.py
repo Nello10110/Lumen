@@ -60,6 +60,7 @@ from ..models import (
     Holding,
     HoldingImmobilierDetail,
     HoldingValuationHistory,
+    InvitationPerimetre,
     LienPartage,
     Loan,
     MouvementBancaire,
@@ -328,7 +329,15 @@ def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
     """Efface tout le patrimoine du foyer et ses réglages, nom, langue et assistant de
     bienvenue du propriétaire compris (cf. `CLE_ASSISTANT_PROPRIETAIRE`), enfants avant
     parents. Les caches, les comptes et les données sensibles (cf.
-    docstring de module) ne sont jamais touchés."""
+    docstring de module) ne sont jamais touchés.
+
+    Les périmètres d'invité (déjà accordés, ou promis par une invitation en attente)
+    désignent des détenteurs que cette suppression efface : ils partent d'abord. Laissés,
+    ils pointeraient vers un identifiant que SQLite redonne au prochain détenteur créé
+    (§ BI.4) — et Postgres refuserait la suppression (clé étrangère)."""
+    detenteurs = db.query(Detenteur.id).filter(Detenteur.user_id == user_id)
+    for modele in (PerimetreInvite, InvitationPerimetre):
+        db.query(modele).filter(modele.detenteur_id.in_(detenteurs.scalar_subquery())).delete(synchronize_session=False)
     ids_parents: dict[str, set[int]] = {}
     for table in TABLES:
         lignes = _lignes_du_foyer(db, table, user_id, ids_parents)
@@ -363,24 +372,21 @@ def reinitialiser_foyer(db: Session, user_id: int) -> None:
     silencieusement vers une donnée totalement différente créée plus tard.
 
     Les périmètres d'invité se retrouvent par leur détenteur : `PerimetreInvite.user_id`
-    est le compte de l'invité, qui peut l'être d'autres foyers (§ BK.2).
+    est le compte de l'invité, qui peut l'être d'autres foyers (§ BK.2). Les invitations
+    elles-mêmes restent : seul le périmètre qu'elles promettaient disparaît.
 
     Ne touche JAMAIS `users`/`auth_tokens`/`access_log_entries` : les comptes
     utilisateurs et le journal d'accès survivent à une remise à zéro des données,
     par décision explicite de l'utilisateur (seules les données comptables sont
     effacées)."""
     try:
-        # Liens et périmètres d'abord : ils désignent des détenteurs que la suppression
-        # du patrimoine efface. Dans l'ordre inverse, Postgres refusait la remise à zéro
-        # entière (clé étrangère) ; SQLite, qui ne vérifie pas les clés, laissait passer
-        # (§ BI.4).
+        # Liens d'abord (les périmètres, eux, partent en tête de `_supprimer_donnees_du_foyer`) :
+        # ils désignent des détenteurs que la suppression du patrimoine efface. Dans
+        # l'ordre inverse, Postgres refusait la remise à zéro entière (clé étrangère) ;
+        # SQLite, qui ne vérifie pas les clés, laissait passer (§ BI.4).
         liens = db.query(LienPartage.id).filter(LienPartage.user_id == user_id)
         db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
         db.query(LienPartage).filter(LienPartage.user_id == user_id).delete(synchronize_session=False)
-        detenteurs = db.query(Detenteur.id).filter(Detenteur.user_id == user_id)
-        db.query(PerimetreInvite).filter(PerimetreInvite.detenteur_id.in_(detenteurs.scalar_subquery())).delete(
-            synchronize_session=False
-        )
         _supprimer_donnees_du_foyer(db, user_id)
         db.commit()
     except Exception:
