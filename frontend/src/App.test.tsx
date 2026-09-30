@@ -37,6 +37,12 @@ vi.mock('./api/client', () => ({
     getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     listHoldings: vi.fn().mockResolvedValue([]),
     completeOnboarding: vi.fn(),
+    // Invitations et foyers (backlog § BK.2b) : acceptation au retour d'un SSO, page
+    // publique `/invitation`, sélecteur, « Quitter ce foyer » — résolutions neutres.
+    accepterInvitation: vi.fn(),
+    consulterInvitation: vi.fn(),
+    changerFoyerCourant: vi.fn(),
+    quitterFoyer: vi.fn(),
     // Jalons personnels (backlog § AG.3) : `App` (propriétaire uniquement) les
     // consulte une fois par connexion pour d'éventuelles célébrations — non
     // testé ici, résolution neutre (aucun jalon nouveau).
@@ -377,6 +383,168 @@ describe('App — assistant de configuration initiale (welcome board)', () => {
 
 // Backlog § BL : une fois connecté, c'est la langue du FOYER qui s'applique —
 // celle de l'appareil ne valait que pour l'écran de connexion.
+describe('App — foyers et invitations (backlog § BK.2b)', () => {
+  const FOYERS = [
+    { id: 11, nom: 'Famille Dupont', role: 'proprietaire' as const },
+    { id: 12, nom: 'Chez Sophie', role: 'invite' as const },
+  ]
+
+  beforeEach(() => {
+    sessionStorage.clear()
+    vi.mocked(api.accepterInvitation).mockReset()
+    vi.mocked(api.consulterInvitation).mockReset()
+  })
+
+  it("un compte sans foyer voit l'écran « aucun foyer », pas l'application", async () => {
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1, username: 'sophie', role: null, onboarding_termine: false, holdings_sans_compte: 0, foyers: [], peut_creer_foyer: true,
+    })
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: "Vous n'appartenez à aucun foyer" })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Navigation principale' })).not.toBeInTheDocument()
+  })
+
+  it("le sélecteur de foyer n'apparaît qu'à partir de deux foyers", async () => {
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1, username: 'paul', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0,
+      foyers: [FOYERS[0]], foyer_courant_id: 11,
+    })
+    const { unmount } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('link', { name: 'Lumen' })
+    expect(screen.queryByRole('combobox', { name: 'Foyer courant' })).not.toBeInTheDocument()
+    unmount()
+
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1, username: 'paul', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0,
+      foyers: FOYERS, foyer_courant_id: 11,
+    })
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('combobox', { name: 'Foyer courant' })).toHaveValue('11')
+  })
+
+  it("« Quitter ce foyer » est proposé à un membre ou un invité, jamais au propriétaire", async () => {
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1, username: 'sophie', role: 'membre', onboarding_termine: true, holdings_sans_compte: 0,
+      foyers: [{ id: 11, nom: 'Famille Dupont', role: 'membre' }], foyer_courant_id: 11,
+    })
+    const { unmount } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'sophie' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Quitter ce foyer' }))
+    expect(await screen.findByRole('heading', { name: 'Quitter ce foyer ?' })).toBeInTheDocument()
+    unmount()
+
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1, username: 'paul', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0,
+      foyers: [FOYERS[0]], foyer_courant_id: 11,
+    })
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'paul' }))
+    await screen.findByRole('menu', { name: 'Menu du compte' })
+    expect(screen.queryByRole('menuitem', { name: 'Quitter ce foyer' })).not.toBeInTheDocument()
+  })
+
+  it("au retour d'un SSO lancé depuis /invitation, accepte le jeton gardé, l'oublie, et montre l'accueil", async () => {
+    sessionStorage.setItem('lumen.invitation-en-attente', JSON.stringify({ jeton: 'jeton-sso', apresSso: true }))
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1, username: 'sophie', role: null, onboarding_termine: false, holdings_sans_compte: 0, foyers: [],
+    })
+    vi.mocked(api.accepterInvitation).mockResolvedValue({
+      id: 1, username: 'sophie', role: 'membre', onboarding_termine: true, holdings_sans_compte: 0, foyer_nom: 'Famille Dupont',
+    })
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Bienvenue dans le foyer Famille Dupont' })).toBeInTheDocument()
+    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton-sso')
+    expect(sessionStorage.getItem('lumen.invitation-en-attente')).toBeNull()
+    expect(screen.queryByRole('heading', { name: "Vous n'appartenez à aucun foyer" })).not.toBeInTheDocument()
+  })
+
+  it("une invitation refusée au retour d'un SSO laisse l'écran « aucun foyer » avec son message", async () => {
+    sessionStorage.setItem('lumen.invitation-en-attente', JSON.stringify({ jeton: 'jeton-mort', apresSso: true }))
+    vi.mocked(api.getMe).mockResolvedValue({
+      id: 1, username: 'sophie', role: null, onboarding_termine: false, holdings_sans_compte: 0, foyers: [],
+    })
+    vi.mocked(api.accepterInvitation).mockRejectedValue(new Error('Invitation introuvable, expirée ou déjà utilisée.'))
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Invitation introuvable, expirée ou déjà utilisée.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: "Vous n'appartenez à aucun foyer" })).toBeInTheDocument()
+  })
+
+  it("un jeton simplement gardé (lien ouvert puis abandonné) n'est JAMAIS accepté par une connexion", async () => {
+    sessionStorage.setItem('lumen.invitation-en-attente', JSON.stringify({ jeton: 'jeton-oublie', apresSso: false }))
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('link', { name: 'Lumen' })
+    expect(api.accepterInvitation).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('lumen.invitation-en-attente')).not.toBeNull()
+  })
+
+  it("un retour de SSO sans session efface le jeton armé, pour ne pas l'accepter à une connexion ultérieure", async () => {
+    sessionStorage.setItem('lumen.invitation-en-attente', JSON.stringify({ jeton: 'jeton-sso', apresSso: true }))
+    localStorage.removeItem('patrimoine_auth_token')
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByLabelText("Nom d'utilisateur")).toBeInTheDocument()
+    expect(api.accepterInvitation).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('lumen.invitation-en-attente')).toBeNull()
+  })
+
+  it('/invitation est une page publique : accessible sans connexion, sans écran de connexion', async () => {
+    localStorage.removeItem('patrimoine_auth_token')
+    window.history.replaceState(null, '', '/invitation#jeton_public-1')
+    const appelsGetMeAvant = vi.mocked(api.getMe).mock.calls.length
+    vi.mocked(api.consulterInvitation).mockResolvedValue({ foyer_nom: 'Famille Dupont', role: 'membre', libelle: null, langue: 'fr' })
+    render(
+      <MemoryRouter initialEntries={['/invitation']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Famille Dupont vous invite/)).toBeInTheDocument()
+    expect(vi.mocked(api.getMe).mock.calls.length).toBe(appelsGetMeAvant)
+    expect(api.consulterInvitation).toHaveBeenCalledWith('jeton_public-1')
+    window.history.replaceState(null, '', '/')
+  })
+})
+
 describe('App — langue du foyer', () => {
   afterEach(async () => {
     const { activerLangue } = await import('./i18n')

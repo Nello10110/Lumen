@@ -37,6 +37,10 @@ import type {
   HoldingUpdateInput,
   HouseholdMember,
   HouseholdMemberInput,
+  ApercuInvitation,
+  Invitation,
+  InvitationCreee,
+  InvitationInput,
   DernierImport,
   ImportPreview,
   IndicateursSituation,
@@ -120,6 +124,19 @@ function estRoutePublique(path: string): boolean {
   return path.startsWith('/auth/') || path.startsWith('/partage-public/')
 }
 
+/** Erreur renvoyée par le serveur : le message est le `detail` de la réponse, `status`
+ * son code HTTP. Une sous-classe d'`Error` (aucun appelant existant n'a à changer) pour
+ * les écrans qui doivent distinguer un cas précis — la page d'invitation, par exemple,
+ * traite un 404 (« lien invalide ») autrement qu'une coupure réseau. */
+export class ErreurApi extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ErreurApi'
+    this.status = status
+  }
+}
+
 // Fetch + gestion d'erreur commune à `request` (JSON) et `requestBlob` (PDF
 // généré côté serveur, backlog 2.Q.2) : seule la lecture du corps en cas de succès
 // diffère entre les deux, tout le reste (jeton, 401, message d'erreur) doit rester
@@ -151,7 +168,7 @@ async function fetchApi(path: string, options?: RequestInit): Promise<Response> 
     } catch {
       // Corps de réponse absent ou non-JSON : pas de `detail` à récupérer.
     }
-    throw new Error(detail ?? messageGenerique(res.status, res.statusText))
+    throw new ErreurApi(detail ?? messageGenerique(res.status, res.statusText), res.status)
   }
   return res
 }
@@ -235,6 +252,34 @@ export const api = {
   updateFoyerNom: (nom: string) => request<AuthUser>('/auth/foyer', { method: 'PATCH', body: JSON.stringify({ nom }) }),
   updateLangueFoyer: (langue: string) =>
     request<AuthUser>('/auth/foyer/langue', { method: 'PATCH', body: JSON.stringify({ langue }) }),
+
+  // Appartenance à plusieurs foyers (backlog § BK.2b). Le foyer courant est celui de la
+  // SESSION : la bascule ne touche pas les autres appareils du compte.
+  changerFoyerCourant: (foyerId: number) =>
+    request<AuthUser>('/auth/foyer-courant', { method: 'PUT', body: JSON.stringify({ foyer_id: foyerId }) }),
+  quitterFoyer: () => request<AuthUser>('/auth/quitter-foyer', { method: 'POST' }),
+  // Compte sans foyer : crée le sien (`langue` : celle de l'appareil).
+  creerFoyer: (nom: string | null, langue: string) =>
+    request<AuthUser>('/auth/foyers', { method: 'POST', body: JSON.stringify({ nom, langue }) }),
+  // `confirmation` : le nom d'utilisateur du compte. Refusé tant que le compte appartient à un foyer.
+  supprimerMonCompte: (confirmation: string) =>
+    request<void>('/auth/compte/supprimer', { method: 'POST', body: JSON.stringify({ confirmation }) }),
+
+  // Invitations : côté propriétaire, puis routes publiques (le jeton voyage dans le
+  // CORPS, jamais dans l'URL) et acceptation par un compte connecté.
+  listInvitations: () => request<Invitation[]>('/invitations'),
+  createInvitation: (payload: InvitationInput) =>
+    request<InvitationCreee>('/invitations', { method: 'POST', body: JSON.stringify(payload) }),
+  revoquerInvitation: (id: number) => request<void>(`/invitations/${id}`, { method: 'DELETE' }),
+  consulterInvitation: (jeton: string) =>
+    request<ApercuInvitation>('/invitations/consulter', { method: 'POST', body: JSON.stringify({ jeton }) }),
+  accepterInvitationNouveauCompte: (jeton: string, username: string, password: string) =>
+    request<AuthResponse>('/invitations/accepter-nouveau-compte', {
+      method: 'POST',
+      body: JSON.stringify({ jeton, username, password }),
+    }),
+  accepterInvitation: (jeton: string) =>
+    request<AuthUser>('/invitations/accepter', { method: 'POST', body: JSON.stringify({ jeton }) }),
 
   // Sessions et journal d'accès (backlog 2.L.2).
   listSessions: () => request<Session[]>('/auth/sessions'),

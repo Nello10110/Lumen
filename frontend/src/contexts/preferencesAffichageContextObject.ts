@@ -1,6 +1,10 @@
 import { createContext } from 'react'
 import type { Periode } from '../utils/periode'
 
+/** Clé de `localStorage` du détenteur filtré : propre à un foyer (ses identifiants), donc
+ * à effacer quand on change de foyer (`auth/changementFoyer.ts`). */
+export const CLE_DETENTEUR = 'patrimoine:detenteur-id'
+
 export type Lentille = 'net' | 'brut' | 'financier'
 
 export interface PreferencesAffichageContextValue {

@@ -126,7 +126,7 @@ export function Field({
 export function Input({
   className = '',
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: React.ComponentProps<'input'>) {
   return <input {...props} className={`${BASE_CHAMP} ${className}`} />
 }
 

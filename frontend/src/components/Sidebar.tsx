@@ -7,6 +7,7 @@ import LumenFaitAmusant from './LumenFaitAmusant'
 import LumenMark from './LumenMark'
 import MenuCompte from './MenuCompte'
 import PaletteRecherche from './PaletteRecherche'
+import SelecteurFoyer from './SelecteurFoyer'
 import { t } from '../i18n'
 
 // Easter egg (backlog § AD.5, 15/09/2026) : 5 clics sur le logo dans cette fenêtre
@@ -65,6 +66,11 @@ export default function Sidebar() {
       </div>
 
       {faitAmusantVisible && <LumenFaitAmusant onFermer={fermerFaitAmusant} />}
+
+      {/* Sélecteur de foyer (backlog § BK.2b) : en tête de la barre, avant tout
+          écran, puisque changer de foyer change les données de TOUS. Rien n'est
+          rendu tant que le compte n'a qu'un foyer. */}
+      <SelecteurFoyer className="pb-2" />
 
       <div className="pb-2">
         <PaletteRecherche />

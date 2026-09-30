@@ -1,0 +1,32 @@
+/** Textes français — espace « sectionInvitations » (backlog § BK.2b). */
+const sectionInvitations = {
+  statutEnAttente: "En attente",
+  statutAcceptee: "Acceptée",
+  statutRevoquee: "Révoquée",
+  statutExpiree: "Expirée",
+  role: "Rôle proposé",
+  duree: "Validité du lien",
+  jours: { one: "{n} jour", other: "{n} jours" },
+  libelle: "Pour qui ? (facultatif)",
+  libellePlaceholder: "Ex. : Sophie, ma sœur",
+  perimetre: "Détenteurs que l'invité pourra consulter",
+  aucunDetenteur: "Aucun détenteur déclaré : un invité ne verrait rien. Déclare-les dans l'onglet Détenteurs.",
+  creer: "Créer l'invitation",
+  lienPret: "Le lien d'invitation est prêt.",
+  lienUneSeuleFois: "Copie-le maintenant : il ne sera plus affiché ensuite. Transmets-le toi-même à la personne (message, e-mail…). Il ne sert qu'une fois.",
+  lienAria: "Lien d'invitation",
+  copier: "Copier le lien",
+  copie: "Lien copié",
+  masquer: "Masquer",
+  copieImpossible: "Copie automatique impossible ici : sélectionne le lien et copie-le à la main.",
+  valableJusquAu: "Valable jusqu'au {date}.",
+  titreListe: "Invitations",
+  aucuneInvitation: "Aucune invitation pour l'instant.",
+  acceptePar: "Acceptée par {nom} le {date}",
+  accepteLe: "Acceptée le {date}",
+  creeeExpire: "Créée le {cree} · expire le {expire}",
+  revoquer: "Révoquer",
+  revoquerAria: "Révoquer l'invitation {nom}",
+} as const
+
+export default sectionInvitations

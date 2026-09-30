@@ -111,6 +111,7 @@ const fr = {
       preferences: 'Préférences',
       detenteurs: 'Détenteurs du foyer',
       comptes: 'Comptes',
+      inviter: "Inviter les membres du foyer",
       demarrage: 'Démarrer le portefeuille',
       termine: 'Terminé',
     },
@@ -138,6 +139,8 @@ const fr = {
       sansEtablissement: 'Sans établissement',
       supprimer: 'Supprimer',
     },
+    inviter:
+      "Les autres membres du foyer (conjoint, enfants, un proche en consultation…) peuvent avoir leur propre compte : invite-les avec un lien, à leur transmettre toi-même. Cette étape est facultative, tu pourras inviter quand tu veux depuis Réglages → Comptes & sécurité.",
     demarrage: {
       dejaAvant: 'Le portefeuille compte déjà',
       positions: { one: '{n} position', other: '{n} positions' },

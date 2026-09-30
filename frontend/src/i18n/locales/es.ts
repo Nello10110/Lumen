@@ -102,6 +102,7 @@ const es: Dictionnaire = {
       preferences: 'Preferencias',
       detenteurs: 'Titulares del hogar',
       comptes: 'Cuentas',
+      inviter: "Invitar a los miembros del hogar",
       demarrage: 'Empezar la cartera',
       termine: 'Listo',
     },
@@ -129,6 +130,8 @@ const es: Dictionnaire = {
       sansEtablissement: 'Sin entidad',
       supprimer: 'Eliminar',
     },
+    inviter:
+      "Los demás miembros del hogar (pareja, hijos, un familiar en modo consulta…) pueden tener su propia cuenta: invítalos con un enlace que les envías tú mismo. Este paso es opcional; podrás invitar cuando quieras desde Ajustes → Cuentas y seguridad.",
     demarrage: {
       dejaAvant: 'La cartera ya tiene',
       positions: { one: '{n} posición', other: '{n} posiciones' },

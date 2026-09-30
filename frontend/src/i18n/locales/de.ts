@@ -102,6 +102,7 @@ const de: Dictionnaire = {
       preferences: 'Einstellungen',
       detenteurs: 'Personen im Haushalt',
       comptes: 'Konten',
+      inviter: "Haushaltsmitglieder einladen",
       demarrage: 'Portfolio beginnen',
       termine: 'Fertig',
     },
@@ -129,6 +130,8 @@ const de: Dictionnaire = {
       sansEtablissement: 'Ohne Institut',
       supprimer: 'Löschen',
     },
+    inviter:
+      "Die anderen Mitglieder des Haushalts (Partner, Kinder, ein Angehöriger mit reinem Leserecht …) können ein eigenes Konto haben: Lade sie mit einem Link ein, den du ihnen selbst schickst. Dieser Schritt ist optional; du kannst jederzeit unter Einstellungen → Konten & Sicherheit einladen.",
     demarrage: {
       dejaAvant: 'Das Portfolio enthält bereits',
       positions: { one: '{n} Position', other: '{n} Positionen' },

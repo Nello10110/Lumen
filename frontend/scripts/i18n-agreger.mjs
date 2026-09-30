@@ -5,8 +5,9 @@
  * échoue : impossible d'oublier de traduire un écran migré. */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const RACINE = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', 'src', 'i18n', 'locales')
+const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'i18n', 'locales')
 const LANGUES = ['fr', 'en', 'es', 'de', 'it']
 const espaces = fs
   .readdirSync(path.join(RACINE, 'fr'))

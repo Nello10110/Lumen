@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) prochain lot |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) serveur et interface réalisés, vérification par la CI Postgres à venir |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -100,7 +100,7 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
 - **BK.1 — le déploiement Postgres** (compose, image, sauvegardes) : `traité (29/09/2026)`, vérifié par la CI ;
 - **BK.2 — la gestion des foyers** : comment un foyer naît, vit et disparaît sur une installation
   partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) `traité (30/09/2026)`, vérifié par la CI
-  Postgres ; prochain lot BK.2b, puis BK.2c à BK.2e** (§ BK.2, point 9).
+  Postgres ; lot BK.2b réalisé (serveur et interface), puis BK.2c à BK.2e** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7076,8 +7076,8 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 #### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
 
 **État au 30/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
-détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** : **partie serveur
-réalisée** (« Lot BK.2b — réalisé (serveur) »), interface et vérification par la CI Postgres à venir ; puis BK.2c à BK.2e (§ 9).
+détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** : **serveur et interface
+réalisés** (« Lot BK.2b — réalisé »), vérification par la CI Postgres à venir ; puis BK.2c à BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7553,12 +7553,11 @@ encore d'usage applicatif, et rien ne suspend encore un foyer (`statut` est lu, 
 BK.2d ; le renommage `user_id` → `foyer_id` (BK.2e). Un compte laissé sans foyer par la migration voit
 une application vide (403 sur les données) jusqu'à l'écran « aucun foyer » de BK.2b.
 
-##### Lot BK.2b — réalisé (serveur, 30/09/2026)
+##### Lot BK.2b — réalisé (serveur et interface, 30/09/2026)
 
-Partie serveur du lot « Invitations et appartenance multiple » (§ 9) ; l'interface (page `/invitation`,
-sélecteur de foyer, écran « aucun foyer », « Quitter ce foyer », étape d'assistant « Inviter ») reste à faire.
-Vérifié sous SQLite (suite backend complète) ; les tests Postgres (`test_separation_foyers.py`, étendu) tournent
-en CI.
+Lot « Invitations et appartenance multiple » (§ 9) : la partie serveur d'abord, puis l'interface (« Interface »
+plus bas). Vérifié sous SQLite (suite backend complète, suite Vitest, E2E Playwright) ; les tests Postgres
+(`test_separation_foyers.py`, étendu) et l'E2E sous Postgres tournent en CI.
 
 **Ce qui change.**
 
@@ -7621,6 +7620,49 @@ dernier foyer, propriétaire, création de foyer et réglage, suppression de son
 fiche, SSO avec drapeau) ; `test_migration_invitations.py` ; `test_separation_foyers.py` étendu
 (Postgres : un foyer ne voit pas les invitations d'un autre, écriture croisée refusée, consultation et
 acceptation sans périmètre). Les fixtures `client_jetons` et `jeton_de_session` passent dans `conftest.py`.
+
+**Interface (frontend).**
+
+- **Page publique `/invitation`** (`pages/InvitationPage.tsx`, hors `AuthProvider`, route déclarée dans `App.tsx`
+  à côté de `/partage/:token`). Jeton lu dans le fragment, gardé en `sessionStorage` (`auth/invitationEnAttente.ts`),
+  fragment retiré par `history.replaceState`, puis `POST /api/invitations/consulter`. 404 → « lien invalide, expiré ou
+  déjà utilisé » ; autre erreur → message du serveur. Trois voies (nouveau compte avec confirmation du mot de passe ;
+  « J'ai déjà un compte » = connexion puis acceptation du jeton gardé ; SSO avec `?invitation=true`) et, pour un
+  compte déjà connecté (`GET /api/auth/me` sur le jeton local), « Rejoindre ce foyer » d'un clic. La page s'affiche
+  dans la langue du foyer qui invite, sans la retenir sur l'appareil. Court accueil (`AccueilFoyer`) après
+  acceptation, puis rechargement complet ; pas d'assistant de bienvenue.
+- **Retour d'un SSO** (`useInvitationAcceptee`, `App.tsx`, tenu au-dessus de la `key={langue}` qui remonte le
+  contenu) : le jeton n'est accepté que s'il a été **armé** pour un retour SSO (`armerRetourSso`) ; un jeton
+  simplement gardé n'est jamais accepté par une connexion ordinaire ; un retour sans session efface le jeton armé ;
+  une seule tentative, le jeton est effacé avant l'appel. Un refus s'affiche sur l'écran « aucun foyer ».
+- **Sélecteur de foyer** (`SelecteurFoyer`) : en tête de `Sidebar`, et dans la feuille de réglages d'`EnTeteMobile` ;
+  absent à moins de deux foyers. `PUT /api/auth/foyer-courant` puis `rechargerApplication()`
+  (`auth/changementFoyer.ts` : efface le détenteur filtré de `localStorage`, propre à un foyer, puis navigue vers `/`)
+  — aucun état ni cache de module de l'ancien foyer ne survit.
+- **Écran « aucun foyer »** (`pages/AucunFoyerPage.tsx`), affiché à la place de l'application quand
+  `AuthUser.role === null` (foyer courant absent) : coller un lien complet ou un jeton seul (`utils/invitation.ts`),
+  foyers restants du compte le cas échéant, « Créer mon foyer » si `peut_creer_foyer`, « Supprimer mon compte »
+  (confirmation par saisie du nom d'utilisateur), déconnexion.
+- **Réglages** : `GestionFoyerCard` devient « Membres et invitations » ; `SectionInvitations` (formulaire rôle /
+  détenteurs d'un invité / durée / libellé, lien affiché une seule fois avec « Copier le lien », liste des invitations
+  avec statut, auteur de l'acceptation et révocation) est partagée avec la nouvelle étape « Inviter les membres du
+  foyer » de l'assistant de bienvenue (après « Comptes », facultative). La création directe d'un compte est conservée.
+- **Quitter ce foyer** (`QuitterFoyerModale`) : pour un membre ou un invité, dans `MenuCompte` et `MenuPlusSheet`,
+  avec confirmation et avertissement s'il s'agit du dernier foyer (le compte n'est pas supprimé).
+- **Client API** : `ErreurApi` (sous-classe d'`Error` portant `status`) pour distinguer un 404 d'une coupure réseau ;
+  types `Invitation`, `InvitationCreee`, `ApercuInvitation`, `FoyerResume` ; `AuthUser` gagne `foyers`,
+  `foyer_courant_id`, `peut_creer_foyer` (facultatifs côté type).
+- **i18n** : 6 nouveaux espaces (`accueilFoyer`, `aucunFoyer`, `invitationPage`, `quitterFoyer`, `sectionInvitations`,
+  `selecteurFoyer`) et des ajouts à `gestionFoyerCard` et à `assistant`, dans les cinq langues. Le script
+  `scripts/i18n-agreger.mjs` échouait sous Windows (chemin issu de `URL.pathname`) : corrigé par `fileURLToPath`.
+- **Tests** : Vitest (page d'invitation — fragment lu puis effacé, jeton gardé, 404, création, connexion, SSO, compte déjà
+  connecté ; sélecteur caché à un foyer et bascule ; écran « aucun foyer » ; formulaire et liste des invitations ; quitter ;
+  utilitaires ; scénarios de `App` dont le retour SSO) ; E2E `e2e/invitations.spec.ts` (le propriétaire invite, un navigateur
+  vierge crée son compte et voit les données, lien à usage unique ; puis quitter, créer son foyer, seconde invitation acceptée
+  par le compte existant, sélecteur, bascule qui change les données, retour et nettoyage).
+- **Écarts assumés** : « Quitter ce foyer » vit dans le menu du compte et non dans Réglages, que ni un membre ni un
+  invité ne voient ; la page d'invitation et l'écran « aucun foyer » vouvoient (comme l'écran de connexion), Réglages et
+  l'assistant tutoient.
 
 **Gardé pour plus tard, volontairement** : aucune interface pour le réglage `creation_foyer_par_compte_sans_foyer`
 (lot BK.2d) ; les invitations à créer un foyer (`foyer_id` vide) et le mode « sur invitation » (BK.2d) ; le

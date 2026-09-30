@@ -1,7 +1,7 @@
 /** Textes français — espace « gestionFoyerCard » (backlog § BL.2). Généré par
  * `scripts/i18n-extraire.mjs`, puis relu à la main. */
 const gestionFoyerCard = {
-  comptesDuFoyer: "Comptes du foyer",
+  comptesDuFoyer: "Membres et invitations",
   unMembrePeutConsulterEt: "Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les indicateurs de situation ni la sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des détenteurs qui lui sont assignés ci-dessous.",
   aucunCompteAAfficher: "Aucun compte à afficher.",
   ajouteUnMembreOuUn: "Ajoute un membre ou un invité avec le formulaire ci-dessous.",
@@ -33,6 +33,10 @@ const gestionFoyerCard = {
   sessionsActives: { one: "{n} session active", other: "{n} sessions actives" },
   ariaRole: "Rôle de {nom}",
   ariaSupprimerCompte: "Supprimer le compte {nom}",
+  inviterTitre: "Inviter quelqu'un",
+  inviterIntro: "Génère un lien à transmettre à la personne : elle crée son compte, ou utilise celui qu'elle a déjà, et rejoint ce foyer avec le rôle choisi. Le lien ne sert qu'une fois et expire au bout de la durée choisie.",
+  creationDirecteTitre: "Créer directement un compte",
+  creationDirecteIntro: "Pour quelqu'un sans e-mail ni SSO (un enfant, par exemple) : tu choisis son mot de passe. Ce compte n'appartiendra qu'à ce foyer.",
 } as const
 
 export default gestionFoyerCard

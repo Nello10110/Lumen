@@ -482,8 +482,11 @@ conduire directement, et le retour du navigateur restitue l'onglet précédent.
 À la création du tout premier compte (propriétaire) d'une instance neuve, un assistant de
 configuration initiale s'affiche à la place de l'application : bienvenue — avec, en tête de cette
 toute première page, le **choix de la langue** du foyer —, méthode de calcul du
-coût de revient, détenteurs du foyer, établissements et comptes, puis les deux façons de démarrer
-le portefeuille (import de transactions ou saisie manuelle). Chaque étape peut être passée ;
+coût de revient, détenteurs du foyer, établissements et comptes, **inviter les membres du foyer**
+(facultatif, cf. « Onglet Comptes & sécurité »), puis les deux façons de démarrer
+le portefeuille (import de transactions ou saisie manuelle). Le propriétaire d'un foyer qu'il crée
+lui-même (cf. « Compte sans foyer ») voit lui aussi cet assistant ; un membre ou un invité qui rejoint un
+foyer existant, non : il voit seulement un court accueil. Chaque étape peut être passée ;
 "Passer l'assistant" comme "Terminer" marquent le parcours comme fait — il ne réapparaît plus aux
 connexions suivantes.
 Rejouable à tout moment via le bouton **Revoir l'assistant de bienvenue** en haut de l'onglet
@@ -565,18 +568,74 @@ peuvent pas porter le même nom.
 
 Section visible uniquement par le propriétaire du compte.
 
-- **Comptes du foyer** : le propriétaire crée les comptes des autres membres du foyer (nom
-  d'utilisateur, mot de passe, rôle). Un **membre** peut consulter et saisir des actifs, emprunts et
-  transactions comme le propriétaire, mais pas voir les indicateurs de situation ni modifier la sécurité. Un **invité**
-  ne voit, en lecture seule, que le patrimoine net et le portefeuille des personnes qui lui
-  sont explicitement assignées (aucun accès par défaut tant qu'aucun détenteur n'est coché).
-  Il n'existe plus d'inscription libre au-delà du tout premier compte du serveur.
+- **Membres et invitations** : la carte liste les comptes du foyer (avec leur rôle, leur mode de
+  connexion, leur dernière connexion) et permet d'ajouter du monde de deux façons.
+  Un **membre** peut consulter et saisir des actifs, emprunts et transactions comme le propriétaire, mais
+  pas voir les indicateurs de situation ni modifier la sécurité. Un **invité** ne voit, en lecture seule,
+  que le patrimoine net et le portefeuille des personnes qui lui sont explicitement assignées (aucun accès
+  par défaut tant qu'aucun détenteur n'est coché). Il n'existe pas d'inscription libre : on entre dans un
+  foyer par invitation, ou parce que le propriétaire crée le compte.
+  - **Inviter quelqu'un** (voir la section « Inviter, rejoindre un foyer » plus bas).
+  - **Créer directement un compte** (nom d'utilisateur, mot de passe, rôle) : pour quelqu'un sans
+    adresse e-mail ni SSO, un enfant par exemple. Ce compte n'appartient qu'à ce foyer.
 - **Sessions actives** : chaque appareil ou navigateur connecté avec ce compte, avec sa dernière
   activité. « Révoquer » déconnecte immédiatement cet appareil précis, sans toucher aux autres — la
   session en cours d'utilisation ne peut pas se révoquer elle-même.
 - **Journal d'accès** : historique des connexions et déconnexions (réussies ou non), avec l'adresse
   IP d'origine — utile pour repérer une tentative de connexion suspecte. Après 5 mots de passe
   erronés en 15 minutes, le compte concerné est verrouillé 15 minutes, même avec le bon mot de passe.
+
+#### Inviter, rejoindre un foyer
+
+**Inviter (propriétaire).** Dans *Membres et invitations* : choisir le **rôle** (membre ou invité), pour
+un invité les **détenteurs** qu'il pourra consulter, la **durée de validité du lien** (1, 7 ou 30 jours ;
+7 par défaut) et, si l'on veut, un **libellé** (« Sophie, ma sœur ») pour s'y retrouver. « Créer
+l'invitation » produit un **lien**. **Il n'est affiché qu'une seule fois** : le serveur n'en garde
+qu'une empreinte et ne peut pas le redonner — copiez-le tout de suite (« Copier le lien ») et
+transmettez-le vous-même (message, e-mail…). Si vous le perdez, révoquez l'invitation et
+créez-en une nouvelle. Le lien ne sert qu'**une fois** et le rôle est figé à la création. La liste en dessous
+montre chaque invitation — en attente, acceptée (et par quel compte), révoquée ou expirée — et permet de
+**révoquer** celles qui sont en attente.
+
+**Rejoindre (invité).** Le lien ouvre une page publique qui indique le foyer, le rôle proposé et le
+libellé. Trois voies :
+
+- **créer un compte** (nom d'utilisateur, mot de passe, confirmation) : le compte est créé, membre du
+  foyer, et l'on entre directement ;
+- **« J'ai déjà un compte »** : connexion, puis le foyer s'ajoute à ceux du compte ;
+- **connexion SSO**, si ce déploiement en propose une.
+
+Un compte déjà connecté qui ouvre le lien n'a qu'à cliquer « Rejoindre ce foyer ». Dans tous les cas,
+un court **accueil** rappelle le nom du foyer et votre rôle, puis l'application s'ouvre — pas l'assistant
+de bienvenue. Un lien invalide, expiré, révoqué ou déjà utilisé donne le même message (« invalide, expiré
+ou déjà utilisé ») : il faut en demander un nouveau.
+
+Le jeton est dans la partie de l'adresse qui suit le « # » : elle n'est jamais envoyée au serveur, et la
+page l'efface de la barre d'adresse dès qu'elle l'a lu.
+
+**Plusieurs foyers, changer de foyer.** Un même compte peut appartenir à plusieurs foyers, avec un rôle
+différent dans chacun (invité chez l'un, propriétaire de l'autre). À partir de deux foyers, un
+**sélecteur de foyer** apparaît en haut de la barre latérale (sur mobile, dans la feuille de réglages
+d'affichage de l'en-tête) : nom et rôle de chaque foyer. Choisir un foyer recharge toute l'application,
+pour qu'aucune donnée de l'ancien foyer ne reste affichée. Le foyer courant est propre à chaque appareil
+connecté.
+
+**Quitter un foyer.** Un membre ou un invité peut quitter son foyer depuis le **menu du compte** (en bas
+de la barre latérale, ou « Plus » sur mobile) : « Quitter ce foyer », avec confirmation. Les données restent
+au foyer ; pour y revenir, il faudra une nouvelle invitation. Le propriétaire, lui, ne peut pas quitter son
+foyer. Si c'est **votre dernier foyer**, la confirmation le dit : votre compte n'est pas supprimé, mais vous
+n'aurez plus accès à aucune donnée tant que vous n'aurez pas rejoint ou créé un foyer.
+
+**Compte sans foyer.** Un compte qui n'appartient (ou n'appartient plus) à aucun foyer se connecte, mais
+voit l'écran **« Vous n'appartenez à aucun foyer »**, sans aucune donnée. Il propose :
+
+- **rejoindre un foyer** : coller le lien d'invitation reçu (le lien complet, ou seulement le code qui suit
+  le « # ») ;
+- **créer mon foyer** (nom facultatif ; dans la langue de l'appareil), si l'installation l'autorise — l'assistant
+  de bienvenue se joue ensuite ;
+- **supprimer mon compte** : efface le compte, ses sessions de connexion et son journal d'accès, après
+  confirmation en saisissant son nom d'utilisateur (irréversible) ;
+- **se déconnecter**.
 
 #### Logo du bouton de connexion SSO
 
