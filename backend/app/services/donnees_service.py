@@ -61,6 +61,7 @@ from ..models import (
     HoldingImmobilierDetail,
     HoldingValuationHistory,
     InvitationPerimetre,
+    JournalImport,
     LienPartage,
     Loan,
     MouvementBancaire,
@@ -360,40 +361,77 @@ def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
     db.flush()
 
 
-def reinitialiser_foyer(db: Session, user_id: int) -> None:
-    """Remise à zéro complète et destructrice du foyer (revue du 05/09/2026, demande
-    directe de l'utilisateur) — TOUT le patrimoine (`_supprimer_donnees_du_foyer`,
-    donc `TABLES`) PLUS `LienPartage`/`PerimetreInvite`, deux tables volontairement
+def supprimer_patrimoine_du_foyer(db: Session, user_id: int) -> None:
+    """Efface TOUT le patrimoine du foyer (`_supprimer_donnees_du_foyer`, donc `TABLES`)
+    PLUS `LienPartage`/`PartageAcces`, `PerimetreInvite` et `JournalImport`, volontairement
     exclues de `TABLES` (export/import, sensibles/propres à l'instance, cf. docstring
-    de module) mais qui restent des données du foyer à part entière pour une remise
-    à zéro : sans ce nettoyage, un id de détenteur/compte réutilisé par SQLite après
-    une suppression totale (pas d'`AUTOINCREMENT` explicite sur ces tables) ferait
-    courir le risque qu'un vieux lien de partage public ou périmètre d'invité pointe
-    silencieusement vers une donnée totalement différente créée plus tard.
+    de module) mais qui restent des données du foyer à part entière : sans ce
+    nettoyage, un id de détenteur/compte réutilisé par SQLite après une suppression
+    totale (pas d'`AUTOINCREMENT` explicite sur ces tables) ferait courir le risque
+    qu'un vieux lien de partage public ou périmètre d'invité pointe silencieusement vers
+    une donnée totalement différente créée plus tard.
 
     Les périmètres d'invité se retrouvent par leur détenteur : `PerimetreInvite.user_id`
     est le compte de l'invité, qui peut l'être d'autres foyers (§ BK.2). Les invitations
     elles-mêmes restent : seul le périmètre qu'elles promettaient disparaît.
+
+    Ne commite pas : l'appelant fixe la transaction (`reinitialiser_foyer`,
+    `foyer_service.supprimer_foyer`)."""
+    # Liens d'abord (les périmètres, eux, partent en tête de `_supprimer_donnees_du_foyer`) :
+    # ils désignent des détenteurs que la suppression du patrimoine efface. Dans
+    # l'ordre inverse, Postgres refusait la remise à zéro entière (clé étrangère) ;
+    # SQLite, qui ne vérifie pas les clés, laissait passer (§ BI.4).
+    liens = db.query(LienPartage.id).filter(LienPartage.user_id == user_id)
+    db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
+    db.query(LienPartage).filter(LienPartage.user_id == user_id).delete(synchronize_session=False)
+    # Le journal des imports (« dernier import de tel courtier ») n'est pas exporté, mais il
+    # décrit des données qui n'existent plus : il part avec elles (il restait, avant le
+    # lot BK.2c, après une remise à zéro).
+    db.query(JournalImport).filter(JournalImport.user_id == user_id).delete(synchronize_session=False)
+    _supprimer_donnees_du_foyer(db, user_id)
+
+
+def reinitialiser_foyer(db: Session, user_id: int) -> None:
+    """Remise à zéro complète et destructrice du foyer (revue du 05/09/2026, demande
+    directe de l'utilisateur) — tout ce qu'efface `supprimer_patrimoine_du_foyer`.
 
     Ne touche JAMAIS `users`/`auth_tokens`/`access_log_entries` : les comptes
     utilisateurs et le journal d'accès survivent à une remise à zéro des données,
     par décision explicite de l'utilisateur (seules les données comptables sont
     effacées)."""
     try:
-        # Liens d'abord (les périmètres, eux, partent en tête de `_supprimer_donnees_du_foyer`) :
-        # ils désignent des détenteurs que la suppression du patrimoine efface. Dans
-        # l'ordre inverse, Postgres refusait la remise à zéro entière (clé étrangère) ;
-        # SQLite, qui ne vérifie pas les clés, laissait passer (§ BI.4).
-        liens = db.query(LienPartage.id).filter(LienPartage.user_id == user_id)
-        db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
-        db.query(LienPartage).filter(LienPartage.user_id == user_id).delete(synchronize_session=False)
-        _supprimer_donnees_du_foyer(db, user_id)
+        supprimer_patrimoine_du_foyer(db, user_id)
         db.commit()
     except Exception:
         db.rollback()
         logger.exception("remise a zero du foyer annulee (foyer %s)", user_id)
         raise
     logger.info("foyer %s remis a zero", user_id)
+
+
+def compter_patrimoine(db: Session, user_id: int) -> dict[str, int]:
+    """Décompte, par table de `TABLES`, de ce qu'effacerait `supprimer_patrimoine_du_foyer`
+    (les tables vides sont omises, comme dans `resume`) — l'aperçu d'une suppression de
+    foyer. Ne lit que des identifiants et des nombres, jamais un montant."""
+    ids_parents: dict[str, set[int]] = {}
+    comptes: dict[str, int] = {}
+    for table in TABLES:
+        modele = table.modele
+        if table.scope_par is None:
+            requete = db.query(modele).filter(table.colonne_foyer == user_id)
+        else:
+            ids = ids_parents.get(table.references[table.scope_par], set())
+            if not ids:
+                continue
+            requete = db.query(modele).filter(getattr(modele, table.scope_par).in_(ids))
+        if table.a_un_id:
+            ids_parents[table.nom] = {ligne_id for (ligne_id,) in requete.with_entities(modele.id)}
+            nombre = len(ids_parents[table.nom])
+        else:
+            nombre = requete.count()
+        if nombre:
+            comptes[table.nom] = nombre
+    return comptes
 
 
 class ValeurInvalideError(ValueError):

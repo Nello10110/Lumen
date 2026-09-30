@@ -518,15 +518,12 @@ def test_creer_un_membre_du_foyer_refuse_a_un_non_proprietaire(client_reel):
     assert reponse.status_code == 403
 
 
-def test_supprimer_un_membre_conserve_son_journal_sans_reference_pendante(client_reel, db_vide):
-    """Revue du 03/09/2026 : `delete_household_member` nettoyait les jetons et le
-    périmètre, mais laissait `access_log_entries.user_id` pointer vers un compte
-    disparu — 10 entrées orphelines constatées en base réelle
-    (`PRAGMA foreign_key_check`).
-
-    Les deux moitiés comptent : le journal doit SURVIVRE (c'est sa raison d'être,
-    cf. docstring d'`AccessLogEntry`) et la référence ne doit PAS rester pendante."""
-    from app.models import AccessLogEntry
+def test_retirer_un_membre_garde_son_compte_et_son_journal(client_reel, db_vide):
+    """Décision du 30/09/2026 : un compte n'est supprimé que par lui-même. Le propriétaire
+    qui retire un membre lui retire son appartenance (et détache ses sessions de ce foyer) ;
+    le compte reste, sans foyer, et son journal d'accès reste rattaché à lui — jamais une
+    référence vers un compte disparu (revue du 03/09/2026, `PRAGMA foreign_key_check`)."""
+    from app.models import AccessLogEntry, Appartenance, AuthToken, User
 
     _inscrire(client_reel)
     token_paul = client_reel.post("/api/auth/login", json={"username": "paul", "password": "mot-de-passe-solide"}).json()["token"]
@@ -536,17 +533,20 @@ def test_supprimer_un_membre_conserve_son_journal_sans_reference_pendante(client
         json={"username": "membre", "password": "mot-de-passe-solide", "role": "membre"},
         headers=entete,
     ).json()
-    client_reel.post("/api/auth/login", json={"username": "membre", "password": "mot-de-passe-solide"})
+    token_membre = client_reel.post("/api/auth/login", json={"username": "membre", "password": "mot-de-passe-solide"}).json()["token"]
 
     assert client_reel.delete(f"/api/auth/household-members/{membre['id']}", headers=entete).status_code == 204
 
+    db_vide.expire_all()
+    assert db_vide.get(User, membre["id"]) is not None
+    assert db_vide.query(Appartenance).filter(Appartenance.user_id == membre["id"]).count() == 0
+    assert db_vide.get(AuthToken, token_membre).foyer_id is None
     entrees = client_reel.get("/api/auth/access-log", headers=entete).json()
-    tracees = [e for e in entrees if e["username_saisi"] == "membre"]
-    assert tracees, "le journal d'accès doit survivre à la suppression du compte"
-
-    assert db_vide.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre["id"]).count() == 0, (
-        "aucune entrée ne doit conserver une référence vers le compte supprimé"
-    )
+    assert [e for e in entrees if e["username_saisi"] == "membre"], "le journal d'accès doit survivre"
+    assert db_vide.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre["id"]).count() > 0
+    # Le compte se connecte toujours : il n'a plus de foyer.
+    moi = client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {token_membre}"}).json()
+    assert (moi["foyers"], moi["foyer_courant_id"]) == ([], None)
 
 
 # --- Écran d'administration des comptes (revue du 04/09/2026) ----------------------

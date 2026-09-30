@@ -288,3 +288,57 @@ class SuppressionCompteRequest(BaseModel):
     son nom."""
 
     confirmation: str
+
+
+class SuppressionFoyerRequest(BaseModel):
+    """Confirmation de la suppression du foyer : son nom (ou `SUPPRIMER` tant qu'il n'en a
+    pas), comme la remise à zéro (`routers/donnees.py::effacer`). Comparée côté serveur,
+    à `foyer_service.confirmation_attendue`."""
+
+    confirmation: str
+
+
+class TransfertProprieteRequest(BaseModel):
+    """Le propriétaire confie son foyer à un membre. `confirmation` : le nom d'utilisateur
+    de ce membre, tapé par le propriétaire."""
+
+    membre_id: int
+    confirmation: str
+
+
+class ApercuSuppressionFoyerOut(BaseModel):
+    """Ce que la suppression du foyer courant effacera — des nombres, jamais un montant.
+    `patrimoine` : lignes par table de l'export (mêmes noms que l'aperçu d'un import), les
+    tables vides omises. `comptes_sans_foyer` : comptes dont c'est le seul foyer, qui
+    seront conservés SANS foyer ; `comptes_gardant_un_foyer` : ceux qui appartiennent à un
+    autre foyer."""
+
+    foyer_nom: str | None
+    confirmation_attendue: str
+    patrimoine: dict[str, int]
+    liens_partage: int
+    invitations: int
+    comptes: int
+    comptes_sans_foyer: int
+    comptes_gardant_un_foyer: int
+
+
+class FoyerBloquantOut(BaseModel):
+    """Foyer dont le compte est propriétaire et qui compte `autres_comptes` autres comptes."""
+
+    id: int
+    nom: str | None
+    autres_comptes: int
+
+
+class ApercuSuppressionCompteOut(BaseModel):
+    """Ce qu'entraîne la suppression de son propre compte. `foyers_supprimes` disparaissent
+    avec lui (propriétaire et seul compte) ; `foyers_quittes` : il n'y perd que sa place ;
+    `foyers_bloquants` : à transférer ou à supprimer d'abord — la suppression est refusée
+    (409) tant qu'il y en a."""
+
+    confirmation_attendue: str
+    foyers_supprimes: list[FoyerResume]
+    foyers_quittes: list[FoyerResume]
+    foyers_bloquants: list[FoyerBloquantOut]
+    peut_supprimer: bool

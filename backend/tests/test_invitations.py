@@ -638,7 +638,7 @@ def test_supprimer_un_compte_garde_l_historique_des_invitations(client_jetons, d
     _accepter_nouveau_compte(client_jetons, creee["jeton"], "lea")
     lea = db.query(User).filter(User.username == "lea").one()
 
-    foyer_service.retirer_un_membre(db, lea, db.query(Appartenance).filter(Appartenance.user_id == lea.id).one())
+    foyer_service.supprimer_son_compte(db, lea)
 
     db.expire_all()
     assert db.get(User, lea.id) is None

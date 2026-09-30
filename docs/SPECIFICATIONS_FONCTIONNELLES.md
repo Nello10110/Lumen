@@ -744,6 +744,15 @@ Le contrat serveur (routes, jeton haché, usage unique, périmètre d'invité, 4
 
 **Compte sans foyer courant** (`AuthUser.role === null`). L'application n'est pas montée (les routes de données répondent 403) ; l'écran « Vous n'appartenez à aucun foyer » propose : rejoindre par lien (le lien complet ou le jeton seul, extrait du fragment), les foyers restants du compte s'il en a (session sans foyer courant mais appartenances existantes), « Créer mon foyer » si `peut_creer_foyer` (nom facultatif, langue de l'appareil ; l'assistant de bienvenue se joue ensuite), « Supprimer mon compte » (confirmation par saisie du nom d'utilisateur ; efface compte, sessions et journal d'accès), déconnexion.
 
+### 3.26 Cycle de vie d'un foyer — contrat serveur (backlog § BK.2c)
+
+Principe (décision du 30/09/2026) : **un compte n'est supprimé que par lui-même** ; retirer un membre ou supprimer un foyer laisse les comptes **sans foyer** (l'écran « Aucun foyer » du § 3.25).
+
+- **Transférer la propriété** — `POST /api/auth/foyer/transferer-propriete {membre_id, confirmation}`, propriétaire du foyer courant seul. `confirmation` : le nom d'utilisateur du nouveau propriétaire. Le destinataire est un **membre** du foyer : un invité est refusé (400), un compte qui n'est pas du foyer — ou le propriétaire lui-même — est un 404 « Compte introuvable ». En une transaction l'ancien propriétaire devient membre et le membre choisi propriétaire ; aucune donnée n'est déplacée. Répond avec l'utilisateur de la session (rôle `membre`).
+- **Retirer un membre** — `DELETE /api/auth/household-members/{id}` : supprime son appartenance, son périmètre d'invité dans ce foyer, et détache de ce foyer ses sessions ; son **compte reste** (sans foyer s'il n'en avait qu'un). Le propriétaire ne se retire pas (404).
+- **Supprimer le foyer** — `GET /api/auth/foyer/apercu-suppression` (lignes de patrimoine par table, liens de partage, invitations, nombre de comptes, dont combien resteront sans foyer et combien appartiennent à un autre foyer, `confirmation_attendue`), puis `POST /api/auth/foyer/supprimer {confirmation}` : le nom du foyer, ou `SUPPRIMER` tant qu'il n'en a pas, comme la remise à zéro. Propriétaire seul. Efface, en une transaction, patrimoine, réglages, liens de partage et leurs accès, invitations, historiques en cache, appartenances et le foyer ; les sessions qui le désignaient n'ont plus de foyer. Répond avec l'utilisateur de la session, qui rouvre un autre de ses foyers s'il en a un.
+- **Supprimer son compte** — `GET /api/auth/compte/apercu-suppression` (`foyers_supprimes` : propriétaire et seul compte, ils disparaissent avec lui ; `foyers_quittes` : membre ou invité ; `foyers_bloquants` : propriétaire d'un foyer qui a d'autres comptes, avec `autres_comptes` ; `peut_supprimer`), puis `POST /api/auth/compte/supprimer {confirmation}` (son nom d'utilisateur), pour tout compte, avec ou sans foyer. 409 tant qu'un foyer bloque : transférer la propriété ou supprimer le foyer d'abord. Sinon, une transaction : foyers solo effacés, compte, appartenances, sessions, journal d'accès.
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
