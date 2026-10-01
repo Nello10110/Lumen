@@ -603,7 +603,11 @@ def test_deux_acceptations_simultanees_de_comptes_existants_une_seule_reussit(cl
     creee = _inviter(client_jetons, proprietaire)
 
     def _accepte_par(user_id):
-        return lambda s: invitation_service.accepter_compte_existant(s, creee["jeton"], s.get(User, user_id))
+        def _accepter(session):
+            database.fixer_foyer(session, None, user_id)  # le compte connecté : visible « pour soi-même »
+            return invitation_service.accepter_compte_existant(session, creee["jeton"], session.get(User, user_id))
+
+        return _accepter
 
     resultats = _course(_fabrique_de_sessions(db), [_accepte_par(ID_UTILISATEUR_B), _accepte_par(ID_UTILISATEUR_C)])
 

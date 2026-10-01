@@ -8,6 +8,18 @@ dépendance de recherche...). Le nombre d'itérations est stocké dans le hash l
 (format `pbkdf2_sha256$<iterations>$<sel>$<hash>`) pour pouvoir l'augmenter plus
 tard sans invalider les mots de passe déjà enregistrés.
 
+**Comptes, sessions et journal d'accès sous Postgres (§ BK.2e).** Ces trois tables ne sont pas
+des tables de foyer : la base ne montre d'un compte que lui-même, les comptes du foyer courant et
+l'opérateur, tant que l'état d'authentification (`database.authentification_le_temps`) n'est pas
+posé. Les fonctions qui doivent trouver un compte AVANT de connaître l'identité de la session le
+posent elles-mêmes, le temps de leur requête, et rien d'autre : `utilisateur_par_username`,
+`utilisateur_par_oidc_subject`, `compte_est_operateur`, `operateur_existe`, `des_comptes_existent`,
+`creer_utilisateur`, `creer_utilisateur_oidc` et `journaliser_acces` (l'`INSERT … RETURNING` d'une
+tentative sur un identifiant inconnu relit une ligne qui ne se rattache à personne). Les routes
+qui authentifient (`login`, `register`, rappel SSO, `auth.get_current_token`) posent le périmètre
+de l'identité trouvée (`database.fixer_foyer`) AVANT de lever l'état : le compte reste lisible
+« pour soi-même », y compris après un `commit` qui l'aurait expiré.
+
 **Jetons.** Un jeton de session (comme celui d'un lien de partage, d'une invitation) a 256 bits
 d'entropie : le SHA-256 (`hacher_jeton`) suffit, et il est déterministe, ce qui permet de
 retrouver la ligne par empreinte. La base ne garde jamais que l'empreinte (§ BK.2e) ; le jeton
@@ -76,7 +88,10 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def utilisateur_par_username(db: Session, username: str) -> User | None:
-    return db.query(User).filter(User.username == username.strip()).first()
+    """Le compte de ce nom — d'où qu'il soit : un nom est unique sur toute l'installation, et se
+    trouve avant que l'identité soit connue (connexion, inscription, nom déjà pris)."""
+    with database.authentification_le_temps(db):
+        return db.query(User).filter(User.username == username.strip()).first()
 
 
 class CompteOperateurError(Exception):
@@ -243,8 +258,25 @@ def comptes_du_foyer(db: Session, foyer_id: int) -> list[tuple[User, Appartenanc
 
 def operateur_existe(db: Session) -> bool:
     """L'installation a-t-elle un compte opérateur ? Tant que non, elle se règle comme avant
-    le lot BK.2d : par le propriétaire de son foyer. Aucune politique ne filtre `users`."""
-    return db.query(User.id).filter(User.est_operateur.is_(True)).first() is not None
+    le lot BK.2d : par le propriétaire de son foyer. Le propriétaire ne voit pas le compte de
+    l'opérateur (§ BK.2e) : seule l'existence en sort, lue sous l'état d'authentification."""
+    with database.authentification_le_temps(db):
+        return db.query(User.id).filter(User.est_operateur.is_(True)).first() is not None
+
+
+def des_comptes_existent(db: Session) -> bool:
+    """L'installation a-t-elle déjà un compte ? Il décide si l'inscription est encore ouverte."""
+    with database.authentification_le_temps(db):
+        return db.query(User.id).first() is not None
+
+
+def compte_est_operateur(db: Session, user_id: int | None) -> bool:
+    """Ce compte est-il l'opérateur ? Le créateur d'une invitation à créer un foyer n'est pas
+    visible de qui la consulte."""
+    if user_id is None:
+        return False
+    with database.authentification_le_temps(db):
+        return db.query(User.id).filter(User.id == user_id, User.est_operateur.is_(True)).first() is not None
 
 
 def installation_a_un_seul_foyer(db: Session) -> bool:
@@ -269,11 +301,13 @@ def marquer_assistant_termine(db: Session, user: User) -> None:
 
 def creer_utilisateur(db: Session, username: str, password: str, *, est_operateur: bool = False) -> User:
     """Le compte seul : son foyer vient de `creer_foyer` ou de `ajouter_au_foyer`. Un compte
-    opérateur (§ BK.2d) n'en a jamais."""
+    opérateur (§ BK.2d) n'en a jamais. Le compte neuf n'est encore celui de personne : il se crée
+    et se relit sous l'état d'authentification (`INSERT … RETURNING`)."""
     user = User(username=username.strip(), password_hash=hash_password(password), est_operateur=est_operateur)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    with database.authentification_le_temps(db):
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     return user
 
 
@@ -287,14 +321,18 @@ def creer_utilisateur_oidc(
     issues du claim mapping (cf. `services/oidc_service.py`), jamais utilisées pour
     l'authentification."""
     user = User(username=username.strip(), password_hash=None, oidc_subject=oidc_subject, email=email, nom=nom)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    with database.authentification_le_temps(db):
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     return user
 
 
 def utilisateur_par_oidc_subject(db: Session, oidc_subject: str) -> User | None:
-    return db.query(User).filter(User.oidc_subject == oidc_subject).first()
+    """Le compte lié à cette identité du fournisseur SSO, trouvé avant que l'identité de la
+    session soit connue (rappel SSO, liaison)."""
+    with database.authentification_le_temps(db):
+        return db.query(User).filter(User.oidc_subject == oidc_subject).first()
 
 
 def mettre_a_jour_profil_oidc(db: Session, user: User, *, email: str | None, nom: str | None) -> None:
@@ -420,9 +458,14 @@ def revoquer_session(db: Session, auth_token: AuthToken) -> None:
 def journaliser_acces(
     db: Session, username: str, user_id: int | None, ip: str | None, resultat: str, raison: str | None, *, action: str = "login"
 ) -> None:
+    """Tout le monde écrit dans le journal, y compris pour un identifiant inconnu. Sous Postgres,
+    l'`INSERT … RETURNING` relit la ligne, que la politique de lecture ne montre qu'aux comptes du
+    foyer et à l'opérateur : l'écriture se fait sous l'état d'authentification, pour cette seule
+    insertion."""
     entree = AccessLogEntry(username_saisi=username.strip(), user_id=user_id, ip=ip, action=action, resultat=resultat, raison=raison)
-    db.add(entree)
-    db.commit()
+    with database.authentification_le_temps(db):
+        db.add(entree)
+        db.commit()
 
 
 def _page_du_journal(requete, page: int, page_size: int) -> list[AccessLogEntry]:

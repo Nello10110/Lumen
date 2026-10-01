@@ -165,9 +165,18 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # - `fixer_operateur` : le compte opérateur (§ BK.2d), sans foyer, qui administre
 #   l'installation. `app.operateur = on` avec un `app.foyer_id` vide : les politiques des
 #   tables de patrimoine ne mentionnent JAMAIS cet état, la base ne lui en montre donc aucune
-#   ligne quoi que fasse le code ; seules celles de `foyers`, `appartenances` et des
-#   invitations « créer un foyer » l'autorisent.
+#   ligne quoi que fasse le code ; seules celles de `foyers`, `appartenances`, des
+#   invitations « créer un foyer » et des tables d'authentification l'autorisent.
 #
+# Un réglage à part, ORTHOGONAL au périmètre : l'état d'AUTHENTIFICATION (`app.authentification`,
+# § BK.2e). Les tables `users`, `auth_tokens` et `access_log_entries` ne sont pas des tables de
+# foyer : pour savoir qui se connecte, il faut les lire AVANT de connaître son identité (nom
+# d'utilisateur, jeton de session, identité du fournisseur SSO). Hors de cet état, la base ne
+# montre d'un compte que lui-même, les comptes du foyer courant et l'opérateur ; d'une session,
+# que les siennes ; du journal d'accès, que ce qui concerne les comptes du foyer. L'état se
+# pose le temps d'une recherche de compte (`authentification_le_temps`), jamais en
+# permanence, et se lève dès l'identité connue : les chemins qui le posent sont énumérés dans
+# `docs/MANUEL_EXPLOITATION.md` (« Séparation des foyers »). Il ne dit rien des tables de foyer.
 # Sous SQLite, rien de tout cela n'existe : le périmètre est noté, jamais appliqué.
 type Perimetre = tuple[str, str, str, str]  # foyer, compte connecté, « tous les foyers », opérateur
 _SANS_PERIMETRE: Perimetre = ("", "", "off", "off")
@@ -178,9 +187,16 @@ def _appliquer_perimetre(session: Session, connexion) -> None:
     connexion.execute(
         text(
             "SELECT set_config('app.foyer_id', :foyer, true), set_config('app.utilisateur_id', :utilisateur, true), "
-            "set_config('app.tous_foyers', :tous, true), set_config('app.operateur', :operateur, true)"
+            "set_config('app.tous_foyers', :tous, true), set_config('app.operateur', :operateur, true), "
+            "set_config('app.authentification', :authentification, true)"
         ),
-        {"foyer": foyer, "utilisateur": utilisateur, "tous": tous, "operateur": operateur},
+        {
+            "foyer": foyer,
+            "utilisateur": utilisateur,
+            "tous": tous,
+            "operateur": operateur,
+            "authentification": session.info.get("authentification", "off"),
+        },
     )
 
 
@@ -190,8 +206,7 @@ def _poser_perimetre(session: Session, _transaction, connexion) -> None:
         _appliquer_perimetre(session, connexion)
 
 
-def _changer_perimetre(session: Session, perimetre: Perimetre) -> None:
-    session.info["perimetre"] = perimetre
+def _appliquer_si_transaction_ouverte(session: Session) -> None:
     # Transaction déjà ouverte (l'authentification vient de lire le jeton) : le
     # nouveau périmètre doit valoir tout de suite, pas au prochain commit. Une
     # transaction en attente d'annulation (écriture échouée) n'ouvre plus de connexion :
@@ -200,6 +215,11 @@ def _changer_perimetre(session: Session, perimetre: Perimetre) -> None:
         connexion = session.connection()
         if connexion.dialect.name == "postgresql":
             _appliquer_perimetre(session, connexion)
+
+
+def _changer_perimetre(session: Session, perimetre: Perimetre) -> None:
+    session.info["perimetre"] = perimetre
+    _appliquer_si_transaction_ouverte(session)
 
 
 def fixer_foyer(session: Session, foyer_id: int | None, utilisateur_id: int | None) -> None:
@@ -248,6 +268,27 @@ def foyer_le_temps(session: Session, foyer_id: int) -> AbstractContextManager[Se
     moins large que `tous_les_foyers_le_temps` : la base garde les autres foyers hors
     de portée."""
     return _perimetre_le_temps(session, (str(foyer_id), "", "off", "off"))
+
+
+@contextmanager
+def authentification_le_temps(session: Session) -> Iterator[Session]:
+    """Pose l'état d'authentification (§ BK.2e) le temps d'une recherche de compte qui précède
+    la connaissance de l'identité — nom d'utilisateur, jeton de session, identité du fournisseur
+    SSO, nom déjà pris, inscription —, puis le rend tel qu'il était. Le périmètre, lui, n'est
+    JAMAIS restauré : l'identité connue, l'appelant pose le sien (`fixer_foyer`) AVANT de sortir
+    du bloc, et le compte lu y reste visible (« soi-même ») une fois l'état levé. Sans cela, un
+    objet que le `commit` aurait expiré ne se relirait plus. Imbricable."""
+    precedent = session.info.get("authentification", "off")
+    if precedent == "on":
+        yield session
+        return
+    session.info["authentification"] = "on"
+    _appliquer_si_transaction_ouverte(session)
+    try:
+        yield session
+    finally:
+        session.info["authentification"] = precedent
+        _appliquer_si_transaction_ouverte(session)
 
 
 def sans_perimetre(session: Session) -> None:

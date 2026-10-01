@@ -44,6 +44,7 @@ from urllib.parse import urlencode
 import requests
 from sqlalchemy.orm import Session
 
+from .. import database
 from ..models import LiaisonSsoEnAttente, User
 from . import auth_service, installation_service
 
@@ -306,6 +307,9 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
 
     existant = auth_service.utilisateur_par_oidc_subject(db, sub)
     if existant is not None:
+        # Identité connue : le compte est lisible « pour soi-même » (§ BK.2e), y compris quand la
+        # mise à jour du profil, en commitant, l'expire.
+        database.fixer_foyer(db, None, existant.id)
         auth_service.mettre_a_jour_profil_oidc(db, existant, email=email, nom=nom)
         return existant
 
@@ -316,6 +320,7 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
         username_final = f"{username_souhaite[:29]}-{suffixe}"
         suffixe += 1
     user = auth_service.creer_utilisateur_oidc(db, username_final, sub, email=email, nom=nom)
+    database.fixer_foyer(db, None, user.id)
     if not pour_invitation and installation_service.sso_cree_son_foyer(db):
         auth_service.creer_foyer(db, user)
     return user

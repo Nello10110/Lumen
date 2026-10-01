@@ -23,6 +23,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .. import database
 from ..models import ROLE_PROPRIETAIRE, Appartenance, AuthToken, Foyer, User
 from . import auth_service, foyer_service
 
@@ -68,13 +69,16 @@ def amorcer_operateur(db: Session, username: str, password: str) -> User:
 def reinitialiser_mot_de_passe(db: Session, username: str, password: str) -> User:
     """Nouveau mot de passe d'un compte OPÉRATEUR (`LookupError` pour tout autre compte : la
     commande n'est pas une porte de secours vers les comptes des foyers), et fin de toutes ses
-    sessions ouvertes."""
-    user = auth_service.utilisateur_par_username(db, username)
-    if user is None or not user.est_operateur:
-        raise LookupError(username)
-    user.password_hash = auth_service.hash_password(password)
-    db.query(AuthToken).filter(AuthToken.user_id == user.id).delete(synchronize_session=False)
-    db.commit()
+    sessions ouvertes. Commande d'exploitation, sans session ni identité : elle trouve le compte
+    par son nom, sous l'état d'authentification de la base."""
+    with database.authentification_le_temps(db):
+        user = auth_service.utilisateur_par_username(db, username)
+        if user is None or not user.est_operateur:
+            raise LookupError(username)
+        user.password_hash = auth_service.hash_password(password)
+        db.query(AuthToken).filter(AuthToken.user_id == user.id).delete(synchronize_session=False)
+        db.commit()
+        db.refresh(user)
     return user
 
 

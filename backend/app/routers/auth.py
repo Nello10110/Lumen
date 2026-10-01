@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from ..auth import MESSAGE_ROLE_INSUFFISANT, get_current_token, get_current_user, get_membre_foyer, require_role
-from ..database import get_db
+from ..database import authentification_le_temps, fixer_foyer, get_db
 from ..i18n import tr, traduire
 from ..models import ROLE_PROPRIETAIRE, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
 from ..schemas import (
@@ -126,11 +126,14 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     propriétaire, backlog 2.L.2) — au-delà, les comptes du foyer (membre/invité) se
     créent exclusivement via `POST /household-members`, réservé au propriétaire :
     un rôle ne doit jamais être auto-attribué par la personne qui s'inscrit."""
-    if db.query(User).count() > 0:
+    if auth_service.des_comptes_existent(db):
         raise HTTPException(status_code=403, detail=MESSAGE_INSCRIPTION_FERMEE)
     if auth_service.utilisateur_par_username(db, payload.username) is not None:
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
     user = auth_service.creer_utilisateur(db, payload.username, payload.password)
+    # L'identité est connue : le compte neuf est lisible « pour soi-même » avant de créer son
+    # foyer, dont le `commit` l'expire (§ BK.2e).
+    fixer_foyer(db, None, user.id)
     # Le premier compte crée son foyer, dans la langue de son appareil.
     auth_service.creer_foyer(db, user, langue=payload.langue)
     _, jeton = auth_service.ouvrir_session(db, user)
@@ -140,23 +143,28 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 @router.post("/login", response_model=AuthResponse)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     ip = _adresse_client(request)
-    verrouille_jusqua = auth_service.verrouillage_actif(db, payload.username)
-    if verrouille_jusqua is not None:
-        auth_service.journaliser_acces(db, payload.username, None, ip, "echec", "compte_verrouille")
-        raise HTTPException(
-            status_code=429,
-            detail=tr("Trop de tentatives. Réessayez après {heure}.", heure=verrouille_jusqua.strftime("%H:%M UTC")),
-        )
-    user = auth_service.utilisateur_par_username(db, payload.username)
-    if user is None:
-        auth_service.journaliser_acces(db, payload.username, None, ip, "echec", "compte_inconnu")
-        raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
-    if user.password_hash is None:
-        auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "compte_sso_seul")
-        raise HTTPException(status_code=401, detail=MESSAGE_COMPTE_SSO_SEUL)
-    if not auth_service.verify_password(payload.password, user.password_hash):
-        auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "mot_de_passe_incorrect")
-        raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
+    # Tant que le mot de passe n'est pas vérifié, personne n'est identifié : le verrouillage lit le
+    # journal d'accès d'un nom saisi, et le compte se trouve par son nom (§ BK.2e, état
+    # d'authentification de la base). L'état se lève à la sortie du bloc, l'identité connue.
+    with authentification_le_temps(db):
+        verrouille_jusqua = auth_service.verrouillage_actif(db, payload.username)
+        if verrouille_jusqua is not None:
+            auth_service.journaliser_acces(db, payload.username, None, ip, "echec", "compte_verrouille")
+            raise HTTPException(
+                status_code=429,
+                detail=tr("Trop de tentatives. Réessayez après {heure}.", heure=verrouille_jusqua.strftime("%H:%M UTC")),
+            )
+        user = auth_service.utilisateur_par_username(db, payload.username)
+        if user is None:
+            auth_service.journaliser_acces(db, payload.username, None, ip, "echec", "compte_inconnu")
+            raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
+        if user.password_hash is None:
+            auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "compte_sso_seul")
+            raise HTTPException(status_code=401, detail=MESSAGE_COMPTE_SSO_SEUL)
+        if not auth_service.verify_password(payload.password, user.password_hash):
+            auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "mot_de_passe_incorrect")
+            raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
+        fixer_foyer(db, None, user.id)
     _, jeton = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, payload.username, user.id, ip, "succes", None)
     return AuthResponse(token=jeton, user=construire_user_out(db, user))
@@ -287,12 +295,15 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
         jeton_fournisseur = oidc_service.echanger_code(config, code, etat.code_verifier)
         claims = oidc_service.recuperer_identite(config, jeton_fournisseur["access_token"])
         if etat.lier_compte_id is not None:
-            compte = db.get(User, etat.lier_compte_id)
-            if compte is None:
-                raise oidc_service.OidcError("Connexion SSO invalide (state altéré). Réessayez.")
-            # Rien n'est lié ici : le navigateur qui revient n'est pas forcément celui du titulaire du
-            # compte visé. L'interface, connectée, confirme avec ce code (`oidc_confirmer_liaison`).
-            code_liaison = oidc_service.preparer_liaison(db, compte, claims, config)
+            # Le navigateur qui revient n'a pas de session : le compte visé se trouve par son
+            # identifiant signé dans le `state`, sous l'état d'authentification de la base (§ BK.2e).
+            with authentification_le_temps(db):
+                compte = db.get(User, etat.lier_compte_id)
+                if compte is None:
+                    raise oidc_service.OidcError("Connexion SSO invalide (state altéré). Réessayez.")
+                # Rien n'est lié ici : le navigateur qui revient n'est pas forcément celui du titulaire du
+                # compte visé. L'interface, connectée, confirme avec ce code (`oidc_confirmer_liaison`).
+                code_liaison = oidc_service.preparer_liaison(db, compte, claims, config)
             return RedirectResponse(f"{config.frontend_url}/?oidc_liaison={quote(code_liaison)}")
         user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims, pour_invitation=etat.pour_invitation)
     except oidc_service.OidcError as err:

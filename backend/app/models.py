@@ -1063,8 +1063,11 @@ class AuthToken(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     # Foyer courant de la session (§ BK.2) : côté serveur plutôt qu'un identifiant de
     # foyer envoyé par le client à chaque requête, qui serait une surface IDOR
-    # permanente. `None` : session sans foyer, aucune donnée accessible.
-    foyer_id: Mapped[int | None] = mapped_column(ForeignKey("foyers.id"), nullable=True, index=True)
+    # permanente. `None` : session sans foyer, aucune donnée accessible. `ON DELETE SET NULL`
+    # (§ BK.2e) : sous Postgres, la politique de cette table ne laisse un propriétaire écrire que
+    # ses propres sessions ; supprimer un foyer détache de lui celles de tous ses comptes par la
+    # clé étrangère elle-même, que les politiques ne filtrent pas.
+    foyer_id: Mapped[int | None] = mapped_column(ForeignKey("foyers.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     derniere_utilisation: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

@@ -18,7 +18,9 @@ from app.main import app
 from app.models import (
     ROLE_MEMBRE,
     ROLE_PROPRIETAIRE,
+    AccessLogEntry,
     Appartenance,
+    AuthToken,
     Detenteur,
     Foyer,
     FoyerParametre,
@@ -612,3 +614,223 @@ def test_accepter_un_lien_de_creation_fait_naitre_le_foyer_sans_appartenance_pre
     appartenance = db.query(Appartenance).filter(Appartenance.user_id == user.id).one()
     assert appartenance.role == ROLE_PROPRIETAIRE
     assert db.get(Foyer, appartenance.foyer_id).langue == "it"
+
+
+# --- Comptes, sessions et journal d'accès (§ BK.2e) -----------------------------------------------------
+
+
+@pytest.fixture
+def comptes_des_deux_foyers(db, deux_foyers_remplis):
+    """Deux foyers de trois comptes chacun (propriétaire, membre, invité), chaque compte avec une
+    session ; le journal d'accès de chacun, et deux tentatives sur des identifiants que personne ne
+    porte. Renvoie les deux foyers peuplés."""
+    foyer_a, foyer_b = deux_foyers_remplis
+    for foyer in (foyer_a, foyer_b):
+        for compte_id in (foyer.proprietaire_id, foyer.membre.id, foyer.invite.id):
+            db.add(AccessLogEntry(username_saisi=db.get(User, compte_id).username, user_id=compte_id, action="login", resultat="succes"))
+    db.add(AccessLogEntry(username_saisi="inconnu", user_id=None, action="login", resultat="echec", raison="compte_inconnu"))
+    db.add(AccessLogEntry(username_saisi="foyer-b", user_id=None, action="login", resultat="echec", raison="compte_inconnu"))
+    db.commit()
+    return foyer_a, foyer_b
+
+
+def _ids_visibles(session, colonne) -> set:
+    return {valeur for (valeur,) in session.query(colonne)}
+
+
+def test_un_compte_sans_filtre_ne_voit_que_soi_et_les_comptes_de_son_foyer(db, comptes_des_deux_foyers):
+    """Test d'intrusion : requête SQL directe, aucun filtre — comme une route qui aurait oublié le sien."""
+    foyer_a, foyer_b = comptes_des_deux_foyers
+    attendus = {foyer_a.proprietaire_id, foyer_a.membre.id, foyer_a.invite.id}
+    autres = {foyer_b.proprietaire_id, foyer_b.membre.id, foyer_b.invite.id}
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        assert _ids_visibles(session, User.id) == attendus
+        assert {i for (i,) in session.execute(text("SELECT id FROM users"))} == attendus
+        assert all(session.get(User, autre) is None for autre in autres)
+        # Écrire sur le compte d'un autre foyer ne touche rien.
+        touchees = session.query(User).filter(User.id.in_(autres)).update({"email": "intrus@exemple.fr"}, synchronize_session=False)
+        assert touchees == 0
+        assert session.query(User).filter(User.id.in_(autres)).delete(synchronize_session=False) == 0
+        session.commit()
+
+    # Un compte sans foyer courant ne se voit que lui-même.
+    with _session_du_foyer(None, foyer_b.membre.id) as session:
+        assert _ids_visibles(session, User.id) == {foyer_b.membre.id}
+
+    # Un membre voit les comptes de son foyer, pas d'autres.
+    with _session_du_foyer(ID_FOYER_B, foyer_b.membre.id) as session:
+        assert _ids_visibles(session, User.id) == autres
+
+
+def test_creer_un_compte_hors_de_l_etat_d_authentification_est_refuse(db, deux_foyers):
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        session.add(User(username="intrus", password_hash="x"))
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            session.commit()
+
+
+def test_les_sessions_d_un_autre_foyer_sont_invisibles_et_intouchables(db, comptes_des_deux_foyers):
+    foyer_a, foyer_b = comptes_des_deux_foyers
+    de_a = {foyer_a.proprietaire_id, foyer_a.membre.id, foyer_a.invite.id}
+    de_b = {foyer_b.proprietaire_id, foyer_b.membre.id, foyer_b.invite.id}
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        # Les siennes, et — en lecture seulement — celles des comptes du foyer courant (le propriétaire
+        # compte les sessions ouvertes de ses membres) ; jamais celles d'un autre foyer.
+        assert _ids_visibles(session, AuthToken.user_id) == de_a
+        assert session.query(AuthToken).filter(AuthToken.user_id.in_(de_b)).count() == 0
+        # Il n'écrit que SES sessions : celles de ses membres, pourtant visibles, ne bougent pas.
+        membre = AuthToken.user_id == foyer_a.membre.id
+        assert session.query(AuthToken).filter(membre).update({"foyer_id": None}, synchronize_session=False) == 0
+        assert session.query(AuthToken).filter(membre).delete(synchronize_session=False) == 0
+        assert session.query(AuthToken).filter(AuthToken.user_id == ID_UTILISATEUR_TEST).update({"foyer_id": None}, synchronize_session=False) == 1
+        session.rollback()
+        # Il ne se crée pas de session au nom d'un autre.
+        session.add(AuthToken(token_hash="faux", id_session="faux", user_id=foyer_a.membre.id, expires_at=datetime.now() + timedelta(days=1)))
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            session.commit()
+
+    with _session_du_foyer(None, ID_UTILISATEUR_B) as session:
+        assert _ids_visibles(session, AuthToken.user_id) == {ID_UTILISATEUR_B}
+
+
+def test_le_journal_d_acces_d_un_autre_foyer_est_invisible(db, comptes_des_deux_foyers):
+    foyer_a, foyer_b = comptes_des_deux_foyers
+    de_a = {foyer_a.proprietaire_id, foyer_a.membre.id, foyer_a.invite.id}
+    de_b = {foyer_b.proprietaire_id, foyer_b.membre.id, foyer_b.invite.id}
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        # Les connexions des comptes du foyer, rien des autres, rien des identifiants que personne ne porte.
+        assert {e.user_id for e in session.query(AccessLogEntry)} == de_a
+        assert session.query(AccessLogEntry).count() == len(de_a)
+        assert session.query(AccessLogEntry).filter(AccessLogEntry.user_id.in_(de_b)).delete(synchronize_session=False) == 0
+        assert session.query(AccessLogEntry).filter(AccessLogEntry.username_saisi.in_(("inconnu", "foyer-b"))).delete(synchronize_session=False) == 0
+        session.commit()
+
+    # Les tentatives sur le nom d'un compte sont aussi les siennes : il les voit.
+    with _session_du_foyer(ID_FOYER_B, ID_UTILISATEUR_B) as session:
+        assert (None, "foyer-b") in {(e.user_id, e.username_saisi) for e in session.query(AccessLogEntry)}
+        assert session.query(AccessLogEntry).filter(AccessLogEntry.username_saisi == "inconnu").count() == 0
+    db.expire_all()
+    assert db.query(AccessLogEntry).count() == len(de_a) + len(de_b) + 2
+
+
+def test_tout_le_monde_ecrit_dans_le_journal_meme_sans_identite_mais_ne_le_relit_pas(db, comptes_des_deux_foyers):
+    """Un échec sur un identifiant inconnu doit pouvoir se journaliser, et ne se rattache à personne."""
+    avant = db.query(AccessLogEntry).count()
+
+    with database.SessionLocal() as session:
+        auth_service.journaliser_acces(session, "personne", None, "203.0.113.9", "echec", "compte_inconnu")
+        assert session.query(AccessLogEntry).count() == 0
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        auth_service.journaliser_acces(session, "personne", None, "203.0.113.9", "echec", "compte_inconnu")
+        assert session.query(AccessLogEntry).filter(AccessLogEntry.username_saisi == "personne").count() == 0
+
+    db.expire_all()
+    assert db.query(AccessLogEntry).count() == avant + 2
+
+
+def test_sans_etat_d_authentification_ni_identite_la_base_ne_montre_aucun_compte(db, comptes_des_deux_foyers):
+    tables = (User, AuthToken, AccessLogEntry)
+    with database.SessionLocal() as session:
+        assert [session.query(t).count() for t in tables] == [0, 0, 0]
+        # « Tous les foyers » ouvre les foyers, pas les comptes.
+        with database.tous_les_foyers_le_temps(session):
+            assert session.query(Foyer).count() == 2
+            assert [session.query(t).count() for t in tables] == [0, 0, 0]
+        # L'état d'authentification ouvre les comptes, pas les foyers.
+        with database.authentification_le_temps(session):
+            assert session.query(User).count() == 6
+            assert session.query(AuthToken).count() == 6
+            assert session.query(AccessLogEntry).count() == 8
+            assert [session.query(t).count() for t in (Foyer, Appartenance, Holding)] == [0, 0, 0]
+        # Et se lève : même sans que la transaction ait été refermée.
+        assert [session.query(t).count() for t in tables] == [0, 0, 0]
+
+
+def test_l_etat_d_authentification_se_leve_a_la_sortie_meme_apres_un_commit(db, comptes_des_deux_foyers):
+    def etat(session):
+        return session.execute(text("SELECT current_setting('app.authentification', true)")).scalar()
+
+    with database.SessionLocal() as session:
+        with database.authentification_le_temps(session):
+            assert etat(session) == "on"
+            session.commit()
+            assert etat(session) == "on"
+            with database.authentification_le_temps(session):  # imbriqué : l'extérieur reste posé
+                pass
+            assert etat(session) == "on"
+        assert etat(session) in (None, "", "off")
+    # Et il ne passe pas d'une session à l'autre par le pool de connexions.
+    database.engine.dispose()
+    with database.SessionLocal() as session:
+        assert etat(session) in (None, "", "off")
+
+
+def test_le_compte_trouve_sous_l_etat_d_authentification_reste_lisible_une_fois_l_etat_leve(db, comptes_des_deux_foyers):
+    """La séquence des routes d'authentification : trouver le compte, poser son périmètre, lever l'état — un
+    `commit` expirant l'objet, il doit pouvoir se relire « pour soi-même »."""
+    foyer_a, _ = comptes_des_deux_foyers
+    nom = db.get(User, foyer_a.membre.id).username
+    with database.SessionLocal() as session:
+        with database.authentification_le_temps(session):
+            compte = auth_service.utilisateur_par_username(session, nom)
+            database.fixer_foyer(session, None, compte.id)
+        session.commit()
+        assert compte.username == nom  # relu après l'expiration du commit, l'état levé
+        assert session.query(User).count() == 1
+
+
+def test_l_operateur_lit_et_efface_les_comptes_les_sessions_et_le_journal(db, comptes_des_deux_foyers, operateur_id):
+    _, foyer_b = comptes_des_deux_foyers
+    with _session_operateur(operateur_id) as session:
+        assert session.query(User).count() == 7  # les six comptes et l'opérateur
+        assert session.query(AuthToken).count() == 6
+        # Les tentatives sur un identifiant inconnu ne sont lisibles que de lui.
+        assert session.query(AccessLogEntry).filter(AccessLogEntry.user_id.is_(None)).count() == 2
+        assert session.query(AccessLogEntry).count() == 8
+        assert session.query(AuthToken).filter(AuthToken.user_id == foyer_b.membre.id).delete(synchronize_session=False) == 1
+        session.commit()
+
+
+def test_supprimer_un_foyer_detache_les_sessions_de_tous_ses_comptes(db, comptes_des_deux_foyers):
+    """Un propriétaire n'écrit que ses sessions : la clé étrangère `ON DELETE SET NULL` détache les autres."""
+    foyer_a, foyer_b = comptes_des_deux_foyers
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        foyer_service.supprimer_foyer(session, ID_FOYER_TEST)
+
+    db.expire_all()
+    assert db.get(Foyer, ID_FOYER_TEST) is None
+    assert {s.user_id: s.foyer_id for s in db.query(AuthToken)} == {
+        foyer_a.proprietaire_id: None,
+        foyer_a.membre.id: None,
+        foyer_a.invite.id: None,
+        foyer_b.proprietaire_id: ID_FOYER_B,
+        foyer_b.membre.id: ID_FOYER_B,
+        foyer_b.invite.id: ID_FOYER_B,
+    }
+
+
+def test_retirer_un_membre_ne_touche_pas_ses_sessions_mais_il_perd_son_foyer_a_sa_prochaine_requete(db, comptes_des_deux_foyers):
+    from .conftest import jeton_de_session
+
+    foyer_a, _ = comptes_des_deux_foyers
+    en_tete = jeton_de_session(db, foyer_a.membre.id)
+    empreinte = auth_service.hacher_jeton(en_tete["Authorization"].removeprefix("Bearer "))
+    assert db.get(AuthToken, empreinte).foyer_id == ID_FOYER_TEST
+
+    with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
+        appartenance = session.query(Appartenance).filter(Appartenance.user_id == foyer_a.membre.id).one()
+        foyer_service.retirer_du_foyer(session, foyer_a.membre.id, appartenance)
+
+    db.expire_all()
+    assert db.query(Appartenance).filter(Appartenance.user_id == foyer_a.membre.id).count() == 0
+    assert db.get(AuthToken, empreinte).foyer_id == ID_FOYER_TEST  # hors de portée du propriétaire
+    with TestClient(app) as client:
+        moi = client.get("/api/auth/me", headers=en_tete).json()
+        assert (moi["foyer_courant_id"], moi["foyers"]) == (None, [])
+        assert client.get("/api/portfolio/holdings", headers=en_tete).status_code == 403
+    db.expire_all()
+    assert db.get(AuthToken, empreinte).foyer_id is None

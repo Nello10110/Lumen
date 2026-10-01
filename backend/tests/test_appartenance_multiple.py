@@ -8,6 +8,7 @@ Jetons de session réels, comme `test_foyers.py`."""
 
 import pytest
 
+from app import database
 from app.models import (
     ROLE_INVITE,
     ROLE_MEMBRE,
@@ -505,6 +506,7 @@ def test_un_nouveau_compte_sso_d_invitation_n_a_aucun_foyer(db):
     invite = oidc_service.resoudre_ou_provisionner_utilisateur(
         db, config_defaut(), {"sub": "sub-b", "preferred_username": "invite"}, pour_invitation=True
     )
+    database.tous_les_foyers(db)  # le service pose le périmètre du compte trouvé : le banc reprend la main
 
     assert db.query(Appartenance).filter(Appartenance.user_id == ordinaire.id).count() == 1
     assert db.query(Appartenance).filter(Appartenance.user_id == invite.id).count() == 0

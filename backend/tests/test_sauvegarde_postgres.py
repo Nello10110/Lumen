@@ -4,12 +4,13 @@ Deux niveaux :
 
 - sans serveur (toujours joués) : les commandes passées à `pg_dump`, `pg_restore` et
   `psql` — mot de passe jamais en ligne de commande, séparation des foyers ouverte
-  explicitement, schéma remplacé dans une seule transaction, copie de sécurité prise
-  AVANT d'y toucher ;
+  explicitement (foyers ET état d'authentification, § BK.2e), schéma remplacé dans une
+  seule transaction, copie de sécurité prise AVANT d'y toucher ;
 - contre la base de la suite Postgres (job CI `backend-postgres`, outils du client
   PostgreSQL 16 requis) : ce que la séparation des foyers (§ BI.5) fait à un
   `pg_dump` ordinaire, et l'aller-retour réel — une sauvegarde chiffrée qui contient
-  les lignes de TOUS les foyers, rendue par la restauration du CLI.
+  les lignes de TOUS les foyers, leurs comptes, sessions et journal d'accès, rendue par
+  la restauration du CLI.
 """
 
 import os
@@ -23,11 +24,11 @@ from cryptography.fernet import Fernet
 from sqlalchemy import create_engine, make_url, text
 
 from app import database
-from app.models import HoldingValuationHistory
+from app.models import AccessLogEntry, AuthToken, HoldingValuationHistory
 from app.services import backup_service
 from scripts import sauvegarde
 
-from .conftest import ID_FOYER_TEST, creer_foyer, make_holding
+from .conftest import ID_FOYER_TEST, ID_UTILISATEUR_TEST, creer_foyer, make_holding
 
 URL = "postgresql+psycopg://lumen_app:m%40t%20de%2Fpasse@db.exemple:5433/lumen?sslmode=require"
 MOT_DE_PASSE = "m@t de/passe"
@@ -56,7 +57,8 @@ def test_connexion_postgres_passe_le_mot_de_passe_par_l_environnement(monkeypatc
     assert MOT_DE_PASSE not in uri and "m%40t" not in uri
     assert environnement["PGPASSWORD"] == MOT_DE_PASSE
     # Les options déjà posées par l'exploitant sont conservées.
-    assert environnement["PGOPTIONS"] == "-c statement_timeout=0 -c app.tous_foyers=on"
+    assert environnement["PGOPTIONS"] == f"-c statement_timeout=0 {sauvegarde.OPTIONS_SANS_RESTRICTION}"
+    assert "-c app.tous_foyers=on" in environnement["PGOPTIONS"] and "-c app.authentification=on" in environnement["PGOPTIONS"]
 
 
 def test_sans_mot_de_passe_dans_l_url_celui_de_l_environnement_vaut(monkeypatch):
@@ -105,7 +107,7 @@ def test_sauvegarde_ouvre_tous_les_foyers_sans_exposer_le_mot_de_passe(outils, t
     assert outils.outils() == ["pg_dump", "pg_restore"]
     commande, environnement = outils.appels[0]
     assert "--enable-row-security" in commande and "--format=custom" in commande
-    assert environnement["PGOPTIONS"].endswith("-c app.tous_foyers=on")
+    assert environnement["PGOPTIONS"].endswith(sauvegarde.OPTIONS_SANS_RESTRICTION)
     for commande_passee, _ in outils.appels:
         assert not any(MOT_DE_PASSE in argument or "m%40t" in argument for argument in commande_passee)
 
@@ -143,7 +145,7 @@ def test_restauration_met_de_cote_puis_remplace_le_schema_en_une_transaction(out
     assert ordre[:2] == ["--command=DROP SCHEMA public CASCADE", "--command=CREATE SCHEMA public"]
     assert ordre[2].startswith("--file=")
     assert environnement["PGPASSWORD"] == MOT_DE_PASSE
-    assert environnement["PGOPTIONS"].endswith("-c app.tous_foyers=on")
+    assert environnement["PGOPTIONS"].endswith(sauvegarde.OPTIONS_SANS_RESTRICTION)
 
 
 def test_la_copie_de_securite_n_est_pas_soumise_a_la_retention(outils, tmp_path):
@@ -200,11 +202,14 @@ FOYER_B = 2
 @pytest.fixture
 def deux_foyers(db):
     """Une ligne, avec un point d'historique (table fille, sans `foyer_id`), dans
-    chacun de deux foyers."""
+    chacun de deux foyers ; et, pour le compte de test, une session et une ligne du journal
+    d'accès (des tables que ni `foyer_id` ni « tous les foyers » n'ouvrent, § BK.2e)."""
     creer_foyer(db, FOYER_B)
     for foyer, ticker in ((ID_FOYER_TEST, "A-SEUL"), (FOYER_B, "B-SEUL")):
         ligne = make_holding(db, foyer_id=foyer, ticker=ticker)
         db.add(HoldingValuationHistory(holding_id=ligne.id, valeur=1000.0, date_valeur=datetime(2026, 1, 1)))
+    db.add(AuthToken(token_hash="a" * 64, id_session="session-de-test", user_id=ID_UTILISATEUR_TEST, foyer_id=ID_FOYER_TEST, expires_at=datetime(2030, 1, 1)))
+    db.add(AccessLogEntry(username_saisi="test", user_id=ID_UTILISATEUR_TEST, action="login", resultat="succes"))
     db.commit()
     return db
 
@@ -252,6 +257,27 @@ def test_sans_ouvrir_les_foyers_l_archive_ne_contient_aucune_ligne_de_foyer(deux
 
     assert resultat.returncode == 0, resultat.stderr
     assert _lignes_archivees(archive, "holdings") == []
+    assert [_lignes_archivees(archive, table) for table in ("users", "auth_tokens", "access_log_entries")] == [[], [], []]
+
+
+@_POSTGRES
+def test_sans_l_etat_d_authentification_l_archive_a_les_foyers_mais_aucun_compte(deux_foyers, tmp_path):
+    """Le piège de § BK.2e : `app.tous_foyers` ouvre les foyers, pas les comptes — une sauvegarde qui n'aurait que
+    lui serait complète… et sans un seul compte, session ni ligne de journal."""
+    archive = tmp_path / "sans-comptes.dump"
+    uri, environnement = sauvegarde.connexion_postgres(database.DATABASE_URL)
+    environnement["PGOPTIONS"] = "-c app.tous_foyers=on"
+    resultat = subprocess.run(
+        ["pg_dump", "--format=custom", "--enable-row-security", f"--file={archive}", f"--dbname={uri}"],
+        env=environnement,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert resultat.returncode == 0, resultat.stderr
+    assert len(_lignes_archivees(archive, "holdings")) == 2
+    assert [_lignes_archivees(archive, table) for table in ("users", "auth_tokens", "access_log_entries")] == [[], [], []]
 
 
 @pytest.fixture
@@ -291,6 +317,10 @@ def test_sauvegarde_chiffree_de_tous_les_foyers_rendue_par_la_restauration_du_cl
     clair = backup_service.dechiffrer(chiffree, tmp_path / "clair.dump")
     assert len(_lignes_archivees(clair, "holdings")) == 2
     assert len(_lignes_archivees(clair, "holding_valuation_history")) == 2
+    # Les comptes, leurs sessions et le journal d'accès voyagent aussi : l'état d'authentification est posé.
+    assert len(_lignes_archivees(clair, "users")) == 1
+    assert len(_lignes_archivees(clair, "auth_tokens")) == 1
+    assert len(_lignes_archivees(clair, "access_log_entries")) == 1
 
     monkeypatch.setenv("PATRIMOINE_DATABASE_URL", url_restauration)
     assert sauvegarde.main(["--restaurer", str(chiffree), "--dossier", str(dossier), "--forcer"]) == 0
@@ -298,6 +328,10 @@ def test_sauvegarde_chiffree_de_tous_les_foyers_rendue_par_la_restauration_du_cl
     with moteur_lecture.connect() as connexion:
         assert connexion.execute(text("SELECT ticker FROM holdings ORDER BY ticker")).scalars().all() == ["A-SEUL", "B-SEUL"]
         assert connexion.execute(text("SELECT count(*) FROM holding_valuation_history")).scalar() == 2
+        # Les comptes aussi (lus par l'administrateur de la base de lecture, que les politiques ne gênent pas).
+        assert connexion.execute(text("SELECT count(*) FROM users")).scalar() == 1
+        assert connexion.execute(text("SELECT token_hash FROM auth_tokens")).scalars().all() == ["a" * 64]
+        assert connexion.execute(text("SELECT count(*) FROM access_log_entries")).scalar() == 1
         # La séparation des foyers revient avec les données.
         assert connexion.execute(text("SELECT relforcerowsecurity FROM pg_class WHERE relname = 'holdings'")).scalar() is True
         politiques_restaurees = connexion.execute(text("SELECT count(*) FROM pg_policies")).scalar()

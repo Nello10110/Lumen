@@ -317,9 +317,13 @@ def restaurer(
 # laisse les politiques s'appliquer, et `app.tous_foyers=on`, posé dès la connexion,
 # les ouvre à tous les foyers, exactement comme les tâches de fond
 # (`database.session_tous_foyers`) ; sans lui, l'archive serait complète… et vide de
-# toute ligne de foyer. `psql` reçoit le même réglage à la restauration : les
-# politiques valent aussi pour l'écriture (`WITH CHECK`).
-OPTION_TOUS_FOYERS = "-c app.tous_foyers=on"
+# toute ligne de foyer. Les comptes (`users`), les sessions (`auth_tokens`) et le journal
+# d'accès (`access_log_entries`) ne sont pas des tables de foyer (§ BK.2e) : leurs politiques
+# ne s'ouvrent que par l'état d'authentification, `app.authentification=on`, que cette
+# connexion pose elle aussi — sans lui, l'archive serait complète… et vide de tout compte.
+# `psql` reçoit les mêmes réglages à la restauration : les politiques valent aussi pour
+# l'écriture (`WITH CHECK`).
+OPTIONS_SANS_RESTRICTION = "-c app.tous_foyers=on -c app.authentification=on"
 
 
 def _outil_postgres(nom: str) -> str:
@@ -348,7 +352,7 @@ def connexion_postgres(url: str) -> tuple[str, dict[str, str]]:
     mot_de_passe = urlsplit(url).password
     if mot_de_passe:
         environnement["PGPASSWORD"] = unquote(mot_de_passe)
-    environnement["PGOPTIONS"] = f"{environnement.get('PGOPTIONS', '')} {OPTION_TOUS_FOYERS}".strip()
+    environnement["PGOPTIONS"] = f"{environnement.get('PGOPTIONS', '')} {OPTIONS_SANS_RESTRICTION}".strip()
     return uri, environnement
 
 
