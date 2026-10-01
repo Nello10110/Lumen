@@ -624,6 +624,10 @@ Section visible uniquement par le propriétaire du compte.
   c'est refusé pour un compte qui n'a pas de mot de passe, qui ne pourrait plus se connecter. Un compte n'est
   **jamais** lié automatiquement à un compte SSO du même nom : c'est cette carte, depuis le compte connecté,
   qui lie. Le compte opérateur n'est pas concerné (mot de passe seulement).
+  **Membre ou invité** : Réglages ne vous est pas ouvert, donc la même fonction est dans le **menu du compte** (en bas
+  de la barre latérale, ou « Plus » sur mobile) : « **Connexion SSO…** » ouvre une fenêtre avec les mêmes boutons
+  « Lier mon compte SSO » / « Délier mon compte SSO ». Le propriétaire, lui, la trouve dans Réglages et ne la voit pas
+  répétée dans son menu.
 - **Sessions actives** : chaque appareil ou navigateur connecté avec ce compte, avec sa dernière
   activité. « Révoquer » déconnecte immédiatement cet appareil précis, sans toucher aux autres — la
   session en cours d'utilisation ne peut pas se révoquer elle-même.

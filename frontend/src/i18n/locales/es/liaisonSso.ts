@@ -13,6 +13,7 @@ const liaisonSso: Structure<typeof fr> = {
   sessionAbsente: "No había ninguna sesión abierta al volver del proveedor: la vinculación no se ha confirmado. Inicie sesión y vuelva a iniciarla desde Ajustes.",
   echec: "No se pudo vincular el SSO: {motif}",
   reussie: "Tu cuenta ya está vinculada a tu identidad SSO.",
+  menu: "Inicio de sesión SSO…",
   fermer: "Cerrar",
 }
 

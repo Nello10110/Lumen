@@ -13,6 +13,7 @@ const liaisonSso: Structure<typeof fr> = {
   sessionAbsente: "No session was open when you came back from the provider: the link was not confirmed. Sign in, then start it again from Settings.",
   echec: "SSO link failed: {motif}",
   reussie: "Your account is now linked to your SSO identity.",
+  menu: "SSO sign-in…",
   fermer: "Close",
 }
 
