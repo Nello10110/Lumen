@@ -736,7 +736,7 @@ Un lien de partage donne à un tiers (une banque pour un prêt, un notaire, un m
 - **Sections à inclure** : Patrimoine net, Exposition consolidée, Rentabilité, Budget — chacune indépendante des autres. Ce que l'application montre reste volontairement limité à des chiffres globaux : jamais la liste des positions ligne par ligne, jamais les transactions, jamais les libellés de compte.
 - **Masquer les montants** : remplace chaque montant par son pourcentage dans la répartition — la forme reste visible (« 60 % en immobilier »), pas l'échelle en euros.
 
-Chaque lien créé apparaît dans la liste avec son URL complète (à copier-coller), un badge s'il est révoqué, expiré, ou protégé par un code. **Révoquer** coupe l'accès immédiatement et définitivement — le visiteur qui rouvre le lien voit un message d'indisponibilité, sans plus de détail (impossible de deviner si le lien a expiré, a été révoqué, ou n'a jamais existé).
+À la création, l'adresse du lien s'affiche **une seule fois**, dans un encadré (**Copier le lien**, **Masquer**) : copie-la tout de suite et transmets-la toi-même — l'application n'en garde que l'empreinte et ne pourra plus te la redonner, comme pour un lien d'invitation. Le lien apparaît ensuite dans la liste, sans adresse, avec un badge s'il est révoqué, expiré, ou protégé par un code ; **si tu as perdu l'adresse, révoque le lien et crées-en un nouveau.** **Révoquer** coupe l'accès immédiatement et définitivement — le visiteur qui rouvre le lien voit un message d'indisponibilité, sans plus de détail (impossible de deviner si le lien a expiré, a été révoqué, ou n'a jamais existé).
 
 ### Onglet Automatisations
 
