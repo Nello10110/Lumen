@@ -9,7 +9,10 @@ import { formatDateHeure } from '../utils/format'
 import { t } from '../i18n'
 
 /** Journal d'accès (backlog 2.L.2) : qui s'est connecté, quand, résultat — réservé
- * au propriétaire (`require_role`, cf. `routers/auth.py`). Pagination simple. */
+ * au propriétaire (`require_role`, cf. `routers/auth.py`). Pagination simple.
+ *
+ * `charger` : la page à lire — celle du foyer par défaut, le journal COMPLET de l'installation
+ * dans la console de l'opérateur (backlog § BK.2d), qui l'indique par `complet`. */
 /** Motifs d'échec journalisés par `routers/auth.py` : des codes stables, traduits ici
  * pour l'affichage. Un code inconnu (ajouté côté serveur sans passer par ici) reste
  * affiché tel quel plutôt que masqué. */
@@ -20,12 +23,25 @@ function libelleRaison(raison: string | null): string {
     case 'compte_sso_seul': return t('journalAccesCard.raisonCompteSsoSeul')
     case 'mot_de_passe_incorrect': return t('journalAccesCard.raisonMotDePasseIncorrect')
     case 'oidc_echec': return t('journalAccesCard.raisonOidcEchec')
+    case 'operateur_sans_sso': return t('journalAccesCard.raisonOperateurSansSso')
     case null: return '?'
     default: return raison
   }
 }
 
-export default function JournalAccesCard() {
+function libelleAction(action: AccessLogEntry['action']): string {
+  if (action === 'login') return t('journalAccesCard.connexion')
+  if (action === 'logout') return t('journalAccesCard.deconnexion')
+  return t('journalAccesCard.liaisonSso')
+}
+
+export default function JournalAccesCard({
+  charger: lirePage = api.getAccessLog,
+  complet = false,
+}: {
+  charger?: (page: number) => Promise<AccessLogEntry[]>
+  complet?: boolean
+}) {
   const [entrees, setEntrees] = useState<AccessLogEntry[]>([])
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -34,18 +50,19 @@ export default function JournalAccesCard() {
   function charger() {
     setLoading(true)
     setError(null)
-    api
-      .getAccessLog(page)
+    lirePage(page)
       .then(setEntrees)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
-  useEffect(charger, [page])
+  useEffect(charger, [page, lirePage])
 
   return (
     <Card title={t('journalAccesCard.journalDAcces')}>
-      <p className="mb-4 text-sm text-texte-attenue">{t('journalAccesCard.historiqueDesConnexionsEtDeconnexions')}</p>
+      <p className="mb-4 text-sm text-texte-attenue">
+        {complet ? t('journalAccesCard.descriptionComplet') : t('journalAccesCard.historiqueDesConnexionsEtDeconnexions')}
+      </p>
       {loading ? (
         <SkeletonTexte />
       ) : entrees.length === 0 ? (
@@ -62,7 +79,7 @@ export default function JournalAccesCard() {
           {entrees.map((e) => (
             <li key={e.id} className="flex items-center justify-between gap-4 py-2 text-sm">
               <span className="text-texte">
-                {e.username_saisi} · {e.action === 'login' ? t('journalAccesCard.connexion') : t('journalAccesCard.deconnexion')} · {e.ip ?? t('journalAccesCard.ipInconnue')}
+                {e.username_saisi} · {libelleAction(e.action)} · {e.ip ?? t('journalAccesCard.ipInconnue')}
               </span>
               <span className={e.resultat === 'succes' ? 'text-positif' : 'text-negatif'}>
                 {e.resultat === 'succes' ? t('journalAccesCard.succes') : t('journalAccesCard.echec', { raison: libelleRaison(e.raison) })} · {formatDateHeure(e.timestamp)}

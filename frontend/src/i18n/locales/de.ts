@@ -103,6 +103,7 @@ const de: Dictionnaire = {
       detenteurs: 'Personen im Haushalt',
       comptes: 'Konten',
       inviter: "Haushaltsmitglieder einladen",
+      operateur: "Verwaltung der Installation",
       demarrage: 'Portfolio beginnen',
       termine: 'Fertig',
     },
@@ -132,6 +133,10 @@ const de: Dictionnaire = {
     },
     inviter:
       "Die anderen Mitglieder des Haushalts (Partner, Kinder, ein Angehöriger mit reinem Leserecht …) können ein eigenes Konto haben: Lade sie mit einem Link ein, den du ihnen selbst schickst. Dieser Schritt ist optional; du kannst jederzeit unter Einstellungen → Konten & Sicherheit einladen.",
+    operateur:
+      "Diese Installation kann mehrere Haushalte aufnehmen. Um sie zu verwalten – weitere anlegen, einen sperren, geplante Aufgaben einstellen –, erstelle ein Betreiberkonto: ein von deinem getrenntes Konto, das zu keinem Haushalt gehört und kein Vermögen sieht. Um es zu nutzen, meldest du dich damit statt mit deinem eigenen Konto an.",
+    operateurPlusTard:
+      "Dieser Schritt ist optional. Den Betreiber kannst du später unter Einstellungen anlegen (solange du allein auf der Installation bist) oder über die Befehlszeile.",
     demarrage: {
       dejaAvant: 'Das Portfolio enthält bereits',
       positions: { one: '{n} Position', other: '{n} Positionen' },

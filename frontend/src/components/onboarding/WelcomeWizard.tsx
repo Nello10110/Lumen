@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import Card from '../Card'
-import { ETAPES_ONBOARDING } from './steps'
+import { etapesPourUtilisateur } from './steps'
 import { t } from '../../i18n'
 
 /** Assistant de configuration initiale (« welcome board »), affiché plein cadre à la
@@ -20,8 +20,10 @@ import { t } from '../../i18n'
 export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
   const { user, completeOnboarding } = useAuth()
   const [index, setIndex] = useState(0)
-  const etape = ETAPES_ONBOARDING[index]
-  const estDerniereEtape = index === ETAPES_ONBOARDING.length - 1
+  // Figées à l'ouverture : une étape (l'opérateur) peut éteindre sa propre condition.
+  const [etapes] = useState(() => etapesPourUtilisateur(user))
+  const etape = etapes[index]
+  const estDerniereEtape = index === etapes.length - 1
 
   async function terminer() {
     if (!user?.onboarding_termine) await completeOnboarding()
@@ -33,11 +35,11 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
       <div className="w-full max-w-lg">
         <h1 className="mb-2 text-center text-xl font-semibold text-texte">{t('assistant.titre')}</h1>
         <p className="mb-6 text-center text-xs text-texte-attenue">
-          {t('assistant.etapeSur', { n: index + 1, total: ETAPES_ONBOARDING.length })}
+          {t('assistant.etapeSur', { n: index + 1, total: etapes.length })}
         </p>
 
         <div className="mb-6 flex justify-center gap-1.5" aria-hidden="true">
-          {ETAPES_ONBOARDING.map((e, i) => (
+          {etapes.map((e, i) => (
             <span
               key={e.key}
               className={`h-1.5 w-8 rounded-chip transition-colors ${i <= index ? 'bg-accent' : 'bg-bordure'}`}

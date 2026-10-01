@@ -23,6 +23,12 @@ const invitationPage = {
   rejoindre: "Rejoindre ce foyer",
   autreCompte: "Utiliser un autre compte",
   ouvrirApplication: "Ouvrir l'application sans rejoindre",
+  titreCreation: "Invitation à créer votre foyer",
+  inviteCreation: "Vous êtes invité à créer votre foyer : vous en serez le propriétaire.",
+  creerLeFoyer: "Créer mon foyer",
+  ajouteAuxFoyersCreation: "Votre nouveau foyer s'ajoutera à ceux de ce compte, s'il en a déjà : la barre latérale permettra de passer de l'un à l'autre.",
+  creerEtCreerFoyer: "Créer mon compte et mon foyer",
+  seConnecterEtCreerFoyer: "Me connecter et créer mon foyer",
 } as const
 
 export default invitationPage

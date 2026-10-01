@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Detenteur, Session } from '../api/types'
-import { ETAPES_ONBOARDING } from '../components/onboarding/steps'
+import { etapesPourUtilisateur } from '../components/onboarding/steps'
 import { AuthContext, type AuthContextValue } from '../contexts/authContextObject'
 import ReglagesPage from './ReglagesPage'
 
@@ -90,6 +90,15 @@ vi.mock('../api/client', () => ({
     // Logo du bouton de connexion SSO (22/09/2026) : `LogoConnexionSsoCard` vit dans
     // l'onglet Sécurité, rendue pour de vrai par les tests ci-dessous.
     getLogoConnexionSso: vi.fn().mockResolvedValue({ logo: null }),
+    // Liaison du compte au SSO (backlog § BK.2d) : `LiaisonSsoCard`, dans l'onglet Sécurité —
+    // SSO non configuré par défaut, la carte n'apparaît pas.
+    getOidcStatus: vi.fn().mockResolvedValue({ enabled: false, display_name: 'SSO', logo: null }),
+    // Liens « créer votre foyer » d'un propriétaire (§ BK.2d) : `InviterCreationFoyerCard`.
+    listInvitationsFoyer: vi.fn().mockResolvedValue([]),
+    createInvitationFoyer: vi.fn(),
+    revoquerInvitationFoyer: vi.fn(),
+    // Compte opérateur (§ BK.2d) : `BandeauOperateur`.
+    amorcerOperateur: vi.fn(),
     getAccessLog: vi.fn().mockResolvedValue([]),
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
     // Invitations (backlog § BK.2b) : `SectionInvitations`, montée dans « Membres et
@@ -651,9 +660,9 @@ describe('ReglagesPage — Assistant de bienvenue (welcome board)', () => {
     fireEvent.click(await screen.findByRole('button', { name: "Revoir l'assistant de bienvenue" }))
     await screen.findByRole('heading', { name: 'Configuration initiale' })
     // Navigue jusqu'à la dernière étape avant de terminer — nombre d'étapes lu
-    // dynamiquement (`ETAPES_ONBOARDING`), pour ne jamais se désynchroniser d'un
+    // dynamiquement (`etapesPourUtilisateur`), pour ne jamais se désynchroniser d'un
     // ajout/retrait d'étape (même patron que `WelcomeWizard.test.tsx`).
-    for (let i = 0; i < ETAPES_ONBOARDING.length - 1; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    for (let i = 0; i < etapesPourUtilisateur(utilisateurFactice.user).length - 1; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Terminer' }))
 
     await vi.waitFor(() => expect(screen.queryByRole('heading', { name: 'Configuration initiale' })).not.toBeInTheDocument())
@@ -701,5 +710,90 @@ describe('ReglagesPage — galerie de badges (backlog § AG.4)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
     await vi.waitFor(() => expect(screen.queryByText('panne simulée')).not.toBeInTheDocument())
+  })
+})
+
+// Backlog § BK.2d : l'écran du propriétaire selon l'état de l'installation.
+describe('ReglagesPage — opérateur, naissance des foyers et liaison SSO (backlog § BK.2d)', () => {
+  function rendreAvec(utilisateur: Partial<NonNullable<AuthContextValue['user']>>) {
+    const valeur: AuthContextValue = { ...utilisateurFactice, user: { ...utilisateurFactice.user!, ...utilisateur } }
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={valeur}>
+          <ReglagesPage />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+  }
+
+  it("tant qu'aucun opérateur n'existe : onglet Automatisations et logo SSO sont au propriétaire", async () => {
+    rendreAvec({ operateur_existe: false })
+
+    expect(screen.getByRole('tab', { name: 'Automatisations' })).toBeInTheDocument()
+    ouvrirOnglet('Comptes & sécurité')
+    expect(await screen.findByRole('heading', { name: 'Logo du bouton de connexion SSO' })).toBeInTheDocument()
+  })
+
+  it("dès qu'un opérateur existe : plus d'onglet Automatisations, plus de logo SSO, et aucun appel qui répondrait 403", async () => {
+    vi.mocked(api.listJobs).mockClear()
+    vi.mocked(api.getLogoConnexionSso).mockClear()
+    rendreAvec({ operateur_existe: true })
+
+    expect(screen.queryByRole('tab', { name: 'Automatisations' })).not.toBeInTheDocument()
+    ouvrirOnglet('Comptes & sécurité')
+    expect(await screen.findByRole('heading', { name: 'Membres et invitations' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Logo du bouton de connexion SSO' })).not.toBeInTheDocument()
+    expect(api.listJobs).not.toHaveBeenCalled()
+    expect(api.getLogoConnexionSso).not.toHaveBeenCalled()
+  })
+
+  it("une adresse ?onglet=automatisations retombe sur l'onglet par défaut une fois l'opérateur créé", () => {
+    render(
+      <MemoryRouter initialEntries={['/reglages?onglet=automatisations']}>
+        <AuthContext.Provider value={{ ...utilisateurFactice, user: { ...utilisateurFactice.user!, operateur_existe: true } }}>
+          <ReglagesPage />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Général', selected: true })).toBeInTheDocument()
+  })
+
+  it("propose le bandeau « Créer le compte opérateur » tant que peut_amorcer_operateur est vrai", () => {
+    rendreAvec({ peut_amorcer_operateur: true })
+
+    expect(screen.getByRole('heading', { name: 'Créer le compte opérateur' })).toBeInTheDocument()
+  })
+
+  it("pas de bandeau quand l'opérateur ne peut plus être amorcé", () => {
+    rendreAvec({ peut_amorcer_operateur: false, operateur_existe: true })
+
+    expect(screen.queryByRole('heading', { name: 'Créer le compte opérateur' })).not.toBeInTheDocument()
+  })
+
+  it('en mode invitation, la section « Inviter un proche à créer son foyer » apparaît ; sinon elle est masquée', async () => {
+    rendreAvec({ peut_inviter_a_creer_foyer: true })
+    ouvrirOnglet('Comptes & sécurité')
+
+    expect(await screen.findByRole('heading', { name: 'Inviter un proche à créer son foyer' })).toBeInTheDocument()
+    await vi.waitFor(() => expect(api.listInvitationsFoyer).toHaveBeenCalled())
+  })
+
+  it('en mode fermé, aucune section de création de foyer et aucun appel vers /invitations/foyer', async () => {
+    vi.mocked(api.listInvitationsFoyer).mockClear()
+    rendreAvec({ peut_inviter_a_creer_foyer: false })
+    ouvrirOnglet('Comptes & sécurité')
+
+    expect(await screen.findByRole('heading', { name: 'Membres et invitations' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Inviter un proche à créer son foyer' })).not.toBeInTheDocument()
+    expect(api.listInvitationsFoyer).not.toHaveBeenCalled()
+  })
+
+  it('la carte « Connexion SSO » apparaît quand le SSO est configuré', async () => {
+    vi.mocked(api.getOidcStatus).mockResolvedValueOnce({ enabled: true, display_name: 'Authentik', logo: null })
+    rendreAvec({ sso_lie: false })
+    ouvrirOnglet('Comptes & sécurité')
+
+    expect(await screen.findByRole('button', { name: 'Lier mon compte SSO' })).toBeInTheDocument()
   })
 })

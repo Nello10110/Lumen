@@ -103,6 +103,7 @@ const it: Dictionnaire = {
       detenteurs: 'Titolari del nucleo',
       comptes: 'Conti',
       inviter: "Invita i membri del nucleo",
+      operateur: "Amministrazione dell'installazione",
       demarrage: 'Avvia il portafoglio',
       termine: 'Fatto',
     },
@@ -132,6 +133,10 @@ const it: Dictionnaire = {
     },
     inviter:
       "Gli altri membri del nucleo (coniuge, figli, un familiare in sola consultazione…) possono avere un proprio account: invitali con un link che invii tu stesso. Questo passo è facoltativo; potrai invitare quando vuoi da Impostazioni → Account e sicurezza.",
+    operateur:
+      "Questa installazione può accogliere più nuclei. Per amministrarli — crearne altri, sospenderne uno, regolare le attività pianificate — crea un account operatore: un account distinto dal tuo, che non appartiene a nessun nucleo e non vede nessun patrimonio. Per usarlo, accederai con questo account invece che con il tuo.",
+    operateurPlusTard:
+      "Questo passo è facoltativo. Potrai creare l'operatore più tardi da Impostazioni (finché sei solo sull'installazione), oppure da riga di comando.",
     demarrage: {
       dejaAvant: 'Il portafoglio contiene già',
       positions: { one: '{n} posizione', other: '{n} posizioni' },

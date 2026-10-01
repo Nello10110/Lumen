@@ -112,6 +112,7 @@ const fr = {
       detenteurs: 'Détenteurs du foyer',
       comptes: 'Comptes',
       inviter: "Inviter les membres du foyer",
+      operateur: "Administration de l'installation",
       demarrage: 'Démarrer le portefeuille',
       termine: 'Terminé',
     },
@@ -141,6 +142,10 @@ const fr = {
     },
     inviter:
       "Les autres membres du foyer (conjoint, enfants, un proche en consultation…) peuvent avoir leur propre compte : invite-les avec un lien, à leur transmettre toi-même. Cette étape est facultative, tu pourras inviter quand tu veux depuis Réglages → Comptes & sécurité.",
+    operateur:
+      "Cette installation peut accueillir plusieurs foyers. Pour les administrer — en créer d'autres, en suspendre un, régler les tâches planifiées —, crée un compte opérateur : un compte distinct du tien, qui n'appartient à aucun foyer et ne voit aucun patrimoine. Pour l'utiliser, tu te connecteras avec lui plutôt qu'avec ton compte.",
+    operateurPlusTard:
+      "Cette étape est facultative. Tu pourras créer l'opérateur plus tard depuis Réglages (tant que tu es seul sur l'installation), ou en ligne de commande.",
     demarrage: {
       dejaAvant: 'Le portefeuille compte déjà',
       positions: { one: '{n} position', other: '{n} positions' },

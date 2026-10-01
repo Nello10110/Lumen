@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../../api/client'
 import { AuthContext, type AuthContextValue } from '../../contexts/authContextObject'
 import WelcomeWizard from './WelcomeWizard'
-import { ETAPES_ONBOARDING } from './steps'
+import { etapesPourUtilisateur } from './steps'
 
 // Étapes 2, 3 et 4 (`PreferencesCard`/`DetenteursCard`/"Démarrer le portefeuille")
 // chargent leurs propres données au montage — stubs neutres par défaut (portefeuille
@@ -41,6 +41,8 @@ vi.mock('../../api/client', () => ({
     listInvitations: vi.fn().mockResolvedValue([]),
     createInvitation: vi.fn(),
     revoquerInvitation: vi.fn(),
+    // Étape « Administration de l'installation » (backlog § BK.2d) : `CreationOperateur`.
+    amorcerOperateur: vi.fn(),
   },
 }))
 
@@ -83,7 +85,7 @@ describe('WelcomeWizard', () => {
     renderWizard(utilisateurFactice())
 
     expect(screen.getByRole('heading', { name: 'Bienvenue' })).toBeInTheDocument()
-    expect(screen.getByText(`Étape 1 sur ${ETAPES_ONBOARDING.length}`)).toBeInTheDocument()
+    expect(screen.getByText(`Étape 1 sur ${etapesPourUtilisateur(utilisateurFactice().user).length}`)).toBeInTheDocument()
   })
 
   it('"Suivant" avance les étapes, "Précédent" recule, dans l\'ordre déclaré', () => {
@@ -120,7 +122,7 @@ describe('WelcomeWizard', () => {
     const completeOnboarding = vi.fn().mockResolvedValue(undefined)
     renderWizard(utilisateurFactice({ completeOnboarding }))
 
-    for (let i = 0; i < ETAPES_ONBOARDING.length - 1; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    for (let i = 0; i < etapesPourUtilisateur(utilisateurFactice().user).length - 1; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
 
     expect(screen.getByRole('heading', { name: 'Terminé' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Suivant' })).not.toBeInTheDocument()
@@ -329,5 +331,74 @@ describe('WelcomeWizard — choix de la langue en première page', () => {
     // volumineux depuis § BL.2 — la seconde par défaut ne suffit pas toujours en suite complète.
     await vi.waitFor(() => expect(api.updateLangueFoyer).toHaveBeenCalledWith('es'), { timeout: 5000 })
     await vi.waitFor(() => expect(refetchUser).toHaveBeenCalled())
+  })
+})
+
+// Backlog § BK.2d : « Administration de l'installation », pour le propriétaire qui peut
+// amorcer l'opérateur — en pratique le premier compte d'une installation neuve.
+describe("WelcomeWizard — étape « Administration de l'installation »", () => {
+  const premierCompte = () => ({
+    user: {
+      id: 1,
+      username: 'testeur',
+      role: 'proprietaire' as const,
+      onboarding_termine: false,
+      holdings_sans_compte: 0,
+      peut_amorcer_operateur: true,
+    },
+  })
+
+  function allerALEtape(nom: string) {
+    for (let i = 0; i < 10 && !screen.queryByRole('heading', { name: nom }); i++) {
+      fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    }
+  }
+
+  it("n'est proposée que si peut_amorcer_operateur est vrai, après « Inviter » et avant « Démarrer le portefeuille »", () => {
+    const avec = etapesPourUtilisateur(utilisateurFactice(premierCompte()).user).map((e) => e.key)
+    const sans = etapesPourUtilisateur(utilisateurFactice().user).map((e) => e.key)
+
+    expect(avec).toEqual(['bienvenue', 'preferences', 'detenteurs', 'comptes', 'inviter', 'operateur', 'demarrage', 'termine'])
+    expect(sans).not.toContain('operateur')
+  })
+
+  it('montre le formulaire du bandeau, et se passe sans rien saisir (plus tard)', () => {
+    renderWizard(utilisateurFactice(premierCompte()))
+    expect(screen.getByText(`Étape 1 sur ${etapesPourUtilisateur(utilisateurFactice(premierCompte()).user).length}`)).toBeInTheDocument()
+
+    allerALEtape("Administration de l'installation")
+
+    expect(screen.getByText(/Cette installation peut accueillir plusieurs foyers/)).toBeInTheDocument()
+    expect(screen.getByText(/Cette étape est facultative/)).toBeInTheDocument()
+    expect(screen.getByLabelText("Nom d'utilisateur")).toBeInTheDocument()
+    // Plus tard : on passe à l'étape suivante sans rien créer.
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    expect(screen.getByRole('heading', { name: 'Démarrer le portefeuille' })).toBeInTheDocument()
+    expect(api.amorcerOperateur).not.toHaveBeenCalled()
+  })
+
+  it("crée l'opérateur sans que l'étape disparaisse sous les pieds de l'utilisateur", async () => {
+    vi.mocked(api.amorcerOperateur).mockResolvedValue({ id: 2, username: 'admin', created_at: '2026-10-01T10:00:00' })
+    const auth = utilisateurFactice(premierCompte())
+    const { rerender } = renderWizard(auth)
+    allerALEtape("Administration de l'installation")
+
+    fireEvent.change(screen.getByLabelText("Nom d'utilisateur"), { target: { value: 'admin' } })
+    fireEvent.change(screen.getByLabelText(/^Mot de passe/), { target: { value: 'mot-de-passe-1' } })
+    fireEvent.change(screen.getByLabelText('Confirmer le mot de passe'), { target: { value: 'mot-de-passe-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le compte opérateur' }))
+    expect(await screen.findByText('Compte opérateur « admin » créé.')).toBeInTheDocument()
+    expect(api.amorcerOperateur).toHaveBeenCalledWith('admin', 'mot-de-passe-1')
+
+    // L'utilisateur rechargé n'a plus peut_amorcer_operateur : l'étape reste affichée.
+    rerender(
+      <MemoryRouter>
+        <AuthContext.Provider value={{ ...auth, user: { ...auth.user!, peut_amorcer_operateur: false, operateur_existe: true } }}>
+          <WelcomeWizard />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: "Administration de l'installation" })).toBeInTheDocument()
+    expect(screen.getByText('Compte opérateur « admin » créé.')).toBeInTheDocument()
   })
 })

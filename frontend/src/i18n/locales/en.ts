@@ -102,6 +102,7 @@ const en: Dictionnaire = {
       detenteurs: 'Household members',
       comptes: 'Accounts',
       inviter: "Invite household members",
+      operateur: "Installation administration",
       demarrage: 'Start the portfolio',
       termine: 'Done',
     },
@@ -131,6 +132,10 @@ const en: Dictionnaire = {
     },
     inviter:
       "The other members of the household (spouse, children, a relative with view-only access…) can have their own account: invite them with a link that you send them yourself. This step is optional; you can invite whenever you like from Settings → Accounts & security.",
+    operateur:
+      "This installation can host several households. To administer them — create more, suspend one, set the scheduled tasks — create an operator account: a separate account from yours, belonging to no household and seeing no assets. To use it, you will sign in with it instead of your own account.",
+    operateurPlusTard:
+      "This step is optional. You can create the operator later from Settings (as long as yours is the only household on the installation), or from the command line.",
     demarrage: {
       dejaAvant: 'The portfolio already contains',
       positions: { one: '{n} position', other: '{n} positions' },

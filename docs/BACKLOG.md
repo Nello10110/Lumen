@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) : serveur réalisé (30/09/2026), interface à faire |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) : serveur réalisé (30/09/2026), interface réalisée (01/10/2026), reste la vérification par la CI Postgres |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -102,7 +102,7 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
   partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2b (invitations) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2c (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI
-  Postgres ; lot BK.2d (opérateur et naissance des foyers) : serveur réalisé le 30/09/2026 ; puis BK.2e** (§ BK.2, point 9).
+  Postgres ; lot BK.2d (opérateur et naissance des foyers) : serveur réalisé le 30/09/2026, interface le 01/10/2026 ; puis BK.2e** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -114,7 +114,7 @@ Et, au-delà de ces deux points :
   **reporté par l'utilisateur** le 23/09/2026 ;
 - **les réglages d'installation** (`parametres`, `scheduled_job_config`, logo SSO) deviennent des
   réglages d'opérateur, à sortir de l'écran Réglages des clients — lié à BK.2 (lot BK.2d : les routes sont
-  déplacées côté serveur, l'écran de la console reste à faire).
+  déplacées côté serveur, la console les porte depuis le 01/10/2026).
 
 ### 2.3 Côté installation de l'utilisateur (hors code)
 
@@ -7082,7 +7082,8 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
 (invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2c** `traité (30/09/2026)`
 (cycle de vie côté foyer, « Lot BK.2c — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2d** (opérateur et naissance des
-foyers) : serveur réalisé le 30/09/2026 (« Lot BK.2d — réalisé (serveur) »), interface à faire ; puis BK.2e (§ 9).
+foyers) : serveur réalisé le 30/09/2026 (« Lot BK.2d — réalisé (serveur) »), interface réalisée le 01/10/2026 (« Lot BK.2d — réalisé
+(interface) ») ; puis BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7805,7 +7806,7 @@ la vérifie de nouveau.
 
 ##### Lot BK.2d — réalisé (serveur, 30/09/2026)
 
-Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la console et les écrans (bandeau d'amorçage, « Lier mon compte SSO », lien « créer votre foyer ») sont l'interface, à faire. Vérifié sous SQLite (suite backend complète) ; les tests Postgres (`test_separation_foyers.py`, étendu) tournent en CI. Contrat des routes : `docs/SPECIFICATIONS_FONCTIONNELLES.md` § 3.27 ; exploitation : `docs/MANUEL_EXPLOITATION.md` § 12.2.
+Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la console et les écrans (bandeau d'amorçage, « Lier mon compte SSO », lien « créer votre foyer ») sont l'interface, réalisée le 01/10/2026 (section suivante). Vérifié sous SQLite (suite backend complète) ; les tests Postgres (`test_separation_foyers.py`, étendu) tournent en CI. Contrat des routes : `docs/SPECIFICATIONS_FONCTIONNELLES.md` § 3.27 ; exploitation : `docs/MANUEL_EXPLOITATION.md` § 12.2.
 
 **Décisions de l'utilisateur au lancement (30/09/2026)** : un compte n'est supprimé que par lui-même ou par l'opérateur, et un compte sans foyer reste sans foyer (décisions 10 et 11) ; repartir de zéro sur son installation est accepté (pas de contrainte de compatibilité, mais migrations correctes) ; modes de naissance `ferme` (défaut) et `invitation` ; réglage d'opérateur distinct « un nouveau compte SSO crée son foyer » (oui par défaut) ; le réglage `creation_foyer_par_compte_sans_foyer` (BK.2b) devient réglable par l'opérateur.
 
@@ -7822,7 +7823,27 @@ Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la con
 
 **Tests.** `test_operateur.py` (connexion de l'opérateur ; **test générique** : toutes les routes du schéma OpenAPI hors `/api/operateur` et `/api/auth` répondent 403 à un jeton d'opérateur, les routes publiques étant listées en clair ; aucune clé de réponse de la console ne désigne un montant ; foyers, suspension complète — sessions, liens, invitations, données intactes, autre foyer intact —, réactivation, suppression avec confirmation et comptes conservés, nouveau propriétaire et ses refus, comptes sans foyer, journal complet et journal du propriétaire ; liens de création par un nouveau compte et par un compte existant, opérateur refusé, révocation, modes `ferme` et `invitation` et extinction des liens, IDOR entre propriétaires ; réglages et déplacement des routes d'installation ; amorçage accepté / refusé (opérateur existant, deux foyers, rôle) ; commande en ligne avec `getpass` simulé ; SSO : nouveau compte avec foyer / sans foyer selon le réglage, compte local homonyme **non pris**, liaison, refus d'une identité déjà liée, refus pour l'opérateur, `state` signé, déliaison, opérateur jamais connecté par SSO). `test_separation_foyers.py` (Postgres) étendu : **zéro ligne de patrimoine sous périmètre opérateur, table par table, même en SQL direct** ; foyers, appartenances et comptes lisibles ; suspendre, désigner, supprimer un foyer et un compte depuis ce périmètre ; jamais d'appartenance pour un opérateur ; un propriétaire ne suspend pas un foyer ; visibilité des liens de création (à leur créateur, tous pour l'opérateur, jamais les invitations d'un foyer) ; naissance du foyer à l'acceptation sans appartenance préalable. Les tests SSO des lots précédents qui décrivaient le rattachement au foyer unique et la liaison par nom sont remplacés.
 
-**Limites.** Les politiques Postgres n'ont pas été jouées localement (aucun Postgres disponible sur le poste de développement) : la CI (`backend-postgres`, `montee-version`) en est la vérification. Les tâches de fond ne sautent pas les foyers suspendus (facultatif dans la fiche ; sans enjeu). L'interface de la console reste à écrire.
+**Limites.** Les politiques Postgres n'ont pas été jouées localement (aucun Postgres disponible sur le poste de développement) : la CI (`backend-postgres`, `montee-version`) en est la vérification. Les tâches de fond ne sautent pas les foyers suspendus (facultatif dans la fiche ; sans enjeu). L'interface de la console est décrite dans la section suivante.
+
+##### Lot BK.2d — réalisé (interface, 01/10/2026)
+
+Partie interface du lot « Opérateur et naissance des foyers » (§ 9) : la console, le bandeau d'amorçage, les liens « créer votre foyer », « Lier mon compte SSO ». Vérifié : `tsc -b`, `oxlint`, suite Vitest, suite Playwright (dont le nouveau scénario de la console), et tests du serveur concernés sous SQLite. Description fonctionnelle : `docs/SPECIFICATIONS_FONCTIONNELLES.md` § 3.28 ; usage : `docs/MANUEL_UTILISATEUR.md`, « Console de l'opérateur ».
+
+**Ce qui est livré.**
+
+- **Console de l'opérateur** (`/operateur`, `pages/OperateurPage.tsx`, composants sous `components/operateur/`) : seule page d'un compte `est_operateur` (toute autre adresse l'y renvoie ; ni barre latérale, ni assistant), langue de l'appareil, déconnexion en en-tête. Quatre onglets : *Foyers* (liste avec statut, propriétaire, comptes, création, dernière activité ; suspendre / réactiver ; désigner un propriétaire parmi les membres ; supprimer, confirmé par `confirmation_attendue` ; création d'un foyer par lien « créer votre foyer », lien affiché une fois, copie, liste et révocation ; comptes sans foyer et leur suppression confirmée par le nom), *Installation* (mode de naissance `ferme` / `invitation`, « un nouveau compte SSO crée son foyer », « un compte sans foyer peut créer le sien », logo SSO), *Tâches planifiées*, *Journal d'accès* complet. **Sous SQLite** (`moteur === 'sqlite'`, ou séparation non assurée par la base), un avertissement permanent « la séparation des foyers n'est assurée que par l'application », sur tous les onglets, sans bouton de fermeture.
+- **Réutilisation, pas copie** : les routes des tâches planifiées et du logo SSO sont décrites une fois (`routesInstallation` dans `api/client.ts`) ; `JobCard`, `LogoConnexionSsoCard`, `JournalAccesCard` et la nouvelle `TachesPlanifieesSection` (qui remplace le chargement des tâches de `ReglagesPage`) reçoivent leur source en prop. Le suivi d'un rafraîchissement des cours passe par `/operateur/etat-rafraichissement` (`RafraichissementCoursProvider` accepte la route à sonder).
+- **Côté propriétaire** : bandeau « Créer le compte opérateur » en tête de Réglages tant que `peut_amorcer_operateur` (replié, formulaire nom / mot de passe / confirmation, puis explication : se connecter avec ce compte distinct) ; dès que `operateur_existe`, l'onglet Automatisations et la carte du logo SSO quittent son écran ; en mode `invitation`, carte « Inviter un proche à créer son foyer » ; carte « Connexion SSO » (« Lier mon compte SSO », « Délier »).
+- **Liaison SSO** : au retour, `useRetourLiaisonSso` lit `?oidc_liaison=<code>` et le retire immédiatement de l'URL (`history.replaceState`), confirme avec la session du compte connecté puis annonce le résultat (`BandeauLiaisonSso`) ; `?oidc_liaison_erreur=` affiche le message. Le code reste en mémoire ; sans session ouverte au retour, il est abandonné et jamais confirmé par un compte qui se connecterait ensuite.
+- **Page `/invitation`** : gère `cree_un_foyer` (« Vous êtes invité à créer votre foyer ») et envoie la langue de l'appareil aux deux acceptations ; le propriétaire arrive sur l'assistant de bienvenue, sans accueil court.
+- **Assistant de bienvenue** : étape facultative « Administration de l'installation » (après « Inviter »), proposée si `peut_amorcer_operateur` ; la liste des étapes est figée à l'ouverture.
+- **5 langues** : 12 nouveaux espaces de traduction et quelques clés ajoutées (assistant, journal d'accès, page d'invitation) ; tutoiement dans Réglages, l'assistant et la console, vouvoiement sur la page d'invitation et les messages d'écran de connexion.
+
+**Écart au contrat du serveur (un défaut du lot serveur corrigé).** `/api/auth/me` ne disait pas si le propriétaire pouvait inviter à créer un foyer : l'interface n'aurait pu le deviner que par un 403 à la création. Le champ `peut_inviter_a_creer_foyer` (vrai pour un propriétaire quand le mode de naissance est `invitation`) a été ajouté à `UserOut` ; test dans `test_operateur.py`.
+
+**E2E et base partagée.** Un opérateur qui existe change l'écran du propriétaire seedé, et son amorçage depuis le bandeau exige un foyer unique : `e2e/operateur.spec.ts` a donc son propre projet Playwright (`operateur`), exécuté **avant** le projet `chromium` (qui en dépend), quand l'installation est exactement celle du seed. Il rend l'installation comme il l'a trouvée — le foyer et le compte créés sont supprimés par la console, puis l'opérateur supprime son propre compte —, le dernier test le vérifie (le propriétaire seedé retrouve le bandeau et l'onglet Automatisations) et `afterAll` refait ce ménage en cas d'échec. Aucune base dédiée : il tourne aussi sous Postgres. Scénario : le propriétaire seedé crée l'opérateur par le bandeau (et l'API refuse ensuite ses routes d'installation) ; l'opérateur se connecte, ne voit que `/operateur`, les routes de foyer lui répondent 403 ; mode `invitation` (section du propriétaire, lien révoqué par l'opérateur, retour au mode fermé) ; un navigateur vierge en locale espagnole crée son compte et son foyer par un lien (le foyer naît en `es`, assistant joué, lien à usage unique) ; l'opérateur suspend puis réactive, supprime le foyer par son nom, supprime le compte resté sans foyer ; journal complet.
+
+**Limites.** Les politiques Postgres du lot serveur restent vérifiées par la CI (`backend-postgres`, `e2e-postgres`, qui rejouera le nouveau projet). « Lier mon compte SSO » n'est proposé que dans Réglages, donc au propriétaire : un membre ou un invité n'a pas d'écran où le faire (à décider : une entrée dans le menu du compte). Pas de test automatisé du parcours complet chez un vrai fournisseur SSO (le retour est testé par un double du rappel).
 
 ### BL. Application multilingue (cadrée le 23/09/2026)
 

@@ -103,6 +103,7 @@ const es: Dictionnaire = {
       detenteurs: 'Titulares del hogar',
       comptes: 'Cuentas',
       inviter: "Invitar a los miembros del hogar",
+      operateur: "Administración de la instalación",
       demarrage: 'Empezar la cartera',
       termine: 'Listo',
     },
@@ -132,6 +133,10 @@ const es: Dictionnaire = {
     },
     inviter:
       "Los demás miembros del hogar (pareja, hijos, un familiar en modo consulta…) pueden tener su propia cuenta: invítalos con un enlace que les envías tú mismo. Este paso es opcional; podrás invitar cuando quieras desde Ajustes → Cuentas y seguridad.",
+    operateur:
+      "Esta instalación puede acoger varios hogares. Para administrarlos —crear otros, suspender uno, ajustar las tareas programadas—, crea una cuenta de operador: una cuenta distinta de la tuya, que no pertenece a ningún hogar y no ve ningún patrimonio. Para usarla, entrarás con ella en lugar de con tu cuenta.",
+    operateurPlusTard:
+      "Este paso es opcional. Podrás crear el operador más tarde desde Ajustes (mientras estés solo en la instalación), o por línea de comandos.",
     demarrage: {
       dejaAvant: 'La cartera ya tiene',
       positions: { one: '{n} posición', other: '{n} posiciones' },

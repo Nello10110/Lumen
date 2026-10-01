@@ -479,9 +479,29 @@ describe('App — foyers et invitations (backlog § BK.2b)', () => {
     )
 
     expect(await screen.findByRole('heading', { name: 'Bienvenue dans le foyer Famille Dupont' })).toBeInTheDocument()
-    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton-sso')
+    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton-sso', 'fr')
     expect(sessionStorage.getItem('lumen.invitation-en-attente')).toBeNull()
     expect(screen.queryByRole('heading', { name: "Vous n'appartenez à aucun foyer" })).not.toBeInTheDocument()
+  })
+
+  it("au retour d'un SSO lancé depuis un lien « créer votre foyer » : le compte devient propriétaire, pas d'accueil court, l'assistant se joue", async () => {
+    sessionStorage.setItem('lumen.invitation-en-attente', JSON.stringify({ jeton: 'jeton-creation', apresSso: true }))
+    vi.mocked(api.getMe)
+      .mockResolvedValueOnce({ id: 1, username: 'sophie', role: null, onboarding_termine: false, holdings_sans_compte: 0, foyers: [] })
+      .mockResolvedValue({ id: 1, username: 'sophie', role: 'proprietaire', onboarding_termine: false, holdings_sans_compte: 0, foyers: [] })
+    vi.mocked(api.accepterInvitation).mockResolvedValue({
+      id: 1, username: 'sophie', role: 'proprietaire', onboarding_termine: false, holdings_sans_compte: 0, foyer_nom: null,
+    })
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Configuration initiale' })).toBeInTheDocument()
+    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton-creation', 'fr')
+    expect(screen.queryByRole('heading', { name: /^Bienvenue dans le foyer/ })).not.toBeInTheDocument()
+    expect(sessionStorage.getItem('lumen.invitation-en-attente')).toBeNull()
   })
 
   it("une invitation refusée au retour d'un SSO laisse l'écran « aucun foyer » avec son message", async () => {
@@ -531,7 +551,7 @@ describe('App — foyers et invitations (backlog § BK.2b)', () => {
     localStorage.removeItem('patrimoine_auth_token')
     window.history.replaceState(null, '', '/invitation#jeton_public-1')
     const appelsGetMeAvant = vi.mocked(api.getMe).mock.calls.length
-    vi.mocked(api.consulterInvitation).mockResolvedValue({ foyer_nom: 'Famille Dupont', role: 'membre', libelle: null, langue: 'fr' })
+    vi.mocked(api.consulterInvitation).mockResolvedValue({ foyer_nom: 'Famille Dupont', role: 'membre', libelle: null, langue: 'fr', cree_un_foyer: false })
     render(
       <MemoryRouter initialEntries={['/invitation']}>
         <App />

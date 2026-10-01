@@ -21,6 +21,9 @@ const journalAccesCard: Structure<typeof fr> = {
   raisonCompteSsoSeul: "cuenta solo SSO",
   raisonMotDePasseIncorrect: "contraseña incorrecta",
   raisonOidcEchec: "error de SSO",
+  descriptionComplet: "Todos los accesos de la instalación, incluidos los intentos con un identificador desconocido.",
+  liaisonSso: "vinculación SSO",
+  raisonOperateurSansSso: "un operador no inicia sesión con SSO",
 }
 
 export default journalAccesCard

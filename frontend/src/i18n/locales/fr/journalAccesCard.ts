@@ -19,6 +19,9 @@ const journalAccesCard = {
   raisonCompteSsoSeul: "compte SSO uniquement",
   raisonMotDePasseIncorrect: "mot de passe incorrect",
   raisonOidcEchec: "échec SSO",
+  descriptionComplet: "Toutes les connexions de l'installation, tentatives sur un identifiant inconnu comprises.",
+  liaisonSso: "liaison SSO",
+  raisonOperateurSansSso: "un opérateur ne se connecte pas par SSO",
 } as const
 
 export default journalAccesCard

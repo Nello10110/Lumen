@@ -26,6 +26,12 @@ const invitationPage: Structure<typeof fr> = {
   rejoindre: "Entra in questo nucleo",
   autreCompte: "Usa un altro account",
   ouvrirApplication: "Apri l'app senza entrare",
+  titreCreation: "Invito a creare il suo nucleo",
+  inviteCreation: "È invitato a creare il suo nucleo: ne sarà il proprietario.",
+  creerLeFoyer: "Crea il mio nucleo",
+  ajouteAuxFoyersCreation: "Il suo nuovo nucleo si aggiungerà a quelli già associati all'account, se ce ne sono: la barra laterale permetterà di passare dall'uno all'altro.",
+  creerEtCreerFoyer: "Crea il mio account e il mio nucleo",
+  seConnecterEtCreerFoyer: "Accedi e crea il mio nucleo",
 }
 
 export default invitationPage

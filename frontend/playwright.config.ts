@@ -49,10 +49,22 @@ export default defineConfig({
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
     },
+    // Console de l'opérateur (backlog § BK.2d) : son propre projet, exécuté AVANT `chromium`.
+    // Créer un opérateur change l'écran du propriétaire seedé (les réglages d'installation lui
+    // sont retirés) et son amorçage depuis le bandeau exige un foyer unique : ce fichier doit
+    // donc voir l'installation telle que le seed la laisse, et la rendre comme il l'a trouvée
+    // (cf. l'en-tête de `e2e/operateur.spec.ts`).
     {
-      name: 'chromium',
+      name: 'operateur',
+      testMatch: /operateur\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE_PATH },
       dependencies: ['setup'],
+    },
+    {
+      name: 'chromium',
+      testIgnore: /operateur\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE_PATH },
+      dependencies: ['setup', 'operateur'],
     },
   ],
   webServer: {

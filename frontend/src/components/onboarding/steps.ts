@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
+import type { AuthUser } from '../../api/types'
 import EtapeBienvenue from './EtapeBienvenue'
 import EtapeComptes from './EtapeComptes'
 import EtapeDemarragePortefeuille from './EtapeDemarragePortefeuille'
 import EtapeDetenteurs from './EtapeDetenteurs'
 import EtapeInviter from './EtapeInviter'
+import EtapeOperateur from './EtapeOperateur'
 import EtapePreferences from './EtapePreferences'
 import EtapeTermine from './EtapeTermine'
 import { t } from '../../i18n'
@@ -16,6 +18,9 @@ export interface EtapeAssistant {
    * cf. commentaire de tête ci-dessous, condition pour que le rejeu depuis Réglages
    * reflète vraiment ce qui a déjà été saisi plutôt que de rejouer un parcours figé. */
   Contenu: () => ReactNode
+  /** Étape proposée seulement si la condition est vraie pour l'utilisateur — absente : toujours.
+   * Évaluée UNE fois, à l'ouverture de l'assistant (`etapesPourUtilisateur`). */
+  proposee?: (user: AuthUser | null) => boolean
 }
 
 /**
@@ -46,6 +51,21 @@ export const ETAPES_ONBOARDING: EtapeAssistant[] = [
   { key: 'detenteurs', get titre() { return t('assistant.etapes.detenteurs') }, Contenu: EtapeDetenteurs },
   { key: 'comptes', get titre() { return t('assistant.etapes.comptes') }, Contenu: EtapeComptes },
   { key: 'inviter', get titre() { return t('assistant.etapes.inviter') }, Contenu: EtapeInviter },
+  // « Administration de l'installation » (backlog § BK.2d) : le propriétaire qui peut amorcer
+  // l'opérateur — en pratique, le premier compte d'une installation neuve.
+  {
+    key: 'operateur',
+    get titre() { return t('assistant.etapes.operateur') },
+    Contenu: EtapeOperateur,
+    proposee: (user) => user?.peut_amorcer_operateur === true,
+  },
   { key: 'demarrage', get titre() { return t('assistant.etapes.demarrage') }, Contenu: EtapeDemarragePortefeuille },
   { key: 'termine', get titre() { return t('assistant.etapes.termine') }, Contenu: EtapeTermine },
 ]
+
+/** Les étapes à jouer pour cet utilisateur, dans l'ordre. Calculées à l'OUVERTURE de
+ * l'assistant et non à chaque rendu : créer l'opérateur à l'étape qui le propose éteint
+ * `peut_amorcer_operateur`, ce qui retirerait l'étape sous les pieds de l'utilisateur. */
+export function etapesPourUtilisateur(user: AuthUser | null): EtapeAssistant[] {
+  return ETAPES_ONBOARDING.filter((e) => !e.proposee || e.proposee(user))
+}

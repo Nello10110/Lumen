@@ -130,6 +130,10 @@ class UserOut(BaseModel):
     # peut-il en créer un (`POST /api/auth/operateur`) : aucun n'existe et un seul foyer.
     operateur_existe: bool = False
     peut_amorcer_operateur: bool = False
+    # Le propriétaire peut-il inviter un proche à créer SON foyer (`POST /api/invitations/foyer`) ?
+    # Oui en mode de naissance `invitation` de l'installation, non en `ferme` : l'interface n'y
+    # propose la section qu'alors, sans deviner par un 403.
+    peut_inviter_a_creer_foyer: bool = False
     # Le compte est-il lié à une identité SSO (« Lier mon compte SSO » / « Délier ») ?
     sso_lie: bool = False
 

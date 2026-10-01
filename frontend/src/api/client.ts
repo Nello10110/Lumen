@@ -42,7 +42,15 @@ import type {
   ApercuSuppressionFoyer,
   Invitation,
   InvitationCreee,
+  InvitationFoyerInput,
   InvitationInput,
+  LienSso,
+  CompteFoyerOperateur,
+  CompteSansFoyer,
+  FoyerOperateur,
+  ReglagesInstallation,
+  ReglagesInstallationUpdate,
+  OperateurCree,
   DernierImport,
   ImportPreview,
   IndicateursSituation,
@@ -239,6 +247,76 @@ function filtreCompte(compteId?: number | null): string {
   return compteId != null ? `&compte_id=${compteId}` : ''
 }
 
+/** Réglages d'INSTALLATION (tâches planifiées, logo du bouton SSO) : les mêmes routes sous
+ * `/settings` pour le propriétaire — tant qu'aucun opérateur n'existe — et sous `/operateur`
+ * pour l'opérateur (backlog § BK.2d). Un seul code pour les deux ; les composants
+ * (`JobCard`, `LogoConnexionSsoCard`) reçoivent celui qu'ils doivent appeler. */
+function routesInstallation(base: '/settings' | '/operateur') {
+  return {
+    listJobs: () => request<ScheduledJob[]>(`${base}/jobs`),
+    updateJob: (jobKey: string, payload: { enabled: boolean; intervalle_heures: number }) =>
+      request<ScheduledJob>(`${base}/jobs/${jobKey}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    runJobNow: (jobKey: string, forcerNonCotables = false) =>
+      request<ScheduledJob>(`${base}/jobs/${jobKey}/run-now${forcerNonCotables ? '?forcer_non_cotables=true' : ''}`, {
+        method: 'POST',
+      }),
+    getLogoConnexionSso: () => request<LogoConnexionSso>(`${base}/logo-connexion-sso`),
+    setLogoConnexionSsoUrl: (url: string) =>
+      request<LogoConnexionSso>(`${base}/logo-connexion-sso/url`, { method: 'PUT', body: JSON.stringify({ url }) }),
+    uploadLogoConnexionSso: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return request<LogoConnexionSso>(`${base}/logo-connexion-sso/fichier`, { method: 'POST', body: form })
+    },
+    deleteLogoConnexionSso: () => request<LogoConnexionSso>(`${base}/logo-connexion-sso`, { method: 'DELETE' }),
+  }
+}
+
+export type RoutesInstallation = ReturnType<typeof routesInstallation>
+
+/** Console de l'opérateur (backlog § BK.2d) : `/api/operateur`, réservée au compte opérateur.
+ * Des noms, des statuts, des dates, des nombres de comptes — jamais un montant. */
+export const apiOperateur = {
+  ...routesInstallation('/operateur'),
+  // Suivi d'un rafraîchissement lancé par `runJobNow` : la route des foyers
+  // (`/market-data/refresh/status`) est fermée à l'opérateur.
+  getRefreshStatus: () => request<EtatRafraichissement>('/operateur/etat-rafraichissement'),
+
+  listFoyers: () => request<FoyerOperateur[]>('/operateur/foyers'),
+  suspendreFoyer: (id: number) => request<FoyerOperateur>(`/operateur/foyers/${id}/suspendre`, { method: 'POST' }),
+  reactiverFoyer: (id: number) => request<FoyerOperateur>(`/operateur/foyers/${id}/reactiver`, { method: 'POST' }),
+  // `confirmation` : `confirmation_attendue` du foyer (son nom, ou `SUPPRIMER`).
+  supprimerFoyer: (id: number, confirmation: string) =>
+    request<void>(`/operateur/foyers/${id}/supprimer`, { method: 'POST', body: JSON.stringify({ confirmation }) }),
+  listComptesDuFoyer: (id: number) => request<CompteFoyerOperateur[]>(`/operateur/foyers/${id}/comptes`),
+  designerProprietaire: (id: number, membreId: number) =>
+    request<FoyerOperateur>(`/operateur/foyers/${id}/proprietaire`, {
+      method: 'POST',
+      body: JSON.stringify({ membre_id: membreId }),
+    }),
+
+  // Liens « créer votre foyer » : le jeton n'est renvoyé qu'à la création.
+  listInvitationsFoyer: () => request<Invitation[]>('/operateur/invitations-foyer'),
+  createInvitationFoyer: (payload: InvitationFoyerInput) =>
+    request<InvitationCreee>('/operateur/invitations-foyer', { method: 'POST', body: JSON.stringify(payload) }),
+  revoquerInvitationFoyer: (id: number) => request<void>(`/operateur/invitations-foyer/${id}`, { method: 'DELETE' }),
+
+  listComptesSansFoyer: () => request<CompteSansFoyer[]>('/operateur/comptes-sans-foyer'),
+  // `confirmation` : le nom d'utilisateur du compte à supprimer.
+  supprimerCompteSansFoyer: (id: number, confirmation: string) =>
+    request<void>(`/operateur/comptes-sans-foyer/${id}/supprimer`, {
+      method: 'POST',
+      body: JSON.stringify({ confirmation }),
+    }),
+
+  getReglagesInstallation: () => request<ReglagesInstallation>('/operateur/reglages'),
+  updateReglagesInstallation: (payload: ReglagesInstallationUpdate) =>
+    request<ReglagesInstallation>('/operateur/reglages', { method: 'PUT', body: JSON.stringify(payload) }),
+
+  // Journal d'accès COMPLET : tous les comptes, tentatives sur un identifiant inconnu comprises.
+  getJournalAcces: (page = 1) => request<AccessLogEntry[]>(`/operateur/journal-acces?page=${page}`),
+}
+
 export const api = {
   // Authentification (Milestone 1, multi-utilisateur)
   login: (username: string, password: string) =>
@@ -287,13 +365,33 @@ export const api = {
   revoquerInvitation: (id: number) => request<void>(`/invitations/${id}`, { method: 'DELETE' }),
   consulterInvitation: (jeton: string) =>
     request<ApercuInvitation>('/invitations/consulter', { method: 'POST', body: JSON.stringify({ jeton }) }),
-  accepterInvitationNouveauCompte: (jeton: string, username: string, password: string) =>
+  // `langue` : celle de l'appareil, que le serveur ne retient que pour une invitation à
+  // CRÉER un foyer (elle devient celle du foyer neuf).
+  accepterInvitationNouveauCompte: (jeton: string, username: string, password: string, langue?: string) =>
     request<AuthResponse>('/invitations/accepter-nouveau-compte', {
       method: 'POST',
-      body: JSON.stringify({ jeton, username, password }),
+      body: JSON.stringify({ jeton, username, password, langue }),
     }),
-  accepterInvitation: (jeton: string) =>
-    request<AuthUser>('/invitations/accepter', { method: 'POST', body: JSON.stringify({ jeton }) }),
+  accepterInvitation: (jeton: string, langue?: string) =>
+    request<AuthUser>('/invitations/accepter', { method: 'POST', body: JSON.stringify({ jeton, langue }) }),
+
+  // Liens « créer votre foyer » d'un propriétaire (backlog § BK.2d) : en mode de naissance
+  // `invitation` de l'installation seulement (403 à la création sinon).
+  listInvitationsFoyer: () => request<Invitation[]>('/invitations/foyer'),
+  createInvitationFoyer: (payload: InvitationFoyerInput) =>
+    request<InvitationCreee>('/invitations/foyer', { method: 'POST', body: JSON.stringify(payload) }),
+  revoquerInvitationFoyer: (id: number) => request<void>(`/invitations/foyer/${id}`, { method: 'DELETE' }),
+
+  // Compte opérateur (backlog § BK.2d) : le propriétaire en crée UN, distinct du sien.
+  amorcerOperateur: (username: string, password: string) =>
+    request<OperateurCree>('/auth/operateur', { method: 'POST', body: JSON.stringify({ username, password }) }),
+
+  // Liaison du compte connecté à son identité SSO : `lierSso` renvoie l'adresse d'autorisation
+  // où se rendre ; au retour, `confirmerLiaisonSso` valide le code que le rappel a transmis.
+  lierSso: () => request<LienSso>('/auth/oidc/lier', { method: 'POST' }),
+  confirmerLiaisonSso: (code: string) =>
+    request<AuthUser>('/auth/oidc/lier/confirmer', { method: 'POST', body: JSON.stringify({ code }) }),
+  delierSso: () => request<AuthUser>('/auth/oidc/delier', { method: 'POST' }),
 
   // Sessions et journal d'accès (backlog 2.L.2).
   listSessions: () => request<Session[]>('/auth/sessions'),
@@ -420,19 +518,12 @@ export const api = {
   deleteEtablissementLogo: (id: number) =>
     request<Etablissement>(`/comptes/etablissements/${id}/logo`, { method: 'DELETE' }),
 
-  // Logo du bouton de connexion SSO (22/09/2026) — décoration de l'INSTALLATION,
-  // pas d'un foyer, d'où le routeur `settings` (réservé au propriétaire). Tout le
-  // reste de la configuration OIDC vit en variables d'environnement, cf.
-  // `services/logo_oidc_service.py` pour la raison de cette unique exception.
-  getLogoConnexionSso: () => request<LogoConnexionSso>('/settings/logo-connexion-sso'),
-  setLogoConnexionSsoUrl: (url: string) =>
-    request<LogoConnexionSso>('/settings/logo-connexion-sso/url', { method: 'PUT', body: JSON.stringify({ url }) }),
-  uploadLogoConnexionSso: (file: File) => {
-    const form = new FormData()
-    form.append('file', file)
-    return request<LogoConnexionSso>('/settings/logo-connexion-sso/fichier', { method: 'POST', body: form })
-  },
-  deleteLogoConnexionSso: () => request<LogoConnexionSso>('/settings/logo-connexion-sso', { method: 'DELETE' }),
+  // Logo du bouton de connexion SSO (22/09/2026) — décoration de l'INSTALLATION, pas d'un
+  // foyer, d'où le routeur `settings` (réservé au propriétaire, tant qu'aucun opérateur
+  // n'existe). Tout le reste de la configuration OIDC vit en variables d'environnement, cf.
+  // `services/logo_oidc_service.py` pour la raison de cette unique exception. Ces routes, et
+  // celles des tâches planifiées, sont décrites par `routesInstallation`.
+  ...routesInstallation('/settings'),
   listComptes: () => request<Compte[]>('/comptes'),
   listComptesAvecSolde: () => request<CompteAvecSolde[]>('/comptes/solde'),
   // Établissement OBLIGATOIRE à la création (revue du 03/09/2026, demande directe
@@ -541,15 +632,6 @@ export const api = {
   // Jalons personnels — célébrations et badges (backlog §§ AG.3/AG.4)
   listJalons: () => request<Jalon[]>('/jalons/'),
   marquerJalonCelebre: (jalonId: string) => request<void>(`/jalons/${jalonId}/marquer-celebre`, { method: 'POST' }),
-
-  // Réglages (tâches planifiées)
-  listJobs: () => request<ScheduledJob[]>('/settings/jobs'),
-  updateJob: (jobKey: string, payload: { enabled: boolean; intervalle_heures: number }) =>
-    request<ScheduledJob>(`/settings/jobs/${jobKey}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  runJobNow: (jobKey: string, forcerNonCotables = false) =>
-    request<ScheduledJob>(`/settings/jobs/${jobKey}/run-now${forcerNonCotables ? '?forcer_non_cotables=true' : ''}`, {
-      method: 'POST',
-    }),
 
   // Réglages (préférences applicatives, LOT 5B)
   getPreferences: () => request<Preferences>('/settings/preferences'),
