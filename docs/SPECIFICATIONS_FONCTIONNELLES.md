@@ -609,6 +609,13 @@ en lecture/écriture sur les données du foyer mais ne peut pas les exposer publ
 - **`detenteur_id`** ne filtre que la section patrimoine net (seul calcul qui le supporte
   aujourd'hui, § 3.11) — budget/exposition consolidée restent vue foyer complète si activés
   à côté d'un détenteur, limite assumée et signalée à la création du lien.
+- **Jeton en empreinte (§ BK.2e)** : la base ne garde que le SHA-256 du jeton (`liens_partage.token_hash`,
+  `auth_service.hacher_jeton`) ; le jeton en clair n'est rendu qu'à la création
+  (`POST /api/partage` → `LienPartageCreeOut.token`), jamais par `GET /api/partage`
+  (`LienPartageOut` n'en porte pas). L'interface montre donc l'adresse une seule fois, à la création (copier,
+  masquer, valable jusqu'au…), comme celle d'une invitation ; un lien dont l'adresse est perdue se révoque et
+  se recrée. La consultation publique retrouve le lien par l'empreinte du jeton reçu ; lire l'empreinte dans
+  la base n'ouvre pas le lien.
 - **Code d'accès optionnel** : même hachage `pbkdf2_sha256` que les mots de passe
   (`auth_service.hash_password`). Verrouillage temporaire par LIEN (pas par compte, un lien public
   n'en a pas) après 5 échecs en 15 minutes glissantes — même mécanique que le verrouillage de
@@ -893,9 +900,9 @@ n'est proposée que si `peut_amorcer_operateur` ; placée après « Inviter », 
 | `cours_historique` | **Séries de cours hebdomadaires** `(ticker, date) → clôture`, dans la devise d'origine (Lot 13, § AB.2). La donnée la plus coûteuse à acquérir de l'application et la plus stable qui soit : téléchargée une seule fois par ticker, puis complétée de façon incrémentale. Partagée par tous les usages (historique du portefeuille, fiche d'une position, indice de référence) et par tous les foyers — c'est une donnée de marché publique. Les **taux de change** y vivent aussi, `yfinance` les exposant comme des tickers ordinaires (`USDEUR=X`) |
 | `cours_serie` | Métadonnées d'une série : devise de cotation (relue en base au lieu d'un appel `Ticker.info` par calcul — 77 % du temps mesuré avant le Lot 13), bornes couvertes et fraîcheur |
 | `historique_cache` | Cache persistant (24 h) de l'historique de valeur du PORTEFEUILLE, par combinaison de filtres (§ 3.5.1). Depuis le Lot 13 il n'évite plus un téléchargement — `cours_historique` s'en charge — mais un calcul, qui reste réel : 332 ms contre 1 ms en lecture. Les caches d'agrégat de la fiche d'une ligne et de l'indice de référence ont, eux, été supprimés, devenus de simples doublons des séries |
-| `liens_partage` | Liens de partage révocables (§ 3.21, backlog § Q.1) : jeton opaque, sections activées, code haché optionnel, expiration, révocation |
+| `liens_partage` | Liens de partage révocables (§ 3.21, backlog § Q.1) : empreinte SHA-256 du jeton (`token_hash`), sections activées, code haché optionnel, expiration, révocation |
 | `partage_acces` | Journal des consultations d'un lien de partage public (§ 3.21) — alimente le verrouillage temporaire par lien |
-| `auth_tokens`, `access_log_entries` | Sessions révocables et journal d'accès (backlog § L.2) |
+| `auth_tokens`, `access_log_entries` | Sessions révocables et journal d'accès (backlog § L.2). Le jeton de session n'est gardé qu'en empreinte SHA-256 (`auth_tokens.token_hash`, § BK.2e). Sous Postgres, ces deux tables et `users` obéissent à une séparation par la base propre aux comptes : un compte n'y voit que lui-même, les comptes de son foyer courant et — pour l'opérateur — tout ; la lecture d'un compte ou d'un jeton avant toute identité se fait sous l'état d'authentification de la base (manuel d'exploitation § 12.3) |
 
 Les relations structurelles sont de vraies clés étrangères (foyer, compte, établissement, détenteur, ligne, emprunt, catégorie). Une seule relation passe par une correspondance de valeurs plutôt que par une clé : grand livre → ligne, par `(ticker, compte_id)`, parce que les lignes d'origine `reconstruit` sont entièrement recalculables depuis `transactions`. Les données de marché (`market_data_cache`, `fund_*`, `cours_*`, `ticker_resolution`) sont indexées par ticker et partagées par tous les foyers.
 

@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; reste **BK.2e** (durcissement) |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) réalisé en deux étapes le 01/10/2026 (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes), **à vérifier par la CI Postgres** |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -103,7 +103,8 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
   Postgres ; lot BK.2b (invitations) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2c (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2d (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI
-  Postgres ; reste BK.2e (durcissement)** (§ BK.2, point 9).
+  Postgres ; lot BK.2e (durcissement) réalisé en deux étapes le 01/10/2026, à vérifier par la CI Postgres**
+  (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7083,7 +7084,7 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
 (invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2c** `traité (30/09/2026)`
 (cycle de vie côté foyer, « Lot BK.2c — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2d** `traité (01/10/2026)`
-(opérateur et naissance des foyers, « Lot BK.2d — réalisé »), **vérifié par la CI Postgres** ; reste BK.2e (§ 9) : le renommage `user_id` → `foyer_id` est fait (« Lot BK.2e — étape 1 réalisée »).
+(opérateur et naissance des foyers, « Lot BK.2d — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2e** (§ 9, durcissement) réalisé en deux étapes le 01/10/2026 — le renommage `user_id` → `foyer_id` (« Lot BK.2e — étape 1 réalisée ») puis les jetons hachés et la séparation par la base des comptes (« Lot BK.2e — étape 2 réalisée ») —, **à vérifier par la CI Postgres**.
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7397,14 +7398,16 @@ laisserait `register` fermé.
   `foyers` : pas de récursion entre politiques) ; `WITH CHECK` interdit un compte opérateur ;
 - `foyer_parametres`, `invitations`, `invitations_perimetres` : par le foyer (l'acceptation d'une
   invitation, qui précède l'appartenance, passe par une phase d'authentification, ci-dessous) ;
-- `users`, `auth_tokens`, `access_log_entries` (lot BK.2e) : la connexion doit les lire avant de
-  savoir qui se connecte. Proposition : un état explicite `app.authentification = on`, posé seulement
-  par `login`, le rappel SSO, la lecture du jeton de session et l'acceptation d'une invitation, et levé
-  aussitôt l'identité connue ; hors de cet état, `users` n'est visible que pour soi-même, les membres du
-  foyer courant et l'opérateur ; `auth_tokens` pour soi-même ; `access_log_entries` en lecture pour les
-  comptes du foyer courant (propriétaire) et l'opérateur, en écriture pour tous (un échec sur un
-  identifiant inconnu doit être journalisé). Les tentatives sur un identifiant inconnu ne sont plus
-  visibles que de l'opérateur.
+- `users`, `auth_tokens`, `access_log_entries` (lot BK.2e, **réalisé**, « Lot BK.2e — étape 2 ») : la
+  connexion doit les lire avant de savoir qui se connecte. Un état explicite `app.authentification = on`, posé
+  seulement par `login`, `register`, le rappel SSO (connexion et liaison), la lecture du jeton de session,
+  l'acceptation d'une invitation par un nouveau compte, la création d'un compte (dont l'opérateur : bandeau et
+  commande) et les autres recherches de compte qui précèdent l'identité, et levé aussitôt l'identité connue ;
+  hors de cet état, `users` n'est visible que pour soi-même, les membres du foyer courant et l'opérateur ;
+  `auth_tokens` en écriture pour soi-même (et l'opérateur), en lecture aussi pour les comptes du foyer courant (le
+  propriétaire compte les sessions de ses membres) ; `access_log_entries` en lecture pour soi-même, les comptes du
+  foyer courant (propriétaire) et l'opérateur, en écriture pour tous (un échec sur un identifiant inconnu doit être
+  journalisé). Les tentatives sur un identifiant inconnu ne sont plus visibles que de l'opérateur.
 
 **Tests à prévoir** : fixture à ids de foyer décalés (§ 2) ; `test_separation_foyers.py` étendu à deux
 foyers et à un compte membre des deux, filtre retiré ; un test **générique** qui parcourt toutes les
@@ -7422,12 +7425,12 @@ table ajoutée plus tard est couverte d'office) ; tout sous SQLite et sous Postg
 | Opérateur lisant un patrimoine | Compte sans appartenance (contrainte) ; périmètre sans foyer, que les politiques de patrimoine ignorent ; test générique des routes |
 | Invitation rejouée ou devinée | 256 bits, hachée, usage unique atomique, expiration, révocation, fragment d'URL |
 | Compte SSO usurpant un foyer | Plus de rattachement par `.first()` (`oidc_service.py:280-282`) ; plus de liaison automatique par nom d'utilisateur (lignes 273-278 : une identité du fournisseur au même nom qu'un compte local d'un autre foyer en prendrait le contrôle ; faille connue, non exploitable avec le fournisseur SSO actuel de l'installation, corrigée en BK.2d), remplacée par une liaison faite depuis le compte connecté |
-| Journal d'accès d'un autre foyer | Filtré par foyer dès BK.2a (`auth_service.py:240-246`), puis par la base en BK.2e |
+| Journal d'accès d'un autre foyer | Filtré par foyer dès BK.2a (`auth_service.py:240-246`), puis par la base en BK.2e (réalisé) |
 | Propriétaire agissant sur un compte partagé avec un autre foyer | Retrait d'appartenance seulement ; pas de renommage ni de suppression du compte |
 
-Remarque hors périmètre : les jetons de session (`auth_tokens.token`) et de partage
-(`liens_partage.token`) sont stockés en clair ; une fuite de la base donnerait des sessions valides.
-Les hacher comme les invitations est un durcissement simple, à glisser en BK.2e.
+Remarque hors périmètre, **traitée en BK.2e** : les jetons de session (`auth_tokens.token`) et de partage
+(`liens_partage.token`) étaient stockés en clair ; une fuite de la base donnait des sessions valides. Ils sont
+hachés comme ceux des invitations (`token_hash`, « Lot BK.2e — étape 2 »).
 
 ##### 8. Interface
 
@@ -7467,7 +7470,7 @@ précédente, puis montée par la nouvelle.
 | **BK.2b** — Invitations et appartenance multiple | Invitations vers un foyer existant (nouveau compte ou compte existant), sélecteur, bascule, écran « aucun foyer », « Quitter ce foyer », étape d'assistant « Inviter » | `invitations`, `invitations_perimetres` + politiques | Jeton ; bascule mal vérifiée | Unicité sous concurrence, rejeu, expiration, IDOR de bascule ; E2E invitation puis bascule |
 | **BK.2c** — Cycle de vie côté foyer | Transfert de propriété, retrait d'un membre, suppression d'un foyer par son propriétaire, suppression de son compte | Aucune | Suppression incomplète ou trop large | Test générique par `Base.metadata` ; E2E suppression du foyer puis reconnexion des comptes conservés, sans foyer |
 | **BK.2d** — Opérateur et naissance des foyers | Compte opérateur (bandeau, commande), console, création de foyer par lien propriétaire, suspension, suppression, nouveau propriétaire, modes `fermé` / `invitation`, SSO qui crée son foyer, **correction de la faille de liaison SSO par nom d'utilisateur** (`resoudre_ou_provisionner_utilisateur`, lignes 273-278 : liaison retirée, remplacée par « Lier mon compte SSO » depuis Réglages), réglages d'installation déplacés | `users.est_operateur` déjà là ; état `app.operateur` dans les politiques | Opérateur qui voit un patrimoine ; SSO | Test générique des routes avec jeton d'opérateur ; RLS : zéro ligne de patrimoine sous périmètre opérateur ; E2E console |
-| **BK.2e** — Durcissement | RLS sur `users`, `auth_tokens`, `access_log_entries` (état « authentification ») ; jetons de session et de partage hachés ; renommage `user_id` → `foyer_id` (option C) | Politiques ; hachage des jetons existants (sessions conservées) ; renommage | Connexion cassée sous Postgres | Suite Postgres ; test d'intrusion : lister `users` d'un autre foyer, filtre retiré |
+| **BK.2e** — Durcissement (**réalisé en deux étapes le 01/10/2026**) | RLS sur `users`, `auth_tokens`, `access_log_entries` (état « authentification ») ; jetons de session et de partage hachés ; renommage `user_id` → `foyer_id` (option C) | Politiques ; hachage des jetons existants (sessions conservées) ; renommage | Connexion cassée sous Postgres | Suite Postgres ; test d'intrusion : lister `users` d'un autre foyer, filtre retiré |
 
 BK.2d étant traité, l'installation de l'utilisateur peut désormais accueillir une autre famille ; BK.2e est
 recommandé avant, obligatoire avant toute version publique.
@@ -7884,8 +7887,112 @@ foyer ; le nom ne ment plus.
   avec index, contraintes et politiques identiques, la séparation des foyers vérifiée avec le rôle applicatif ;
   `test_migration_objet_foyer` fait monter la base jusqu'à la tête avant d'appeler l'API (l'application
   suppose le schéma le plus récent).
-- **Reste du lot BK.2e** : RLS sur `users`, `auth_tokens`, `access_log_entries` ; jetons de session et
-  de partage hachés (§ 9).
+- **Suite du lot BK.2e** : jetons de session et de partage hachés, RLS sur `users`, `auth_tokens`,
+  `access_log_entries` — étape 2, ci-dessous.
+
+##### Lot BK.2e — étape 2 réalisée : jetons hachés et séparation par la base des comptes (01/10/2026)
+
+Seconde et dernière étape du durcissement, en trois commits : les jetons hachés, la séparation par la base des
+comptes, des sessions et du journal d'accès, et le durcissement du job `montee-version`. Réalisé, vérifié en
+local sous SQLite et sous un Postgres 16 jetable avec le rôle applicatif ordinaire ; **à vérifier par la CI
+Postgres** avant de passer le lot à `traité`.
+
+**1. Jetons de session et de partage hachés.**
+
+- `auth_tokens.token` (clé primaire) et `liens_partage.token` (index unique) deviennent `token_hash`, le SHA-256 du
+  jeton, comme `invitations.jeton_hash` et `liaisons_sso_en_attente.code_hash`. Une seule fonction fait foi :
+  `auth_service.hacher_jeton` (elle remplace les deux copies d'`invitation_service` et d'`oidc_service`). SHA-256 et
+  pas PBKDF2 : le jeton a 256 bits d'entropie, un hachage lent n'ajouterait rien, et la recherche par empreinte
+  doit être déterministe.
+- **Migration `c4f1a8d2e6b3`** (tête précédente `a9d3c7e1b5f2`) : les valeurs existantes sont hachées **en place**,
+  puis la colonne et son index sont renommés (SQLite : reconstruction de table, en deux temps pour l'index ;
+  Postgres : `RENAME`). Le jeton que détient un navigateur ou un destinataire de lien n'a pas changé et
+  l'application en recalcule l'empreinte : **aucune session, aucun lien n'est invalidé** (le job `montee-version`
+  de la CI, qui rejoue une session ouverte avant la montée, le vérifie). Descente : une empreinte ne se défait pas,
+  elle termine donc toutes les sessions et révoque les liens de partage actifs (sans quoi une empreinte lue dans la
+  base servirait de jeton).
+- **Le jeton en clair n'est rendu qu'à la création** : `creer_token` et `ouvrir_session` renvoient `(session,
+  jeton)` (connexion, inscription, rappel SSO, acceptation d'une invitation) ; `partage_service.creer_lien` renvoie
+  `(lien, jeton)`. `POST /api/partage` répond par `LienPartageCreeOut` (avec `token`), `GET /api/partage` par
+  `LienPartageOut`, **qui n'a plus de `token`**. `SessionOut` n'en portait déjà pas ; la déconnexion supprime la
+  session par la ligne lue, plus par une valeur.
+- **Changement visible côté interface** : `PartageCard` affichait l'adresse complète de chaque lien existant, à
+  chaque relecture. Elle ne peut plus : l'adresse n'est montrée qu'à la création, dans un encadré comme celui des
+  invitations (copier, masquer, « valable jusqu'au… »), avec une phrase sous la liste (« l'adresse d'un lien n'est
+  montrée qu'à sa création ; si tu l'as perdue, révoque le lien et crées-en un nouveau »). 8 clés de plus dans
+  `partageCard`, 5 langues ; tests Vitest (`ReglagesPage.test.tsx`) et E2E (`partage-public.spec.ts`) adaptés ;
+  manuel utilisateur et spécifications à jour.
+
+**2. RLS sur `users`, `auth_tokens` et `access_log_entries`** (migration `d8b3f1a7c5e2`, Postgres ; `FORCE`, rôle
+applicatif `lumen_app` `NOBYPASSRLS`).
+
+- **Politiques.** `users` (`separation_foyers`, lecture et écriture) : état d'authentification, opérateur, soi-même
+  (`app.utilisateur_id`), ou compte du foyer courant (`id IN (SELECT user_id FROM appartenances WHERE foyer_id =
+  app.foyer_id)`). `auth_tokens` : `separation_foyers` (toutes commandes) pour soi-même, l'état d'authentification
+  et l'opérateur ; `sessions_du_foyer` (lecture seule) pour les comptes du foyer courant. `access_log_entries` :
+  `lecture` (soi-même par compte ou par nom saisi, comptes du foyer courant, opérateur, état d'authentification),
+  `ecriture` (`INSERT`, `WITH CHECK (true)` : tout le monde), `effacement` (soi-même, opérateur). `UPDATE` du journal :
+  aucune politique, donc refusé. Aucune politique de ces tables ne mentionne `app.tous_foyers` : « tous les foyers »
+  (tâches de fond) n'ouvre aucun compte, et l'état d'authentification n'ouvre aucune table de foyer.
+- **L'état d'authentification** est un réglage de transaction `app.authentification`, **orthogonal au périmètre**
+  (`session.info["authentification"]`, rejoué avec lui au début de chaque transaction) :
+  `database.authentification_le_temps(session)` le pose, imbriquable, et, à la sortie, ne rend QUE lui — jamais le
+  périmètre, que l'appelant a posé entre-temps (`fixer_foyer(db, None, compte.id)` dès l'identité connue). Ainsi le
+  compte trouvé reste lisible « pour soi-même » une fois l'état levé, y compris après un `commit` qui l'a expiré (un
+  objet expiré dont la relecture est invisible lève `ObjectDeletedError` : c'est le piège que ce protocole évite).
+- **Chemins qui posent l'état** (liste complète, reprise au manuel d'exploitation § 12.3) : `login` (verrouillage,
+  recherche par nom, vérification, jusqu'à `fixer_foyer`) ; `register` (`des_comptes_existent`, nom pris,
+  `creer_utilisateur`) ; le rappel SSO (`utilisateur_par_oidc_subject`, `creer_utilisateur_oidc`, et le compte visé
+  par le `state` signé pour la liaison) ; la lecture du jeton de session (`auth.get_current_token`) ; l'acceptation
+  d'une invitation par un nouveau compte (`accepter_nouveau_compte`, avec « tous les foyers ») ; la création d'un
+  compte (propriétaire qui crée un membre, bandeau et commande de l'opérateur) ; `utilisateur_par_username`,
+  `operateur_existe`, `des_comptes_existent`, `compte_est_operateur` ; la commande `python -m app.cli operateur`
+  (`reinitialiser_mot_de_passe` pose l'état pour toute sa durée, faute de session) ; `journaliser_acces` (l'`INSERT …
+  RETURNING` relit une ligne qui, pour un identifiant inconnu, ne se rattache à personne) ; `pg_dump` et sa restauration
+  (`PGOPTIONS`, `OPTIONS_SANS_RESTRICTION`).
+- **Chemins existants vérifiés et adaptés** : suppression de foyer et de compte (`foyer_service`) — un propriétaire
+  n'écrit que ses sessions, la clé étrangère `auth_tokens.foyer_id` devient `ON DELETE SET NULL` (migration, modèle) et
+  détache celles de tous les comptes ; retrait d'un membre (ses sessions ne sont plus touchées par le propriétaire :
+  `reprendre_session` les détache à leur prochaine requête, test à l'appui) ; transfert de propriété ; invitations
+  (`_creation_autorisee` passe par `compte_est_operateur`) ; console de l'opérateur (inchangée : il lit tout) ;
+  comptes sans foyer (session « soi-même ») ; journal et sessions de Réglages ; `startup_maintenance` et tâches de fond
+  (aucune ne lit de compte) ; sauvegarde (`pg_dump --enable-row-security` avec `app.tous_foyers=on` **et**
+  `app.authentification=on`, sinon l'archive serait complète… et sans compte — verrouillé par un test) ; migrations
+  de données futures (`alembic/env.py` pose les deux réglages).
+- **La garde « jamais d'appartenance pour un compte opérateur »** (BK.2d) lisait `users` dans le `WITH CHECK` de
+  `appartenances` : devenue invisible hors opérateur, elle ne protégeait plus que lui-même. Elle devient un
+  déclencheur `appartenance_sans_operateur` (même message « row-level security »), dont la fonction pose elle-même
+  l'état d'authentification le temps de sa lecture puis le rend (une clause `SET` de fonction sur un paramètre
+  personnalisé exige un superutilisateur). `appartenances` ne renvoie plus à aucune autre table : pas de récursion
+  entre politiques.
+
+**3. Job `montee-version`.** `scripts/ci-montee-version.sh` attend désormais `/api/health` (essais toutes les 2 s,
+bornés par `DELAI_MAX_SANTE`, 90 s par défaut, échec clair avec la dernière erreur de `curl`) avant `creer` et avant
+`verifier` : la première requête après `docker compose up --wait` avec l'image publiée avait été coupée (« Connection
+reset by peer »), avant tout code de la branche.
+
+**Points tranchés.**
+
+- **Lecture des sessions des comptes du foyer** : le propriétaire lit (sans les écrire) les sessions des comptes de
+  son foyer — l'écran « Membres et invitations » affiche leur nombre, que les tests d'API vérifient. C'est le seul
+  écart à « `auth_tokens` pour soi-même » ; l'écriture, elle, reste aux seuls titulaires et à l'opérateur.
+- **Écriture des comptes** : la politique d'écriture de `users` suit celle de lecture (un propriétaire modifie le nom
+  d'un membre de son foyer, comme avant) ; le rôle reste porté par l'appartenance, pas par la base.
+- **Journal du propriétaire** : sous Postgres, un propriétaire ne voit plus les tentatives sur un identifiant inconnu
+  (elles ne se rattachent à aucun foyer ; § 7 : seul l'opérateur les lit). Le code de `lister_journal_acces` n'a pas
+  changé : sous SQLite, qui ne sépare rien par la base, le propriétaire d'une installation à un foyer et sans
+  opérateur les voit toujours.
+- **Noms dans les invitations** : « acceptée par X » ne résout que les comptes que la base montre au foyer courant ;
+  un compte qui a quitté le foyer depuis, ou le propriétaire d'un foyer né d'une invitation « créer votre foyer » vue
+  du parrain, y apparaît sans nom (l'interface gère déjà ce cas).
+- **Adresse d'un lien de partage** : montrée à la création seulement (§ 1), solution que la fiche suggérait.
+- **`username_saisi` comme « soi-même »** : un compte lit et efface aussi les tentatives faites sur son nom (celles
+  d'avant la création du compte comprises), ce qui permet l'effacement complet à la suppression d'un compte.
+
+**Vérification** : suite pytest complète sous SQLite : 1885 réussis, 60 ignorés, 1 échec préexistant (`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`) ; sous un Postgres 16 jetable, avec le rôle applicatif ordinaire et le client PostgreSQL (sauvegardes comprises) : 1940 réussis, 5 ignorés, le même échec préexistant. Nouveaux tests : migration des jetons (3), jetons en clair introuvables dans la base (routes d'authentification et de partage), test d'intrusion et état d'authentification (`test_separation_foyers.py`, 11 tests), routes réelles sous RLS (`test_authentification_postgres.py`, 7 tests), archive `pg_dump` complète en comptes (1 test, et les tests d'aller-retour étendus). Montée, descente et remontée de la migration vérifiées sur Postgres 16 (schéma, politiques et déclencheur identiques après la descente). Frontend : `tsc -b --force`, `oxlint`, Vitest (1080) et Playwright sous SQLite (93) propres ; sous Postgres, 92 sur 93, `invitations.spec.ts:97` échouant par intermittence dans la suite complète (le test passe seul, 4 fois sur 4 ; mêmes symptômes une fois sous SQLite, non attribués au lot) — la CI rejoue les échecs une fois.
+
+**Reste** : la CI (`backend-postgres`, `e2e-postgres`, `deploiement-postgres`, `montee-version`) sur la pull
+request ; ensuite, passer le lot BK.2e à `traité`.
 
 ### BL. Application multilingue (cadrée le 23/09/2026)
 
