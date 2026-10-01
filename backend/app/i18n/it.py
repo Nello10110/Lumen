@@ -340,4 +340,5 @@ TRADUCTIONS: dict[str, str] = {
     "Cette identité SSO est déjà liée à un autre compte.": "Questa identità SSO è già collegata a un altro account.",
     "Un compte opérateur se connecte uniquement par mot de passe : il ne peut pas utiliser le SSO.": "Un account operatore accede solo con password: non può usare il SSO.",
     "Le mode de naissance des foyers doit être « ferme » ou « invitation ».": "La modalità di creazione dei nuclei deve essere «ferme» (chiusa) o «invitation».",
+    "Liaison SSO introuvable, expirée ou déjà utilisée.": "Richiesta di collegamento SSO non trovata, scaduta o già utilizzata.",
 }
