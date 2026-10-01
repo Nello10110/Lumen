@@ -366,7 +366,9 @@ jobs:
   # session ouverte avant la mise a jour reste valide et que le contenu se relit a
   # l'identique, sous SQLite comme sous Postgres. Si l'image publiee est introuvable,
   # le job echoue (aucun repli silencieux). Le contenu de test et ses controles sont
-  # dans scripts/ci-montee-version.sh.
+  # dans scripts/ci-montee-version.sh, qui attend d'abord /api/health (essais repetes,
+  # delai borne) : la toute premiere requete apres `docker compose up --wait` est parfois
+  # coupee (« Connection reset by peer »), sans rapport avec le code de la branche.
   montee-version:
     runs-on: ubuntu-latest
     strategy:

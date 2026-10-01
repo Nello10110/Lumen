@@ -4,15 +4,17 @@
 # branche, meme volume) ; ce script parle a l'application et a la base.
 #
 #   creer      contenu de test via l'API, avec l'image PUBLIEE (jeton et mots de passe
-#              poses dans $GITHUB_ENV, instantane du contenu ecrit sur disque)
+#              poses dans $GITHUB_ENV, instantane du contenu ecrit sur disque) ; attend
+#              d'abord que l'application reponde (attendre_sante)
 #   revision   revision Alembic de la base (SQLite ou Postgres, selon $MOTEUR)
 #   tete       revision la plus recente du code de l'image en cours
-#   verifier   apres la montee : sante, session d'avant toujours valide, contenu lu
-#              a l'identique, connexions par mot de passe, ecriture possible
+#   verifier   apres la montee : attente de la sante, session d'avant toujours valide,
+#              contenu lu a l'identique, connexions par mot de passe, ecriture possible
 #
 # Variables : MOTEUR (sqlite|postgres), API (defaut http://127.0.0.1:8080/api),
-# JETON et mots de passe (fournis par `creer` via $GITHUB_ENV). Aucun secret en clair :
-# les mots de passe sont tires au hasard ici, a chaque execution.
+# JETON et mots de passe (fournis par `creer` via $GITHUB_ENV), DELAI_MAX_SANTE (secondes,
+# defaut 90). Aucun secret en clair : les mots de passe sont tires au hasard ici, a chaque
+# execution.
 
 set -euo pipefail
 
@@ -22,9 +24,32 @@ DOSSIER="${RUNNER_TEMP:-/tmp}"
 PROPRIETAIRE="ci_proprietaire"
 MEMBRE="ci_membre"
 
+DELAI_MAX_SANTE="${DELAI_MAX_SANTE:-90}"
+
 # curl qui echoue sur un code HTTP >= 400 (-f) et montre l'erreur (-S), mais reste muet
 # sinon ; jamais d'URL ni de jeton dans les traces.
 appel() { curl -fsS "$@"; }
+
+# Attend que l'application reponde sur /health, au lieu d'en faire UNE requete : juste apres
+# `docker compose up --wait` avec l'image publiee, la premiere requete est tombee sur une
+# connexion remise a zero (« Connection reset by peer ») avant tout code de la branche. Essais
+# repetes toutes les 2 s, bornes par DELAI_MAX_SANTE ; au-dela, echec clair avec la derniere
+# erreur de curl.
+attendre_sante() {
+  local debut=$SECONDS essai=0 erreur=""
+  while :; do
+    essai=$((essai + 1))
+    if erreur=$(curl -fsS --max-time 5 "$API/health" 2>&1 >"$DOSSIER/sante.json") && jq -e '.status == "ok"' "$DOSSIER/sante.json" > /dev/null 2>&1; then
+      echo "application prete (essai $essai, $((SECONDS - debut)) s)"
+      return 0
+    fi
+    if [ $((SECONDS - debut)) -ge "$DELAI_MAX_SANTE" ]; then
+      echo "::error::l'application ne repond pas sur $API/health apres ${DELAI_MAX_SANTE} s ($essai essais) : ${erreur:-reponse inattendue}" >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
 
 json_post() { # json_post <chemin> <jeton|-> <corps json>
   local chemin=$1 jeton=$2 corps=$3
@@ -58,6 +83,7 @@ masquer_et_exporter() { # masquer_et_exporter <NOM> <valeur>
 
 creer() {
   local mdp_proprietaire mdp_membre jeton etablissement compte
+  attendre_sante
   mdp_proprietaire=$(openssl rand -hex 16)
   mdp_membre=$(openssl rand -hex 16)
   masquer_et_exporter MDP_PROPRIETAIRE "$mdp_proprietaire"
@@ -96,8 +122,7 @@ verifier() {
   : "${JETON:?jeton de la session ouverte avant la montee}"
   local jeton_membre nb_avant nb_apres
 
-  appel "$API/health" | jq -e '.status == "ok"' > /dev/null
-  echo "sante : ok"
+  attendre_sante
 
   # La session ouverte AVANT la montee de version : aucune reconnexion.
   lire auth/me "$JETON" | jq -e --arg u "$PROPRIETAIRE" '.username == $u' > /dev/null
