@@ -61,7 +61,7 @@ def test_supprimer_un_detenteur_qui_porte_des_quotites_ne_laisse_pas_de_quotite_
 def test_supprimer_un_detenteur_qui_porte_des_quotites_demprunt_ne_laisse_pas_dorphelin(client, db):
     h = make_holding(db, ticker="MAISON")
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Prêt",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,
@@ -121,7 +121,7 @@ def test_supprimer_un_actif_rattache_a_un_emprunt_laisse_lemprunt_coherent(clien
     mais ne doit plus pointer vers un actif inexistant."""
     h = make_holding(db, ticker="MAISON")
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Prêt",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,
@@ -155,7 +155,7 @@ def test_supprimer_un_actif_ne_laisse_aucune_reference_pendante_dans_les_4_table
     client.put(f"/api/portfolio/holdings/{h.id}/immobilier", json={"type_location": "nue", "loyer_mensuel": 1000.0})
     client.put(f"/api/portfolio/holdings/{h.id}/valorisation", json={"valeur": 310000.0, "date": "2025-01-01"})
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Prêt",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,
@@ -244,7 +244,7 @@ def test_supprimer_un_compte_detache_sans_le_supprimer_un_emprunt_rattache(clien
     compte = make_compte(db, nom="Compte Immobilier")
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", valeur_estimee=300000.0, compte_id=compte.id)
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Prêt",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,

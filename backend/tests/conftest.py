@@ -57,7 +57,7 @@ _compteur_compte_nom = itertools.count(1)
 # plutôt que de compter sur l'autoincrément. `make_holding`/`make_transaction`
 # rattachent leurs lignes à ce FOYER par défaut ; les tests qui construisent une ligne
 # directement (`Holding(...)`, `Transaction(...)`, `Loan(...)`) passent
-# `user_id=ID_FOYER_TEST` explicitement.
+# `foyer_id=ID_FOYER_TEST` explicitement.
 ID_UTILISATEUR_TEST = 1
 NOM_UTILISATEUR_TEST = "test"
 # Second compte, pour les tests d'isolation inter-utilisateurs (Milestone 2a,
@@ -332,7 +332,7 @@ def make_transaction(db, **overrides) -> Transaction:
     """Construit et persiste une transaction de test avec des valeurs par défaut
     raisonnables (achat en bourse), surchargeables au cas par cas."""
     defaults = dict(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         transaction_id=f"tx-test-{next(_compteur_transaction_id)}",
         datetime_utc=datetime(2024, 1, 1),
         date="2024-01-01",
@@ -363,10 +363,10 @@ def make_compte(db, **overrides) -> Compte:
     ne portent pas sur la création d'un compte elle-même, juste sur un compte
     déjà là."""
     # Nom par défaut unique (compteur, comme `make_transaction` ci-dessus) :
-    # `UniqueConstraint(user_id, nom)` refuserait un deuxième appel par défaut dans
+    # `UniqueConstraint(foyer_id, nom)` refuserait un deuxième appel par défaut dans
     # le même test.
     defaults = dict(
-        user_id=ID_FOYER_TEST, nom=f"Compte Test {next(_compteur_compte_nom)}", etablissement_id=None
+        foyer_id=ID_FOYER_TEST, nom=f"Compte Test {next(_compteur_compte_nom)}", etablissement_id=None
     )
     defaults.update(overrides)
     compte = Compte(**defaults)
@@ -379,7 +379,7 @@ def make_compte(db, **overrides) -> Compte:
 def make_holding(db, **overrides) -> Holding:
     """Construit et persiste une ligne de portefeuille de test."""
     defaults = dict(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="TEST",
         nom="Titre de test",
         quantite=10.0,

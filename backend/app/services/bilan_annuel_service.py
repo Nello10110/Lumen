@@ -88,7 +88,7 @@ def _point_a_ou_avant(points: list[dict], limite: date) -> dict | None:
     return candidat
 
 
-def generer_pdf_bilan_annuel(db: Session, user_id: int, annee: int) -> bytes:
+def generer_pdf_bilan_annuel(db: Session, foyer_id: int, annee: int) -> bytes:
     """`annee` : précondition vérifiée par l'appelant (`routers/export.py`),
     jamais dans le futur (`annee <= date.today().year`) — ce module ne revalide
     pas."""
@@ -97,7 +97,7 @@ def generer_pdf_bilan_annuel(db: Session, user_id: int, annee: int) -> bytes:
     debut_periode = date(annee, 1, 1)
     fin_periode = aujourdhui if annee_en_cours else date(annee, 12, 31)
 
-    points = patrimoine_history_service.compute_patrimoine_history(db, user_id)
+    points = patrimoine_history_service.compute_patrimoine_history(db, foyer_id)
     point_debut = _point_a_ou_avant(points, debut_periode)
     if point_debut is None and points and date.fromisoformat(points[0]["date"]) <= fin_periode:
         # Le suivi a commencé PENDANT la période demandée (pas avant) : le
@@ -158,7 +158,7 @@ def generer_pdf_bilan_annuel(db: Session, user_id: int, annee: int) -> bytes:
     elements.append(Paragraph(tr("Jalons franchis sur la période"), styles["Heading2"]))
     jalons_periode = [
         j
-        for j in jalons_service.evaluer_jalons(db, user_id)
+        for j in jalons_service.evaluer_jalons(db, foyer_id)
         if j.date_atteint is not None and debut_periode <= j.date_atteint <= fin_periode
     ]
     if jalons_periode:
@@ -179,8 +179,8 @@ def generer_pdf_bilan_annuel(db: Session, user_id: int, annee: int) -> bytes:
             )
         )
         elements.append(Spacer(1, 0.2 * cm))
-        net = patrimoine_service.compute_patrimoine_net(db, user_id)
-        score = score_patrimonial_service.compute_score_patrimonial(db, user_id)
+        net = patrimoine_service.compute_patrimoine_net(db, foyer_id)
+        score = score_patrimonial_service.compute_score_patrimonial(db, foyer_id)
         lignes_situation = [(tr("Score patrimonial"), f"{score['score_global']}/100")]
         lignes_situation += [(libelle_donnee(item["categorie"]), _euros(item["valeur"])) for item in net["repartition_par_classe"]]
         elements.append(_table_deux_colonnes(lignes_situation))

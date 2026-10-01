@@ -76,9 +76,9 @@ async def importer(
     l'aperçu ci-dessus.
     """
     document = await _lire_document(file)
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     try:
-        contenu = donnees_service.importer_foyer(db, user_id, document)
+        contenu = donnees_service.importer_foyer(db, foyer_id, document)
     except donnees_service.FichierExportInvalideError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
@@ -88,7 +88,7 @@ async def importer(
     except Exception as exc:
         # Erreur de base de données ou imprévue : son texte exposerait la requête SQL.
         # Le service a déjà tout annulé ; le détail va au journal.
-        logger.exception("échec de l'import des données du foyer %s", user_id)
+        logger.exception("échec de l'import des données du foyer %s", foyer_id)
         raise HTTPException(
             status_code=400,
             detail="Import impossible : le fichier n'a pas pu être importé, rien n'a été modifié. "
@@ -117,14 +117,14 @@ def effacer(
     (`foyer_service.confirmation_attendue`)
     — même principe que la confirmation par nom avant suppression d'un dépôt GitHub.
     """
-    user_id = auth_service.id_foyer(current_user)
-    attendu = foyer_service.confirmation_attendue(db, user_id)
+    foyer_id = auth_service.id_foyer(current_user)
+    attendu = foyer_service.confirmation_attendue(db, foyer_id)
     if payload.confirmation.strip() != attendu:
         raise HTTPException(
             status_code=400, detail=tr("Confirmation incorrecte. Tapez exactement « {attendu} » pour confirmer.", attendu=attendu)
         )
 
-    donnees_service.reinitialiser_foyer(db, user_id)
+    donnees_service.reinitialiser_foyer(db, foyer_id)
     # Les historiques mis en cache décrivent un patrimoine qui n'existe plus.
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}

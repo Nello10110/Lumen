@@ -34,8 +34,8 @@ def deux_foyers(db):
     """Le foyer de test (propriétaire : compte 1) et le foyer B (propriétaire : compte 2),
     chacun avec une ligne de portefeuille."""
     creer_utilisateur(db, ID_UTILISATEUR_B, "voisin")
-    make_holding(db, user_id=ID_FOYER_TEST, ticker="A-SEUL")
-    make_holding(db, user_id=ID_FOYER_B, ticker="B-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_TEST, ticker="A-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_B, ticker="B-SEUL")
     return db
 
 
@@ -191,8 +191,8 @@ def _basculer(client, en_tete, foyer_id: int) -> None:
 
 def test_quitter_retire_l_appartenance_le_perimetre_et_detache_les_sessions(client_jetons, deux_foyers):
     membre = _membre_des_deux(deux_foyers, role_chez_a=ROLE_INVITE, role_chez_b=ROLE_INVITE)
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
-    bob = Detenteur(user_id=ID_FOYER_B, nom="Bob")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
+    bob = Detenteur(foyer_id=ID_FOYER_B, nom="Bob")
     deux_foyers.add_all([alice, bob])
     deux_foyers.commit()
     deux_foyers.add_all([PerimetreInvite(user_id=membre.id, detenteur_id=alice.id), PerimetreInvite(user_id=membre.id, detenteur_id=bob.id)])
@@ -418,8 +418,8 @@ def test_supprimer_son_compte_garde_les_invitations_qu_il_a_creees_ou_acceptees(
 
 def test_retirer_un_compte_partage_ne_retire_que_son_appartenance(client_jetons, deux_foyers):
     membre = _membre_des_deux(deux_foyers, role_chez_a=ROLE_INVITE, role_chez_b=ROLE_INVITE)
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
-    bob = Detenteur(user_id=ID_FOYER_B, nom="Bob")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
+    bob = Detenteur(foyer_id=ID_FOYER_B, nom="Bob")
     deux_foyers.add_all([alice, bob])
     deux_foyers.commit()
     deux_foyers.add_all([PerimetreInvite(user_id=membre.id, detenteur_id=alice.id), PerimetreInvite(user_id=membre.id, detenteur_id=bob.id)])

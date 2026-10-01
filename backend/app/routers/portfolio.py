@@ -124,7 +124,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     imported = 0
     skipped = 0
     errors: list[str] = []
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
 
     # Établissement des comptes créés à la volée (refonte import, 05/09/2026,
     # alignement sur l'import du grand livre de transactions) — résolu UNE fois,
@@ -134,12 +134,12 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     etablissement_id: int | None = None
     if mapping.etablissement_id is not None:
         etablissement = db.get(Etablissement, mapping.etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         etablissement_id = mapping.etablissement_id
     elif mapping.etablissement_nom:
         etablissement_id = comptes_service.get_or_create_etablissement(
-            db, user_id, mapping.etablissement_nom, mapping.etablissement_logo_key
+            db, foyer_id, mapping.etablissement_nom, mapping.etablissement_logo_key
         ).id
 
     # Cache local nom -> id (pas d'appel service par ligne) : un même compte peut
@@ -152,7 +152,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
         if not nom:
             return None
         if nom not in comptes_cache:
-            existant = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom).first()
+            existant = db.query(Compte).filter(Compte.foyer_id == foyer_id, Compte.nom == nom).first()
             if existant is None and etablissement_id is None:
                 # Même règle que `CompteCreate.etablissement_id` (obligatoire à la
                 # création) — un compte déjà existant, lui, garde son établissement
@@ -161,7 +161,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
                 raise ValueError(tr("Établissement requis pour créer le compte « {nom} ».", nom=nom))
             # `_sans_commit` : cette boucle est dans la transaction « tout ou rien »
             # de l'import (rollback possible plus bas) — jamais de commit intermédiaire.
-            comptes_cache[nom] = comptes_service.get_or_create_compte_sans_commit(db, user_id, nom, etablissement_id).id
+            comptes_cache[nom] = comptes_service.get_or_create_compte_sans_commit(db, foyer_id, nom, etablissement_id).id
         return comptes_cache[nom]
 
     # Tout ou rien (LOT 3.3) : un import (potentiellement précédé d'un vidage du
@@ -176,7 +176,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
             # au grand livre : les supprimer ici créerait un état incohérent que le
             # prochain import de transactions rétablirait tout seul, sans que
             # l'utilisateur comprenne pourquoi (cf. `models.Holding.origine`).
-            db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_MANUEL).delete()
+            db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.origine == ORIGINE_MANUEL).delete()
 
         for row in tableau.lignes:
             ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
@@ -189,7 +189,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
 
             db.add(
                 Holding(
-                    user_id=user_id,
+                    foyer_id=foyer_id,
                     ticker=ticker,
                     nom=_cellule_texte(row, mapping.nom_col),
                     quantite=qty_val,
@@ -215,7 +215,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
         # l'utilisateur et exposerait la requête SQL et ses paramètres (constaté au
         # § BI.2). Message générique à l'écran, détail complet au journal.
         db.rollback()
-        logger.exception("échec de l'import de positions (foyer %s)", user_id)
+        logger.exception("échec de l'import de positions (foyer %s)", foyer_id)
         raise HTTPException(
             status_code=400,
             detail="Échec de l'import, le portefeuille n'a pas été modifié. Vérifiez le fichier ; "
@@ -223,14 +223,14 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
         ) from exc
 
     csv_import.clear_pending(mapping.file_token)
-    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_RELEVE, imported)
+    journal_import_service.enregistrer(db, foyer_id, SOURCE_IMPORT_RELEVE, imported)
 
     return ImportResult(imported=imported, skipped=skipped, errors=errors)
 
 
 def _resoudre_compte_id(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     compte_id: int | None,
     compte_nom: str | None,
     etablissement_id: int | None = None,
@@ -249,18 +249,18 @@ def _resoudre_compte_id(
     (refonte import, 05/09/2026) : cf. `_resoudre_etablissement_id`."""
     if compte_id is not None:
         compte = db.get(Compte, compte_id)
-        if compte is None or compte.user_id != user_id:
+        if compte is None or compte.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Compte introuvable")
         return compte_id
     if compte_nom:
-        etablissement_resolu = _resoudre_etablissement_id(db, user_id, etablissement_id, etablissement_nom, etablissement_logo_key)
-        return comptes_service.get_or_create_compte(db, user_id, compte_nom, etablissement_resolu).id
+        etablissement_resolu = _resoudre_etablissement_id(db, foyer_id, etablissement_id, etablissement_nom, etablissement_logo_key)
+        return comptes_service.get_or_create_compte(db, foyer_id, compte_nom, etablissement_resolu).id
     return None
 
 
 def _resoudre_etablissement_id(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     etablissement_id: int | None,
     etablissement_nom: str | None,
     etablissement_logo_key: str | None = None,
@@ -272,11 +272,11 @@ def _resoudre_etablissement_id(
     création d'un nouvel établissement (cf. `comptes_service.get_or_create_etablissement`)."""
     if etablissement_id is not None:
         etablissement = db.get(Etablissement, etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         return etablissement_id
     if etablissement_nom:
-        return comptes_service.get_or_create_etablissement(db, user_id, etablissement_nom, etablissement_logo_key).id
+        return comptes_service.get_or_create_etablissement(db, foyer_id, etablissement_nom, etablissement_logo_key).id
     return None
 
 
@@ -284,7 +284,7 @@ def _holdings_visibles(db: Session, current_user: User):
     """Toutes les lignes du foyer pour propriétaire/membre ; pour un invité (2.L.2),
     seulement celles où l'un de ses détenteurs assignés a une quotité — jamais un
     filtrage côté client uniquement, contournable dans l'onglet réseau."""
-    requete = db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user))
+    requete = db.query(Holding).filter(Holding.foyer_id == auth_service.id_foyer(current_user))
     if current_user.role == ROLE_INVITE:
         perimetre = detenteurs_service.perimetre_invite(db, current_user.id, auth_service.id_foyer(current_user))
         if not perimetre:
@@ -355,7 +355,7 @@ def update_holding_immobilier(
     """Crée ou remplace le détail immobilier de cette ligne (backlog 2.M.3) — pas
     restreint à `type_actif == "REAL_ESTATE"` côté serveur (l'UI ne le propose que
     pour ce type, mais rien n'empêche techniquement un autre usage)."""
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     immobilier_service.upsert_detail_immobilier(db, holding.id, **payload.model_dump())
@@ -370,7 +370,7 @@ def get_holding_valuation_history(holding_id: int, db: Session = Depends(get_db)
     seule). Pas réservé à l'immobilier : disponible pour tout type valorisé
     manuellement, cf. `models.HoldingValuationHistory`."""
     _verifier_holding_visible_invite(db, current_user, holding_id)
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     points = immobilier_service.historique_valorisation(db, holding.id)
@@ -420,7 +420,7 @@ def update_holding_valuation_point(
     n'écrase jamais un point existant, par design). Renvoie le `Holding` à jour :
     si le point corrigé est (ou devient) le plus récent, `valeur_estimee`/
     `date_valeur_estimee` suivent — cf. `_resynchroniser_valeur_courante`."""
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     _recuperer_point_du_foyer(db, holding, point_id)
@@ -441,7 +441,7 @@ def delete_holding_valuation_point(
     """Supprime un point saisi par erreur (backlog quickwin § T.3). Renvoie le
     `Holding` à jour, `valeur_estimee`/`date_valeur_estimee` resynchronisés sur le
     nouveau point le plus récent restant (ou `None` si l'historique devient vide)."""
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     _recuperer_point_du_foyer(db, holding, point_id)
@@ -464,7 +464,7 @@ def set_holding_valorisation(
     `date_valeur_estimee`) n'est mise à jour que si ce point est le plus RÉCENT connu :
     un rattrapage antidaté ne doit jamais écraser une valeur plus récente déjà
     enregistrée."""
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     date_dt = datetime.strptime(payload.date, "%Y-%m-%d")
@@ -488,7 +488,7 @@ def set_holding_quotites(
     """Remplace intégralement la répartition (quotités) de cette ligne entre
     détenteurs (backlog 2.L.1). Une liste vide retire toute répartition (retombe à
     100 % foyer implicite)."""
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     try:
@@ -510,7 +510,7 @@ def get_holding_price_history(holding_id: int, db: Session = Depends(get_db), cu
 
 @router.post("/holdings", response_model=HoldingOut)
 def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
     #
@@ -528,7 +528,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     etablissement_nom = donnees.pop("etablissement_nom")
     etablissement_logo_key = donnees.pop("etablissement_logo_key")
     donnees["compte_id"] = _resoudre_compte_id(
-        db, user_id, compte_id, compte_nom, etablissement_id, etablissement_nom, etablissement_logo_key
+        db, foyer_id, compte_id, compte_nom, etablissement_id, etablissement_nom, etablissement_logo_key
     )
     # Refus du doublon (revue du 03/09/2026, étendu le 14/09/2026) : deux lignes du
     # même foyer portant le même ticker AU MÊME COMPTE restaient créables, et
@@ -542,7 +542,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # quantité plutôt que d'en créer une seconde identique.
     if (
         db.query(Holding)
-        .filter(Holding.user_id == user_id, Holding.ticker == payload.ticker, Holding.compte_id == donnees["compte_id"])
+        .filter(Holding.foyer_id == foyer_id, Holding.ticker == payload.ticker, Holding.compte_id == donnees["compte_id"])
         .first()
         is not None
     ):
@@ -561,7 +561,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # convertie en `datetime` pour la colonne — même conversion que `set_holding_valorisation`.
     if donnees.get("date_acquisition") is not None:
         donnees["date_acquisition"] = datetime.strptime(donnees["date_acquisition"], "%Y-%m-%d")
-    holding = Holding(**donnees, origine=ORIGINE_MANUEL, user_id=user_id)
+    holding = Holding(**donnees, origine=ORIGINE_MANUEL, foyer_id=foyer_id)
     db.add(holding)
     db.commit()
     db.refresh(holding)
@@ -578,9 +578,9 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingOut)
 def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     holding = db.get(Holding, holding_id)
-    if holding is None or holding.user_id != user_id:
+    if holding is None or holding.foyer_id != foyer_id:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     updates = payload.model_dump(exclude_unset=True)
     # `compte_id`/`compte_nom`/`etablissement_id`/`etablissement_nom` ne sont pas
@@ -590,7 +590,7 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     if "compte_id" in updates or "compte_nom" in updates:
         updates["compte_id"] = _resoudre_compte_id(
             db,
-            user_id,
+            foyer_id,
             updates.pop("compte_id", None),
             updates.pop("compte_nom", None),
             updates.pop("etablissement_id", None),
@@ -648,7 +648,7 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
 @router.delete("/holdings/{holding_id}")
 def delete_holding(holding_id: int, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     holding = db.get(Holding, holding_id)
-    if holding is None or holding.user_id != auth_service.id_foyer(current_user):
+    if holding is None or holding.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     _detacher_references_avant_suppression(db, holding)
     db.delete(holding)

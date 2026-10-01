@@ -32,7 +32,7 @@ def meta(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=MESSAGE_LIEN_INTROUVABLE)
     # Langue du foyer qui partage (§ BL.4) : la page publique s'affiche dans la langue
     # choisie par ce foyer, pas dans celle du navigateur du visiteur.
-    langue = preferences_service.lire_langue_foyer(db, lien.user_id)
+    langue = preferences_service.lire_langue_foyer(db, lien.foyer_id)
     return {"nom_lien": lien.nom, "code_requis": lien.code_hash is not None, "langue": langue}
 
 
@@ -42,7 +42,7 @@ def consulter(token: str, payload: PartageAccesRequest, request: Request, db: Se
     lien = partage_service.lien_valide_par_token(db, token)
     if lien is None:
         raise HTTPException(status_code=404, detail=MESSAGE_LIEN_INTROUVABLE)
-    definir_langue(preferences_service.lire_langue_foyer(db, lien.user_id))
+    definir_langue(preferences_service.lire_langue_foyer(db, lien.foyer_id))
     verrouille_jusqua = partage_service.verrouillage_actif(db, lien.id)
     if verrouille_jusqua is not None:
         raise HTTPException(

@@ -16,13 +16,13 @@ from . import budget_categories_service
 
 def list_mouvements(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     date_debut: str | None = None,
     date_fin: str | None = None,
     categorie_id: int | None = None,
     compte_id: int | None = None,
 ) -> list[MouvementBancaire]:
-    q = db.query(MouvementBancaire).filter(MouvementBancaire.user_id == user_id)
+    q = db.query(MouvementBancaire).filter(MouvementBancaire.foyer_id == foyer_id)
     if date_debut:
         q = q.filter(MouvementBancaire.date >= date_debut)
     if date_fin:
@@ -35,31 +35,31 @@ def list_mouvements(
 
 
 def mouvements_comptabilises(
-    db: Session, user_id: int, date_debut: str | None = None, date_fin: str | None = None, compte_id: int | None = None
+    db: Session, foyer_id: int, date_debut: str | None = None, date_fin: str | None = None, compte_id: int | None = None
 ) -> list[MouvementBancaire]:
     """Mouvements qui entrent dans les totaux du budget : tous, sauf ceux d'une
     catégorie exclue des totaux (§ BM.3). Tout calcul qui somme des mouvements part
     d'ici ; la liste affichée (`list_mouvements`) les montre tous."""
-    exclues = budget_categories_service.ids_categories_exclues(db, user_id)
-    mouvements = list_mouvements(db, user_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
+    exclues = budget_categories_service.ids_categories_exclues(db, foyer_id)
+    mouvements = list_mouvements(db, foyer_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
     return [m for m in mouvements if m.categorie_id not in exclues]
 
 
-def list_comptes_avec_mouvements(db: Session, user_id: int) -> list[Compte]:
+def list_comptes_avec_mouvements(db: Session, foyer_id: int) -> list[Compte]:
     """Comptes proposés par le filtre de l'écran Budget (§ BM.1) : ceux qui portent au
     moins un mouvement bancaire — un PEA ou un bien immobilier n'y aurait rien à montrer."""
-    comptes_utilises = select(MouvementBancaire.compte_id).where(MouvementBancaire.user_id == user_id)
-    return db.query(Compte).filter(Compte.user_id == user_id, Compte.id.in_(comptes_utilises)).order_by(Compte.nom).all()
+    comptes_utilises = select(MouvementBancaire.compte_id).where(MouvementBancaire.foyer_id == foyer_id)
+    return db.query(Compte).filter(Compte.foyer_id == foyer_id, Compte.id.in_(comptes_utilises)).order_by(Compte.nom).all()
 
 
-def categoriser_mouvement(db: Session, user_id: int, mouvement_id: int, categorie_id: int | None) -> MouvementBancaire:
+def categoriser_mouvement(db: Session, foyer_id: int, mouvement_id: int, categorie_id: int | None) -> MouvementBancaire:
     """Correction manuelle (LOT 6.1) : pose `categorise_manuellement=True` pour que
     `budget_import_service.reappliquer_regles` ne l'écrase plus jamais."""
-    mouvement = db.query(MouvementBancaire).filter(MouvementBancaire.id == mouvement_id, MouvementBancaire.user_id == user_id).first()
+    mouvement = db.query(MouvementBancaire).filter(MouvementBancaire.id == mouvement_id, MouvementBancaire.foyer_id == foyer_id).first()
     if mouvement is None:
         raise ValueError("Mouvement introuvable")
     if categorie_id is not None:
-        categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.user_id == user_id).first()
+        categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.foyer_id == foyer_id).first()
         if categorie is None:
             raise ValueError("Catégorie introuvable")
     mouvement.categorie_id = categorie_id
@@ -69,7 +69,7 @@ def categoriser_mouvement(db: Session, user_id: int, mouvement_id: int, categori
     return mouvement
 
 
-def compute_depenses_recurrentes_mensuelles(db: Session, user_id: int, date_fin: str, compte_id: int | None = None) -> float:
+def compute_depenses_recurrentes_mensuelles(db: Session, foyer_id: int, date_fin: str, compte_id: int | None = None) -> float:
     """Charge fixe mensuelle : somme, ramenée au mois (coût annuel / 12), des séries
     périodiques — mensuelles, trimestrielles, annuelles — que détecte
     `budget_recurrences_service` à `date_fin` (§ BM.2). Les achats fréquents sans rythme
@@ -78,7 +78,7 @@ def compute_depenses_recurrentes_mensuelles(db: Session, user_id: int, date_fin:
     from . import budget_recurrences_service
 
     recurrences = budget_recurrences_service.detect_recurrences(
-        db, user_id, aujourdhui=date_cls.fromisoformat(date_fin), compte_id=compte_id
+        db, foyer_id, aujourdhui=date_cls.fromisoformat(date_fin), compte_id=compte_id
     )
     return round(sum(r.cout_annuel_estime for r in recurrences if r.cout_annuel_estime is not None) / 12, 2)
 
@@ -87,12 +87,12 @@ def _categorie_racine_id(categorie: CategorieBudget) -> int:
     return categorie.parent_id if categorie.parent_id is not None else categorie.id
 
 
-def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str, compte_id: int | None = None) -> dict:
-    mouvements = mouvements_comptabilises(db, user_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
+def compute_summary(db: Session, foyer_id: int, date_debut: str, date_fin: str, compte_id: int | None = None) -> dict:
+    mouvements = mouvements_comptabilises(db, foyer_id, date_debut=date_debut, date_fin=date_fin, compte_id=compte_id)
     entrees = sum(m.montant for m in mouvements if m.montant > 0)
     sorties = sum(-m.montant for m in mouvements if m.montant < 0)
 
-    categories = {c.id: c for c in db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()}
+    categories = {c.id: c for c in db.query(CategorieBudget).filter(CategorieBudget.foyer_id == foyer_id).all()}
     repartition: dict[int | None, float] = {}
     for m in mouvements:
         if m.montant >= 0:
@@ -100,7 +100,7 @@ def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str, c
         cle = _categorie_racine_id(categories[m.categorie_id]) if m.categorie_id in categories else None
         repartition[cle] = repartition.get(cle, ZERO) + (-m.montant)
 
-    cibles = {c.categorie_id: c.montant_mensuel for c in db.query(BudgetCible).filter(BudgetCible.user_id == user_id).all()}
+    cibles = {c.categorie_id: c.montant_mensuel for c in db.query(BudgetCible).filter(BudgetCible.foyer_id == foyer_id).all()}
 
     repartition_items = [
         {
@@ -116,24 +116,24 @@ def compute_summary(db: Session, user_id: int, date_debut: str, date_fin: str, c
         "entrees": round(entrees, 2),
         "sorties": round(sorties, 2),
         "disponible": round(entrees - sorties, 2),
-        "depenses_recurrentes_mensuelles": compute_depenses_recurrentes_mensuelles(db, user_id, date_fin, compte_id),
+        "depenses_recurrentes_mensuelles": compute_depenses_recurrentes_mensuelles(db, foyer_id, date_fin, compte_id),
         "repartition_sorties": repartition_items,
     }
 
 
-def list_cibles(db: Session, user_id: int) -> list[BudgetCible]:
-    return db.query(BudgetCible).filter(BudgetCible.user_id == user_id).all()
+def list_cibles(db: Session, foyer_id: int) -> list[BudgetCible]:
+    return db.query(BudgetCible).filter(BudgetCible.foyer_id == foyer_id).all()
 
 
-def set_cible(db: Session, user_id: int, categorie_id: int, montant_mensuel: float) -> BudgetCible:
-    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.user_id == user_id).first()
+def set_cible(db: Session, foyer_id: int, categorie_id: int, montant_mensuel: float) -> BudgetCible:
+    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.foyer_id == foyer_id).first()
     if categorie is None:
         raise ValueError("Catégorie introuvable")
     if categorie.parent_id is not None:
         raise ValueError("Le budget cible se règle sur une catégorie racine, pas une sous-catégorie")
-    cible = db.query(BudgetCible).filter(BudgetCible.categorie_id == categorie_id, BudgetCible.user_id == user_id).first()
+    cible = db.query(BudgetCible).filter(BudgetCible.categorie_id == categorie_id, BudgetCible.foyer_id == foyer_id).first()
     if cible is None:
-        cible = BudgetCible(user_id=user_id, categorie_id=categorie_id, montant_mensuel=montant_mensuel)
+        cible = BudgetCible(foyer_id=foyer_id, categorie_id=categorie_id, montant_mensuel=montant_mensuel)
         db.add(cible)
     else:
         cible.montant_mensuel = montant_mensuel
@@ -142,8 +142,8 @@ def set_cible(db: Session, user_id: int, categorie_id: int, montant_mensuel: flo
     return cible
 
 
-def delete_cible(db: Session, user_id: int, categorie_id: int) -> None:
-    db.query(BudgetCible).filter(BudgetCible.categorie_id == categorie_id, BudgetCible.user_id == user_id).delete()
+def delete_cible(db: Session, foyer_id: int, categorie_id: int) -> None:
+    db.query(BudgetCible).filter(BudgetCible.categorie_id == categorie_id, BudgetCible.foyer_id == foyer_id).delete()
     db.commit()
 
 
@@ -158,7 +158,7 @@ def _nombre_mois_periode(date_debut: str, date_fin: str) -> int:
 
 
 def compute_jonction_patrimoine(
-    db: Session, user_id: int, date_debut: str, date_fin: str, compte_id: int | None = None
+    db: Session, foyer_id: int, date_debut: str, date_fin: str, compte_id: int | None = None
 ) -> dict:
     """Taux d'épargne réel, reste à vivre, et suggestion de versement mensuel pour
     le Simulateur (backlog 2.N.4) — dérivés du budget réellement observé plutôt que
@@ -167,12 +167,12 @@ def compute_jonction_patrimoine(
     # ce module pour `mouvements_comptabilises`.
     from . import budget_recurrences_service
 
-    summary = compute_summary(db, user_id, date_debut, date_fin, compte_id)
+    summary = compute_summary(db, foyer_id, date_debut, date_fin, compte_id)
     entrees = summary["entrees"]
 
     # Repli `ZERO` (Decimal), pas `0.0` : une catégorie présente mais sans mouvement
     # sur la période mêlait sinon un float aux montants Decimal (§ BI.1) — TypeError.
-    categorie_epargne = budget_categories_service.categorie_racine_par_code(db, user_id, budget_categories_service.CODE_EPARGNE)
+    categorie_epargne = budget_categories_service.categorie_racine_par_code(db, foyer_id, budget_categories_service.CODE_EPARGNE)
     montant_epargne = None
     taux_epargne_reel_pct = None
     if categorie_epargne is not None:
@@ -181,7 +181,7 @@ def compute_jonction_patrimoine(
         )
         taux_epargne_reel_pct = round(montant_epargne / entrees * 100, 1) if entrees > 0 else None
 
-    categorie_logement = budget_categories_service.categorie_racine_par_code(db, user_id, budget_categories_service.CODE_LOGEMENT)
+    categorie_logement = budget_categories_service.categorie_racine_par_code(db, foyer_id, budget_categories_service.CODE_LOGEMENT)
     montant_logement = None
     reste_a_vivre = None
     if categorie_logement is not None:
@@ -195,7 +195,7 @@ def compute_jonction_patrimoine(
         charges_recurrentes_mensuelles = sum(
             r.montant_actuel
             for r in budget_recurrences_service.detect_recurrences(
-                db, user_id, aujourdhui=date_cls.fromisoformat(date_fin), compte_id=compte_id
+                db, foyer_id, aujourdhui=date_cls.fromisoformat(date_fin), compte_id=compte_id
             )
             if r.periodicite == "mensuelle"
         )
@@ -209,7 +209,7 @@ def compute_jonction_patrimoine(
     versement_mensuel_epargne_declare = (
         db.query(func.sum(Holding.versement_mensuel))
         .filter(
-            Holding.user_id == user_id,
+            Holding.foyer_id == foyer_id,
             Holding.type_actif.in_(TYPES_EPARGNE),
             Holding.versement_mensuel.isnot(None),
         )

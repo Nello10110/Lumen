@@ -21,7 +21,7 @@ def _frais_transaction_payes(db: Session, holding: Holding) -> float:
         .filter(
             Transaction.symbol == holding.ticker,
             Transaction.compte_id == holding.compte_id,
-            Transaction.user_id == holding.user_id,
+            Transaction.foyer_id == holding.foyer_id,
         )
         .with_entities(Transaction.fee, Transaction.tax)
         .all()
@@ -29,12 +29,12 @@ def _frais_transaction_payes(db: Session, holding: Holding) -> float:
     return sum(abs(fee) + abs(tax) for fee, tax in lignes)
 
 
-def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | None:
+def build_holding_detail(db: Session, holding_id: int, foyer_id: int) -> dict | None:
     """Retourne `None` si cette ligne n'existe pas ou n'appartient pas à cet
-    utilisateur (`user_id`, Milestone 2a). Adressé par `holding_id`, pas par ticker
+    utilisateur (`foyer_id`, Milestone 2a). Adressé par `holding_id`, pas par ticker
     (revu le 14/09/2026) : depuis qu'un ticker peut être détenu à deux comptes
     différents, seul l'id désigne sans ambiguïté "de quelle ligne on parle"."""
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == user_id).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == foyer_id).first()
     if holding is None:
         return None
 
@@ -47,7 +47,7 @@ def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | N
     # les transactions de ce ticker, plutôt que `compute_holding_returns(db)` qui
     # rejouerait tout le grand livre et revaloriserait tout le portefeuille pour
     # n'afficher au final que ces deux pourcentages sur une seule fiche.
-    rendements = performance_service.compute_holding_return(db, holding.id, user_id)
+    rendements = performance_service.compute_holding_return(db, holding.id, foyer_id)
 
     # Composition/répartition d'un fonds : données de marché PUBLIQUES, partagées
     # par ticker seul — correctement indépendantes du compte qui le détient (deux
@@ -114,7 +114,7 @@ def build_holding_detail(db: Session, holding_id: int, user_id: int) -> dict | N
     # foyer implicite, cf. `detenteurs_service.compute_parts`).
     parts = detenteurs_service.compute_parts(db, holding, valeur)
     quotites_saisies = db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).all()
-    noms_detenteurs = {d.id: d.nom for d in db.query(Detenteur).filter(Detenteur.user_id == user_id).all()}
+    noms_detenteurs = {d.id: d.nom for d in db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id).all()}
     quotites = [
         {
             "detenteur_id": q.detenteur_id,

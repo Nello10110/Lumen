@@ -99,7 +99,7 @@ class TableExportee:
     identifiants à l'import (les ids du fichier viennent d'une AUTRE base et ne
     doivent jamais être réutilisés tels quels).
 
-    `scope_par` : pour les tables sans `user_id` (filles), la référence par
+    `scope_par` : pour les tables sans `foyer_id` (filles), la référence par
     laquelle on retrouve les lignes du foyer — leur appartenance se déduit de leur
     parent, jamais d'une colonne propre.
     """
@@ -113,7 +113,7 @@ class TableExportee:
     # les schémas Pydantic qui valident ces champs sur les routes normales : sans ce
     # garde-fou, un fichier d'export édité à la main injecte n'importe quoi, et le
     # schéma ne porte aucune contrainte CHECK pour le rattraper (revue du
-    # 03/09/2026). Le foyer n'est pas franchissable pour autant — `user_id` est
+    # 03/09/2026). Le foyer n'est pas franchissable pour autant — `foyer_id` est
     # forcé et `users` n'est pas importable — mais l'utilisateur peut corrompre ses
     # PROPRES données et casser un écran sans comprendre pourquoi.
     valeurs_autorisees: dict[str, frozenset[str]] = field(default_factory=dict)
@@ -127,12 +127,9 @@ class TableExportee:
 
     @property
     def colonne_foyer(self):
-        """Colonne de rattachement au foyer : `user_id` sur les tables de patrimoine
-        (renommée en BK.2e), `foyer_id` sur les réglages ; aucune sur une table fille."""
-        for nom in ("user_id", "foyer_id"):
-            if hasattr(self.modele, nom):
-                return getattr(self.modele, nom)
-        return None
+        """Colonne de rattachement au foyer (`foyer_id`, qui s'appelait `user_id` sur les
+        tables de patrimoine avant BK.2e) ; aucune sur une table fille."""
+        return getattr(self.modele, "foyer_id", None)
 
 
 # Ordre = ordre d'INSERTION à l'import : un parent précède toujours ses enfants.
@@ -193,8 +190,10 @@ TABLES: list[TableExportee] = [
 ]
 
 # Colonnes jamais exportées : le rattachement est celui du foyer SOURCE (l'import le
-# repositionne sur le foyer courant), `id` est conservé à part pour le remappage.
-COLONNES_EXCLUES = {"user_id", "foyer_id"}
+# repositionne sur le foyer courant), `id` est conservé à part pour le remappage. Le
+# fichier n'a jamais porté ce rattachement, ni sous son nom d'avant BK.2e (`user_id`) :
+# le format du fichier ne change pas avec le renommage.
+COLONNES_EXCLUES = {"foyer_id"}
 
 SECTION_PARAMETRES = "user_parametres"
 CLE_NOM_FOYER = "foyer_nom"
@@ -227,10 +226,10 @@ def _serialiser(valeur: Any) -> Any:
     return valeur
 
 
-def _lignes_du_foyer(db: Session, table: TableExportee, user_id: int, ids_parents: dict[str, set[int]]) -> list:
+def _lignes_du_foyer(db: Session, table: TableExportee, foyer_id: int, ids_parents: dict[str, set[int]]) -> list:
     modele = table.modele
     if table.scope_par is None:
-        return db.query(modele).filter(table.colonne_foyer == user_id).all()
+        return db.query(modele).filter(table.colonne_foyer == foyer_id).all()
     # Table fille : son appartenance au foyer se déduit du parent déjà collecté.
     table_parent = table.references[table.scope_par]
     ids = ids_parents.get(table_parent, set())
@@ -239,7 +238,7 @@ def _lignes_du_foyer(db: Session, table: TableExportee, user_id: int, ids_parent
     return db.query(modele).filter(getattr(modele, table.scope_par).in_(ids)).all()
 
 
-def exporter_foyer(db: Session, user_id: int) -> dict:
+def exporter_foyer(db: Session, foyer_id: int) -> dict:
     """Construit le document JSON complet du foyer. Les identifiants d'origine sont
     conservés tels quels : ils ne servent qu'à relier les tables entre elles dans
     le fichier, et sont réécrits à l'import."""
@@ -247,18 +246,18 @@ def exporter_foyer(db: Session, user_id: int) -> dict:
     ids_parents: dict[str, set[int]] = {}
 
     for table in TABLES:
-        lignes = _lignes_du_foyer(db, table, user_id, ids_parents)
+        lignes = _lignes_du_foyer(db, table, foyer_id, ids_parents)
         ids_parents[table.nom] = {ligne.id for ligne in lignes} if table.a_un_id else set()
         colonnes = _colonnes(table)
         donnees[table.nom] = [{col: _serialiser(getattr(ligne, col)) for col in colonnes} for ligne in lignes]
 
-    foyer = db.get(Foyer, user_id)
+    foyer = db.get(Foyer, foyer_id)
     if foyer.nom is not None:
         donnees[SECTION_PARAMETRES].append({"cle": CLE_NOM_FOYER, "valeur": foyer.nom})
     # La langue par défaut n'est pas écrite : l'import la rétablit de lui-même.
     if foyer.langue != LANGUE_PAR_DEFAUT:
         donnees[SECTION_PARAMETRES].append({"cle": CLE_LANGUE_FOYER, "valeur": foyer.langue})
-    proprietaire = _appartenance_du_proprietaire(db, user_id)
+    proprietaire = _appartenance_du_proprietaire(db, foyer_id)
     if proprietaire is not None and proprietaire.assistant_termine_le is not None:
         donnees[SECTION_PARAMETRES].append({"cle": CLE_ASSISTANT_PROPRIETAIRE, "valeur": "1"})
 
@@ -326,7 +325,7 @@ def _appartenance_du_proprietaire(db: Session, foyer_id: int) -> Appartenance | 
     )
 
 
-def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
+def _supprimer_donnees_du_foyer(db: Session, foyer_id: int) -> None:
     """Efface tout le patrimoine du foyer et ses réglages, nom, langue et assistant de
     bienvenue du propriétaire compris (cf. `CLE_ASSISTANT_PROPRIETAIRE`), enfants avant
     parents. Les caches, les comptes et les données sensibles (cf.
@@ -336,32 +335,32 @@ def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
     désignent des détenteurs que cette suppression efface : ils partent d'abord. Laissés,
     ils pointeraient vers un identifiant que SQLite redonne au prochain détenteur créé
     (§ BI.4) — et Postgres refuserait la suppression (clé étrangère)."""
-    detenteurs = db.query(Detenteur.id).filter(Detenteur.user_id == user_id)
+    detenteurs = db.query(Detenteur.id).filter(Detenteur.foyer_id == foyer_id)
     for modele in (PerimetreInvite, InvitationPerimetre):
         db.query(modele).filter(modele.detenteur_id.in_(detenteurs.scalar_subquery())).delete(synchronize_session=False)
     ids_parents: dict[str, set[int]] = {}
     for table in TABLES:
-        lignes = _lignes_du_foyer(db, table, user_id, ids_parents)
+        lignes = _lignes_du_foyer(db, table, foyer_id, ids_parents)
         ids_parents[table.nom] = {ligne.id for ligne in lignes} if table.a_un_id else set()
 
     for table in reversed(TABLES):
         modele = table.modele
         if table.scope_par is None:
-            db.query(modele).filter(table.colonne_foyer == user_id).delete(synchronize_session=False)
+            db.query(modele).filter(table.colonne_foyer == foyer_id).delete(synchronize_session=False)
         else:
             ids = ids_parents.get(table.references[table.scope_par], set())
             if ids:
                 db.query(modele).filter(getattr(modele, table.scope_par).in_(ids)).delete(synchronize_session=False)
-    foyer = db.get(Foyer, user_id)
+    foyer = db.get(Foyer, foyer_id)
     foyer.nom = None
     foyer.langue = LANGUE_PAR_DEFAUT
-    proprietaire = _appartenance_du_proprietaire(db, user_id)
+    proprietaire = _appartenance_du_proprietaire(db, foyer_id)
     if proprietaire is not None:
         proprietaire.assistant_termine_le = None
     db.flush()
 
 
-def supprimer_patrimoine_du_foyer(db: Session, user_id: int) -> None:
+def supprimer_patrimoine_du_foyer(db: Session, foyer_id: int) -> None:
     """Efface TOUT le patrimoine du foyer (`_supprimer_donnees_du_foyer`, donc `TABLES`)
     PLUS `LienPartage`/`PartageAcces`, `PerimetreInvite` et `JournalImport`, volontairement
     exclues de `TABLES` (export/import, sensibles/propres à l'instance, cf. docstring
@@ -381,17 +380,17 @@ def supprimer_patrimoine_du_foyer(db: Session, user_id: int) -> None:
     # ils désignent des détenteurs que la suppression du patrimoine efface. Dans
     # l'ordre inverse, Postgres refusait la remise à zéro entière (clé étrangère) ;
     # SQLite, qui ne vérifie pas les clés, laissait passer (§ BI.4).
-    liens = db.query(LienPartage.id).filter(LienPartage.user_id == user_id)
+    liens = db.query(LienPartage.id).filter(LienPartage.foyer_id == foyer_id)
     db.query(PartageAcces).filter(PartageAcces.lien_id.in_(liens.scalar_subquery())).delete(synchronize_session=False)
-    db.query(LienPartage).filter(LienPartage.user_id == user_id).delete(synchronize_session=False)
+    db.query(LienPartage).filter(LienPartage.foyer_id == foyer_id).delete(synchronize_session=False)
     # Le journal des imports (« dernier import de tel courtier ») n'est pas exporté, mais il
     # décrit des données qui n'existent plus : il part avec elles (il restait, avant le
     # lot BK.2c, après une remise à zéro).
-    db.query(JournalImport).filter(JournalImport.user_id == user_id).delete(synchronize_session=False)
-    _supprimer_donnees_du_foyer(db, user_id)
+    db.query(JournalImport).filter(JournalImport.foyer_id == foyer_id).delete(synchronize_session=False)
+    _supprimer_donnees_du_foyer(db, foyer_id)
 
 
-def reinitialiser_foyer(db: Session, user_id: int) -> None:
+def reinitialiser_foyer(db: Session, foyer_id: int) -> None:
     """Remise à zéro complète et destructrice du foyer (revue du 05/09/2026, demande
     directe de l'utilisateur) — tout ce qu'efface `supprimer_patrimoine_du_foyer`.
 
@@ -400,16 +399,16 @@ def reinitialiser_foyer(db: Session, user_id: int) -> None:
     par décision explicite de l'utilisateur (seules les données comptables sont
     effacées)."""
     try:
-        supprimer_patrimoine_du_foyer(db, user_id)
+        supprimer_patrimoine_du_foyer(db, foyer_id)
         db.commit()
     except Exception:
         db.rollback()
-        logger.exception("remise a zero du foyer annulee (foyer %s)", user_id)
+        logger.exception("remise a zero du foyer annulee (foyer %s)", foyer_id)
         raise
-    logger.info("foyer %s remis a zero", user_id)
+    logger.info("foyer %s remis a zero", foyer_id)
 
 
-def compter_patrimoine(db: Session, user_id: int) -> dict[str, int]:
+def compter_patrimoine(db: Session, foyer_id: int) -> dict[str, int]:
     """Décompte, par table de `TABLES`, de ce qu'effacerait `supprimer_patrimoine_du_foyer`
     (les tables vides sont omises, comme dans `resume`) — l'aperçu d'une suppression de
     foyer. Ne lit que des identifiants et des nombres, jamais un montant."""
@@ -418,7 +417,7 @@ def compter_patrimoine(db: Session, user_id: int) -> dict[str, int]:
     for table in TABLES:
         modele = table.modele
         if table.scope_par is None:
-            requete = db.query(modele).filter(table.colonne_foyer == user_id)
+            requete = db.query(modele).filter(table.colonne_foyer == foyer_id)
         else:
             ids = ids_parents.get(table.references[table.scope_par], set())
             if not ids:
@@ -454,7 +453,7 @@ def _verifier_valeur_autorisee(table: TableExportee, colonne: str, valeur: Any) 
         )
 
 
-def _importer_table(db: Session, table: TableExportee, lignes: list[dict], user_id: int, remap: dict[str, dict[int, int]]) -> None:
+def _importer_table(db: Session, table: TableExportee, lignes: list[dict], foyer_id: int, remap: dict[str, dict[int, int]]) -> None:
     colonnes = set(_colonnes(table))
     modele = table.modele
     remap_table: dict[int, int] = {}
@@ -484,7 +483,7 @@ def _importer_table(db: Session, table: TableExportee, lignes: list[dict], user_
                     valeurs[colonne] = _valeur_a_inserer(colonne, valeur, modele)
                     _verifier_valeur_autorisee(table, colonne, valeurs[colonne])
             if table.colonne_foyer is not None:
-                valeurs[table.colonne_foyer.key] = user_id
+                valeurs[table.colonne_foyer.key] = foyer_id
             objet = modele(**valeurs)
             db.add(objet)
             db.flush()  # rend le nouvel id disponible pour les tables filles
@@ -493,10 +492,10 @@ def _importer_table(db: Session, table: TableExportee, lignes: list[dict], user_
     remap[table.nom] = remap_table
 
 
-def _extraire_reglages_hors_table(db: Session, user_id: int, lignes: list[dict]) -> list[dict]:
+def _extraire_reglages_hors_table(db: Session, foyer_id: int, lignes: list[dict]) -> list[dict]:
     """Pose sur le foyer et sur son propriétaire les réglages du fichier qui ne sont pas
     des lignes de `foyer_parametres`, et renvoie les autres."""
-    foyer = db.get(Foyer, user_id)
+    foyer = db.get(Foyer, foyer_id)
     autres = []
     for ligne in lignes:
         cle, valeur = ligne.get("cle"), ligne.get("valeur")
@@ -505,7 +504,7 @@ def _extraire_reglages_hors_table(db: Session, user_id: int, lignes: list[dict])
         elif cle == CLE_LANGUE_FOYER:
             foyer.langue = valeur
         elif cle == CLE_ASSISTANT_PROPRIETAIRE:
-            proprietaire = _appartenance_du_proprietaire(db, user_id)
+            proprietaire = _appartenance_du_proprietaire(db, foyer_id)
             if proprietaire is not None:
                 proprietaire.assistant_termine_le = datetime.now(UTC).replace(tzinfo=None)
         else:
@@ -513,7 +512,7 @@ def _extraire_reglages_hors_table(db: Session, user_id: int, lignes: list[dict])
     return autres
 
 
-def importer_foyer(db: Session, user_id: int, document: Any) -> dict[str, int]:
+def importer_foyer(db: Session, foyer_id: int, document: Any) -> dict[str, int]:
     """Remplace intégralement le patrimoine du foyer par le contenu du document.
 
     Tout ou rien : la moindre erreur annule l'ensemble (`rollback`), le foyer
@@ -524,19 +523,19 @@ def importer_foyer(db: Session, user_id: int, document: Any) -> dict[str, int]:
     donnees = document["donnees"]
 
     try:
-        _supprimer_donnees_du_foyer(db, user_id)
+        _supprimer_donnees_du_foyer(db, foyer_id)
         remap: dict[str, dict[int, int]] = {}
         for table in TABLES:
             lignes = donnees.get(table.nom, [])
             if table.nom == SECTION_PARAMETRES:
-                lignes = _extraire_reglages_hors_table(db, user_id, lignes)
-            _importer_table(db, table, lignes, user_id, remap)
+                lignes = _extraire_reglages_hors_table(db, foyer_id, lignes)
+            _importer_table(db, table, lignes, foyer_id, remap)
         db.commit()
     except Exception:
         db.rollback()
-        logger.exception("import de données annulé (foyer %s)", user_id)
+        logger.exception("import de données annulé (foyer %s)", foyer_id)
         raise
 
     compte = resume(document)
-    logger.info("import de données terminé (foyer %s) : %s", user_id, compte)
+    logger.info("import de données terminé (foyer %s) : %s", foyer_id, compte)
     return compte

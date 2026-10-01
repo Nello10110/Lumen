@@ -79,7 +79,7 @@ def label_type_actif(holding: Holding) -> str:
     return LABEL_TYPE_ACTIF.get(holding.type_actif, LABEL_NON_RENSEIGNE)
 
 
-def _crd_par_ligne(db: Session, user_id: int) -> tuple[dict[int, float], float]:
+def _crd_par_ligne(db: Session, foyer_id: int) -> tuple[dict[int, float], float]:
     """Capital restant dû de chaque emprunt de cet utilisateur, regroupé par ligne
     rattachée (`Loan.holding_id` -> somme des CRD des emprunts qui lui sont
     rattachés). Réutilisé par `compute_patrimoine_net` (vue foyer) ET
@@ -88,7 +88,7 @@ def _crd_par_ligne(db: Session, user_id: int) -> tuple[dict[int, float], float]:
     utilisateur : l'actif net d'un bien, c'est sa valeur moins ce qu'il reste à
     rembourser dessus). Second élément du tuple : cumul des emprunts non rattachés à
     un actif (bucket "Dettes non rattachées" côté appelant)."""
-    loans = db.query(Loan).filter(Loan.user_id == user_id).all()
+    loans = db.query(Loan).filter(Loan.foyer_id == foyer_id).all()
     crd_par_holding: dict[int, float] = {}
     crd_non_rattache = ZERO
     for loan in loans:
@@ -100,18 +100,18 @@ def _crd_par_ligne(db: Session, user_id: int) -> tuple[dict[int, float], float]:
     return crd_par_holding, crd_non_rattache
 
 
-def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None = None) -> dict:
-    """`actifs_totaux` couvre toutes les lignes de CET utilisateur (`user_id`,
+def compute_patrimoine_net(db: Session, foyer_id: int, detenteur_id: int | None = None) -> dict:
+    """`actifs_totaux` couvre toutes les lignes de CET utilisateur (`foyer_id`,
     Milestone 2a — `Holding.valeur_estimee` en priorité, sinon la même règle que
     `analysis_service.value_holdings` — prix de marché, à défaut coût de revient).
     `passifs_totaux` est la somme des capitaux restants dus de tous ses emprunts
     (`loan_service.compute_capital_restant_du`)."""
-    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id).all()
     valued = analysis_service.value_holdings(holdings)
 
     if detenteur_id is None:
         actifs_totaux = sum(v.valeur for v in valued)
-        crd_par_holding, crd_non_rattache = _crd_par_ligne(db, user_id)
+        crd_par_holding, crd_non_rattache = _crd_par_ligne(db, foyer_id)
         passifs_totaux = sum(crd_par_holding.values()) + crd_non_rattache
 
         par_classe: dict[str, float] = {}
@@ -127,7 +127,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         # Lentille "financier" (backlog 2.K.3) : réutilise `holdings_financiers` (déjà
         # la définition du portefeuille financier ailleurs dans l'app) plutôt que de
         # dupliquer sa logique d'exclusion.
-        valued_financier = analysis_service.value_holdings(analysis_service.holdings_financiers(db, user_id))
+        valued_financier = analysis_service.value_holdings(analysis_service.holdings_financiers(db, foyer_id))
         patrimoine_financier = sum(v.valeur for v in valued_financier)
 
         par_classe_financiere: dict[str, float] = {}
@@ -160,7 +160,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
 
         patrimoine_financier = ZERO
         par_classe_financiere = {}
-        for h in analysis_service.holdings_financiers(db, user_id):
+        for h in analysis_service.holdings_financiers(db, foyer_id):
             # `h` est déjà dans `valued` (les lignes financières en font partie) :
             # on réutilise les parts déjà calculées au lieu de tout relire.
             part = parts_par_holding.get(h.id, {}).get(detenteur_id)
@@ -184,7 +184,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
     }
 
 
-def compute_comparaison_insee(db: Session, user_id: int) -> dict | None:
+def compute_comparaison_insee(db: Session, foyer_id: int) -> dict | None:
     """Compare `actifs_totaux` (patrimoine BRUT du foyer, jamais `patrimoine_net`
     — cf. `reference_patrimoine_insee` pour la justification méthodologique) à
     la médiane INSEE de sa tranche d'âge (backlog § AZ.2).
@@ -193,14 +193,14 @@ def compute_comparaison_insee(db: Session, user_id: int) -> dict | None:
     (`preferences_service.lire_annee_naissance_foyer`) : jamais une tranche
     devinée par défaut — l'appelant (routeur) sérialise ce `None` en corps
     `null`, code 200, un état normal avant configuration plutôt qu'une erreur."""
-    annee_naissance = preferences_service.lire_annee_naissance_foyer(db, user_id)
+    annee_naissance = preferences_service.lire_annee_naissance_foyer(db, foyer_id)
     if annee_naissance is None:
         return None
     age = date.today().year - annee_naissance
     mediane = reference_patrimoine_insee.mediane_pour_age(age)
     if mediane is None:
         return None
-    net = compute_patrimoine_net(db, user_id)
+    net = compute_patrimoine_net(db, foyer_id)
     actifs_totaux = net["actifs_totaux"]
     # Médiane INSEE : table de flottants, comparaison pour l'affichage (§ BI.1).
     ecart_pct = round((float(actifs_totaux) / mediane - 1) * 100, 1) if mediane > 0 else None
@@ -223,7 +223,7 @@ def _repartition_triee(totaux: dict[str, float], garder_negatifs: bool = False) 
 
 def lignes_patrimoine_filtrees(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     type_actif: str | None = None,
     compte_id: int | None = None,
     etablissement_id: int | None = None,
@@ -241,7 +241,7 @@ def lignes_patrimoine_filtrees(
     détenteur individuelle (même règle que `compute_patrimoine_net` — 100 % foyer
     implicite) ; `valeur`/`valeur_nette` deviennent la quote-part de ce détenteur,
     pas la valeur totale de la ligne, et `quotite_pct` expose ce pourcentage."""
-    requete = db.query(Holding).filter(Holding.user_id == user_id)
+    requete = db.query(Holding).filter(Holding.foyer_id == foyer_id)
     if type_actif is not None:
         requete = requete.filter(Holding.type_actif == type_actif)
     if compte_id is not None:
@@ -251,7 +251,7 @@ def lignes_patrimoine_filtrees(
     holdings = requete.all()
 
     valued = analysis_service.value_holdings(holdings)
-    crd_par_holding, _ = _crd_par_ligne(db, user_id)
+    crd_par_holding, _ = _crd_par_ligne(db, foyer_id)
 
     lignes: list[dict] = []
     if detenteur_id is None:
@@ -335,7 +335,7 @@ def _calculer_expo(db: Session, valued: list, valeur_totale: float, *, garder_ne
     }
 
 
-def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
+def compute_exposition_consolidee(db: Session, foyer_id: int) -> dict:
     """Exposition consolidée tous actifs (backlog 2.P.1) : une seule répartition
     géographique et par classe d'actif, financier ET immobilier/épargne confondus —
     le besoin fondateur du projet, jusqu'ici jamais servi (`analysis_service` reste
@@ -371,11 +371,11 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     (pas un vrai agrégat multi-fonds par émetteur réel — hors de portée sans
     recouper le look-through de chaque fonds avec les positions détenues en direct,
     limite assumée et documentée)."""
-    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id).all()
     valued = analysis_service.value_holdings(holdings)
     valeur_totale_brute = sum(v.valeur for v in valued)
 
-    crd_par_holding, crd_non_rattache = _crd_par_ligne(db, user_id)
+    crd_par_holding, crd_non_rattache = _crd_par_ligne(db, foyer_id)
     valued_net = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, ZERO)) for v in valued]
     valeur_totale_nette = sum(v.valeur for v in valued_net) - crd_non_rattache
 
@@ -396,7 +396,7 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     }
 
 
-def compute_composition_categorie_consolidee(db: Session, user_id: int, dimension: str, categorie: str, net: bool) -> dict:
+def compute_composition_categorie_consolidee(db: Session, foyer_id: int, dimension: str, categorie: str, net: bool) -> dict:
     """Détail des lignes qui composent une catégorie de l'exposition consolidée
     (`compute_exposition_consolidee`) — pour le clic sur une part du camembert
     Répartition géographique/par classe d'actif consolidée (`ExpositionConsolideeCard`,
@@ -417,11 +417,11 @@ def compute_composition_categorie_consolidee(db: Session, user_id: int, dimensio
     `LABEL_TYPE_ACTIF`, même logique que la boucle `totaux_classe` de `_calculer_expo`.
     Une ligne à valeur nette négative (équité négative, cf. `garder_negatifs=True`
     ci-dessus) reste incluse plutôt que masquée."""
-    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id).all()
     valued = analysis_service.value_holdings(holdings)
 
     if net:
-        crd_par_holding, _crd_non_rattache = _crd_par_ligne(db, user_id)
+        crd_par_holding, _crd_non_rattache = _crd_par_ligne(db, foyer_id)
         valued = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, ZERO)) for v in valued]
 
     if dimension == "geo":
@@ -451,8 +451,8 @@ def compute_composition_categorie_consolidee(db: Session, user_id: int, dimensio
 # ---------------------------------------------------------------------------
 
 
-def compute_indicateurs_situation(db: Session, user_id: int) -> dict:
-    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+def compute_indicateurs_situation(db: Session, foyer_id: int) -> dict:
+    holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id).all()
     valued = analysis_service.value_holdings(holdings)
 
     epargne_disponible = sum(v.valeur for v in valued if v.holding.type_actif in TYPES_LIQUIDES)
@@ -460,7 +460,7 @@ def compute_indicateurs_situation(db: Session, user_id: int) -> dict:
         v.valeur for v in valued if v.holding.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL and v.holding.type_actif not in TYPES_LIQUIDES
     )
 
-    patrimoine = compute_patrimoine_net(db, user_id)
+    patrimoine = compute_patrimoine_net(db, foyer_id)
     patrimoine_brut = patrimoine["actifs_totaux"]
 
     aujourdhui = date.today()
@@ -471,13 +471,13 @@ def compute_indicateurs_situation(db: Session, user_id: int) -> dict:
         mois += 12
         annee -= 1
     date_debut = date(annee, mois, 1)
-    summary = budget_service.compute_summary(db, user_id, date_debut.isoformat(), date_fin)
+    summary = budget_service.compute_summary(db, foyer_id, date_debut.isoformat(), date_fin)
 
     nb_mois = 3  # fenêtre de 3 mois pleins — un entier, qui se divise avec une Decimal (§ BI.1)
     depenses_mensuelles = summary["sorties"] / nb_mois if summary["sorties"] > 0 else None
     revenus_nets_mensuels = summary["entrees"] / nb_mois if summary["entrees"] > 0 else None
 
-    loans = db.query(Loan).filter(Loan.user_id == user_id).all()
+    loans = db.query(Loan).filter(Loan.foyer_id == foyer_id).all()
     mensualites_totales = sum(loan.mensualite for loan in loans)
 
     return {

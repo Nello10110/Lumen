@@ -49,38 +49,38 @@ class JalonStatut:
     nouveau: bool  # atteint, mais jamais encore célébré — à afficher une fois, puis à marquer vu
 
 
-def _jalons_celebres(db: Session, user_id: int) -> set[str]:
-    parametre = db.get(FoyerParametre, (_CLE_JALONS_CELEBRES, user_id))
+def _jalons_celebres(db: Session, foyer_id: int) -> set[str]:
+    parametre = db.get(FoyerParametre, (_CLE_JALONS_CELEBRES, foyer_id))
     if parametre is None or not parametre.valeur:
         return set()
     return set(parametre.valeur.split(_SEPARATEUR))
 
 
-def _ecrire_jalons_celebres(db: Session, user_id: int, ids: set[str]) -> None:
+def _ecrire_jalons_celebres(db: Session, foyer_id: int, ids: set[str]) -> None:
     valeur = _SEPARATEUR.join(sorted(ids))
-    parametre = db.get(FoyerParametre, (_CLE_JALONS_CELEBRES, user_id))
+    parametre = db.get(FoyerParametre, (_CLE_JALONS_CELEBRES, foyer_id))
     if parametre is None:
-        db.add(FoyerParametre(cle=_CLE_JALONS_CELEBRES, foyer_id=user_id, valeur=valeur))
+        db.add(FoyerParametre(cle=_CLE_JALONS_CELEBRES, foyer_id=foyer_id, valeur=valeur))
     else:
         parametre.valeur = valeur
 
 
-def _premiere_transaction(db: Session, user_id: int) -> datetime | None:
-    return db.query(func.min(Transaction.created_at)).filter(Transaction.user_id == user_id).scalar()
+def _premiere_transaction(db: Session, foyer_id: int) -> datetime | None:
+    return db.query(func.min(Transaction.created_at)).filter(Transaction.foyer_id == foyer_id).scalar()
 
 
-def _anciennete_compte(db: Session, user_id: int) -> datetime | None:
+def _anciennete_compte(db: Session, foyer_id: int) -> datetime | None:
     """Date de création du foyer — celle du compte de son propriétaire pour un foyer
     antérieur à l'objet foyer (§ BK.2), qui l'a reprise."""
-    foyer = db.get(Foyer, user_id)
+    foyer = db.get(Foyer, foyer_id)
     return foyer.cree_le if foyer is not None else None
 
 
-def evaluer_jalons(db: Session, user_id: int) -> list[JalonStatut]:
-    deja_celebres = _jalons_celebres(db, user_id)
+def evaluer_jalons(db: Session, foyer_id: int) -> list[JalonStatut]:
+    deja_celebres = _jalons_celebres(db, foyer_id)
 
-    premiere_transaction = _premiere_transaction(db, user_id)
-    anciennete = _anciennete_compte(db, user_id)
+    premiere_transaction = _premiere_transaction(db, foyer_id)
+    anciennete = _anciennete_compte(db, foyer_id)
 
     def _jours_depuis(reference: datetime | None) -> float | None:
         if reference is None:
@@ -118,10 +118,10 @@ def evaluer_jalons(db: Session, user_id: int) -> list[JalonStatut]:
     return resultats
 
 
-def marquer_celebre(db: Session, user_id: int, jalon_id: str) -> None:
+def marquer_celebre(db: Session, foyer_id: int, jalon_id: str) -> None:
     if jalon_id not in _TITRES:
         raise ValueError(f"jalon inconnu : {jalon_id}")
-    deja = _jalons_celebres(db, user_id)
+    deja = _jalons_celebres(db, foyer_id)
     if jalon_id in deja:
         return
-    _ecrire_jalons_celebres(db, user_id, deja | {jalon_id})
+    _ecrire_jalons_celebres(db, foyer_id, deja | {jalon_id})

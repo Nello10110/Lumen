@@ -155,12 +155,12 @@ def _hausse(montant: Decimal, reference: Decimal) -> bool:
 
 
 def detect_recurrences(
-    db: Session, user_id: int, aujourdhui: date | None = None, compte_id: int | None = None
+    db: Session, foyer_id: int, aujourdhui: date | None = None, compte_id: int | None = None
 ) -> list[RecurrenceDetectee]:
     aujourdhui = aujourdhui or date.today()
     depuis = (aujourdhui - timedelta(days=FENETRE_CHARGEMENT_JOURS)).isoformat()
     mouvements = budget_service.mouvements_comptabilises(
-        db, user_id, date_debut=depuis, date_fin=aujourdhui.isoformat(), compte_id=compte_id
+        db, foyer_id, date_debut=depuis, date_fin=aujourdhui.isoformat(), compte_id=compte_id
     )
 
     # Regroupé par libellé SEUL (pas (libellé, montant) comme l'heuristique plus

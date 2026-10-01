@@ -121,7 +121,7 @@ class _FauxTickerQuiEchoue:
 
 
 def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(db, monkeypatch):
-    h = Holding(user_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
+    h = Holding(foyer_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
     db.add(h)
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
@@ -148,7 +148,7 @@ def test_holding_price_history_volatilite_et_drawdown_verifies_a_la_main(db, mon
     hebdomadaires +5,00 % puis +4,7619 %), volatilité = 1,21 % et, la série étant
     strictement croissante, aucun drawdown (0,0 %). Aucun test existant n'asserte
     la valeur numérique de ces deux champs avant celui-ci."""
-    h = Holding(user_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
+    h = Holding(foyer_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
     db.add(h)
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
@@ -178,7 +178,7 @@ def test_holding_price_history_crypto_utilise_coingecko_jamais_yahoo(db, monkeyp
         lambda ticker, **k: [("2024-01-01", 40000.0), ("2024-01-08", 42000.0), ("2024-01-15", 41000.0)],
     )
 
-    h = Holding(user_id=ID_FOYER_TEST, ticker="PKN", quantite=100.0, prix_revient_moyen=0.4, type_actif="CRYPTO")
+    h = Holding(foyer_id=ID_FOYER_TEST, ticker="PKN", quantite=100.0, prix_revient_moyen=0.4, type_actif="CRYPTO")
     db.add(h)
     db.commit()
 
@@ -198,7 +198,7 @@ def test_holding_price_history_crypto_sans_historique_coingecko_renvoie_none(db,
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", _resolve_interdit)
     monkeypatch.setattr(historical_performance_service.cours_service.coingecko_service, "fetch_market_chart", lambda ticker, **k: None)
 
-    h = Holding(user_id=ID_FOYER_TEST, ticker="INTROUVABLE", quantite=100.0, prix_revient_moyen=0.4, type_actif="CRYPTO")
+    h = Holding(foyer_id=ID_FOYER_TEST, ticker="INTROUVABLE", quantite=100.0, prix_revient_moyen=0.4, type_actif="CRYPTO")
     db.add(h)
     db.commit()
 
@@ -208,7 +208,7 @@ def test_holding_price_history_crypto_sans_historique_coingecko_renvoie_none(db,
 def test_holding_price_history_recharge_la_serie_quand_elle_est_perimee(db, monkeypatch):
     """Remplace l'ancien test d'expiration du cache JSON de résultat, supprimé avec lui
     (§ AB.2) : c'est désormais la SÉRIE en base qui porte la fraîcheur, et elle seule."""
-    h = Holding(user_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
+    h = Holding(foyer_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK")
     db.add(h)
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
@@ -337,7 +337,7 @@ def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(d
 
 def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_eur(db, monkeypatch):
     """Même verrouillage côté fiche détaillée d'une position (`compute_holding_price_history`)."""
-    h = Holding(user_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="FUND")
+    h = Holding(foyer_id=ID_FOYER_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="FUND")
     db.add(h)
     db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=110.0))
     db.commit()

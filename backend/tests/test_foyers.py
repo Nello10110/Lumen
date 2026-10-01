@@ -21,8 +21,8 @@ from .test_oidc_service import config_defaut
 @pytest.fixture
 def deux_foyers(db):
     creer_utilisateur(db, ID_UTILISATEUR_B, "voisin")
-    make_holding(db, user_id=ID_FOYER_TEST, ticker="A-SEUL")
-    make_holding(db, user_id=ID_FOYER_B, ticker="B-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_TEST, ticker="A-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_B, ticker="B-SEUL")
     return db
 
 
@@ -132,7 +132,7 @@ def test_avec_un_seul_foyer_le_journal_reste_complet(client_jetons, db):
 def test_le_perimetre_dun_invite_se_lit_dans_le_foyer_courant(deux_foyers):
     invite = User(username="invite-des-deux", password_hash="x")
     deux_foyers.add(invite)
-    detenteurs = [Detenteur(user_id=ID_FOYER_TEST, nom="Alice"), Detenteur(user_id=ID_FOYER_B, nom="Bob")]
+    detenteurs = [Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice"), Detenteur(foyer_id=ID_FOYER_B, nom="Bob")]
     deux_foyers.add_all(detenteurs)
     deux_foyers.commit()
     for detenteur in detenteurs:

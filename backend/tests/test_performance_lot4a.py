@@ -26,16 +26,16 @@ def test_get_performance_appelle_compute_positions_une_seule_fois(client, db, mo
     passer par le paramètre `positions` désormais disponible."""
     for i in range(5):
         ticker = f"T{i}"
-        db.add(Holding(user_id=ID_FOYER_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
+        db.add(Holding(foyer_id=ID_FOYER_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
         db.add(MarketDataCache(ticker=ticker, prix_actuel=12.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
     compteur = {"n": 0}
     original = portfolio_reconstruction.compute_positions
 
-    def _compte_et_calcule(db_, user_id_):
+    def _compte_et_calcule(db_, foyer_id_):
         compteur["n"] += 1
-        return original(db_, user_id_)
+        return original(db_, foyer_id_)
 
     monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _compte_et_calcule)
 
@@ -54,7 +54,7 @@ def test_get_holdings_ne_declenche_pas_une_requete_sql_par_ligne(client, db):
     maintenant = datetime.now(timezone.utc)
     for i in range(nombre_lignes):
         ticker = f"H{i}"
-        db.add(Holding(user_id=ID_FOYER_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
+        db.add(Holding(foyer_id=ID_FOYER_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
         db.add(MarketDataCache(ticker=ticker, prix_actuel=12.0, derniere_maj=maintenant))
     db.commit()
 

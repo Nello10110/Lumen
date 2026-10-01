@@ -1,6 +1,6 @@
 """Verrouille l'isolation des données entre utilisateurs (Milestone 2a, multi-
 utilisateur — cf. `docs/BACKLOG.md` § 2.I.1) : pour chaque endroit scopé par
-`user_id`, crée une ligne pour l'utilisateur A (compte de test par défaut, cf.
+`foyer_id`, crée une ligne pour l'utilisateur A (compte de test par défaut, cf.
 `client`), bascule sur l'utilisateur B (`basculer_utilisateur`, second compte
 partageant la même base jetable) et vérifie que B ne voit, ne peut modifier, ni
 supprimer aucune donnée de A. C'est le verrou central de ce milestone : une
@@ -52,7 +52,7 @@ def _importer_transactions(client, contenu: bytes):
 
 
 def test_liste_holdings_ne_montre_pas_les_lignes_dun_autre_utilisateur(client, db):
-    make_holding(db, ticker="AAA", user_id=ID_FOYER_TEST)
+    make_holding(db, ticker="AAA", foyer_id=ID_FOYER_TEST)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get("/api/portfolio/holdings")
@@ -62,7 +62,7 @@ def test_liste_holdings_ne_montre_pas_les_lignes_dun_autre_utilisateur(client, d
 
 
 def test_fiche_detail_dun_ticker_dun_autre_utilisateur_renvoie_404(client, db):
-    ligne = make_holding(db, ticker="AAA", user_id=ID_FOYER_TEST)
+    ligne = make_holding(db, ticker="AAA", foyer_id=ID_FOYER_TEST)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get(f"/api/portfolio/holdings/{ligne.id}/detail")
@@ -73,9 +73,9 @@ def test_fiche_detail_dun_ticker_dun_autre_utilisateur_renvoie_404(client, db):
 def test_meme_ticker_chez_deux_utilisateurs_reste_deux_lignes_distinctes(client, db):
     """Deux utilisateurs peuvent détenir le même titre sans jamais se mélanger —
     verrou explicite du risque de collision par ticker relevé pendant l'audit."""
-    make_holding(db, ticker="AAA", user_id=ID_FOYER_TEST, quantite=10.0)
+    make_holding(db, ticker="AAA", foyer_id=ID_FOYER_TEST, quantite=10.0)
     creer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    make_holding(db, ticker="AAA", user_id=ID_FOYER_B, quantite=99.0)
+    make_holding(db, ticker="AAA", foyer_id=ID_FOYER_B, quantite=99.0)
 
     reponse_a = client.get("/api/portfolio/holdings")
     assert [h["quantite"] for h in reponse_a.json()] == [10.0]
@@ -86,7 +86,7 @@ def test_meme_ticker_chez_deux_utilisateurs_reste_deux_lignes_distinctes(client,
 
 
 def test_update_holding_dun_autre_utilisateur_renvoie_404_sans_le_modifier(client, db):
-    ligne = make_holding(db, ticker="AAA", user_id=ID_FOYER_TEST, quantite=10.0)
+    ligne = make_holding(db, ticker="AAA", foyer_id=ID_FOYER_TEST, quantite=10.0)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.patch(f"/api/portfolio/holdings/{ligne.id}", json={"quantite": 999.0})
@@ -97,7 +97,7 @@ def test_update_holding_dun_autre_utilisateur_renvoie_404_sans_le_modifier(clien
 
 
 def test_delete_holding_dun_autre_utilisateur_renvoie_404_sans_le_supprimer(client, db):
-    ligne = make_holding(db, ticker="AAA", user_id=ID_FOYER_TEST)
+    ligne = make_holding(db, ticker="AAA", foyer_id=ID_FOYER_TEST)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.delete(f"/api/portfolio/holdings/{ligne.id}")
@@ -114,7 +114,7 @@ def test_delete_holding_dun_autre_utilisateur_renvoie_404_sans_le_supprimer(clie
 def test_liste_emprunts_ne_montre_pas_ceux_dun_autre_utilisateur(client, db):
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit A",
             capital_initial=10000.0,
             taux_annuel_pct=1.0,
@@ -134,7 +134,7 @@ def test_liste_emprunts_ne_montre_pas_ceux_dun_autre_utilisateur(client, db):
 
 def test_delete_emprunt_dun_autre_utilisateur_renvoie_404(client, db):
     emprunt = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Crédit A",
         capital_initial=10000.0,
         taux_annuel_pct=1.0,
@@ -158,7 +158,7 @@ def test_delete_emprunt_dun_autre_utilisateur_renvoie_404(client, db):
 
 
 def test_export_positions_omet_les_lignes_dun_autre_utilisateur(client, db):
-    make_holding(db, ticker="SECRET", user_id=ID_FOYER_TEST)
+    make_holding(db, ticker="SECRET", foyer_id=ID_FOYER_TEST)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get("/api/export/positions")
@@ -203,14 +203,14 @@ def test_reimporter_le_meme_transaction_id_pour_le_meme_utilisateur_reste_un_dou
 def test_reconstruction_dun_utilisateur_ne_touche_pas_le_portefeuille_dun_autre(client, db):
     """Le grand livre de B ne doit jamais entrer dans la reconstruction du
     portefeuille de A (`portfolio_reconstruction.compute_positions`)."""
-    make_transaction(db, symbol="AAA", user_id=ID_FOYER_TEST, shares=10.0, amount=-1000.0, transaction_id="tx-a")
+    make_transaction(db, symbol="AAA", foyer_id=ID_FOYER_TEST, shares=10.0, amount=-1000.0, transaction_id="tx-a")
     creer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    make_transaction(db, symbol="AAA", user_id=ID_FOYER_B, shares=999.0, amount=-999000.0, transaction_id="tx-b")
+    make_transaction(db, symbol="AAA", foyer_id=ID_FOYER_B, shares=999.0, amount=-999000.0, transaction_id="tx-b")
 
     reponse = client.post("/api/transactions/reconstruct")
 
     assert reponse.status_code == 200
-    ligne_a = db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST, Holding.ticker == "AAA").one()
+    ligne_a = db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST, Holding.ticker == "AAA").one()
     assert ligne_a.quantite == 10.0  # jamais mélangé avec les 999 titres de B
 
 
@@ -220,7 +220,7 @@ def test_reconstruction_dun_utilisateur_ne_touche_pas_le_portefeuille_dun_autre(
 
 
 def test_patrimoine_net_ne_compte_pas_les_actifs_dun_autre_utilisateur(client, db):
-    make_holding(db, ticker="MAISON", user_id=ID_FOYER_TEST, type_actif="REAL_ESTATE", valeur_estimee=250000.0, quantite=1)
+    make_holding(db, ticker="MAISON", foyer_id=ID_FOYER_TEST, type_actif="REAL_ESTATE", valeur_estimee=250000.0, quantite=1)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get("/api/patrimoine/net")
@@ -230,7 +230,7 @@ def test_patrimoine_net_ne_compte_pas_les_actifs_dun_autre_utilisateur(client, d
 
 
 def test_score_patrimonial_ne_compte_pas_les_actifs_dun_autre_utilisateur(client, db):
-    make_holding(db, ticker="MAISON", user_id=ID_FOYER_TEST, type_actif="REAL_ESTATE", valeur_estimee=250000.0, quantite=1)
+    make_holding(db, ticker="MAISON", foyer_id=ID_FOYER_TEST, type_actif="REAL_ESTATE", valeur_estimee=250000.0, quantite=1)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get("/api/patrimoine/score")
@@ -257,7 +257,7 @@ def test_alertes_fraicheur_ne_fuient_pas_vers_un_autre_utilisateur(client, db):
     make_holding(
         db,
         ticker="MAISON",
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         type_actif="REAL_ESTATE",
         quantite=1,
         valeur_estimee=250000.0,
@@ -272,7 +272,7 @@ def test_alertes_fraicheur_ne_fuient_pas_vers_un_autre_utilisateur(client, db):
 
 
 def test_performance_dun_utilisateur_ignore_les_transactions_dun_autre(client, db):
-    make_transaction(db, symbol="AAA", user_id=ID_FOYER_TEST, shares=10.0, amount=-1000.0)
+    make_transaction(db, symbol="AAA", foyer_id=ID_FOYER_TEST, shares=10.0, amount=-1000.0)
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get("/api/performance")
@@ -300,9 +300,9 @@ def test_changer_ses_preferences_ne_reconstruit_que_son_propre_portefeuille(clie
     """Verrou central du Milestone 2b : avant la migration, un changement de
     méthode de coût de revient reconstruisait le portefeuille de TOUS les
     comptes — désormais seul celui de l'auteur du changement est touché."""
-    make_holding(db, ticker="AAA", user_id=ID_FOYER_TEST, prix_revient_moyen=100.0, origine=ORIGINE_MANUEL)
+    make_holding(db, ticker="AAA", foyer_id=ID_FOYER_TEST, prix_revient_moyen=100.0, origine=ORIGINE_MANUEL)
     creer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    make_holding(db, ticker="BBB", user_id=ID_FOYER_B, prix_revient_moyen=200.0, origine=ORIGINE_MANUEL)
+    make_holding(db, ticker="BBB", foyer_id=ID_FOYER_B, prix_revient_moyen=200.0, origine=ORIGINE_MANUEL)
 
     reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo"})
 
@@ -310,5 +310,5 @@ def test_changer_ses_preferences_ne_reconstruit_que_son_propre_portefeuille(clie
     # Ligne saisie à la main, aucune transaction pour ce compte : rien à recalculer.
     assert reponse.json()["positions_recalculees"] == 0
 
-    ligne_b = db.query(Holding).filter(Holding.user_id == ID_FOYER_B, Holding.ticker == "BBB").one()
+    ligne_b = db.query(Holding).filter(Holding.foyer_id == ID_FOYER_B, Holding.ticker == "BBB").one()
     assert ligne_b.prix_revient_moyen == 200.0  # jamais touchée par le changement de A

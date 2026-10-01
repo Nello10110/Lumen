@@ -66,7 +66,7 @@ def foyer_de_fond():
     if cree:
         db = session_tous_foyers()
         try:
-            db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).delete(synchronize_session=False)
+            db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).delete(synchronize_session=False)
             db.query(Foyer).filter(Foyer.id == ID_FOYER_TEST).delete(synchronize_session=False)
             db.commit()
         finally:
@@ -502,9 +502,9 @@ def test_run_cours_historiques_rafraichit_chaque_titre_detenu(monkeypatch, foyer
     db = session_tous_foyers()
     try:
         db.query(Holding).delete()
-        db.add(Holding(user_id=foyer_de_fond, ticker="AAA", quantite=1.0, type_actif="STOCK"))
-        db.add(Holding(user_id=foyer_de_fond, ticker="BRICKS-ABC", quantite=1.0, type_actif="BOND"))
-        db.add(Holding(user_id=foyer_de_fond, ticker="PKN", quantite=100.0, type_actif="CRYPTO"))
+        db.add(Holding(foyer_id=foyer_de_fond, ticker="AAA", quantite=1.0, type_actif="STOCK"))
+        db.add(Holding(foyer_id=foyer_de_fond, ticker="BRICKS-ABC", quantite=1.0, type_actif="BOND"))
+        db.add(Holding(foyer_id=foyer_de_fond, ticker="PKN", quantite=100.0, type_actif="CRYPTO"))
         db.commit()
     finally:
         db.close()
@@ -538,7 +538,7 @@ def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch, fo
     db = session_tous_foyers()
     try:
         db.query(Holding).delete()
-        db.add(Holding(user_id=foyer_de_fond, ticker="AAA", quantite=1.0, type_actif="STOCK"))
+        db.add(Holding(foyer_id=foyer_de_fond, ticker="AAA", quantite=1.0, type_actif="STOCK"))
         db.commit()
     finally:
         db.close()

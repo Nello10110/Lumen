@@ -91,10 +91,10 @@ def reconstruire_si_regles_de_calcul_modifiees(db: Session) -> int | None:
             return None
 
         total_recalcule = 0
-        for (user_id,) in db.query(Foyer.id).all():
-            if db.query(Transaction).filter(Transaction.user_id == user_id).first() is None:
+        for (foyer_id,) in db.query(Foyer.id).all():
+            if db.query(Transaction).filter(Transaction.foyer_id == foyer_id).first() is None:
                 continue  # ce foyer n'a pas de grand livre importé, rien à reconstruire pour lui
-            resultat = portfolio_reconstruction.rebuild_holdings(db, user_id)
+            resultat = portfolio_reconstruction.rebuild_holdings(db, foyer_id)
             total_recalcule += resultat.positions_recalculees
 
         historique_cache.invalider(db)

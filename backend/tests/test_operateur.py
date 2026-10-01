@@ -46,8 +46,8 @@ def deux_foyers(db):
     """Le foyer de test (propriétaire : compte 1) et le foyer B (propriétaire : compte 2), chacun avec
     une ligne de portefeuille."""
     creer_utilisateur(db, ID_UTILISATEUR_B, "voisin")
-    make_holding(db, user_id=ID_FOYER_TEST, ticker="A-SEUL")
-    make_holding(db, user_id=ID_FOYER_B, ticker="B-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_TEST, ticker="A-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_B, ticker="B-SEUL")
     return db
 
 
@@ -212,7 +212,7 @@ def test_suspendre_un_foyer_coupe_sessions_liens_et_invitations_sans_toucher_aux
     assert client_jetons.get(f"/api/partage-public/{lien.token}/meta").status_code == 404
     assert client_jetons.post("/api/invitations/consulter", json={"jeton": jeton_invitation}).status_code == 404
     # Les données restent intactes.
-    assert deux_foyers.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).count() == 1
+    assert deux_foyers.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).count() == 1
     # L'autre foyer n'est pas touché.
     assert client_jetons.get("/api/portfolio/holdings", headers=jeton_de_session(deux_foyers, ID_UTILISATEUR_B)).status_code == 200
 
@@ -261,11 +261,11 @@ def test_supprimer_un_foyer_demande_son_nom_et_conserve_les_comptes(client_jeton
     assert reponse.status_code == 204
     deux_foyers.expire_all()
     assert deux_foyers.get(Foyer, ID_FOYER_TEST) is None
-    assert deux_foyers.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).count() == 0
+    assert deux_foyers.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).count() == 0
     # Les comptes sont conservés, sans foyer ; l'autre foyer n'est pas touché.
     assert deux_foyers.get(User, conjoint.id) is not None and deux_foyers.get(User, ID_UTILISATEUR_TEST) is not None
     assert deux_foyers.query(Appartenance).filter(Appartenance.user_id.in_([conjoint.id, ID_UTILISATEUR_TEST])).count() == 0
-    assert deux_foyers.query(Holding).filter(Holding.user_id == ID_FOYER_B).count() == 1
+    assert deux_foyers.query(Holding).filter(Holding.foyer_id == ID_FOYER_B).count() == 1
     sans_foyer = {c["username"] for c in client_jetons.get("/api/operateur/comptes-sans-foyer", headers=en_tete_operateur).json()}
     assert sans_foyer == {"test", "conjoint"}
 

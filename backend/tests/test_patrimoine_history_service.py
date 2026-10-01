@@ -182,7 +182,7 @@ def test_valeur_investie_combine_poche_financiere_et_manuelle(db, monkeypatch):
     monkeypatch.setattr(
         historical_performance_service,
         "compute_portfolio_history",
-        lambda db_, user_id_, cles_filtres=None: [
+        lambda db_, foyer_id_, cles_filtres=None: [
             {"date": "2024-01-01", "valeur_portefeuille": 5000.0, "valeur_investie": 4000.0, "valeur_realisee_cumulee": 100.0},
         ],
     )
@@ -208,7 +208,7 @@ def test_valeur_investie_nette_est_nettee_des_passifs(db):
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=300000.0, valeur_estimee=300000.0)
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=250000.0,
             taux_annuel_pct=0.0,
@@ -347,7 +347,7 @@ def test_emprunt_ne_contribue_pas_avant_sa_date_de_debut(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2020, 1, 1))
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -373,7 +373,7 @@ def test_emprunt_recalage_manuel_theorique_avant_gele_apres(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2020, 1, 1))
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -403,7 +403,7 @@ def test_detenteur_id_scoping_ligne_manuelle_et_emprunt_rattache_herite(db):
     immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2020, 1, 1))
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -437,7 +437,7 @@ def test_emprunt_non_rattache_invisible_pour_un_detenteur_individuel(db):
     rattaché n'a aucun cas d'usage par détenteur individuel, seulement la vue foyer."""
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Prêt perso",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -538,14 +538,14 @@ def test_filtre_compte_exclut_lemprunt_dun_autre_compte(db):
     immobilier_service.enregistrer_point_historique(db, maison_b.id, 250000.0, datetime(2024, 1, 1))
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST, libelle="Crédit A", holding_id=maison_a.id, capital_initial=200000.0,
+            foyer_id=ID_FOYER_TEST, libelle="Crédit A", holding_id=maison_a.id, capital_initial=200000.0,
             taux_annuel_pct=1.5, mensualite=1000.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
             capital_restant_du_manuel=190000.0,
         )
     )
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST, libelle="Crédit B", holding_id=maison_b.id, capital_initial=150000.0,
+            foyer_id=ID_FOYER_TEST, libelle="Crédit B", holding_id=maison_b.id, capital_initial=150000.0,
             taux_annuel_pct=1.5, mensualite=800.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
             capital_restant_du_manuel=140000.0,
         )

@@ -199,11 +199,11 @@ FOYER_B = 2
 
 @pytest.fixture
 def deux_foyers(db):
-    """Une ligne, avec un point d'historique (table fille, sans `user_id`), dans
+    """Une ligne, avec un point d'historique (table fille, sans `foyer_id`), dans
     chacun de deux foyers."""
     creer_foyer(db, FOYER_B)
     for foyer, ticker in ((ID_FOYER_TEST, "A-SEUL"), (FOYER_B, "B-SEUL")):
-        ligne = make_holding(db, user_id=foyer, ticker=ticker)
+        ligne = make_holding(db, foyer_id=foyer, ticker=ticker)
         db.add(HoldingValuationHistory(holding_id=ligne.id, valeur=1000.0, date_valeur=datetime(2026, 1, 1)))
     db.commit()
     return db

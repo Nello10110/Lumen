@@ -41,12 +41,12 @@ def list_liens(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 @router.post("", response_model=LienPartageOut)
 def create_lien(payload: LienPartageCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     if payload.detenteur_id is not None:
         detenteur = db.get(Detenteur, payload.detenteur_id)
-        if detenteur is None or detenteur.user_id != user_id:
+        if detenteur is None or detenteur.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Détenteur introuvable")
-    lien = partage_service.creer_lien(db, user_id, **payload.model_dump())
+    lien = partage_service.creer_lien(db, foyer_id, **payload.model_dump())
     return _serialiser(lien)
 
 

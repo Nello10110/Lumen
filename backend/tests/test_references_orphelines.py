@@ -21,7 +21,7 @@ from tests.conftest import ID_FOYER_TEST, make_compte, make_holding, make_transa
 
 def _emprunt(db, **champs) -> Loan:
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Crédit",
         capital_initial=100000.0,
         taux_annuel_pct=1.0,

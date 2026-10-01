@@ -51,7 +51,7 @@ from ..services import (
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
-# Tous les champs mutables de `Transaction` (hors `id`/`user_id`/`transaction_id`/
+# Tous les champs mutables de `Transaction` (hors `id`/`foyer_id`/`transaction_id`/
 # `created_at`) — comparés lors d'un ré-import pour décider si une ligne déjà connue
 # doit être RE-SYNCHRONISÉE (retour utilisateur du 10/09/2026 : « ça ne s'additionne
 # pas mais ça met à jour les données ») plutôt qu'ignorée en silence comme avant.
@@ -101,14 +101,14 @@ def _normalise_pour_comparaison(valeur, champ: str):
     return valeur
 
 
-def _upsert_transactions(db: Session, user_id: int, rows: list[dict]) -> tuple[int, int, int]:
+def _upsert_transactions(db: Session, foyer_id: int, rows: list[dict]) -> tuple[int, int, int]:
     """Ré-synchronisation par `transaction_id` — factorisé pour l'import Trade
     Republic ET l'import Ledger (retour utilisateur du 10/09/2026 : « que ça ne
     s'additionne pas mais mette à jour », généralisable aux deux formats plutôt que
     dupliqué). Renvoie `(importees, mises_a_jour, doublons_ignores)`. Scopé à
-    `user_id` : un `transaction_id` n'est garanti unique que par utilisateur
+    `foyer_id` : un `transaction_id` n'est garanti unique que par utilisateur
     (`UniqueConstraint`), jamais globalement."""
-    existantes_par_id = {t.transaction_id: t for t in db.query(Transaction).filter(Transaction.user_id == user_id).all()}
+    existantes_par_id = {t.transaction_id: t for t in db.query(Transaction).filter(Transaction.foyer_id == foyer_id).all()}
 
     doublons = 0
     importees = 0
@@ -116,7 +116,7 @@ def _upsert_transactions(db: Session, user_id: int, rows: list[dict]) -> tuple[i
     for row in rows:
         existante = existantes_par_id.get(row["transaction_id"])
         if existante is None:
-            nouvelle = Transaction(**row, user_id=user_id)
+            nouvelle = Transaction(**row, foyer_id=foyer_id)
             db.add(nouvelle)
             existantes_par_id[row["transaction_id"]] = nouvelle
             importees += 1
@@ -152,7 +152,7 @@ async def import_apercu(file: UploadFile, db: Session = Depends(get_db), current
     comptages = {cle: n for cle, n in parsed.lignes_par_cle_compte.items() if n > 0}
     foyer = auth_service.id_foyer(current_user)
     langue = preferences_service.lire_langue_foyer(db, foyer)
-    noms_existants = {nom for (nom,) in db.query(Compte.nom).filter(Compte.user_id == foyer).all()}
+    noms_existants = {nom for (nom,) in db.query(Compte.nom).filter(Compte.foyer_id == foyer).all()}
     noms_par_defaut = {cle: transaction_import.nom_compte_propose(cle, langue, noms_existants) for cle in comptages}
     etablissements = comptes_service.list_etablissements(db, foyer)
 
@@ -168,7 +168,7 @@ async def import_apercu(file: UploadFile, db: Session = Depends(get_db), current
 
 @router.post("/import", response_model=TransactionImportResult)
 def import_transactions(payload: TransactionImportConfirm, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     try:
         parsed = transaction_import.get_pending_transactions(payload.file_token)
     except KeyError as exc:
@@ -176,12 +176,12 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
 
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         etablissement_id = payload.etablissement_id
     else:
         etablissement_id = comptes_service.get_or_create_etablissement(
-            db, user_id, payload.etablissement_nom, payload.etablissement_logo_key
+            db, foyer_id, payload.etablissement_nom, payload.etablissement_logo_key
         ).id
 
     # Un seul `Compte` créé par clé EFFECTIVEMENT présente dans le fichier (jamais les
@@ -190,14 +190,14 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     # actuel si déjà créé par un import précédent.
     comptes_par_cle: dict[str, int] = {}
     comptes_crees = 0
-    langue = preferences_service.lire_langue_foyer(db, user_id)
-    noms_existants = {nom for (nom,) in db.query(Compte.nom).filter(Compte.user_id == user_id).all()}
+    langue = preferences_service.lire_langue_foyer(db, foyer_id)
+    noms_existants = {nom for (nom,) in db.query(Compte.nom).filter(Compte.foyer_id == foyer_id).all()}
     for cle, nb_lignes in parsed.lignes_par_cle_compte.items():
         if nb_lignes <= 0:
             continue
         nom = payload.noms_comptes.get(cle) or transaction_import.nom_compte_propose(cle, langue, noms_existants)
-        existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom).first() is not None
-        compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, nom, etablissement_id)
+        existait_deja = db.query(Compte).filter(Compte.foyer_id == foyer_id, Compte.nom == nom).first() is not None
+        compte = comptes_service.get_or_create_compte_sans_commit(db, foyer_id, nom, etablissement_id)
         comptes_par_cle[cle] = compte.id
         if not existait_deja:
             comptes_crees += 1
@@ -219,13 +219,13 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     # ligne déjà connue si le courtier en a corrigé un champ dans l'intervalle
     # (montant, frais...), pas seulement la retrouver pour l'ignorer (retour
     # utilisateur du 10/09/2026 : « que ça ne s'additionne pas mais mette à jour »).
-    importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, parsed.rows)
+    importees, mises_a_jour, doublons = _upsert_transactions(db, foyer_id, parsed.rows)
 
     db.commit()
     transaction_import.clear_pending_transactions(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
-    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_TRADE_REPUBLIC, parsed.lignes_lues)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id)
+    journal_import_service.enregistrer(db, foyer_id, SOURCE_IMPORT_TRADE_REPUBLIC, parsed.lignes_lues)
 
     return TransactionImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -275,7 +275,7 @@ async def import_ledger_apercu(file: UploadFile, db: Session = Depends(get_db), 
 
 @router.post("/import-ledger", response_model=LedgerImportResult)
 def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     try:
         parsed = ledger_import.get_pending_ledger(payload.file_token)
     except KeyError as exc:
@@ -286,17 +286,17 @@ def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), c
 
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         etablissement_id = payload.etablissement_id
     else:
         etablissement_id = comptes_service.get_or_create_etablissement(
-            db, user_id, payload.etablissement_nom, payload.etablissement_logo_key
+            db, foyer_id, payload.etablissement_nom, payload.etablissement_logo_key
         ).id
 
     devises_choisies = set(payload.devises_selectionnees)
-    existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == payload.nom_compte).first() is not None
-    compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, payload.nom_compte, etablissement_id)
+    existait_deja = db.query(Compte).filter(Compte.foyer_id == foyer_id, Compte.nom == payload.nom_compte).first() is not None
+    compte = comptes_service.get_or_create_compte_sans_commit(db, foyer_id, payload.nom_compte, etablissement_id)
     comptes_crees = 0 if existait_deja else 1
 
     # Tout l'import va vers un seul compte, déjà résolu ci-dessus — stampé sur
@@ -305,15 +305,15 @@ def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), c
     rows_filtrees = [row for row in parsed.rows if row["symbol"] in devises_choisies]
     for row in rows_filtrees:
         row["compte_id"] = compte.id
-    importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, rows_filtrees)
+    importees, mises_a_jour, doublons = _upsert_transactions(db, foyer_id, rows_filtrees)
 
     db.commit()
     ledger_import.clear_pending_ledger(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id)
 
     lignes_ignorees = parsed.lignes_ignorees_statut + sum(parsed.lignes_ignorees_type_operation.values())
-    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_LEDGER, parsed.lignes_lues)
+    journal_import_service.enregistrer(db, foyer_id, SOURCE_IMPORT_LEDGER, parsed.lignes_lues)
 
     return LedgerImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -362,7 +362,7 @@ async def import_bricks_apercu(file: UploadFile, db: Session = Depends(get_db), 
 
 @router.post("/import-bricks", response_model=BricksImportResult)
 def import_bricks(payload: BricksImportConfirm, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     try:
         parsed = bricks_import.get_pending_bricks(payload.file_token)
     except KeyError as exc:
@@ -370,34 +370,34 @@ def import_bricks(payload: BricksImportConfirm, db: Session = Depends(get_db), c
 
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         etablissement_id = payload.etablissement_id
     else:
         etablissement_id = comptes_service.get_or_create_etablissement(
-            db, user_id, payload.etablissement_nom, payload.etablissement_logo_key
+            db, foyer_id, payload.etablissement_nom, payload.etablissement_logo_key
         ).id
 
-    existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == payload.nom_compte).first() is not None
-    compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, payload.nom_compte, etablissement_id)
+    existait_deja = db.query(Compte).filter(Compte.foyer_id == foyer_id, Compte.nom == payload.nom_compte).first() is not None
+    compte = comptes_service.get_or_create_compte_sans_commit(db, foyer_id, payload.nom_compte, etablissement_id)
     comptes_crees = 0 if existait_deja else 1
 
     # Tout l'import Bricks.co va vers un seul compte — même traitement que Ledger.
     for row in parsed.rows:
         row["compte_id"] = compte.id
-    importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, parsed.rows)
+    importees, mises_a_jour, doublons = _upsert_transactions(db, foyer_id, parsed.rows)
 
     db.commit()
     bricks_import.clear_pending_bricks(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id)
 
     lignes_ignorees = (
         parsed.lignes_ignorees_statut
         + sum(parsed.lignes_ignorees_type_operation.values())
         + parsed.lignes_ignorees_remboursement_sans_achat
     )
-    journal_import_service.enregistrer(db, user_id, SOURCE_IMPORT_BRICKS, parsed.lignes_lues)
+    journal_import_service.enregistrer(db, foyer_id, SOURCE_IMPORT_BRICKS, parsed.lignes_lues)
 
     return BricksImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -425,4 +425,4 @@ def reconstruct(db: Session = Depends(get_db), current_user: User = Depends(get_
 def count(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Diagnostic (non utilisé par l'interface) : nombre de transactions en base,
     utile pour vérifier un import depuis les outils d'exploitation (cf. MANUEL_EXPLOITATION.md)."""
-    return {"total": db.query(Transaction).filter(Transaction.user_id == auth_service.id_foyer(current_user)).count()}
+    return {"total": db.query(Transaction).filter(Transaction.foyer_id == auth_service.id_foyer(current_user)).count()}

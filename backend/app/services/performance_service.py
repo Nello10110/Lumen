@@ -135,12 +135,12 @@ def xirr(cash_flows: list[tuple[datetime, Decimal | float]]) -> float | None:
     return resultat_pct
 
 
-def compute_performance(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> dict:
-    """`user_id` : scope strictement à ce compte (Milestone 2a). `positions` :
-    résultat déjà calculé de `portfolio_reconstruction.compute_positions(db, user_id)`,
+def compute_performance(db: Session, foyer_id: int, positions: dict[str, PositionState] | None = None) -> dict:
+    """`foyer_id` : scope strictement à ce compte (Milestone 2a). `positions` :
+    résultat déjà calculé de `portfolio_reconstruction.compute_positions(db, foyer_id)`,
     à fournir par un appelant qui l'a déjà en main pour éviter de rejouer le grand livre une
     deuxième fois (cf. LOT 4.3) ; recalculé si omis, comportement inchangé."""
-    transactions = db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.datetime_utc.asc()).all()
+    transactions = db.query(Transaction).filter(Transaction.foyer_id == foyer_id).order_by(Transaction.datetime_utc.asc()).all()
 
     # Flux de revenus NETS (frais/taxes déjà intégrés, convention algébrique) : jamais
     # de `abs()` sur `fee`/`tax`, qui transformerait un remboursement (tax > 0) en charge.
@@ -181,12 +181,12 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     # reconstruites depuis le grand livre de transactions ET, en repli, le
     # `prix_revient_moyen` déclaré d'une ligne financière saisie directement (cf.
     # boucle juste après son calcul).
-    holdings = analysis_service.holdings_financiers(db, user_id)
+    holdings = analysis_service.holdings_financiers(db, foyer_id)
     valued = analysis_service.value_holdings(holdings)
     valeur_positions = sum(v.valeur for v in valued)
 
     if positions is None:
-        positions = portfolio_reconstruction.compute_positions(db, user_id)
+        positions = portfolio_reconstruction.compute_positions(db, foyer_id)
     gains_realises = sum(state.realized_gain for state in positions.values())
     cout_base_ouvert = sum(state.cost_basis for state in positions.values() if state.shares > portfolio_reconstruction.EPSILON)
     # Une ligne financière (STOCK/FUND/CRYPTO/BOND/PRIVATE_FUND...) saisie
@@ -241,7 +241,7 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     }
 
 
-def montant_investi_periode_par_compte(db: Session, user_id: int, date_debut: str, date_fin: str) -> dict[int | None, Decimal]:
+def montant_investi_periode_par_compte(db: Session, foyer_id: int, date_debut: str, date_fin: str) -> dict[int | None, Decimal]:
     """Somme des achats réels (`TRADING/BUY` + `CASH/PRIVATE_MARKET_BUY`, frais/taxes
     inclus — même logique que `cout_total_investi` ci-dessus, mais bornée à une période
     plutôt qu'à toute la vie du compte) sur `[date_debut, date_fin]` (bornes incluses,
@@ -252,7 +252,7 @@ def montant_investi_periode_par_compte(db: Session, user_id: int, date_debut: st
     la simple somme, pour ne jamais dupliquer ce filtrage."""
     transactions_periode = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
+        .filter(Transaction.foyer_id == foyer_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
         .all()
     )
     par_compte: dict[int | None, Decimal] = {}
@@ -267,15 +267,15 @@ def montant_investi_periode_par_compte(db: Session, user_id: int, date_debut: st
     return par_compte
 
 
-def montant_investi_periode(db: Session, user_id: int, date_debut: str, date_fin: str) -> Decimal:
+def montant_investi_periode(db: Session, foyer_id: int, date_debut: str, date_fin: str) -> Decimal:
     """Volontairement une fonction séparée de `compute_performance` plutôt qu'un
     paramètre optionnel sur celle-ci : ce dernier est déjà livré et testé sur son
     calcul "vie entière", ne pas y toucher pour ce besoin distinct (taux d'épargne
     annuel, § R.1)."""
-    return sum(montant_investi_periode_par_compte(db, user_id, date_debut, date_fin).values(), ZERO)
+    return sum(montant_investi_periode_par_compte(db, foyer_id, date_debut, date_fin).values(), ZERO)
 
 
-def montant_investi_mensuel_moyen_glissant(db: Session, user_id: int, *, jours: int = 365) -> Decimal | None:
+def montant_investi_mensuel_moyen_glissant(db: Session, foyer_id: int, *, jours: int = 365) -> Decimal | None:
     """Moyenne mensuelle du montant réellement investi (achats de titres réels, cf.
     `montant_investi_periode`) sur les 12 derniers mois glissants jusqu'à aujourd'hui
     (backlog, demande directe du 16/09/2026) — sert de valeur par défaut au versement
@@ -286,19 +286,19 @@ def montant_investi_mensuel_moyen_glissant(db: Session, user_id: int, *, jours: 
     repli habituel), jamais `0.0` qui laisserait croire à une donnée mesurée."""
     aujourdhui = date_cls.today()
     date_debut = (aujourdhui - timedelta(days=jours)).isoformat()
-    montant = montant_investi_periode(db, user_id, date_debut, aujourdhui.isoformat())
+    montant = montant_investi_periode(db, foyer_id, date_debut, aujourdhui.isoformat())
     # 30,4375 jours = un mois moyen (365,25 / 12).
     return round(montant * Decimal("30.4375") / jours, 2) if montant > 0 else None
 
 
-def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:
+def compute_dividend_calendar(db: Session, foyer_id: int) -> list[dict]:
     """Dividendes perçus regroupés par mois calendaire (roadmap Phase 3, § C.1) —
     même source et même convention algébrique que `dividendes_percus` ci-dessus
     (`amount + fee + tax`, jamais d'`abs()`), simplement ventilée par mois et par
-    ligne plutôt qu'en un seul total. `user_id` : Milestone 2a, multi-utilisateur."""
+    ligne plutôt qu'en un seul total. `foyer_id` : Milestone 2a, multi-utilisateur."""
     transactions = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.category == "CASH", Transaction.type == "DIVIDEND")
+        .filter(Transaction.foyer_id == foyer_id, Transaction.category == "CASH", Transaction.type == "DIVIDEND")
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
@@ -431,7 +431,7 @@ def _rendement_pour_ligne(
 
 
 def compute_holding_returns(
-    db: Session, user_id: int, positions: dict[tuple[str, int | None], PositionState] | None = None
+    db: Session, foyer_id: int, positions: dict[tuple[str, int | None], PositionState] | None = None
 ) -> dict[int, dict]:
     """Rendement par ligne du portefeuille :
     - `depuis_achat` : simple (prix actuel vs prix de revient), calculable pour toute ligne
@@ -444,8 +444,8 @@ def compute_holding_returns(
       CAGR à un seul flux si `Holding.date_acquisition` est renseignée (retour
       utilisateur, 26/08/2026 — cf. `_rendement_pour_ligne`), sinon `None`.
 
-    `user_id` : Milestone 2a, multi-utilisateur. `positions` : cf. LOT 4.3, résultat déjà
-    calculé de `compute_positions(db, user_id)` à réutiliser si l'appelant l'a déjà en
+    `foyer_id` : Milestone 2a, multi-utilisateur. `positions` : cf. LOT 4.3, résultat déjà
+    calculé de `compute_positions(db, foyer_id)` à réutiliser si l'appelant l'a déjà en
     main ; recalculé si omis, comportement inchangé.
 
     Clé du résultat par `holding.id`, pas par ticker (revu le 14/09/2026, retour
@@ -455,10 +455,10 @@ def compute_holding_returns(
     `(ticker, compte_id)` (cf. `compute_positions`) : chaque ligne va chercher SA
     propre position, jamais la position agrégée tous comptes confondus.
     """
-    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id).all()
     valued = analysis_service.value_holdings(holdings)
     if positions is None:
-        positions = portfolio_reconstruction.compute_positions(db, user_id)
+        positions = portfolio_reconstruction.compute_positions(db, foyer_id)
     now = datetime.now(UTC).replace(tzinfo=None)
 
     # Frais d'acquisition immobiliers (retour utilisateur du 10/09/2026) : chargés en
@@ -490,24 +490,24 @@ def compute_holding_returns(
     return resultats
 
 
-def compute_holding_return(db: Session, holding_id: int, user_id: int, position: PositionState | None = None) -> dict:
+def compute_holding_return(db: Session, holding_id: int, foyer_id: int, position: PositionState | None = None) -> dict:
     """Variante ciblée sur une seule ligne (LOT 4.2, revu le 14/09/2026) : évite de
     relire tout le grand livre et de revaloriser tout le portefeuille
-    (`compute_holding_returns(db, user_id)`) pour n'en afficher qu'une seule fiche
+    (`compute_holding_returns(db, foyer_id)`) pour n'en afficher qu'une seule fiche
     (`holding_detail_service.build_holding_detail`). Renvoie exactement le même
-    résultat que `compute_holding_returns(db, user_id)[holding_id]` — même calcul
+    résultat que `compute_holding_returns(db, foyer_id)[holding_id]` — même calcul
     (`_rendement_pour_ligne`), sur les mêmes données, seule la façon de les obtenir
     change. `{"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None}`
     si `holding_id` n'existe pas (ou n'appartient pas à cet utilisateur).
 
     Adressé par `holding_id`, pas par ticker : depuis que deux lignes peuvent
     partager un ticker (une par compte), seul l'id désigne sans ambiguïté "de
-    quelle ligne on parle". `user_id` : vérifié en plus de l'id (Milestone 2a).
+    quelle ligne on parle". `foyer_id` : vérifié en plus de l'id (Milestone 2a).
     `position` : cf. LOT 4.3, résultat déjà calculé de
     `portfolio_reconstruction.compute_position(db, holding)` à réutiliser si
     l'appelant l'a déjà en main ; recalculé si omis.
     """
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == user_id).first()
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == foyer_id).first()
     if holding is None:
         return {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None}
 

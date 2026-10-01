@@ -36,17 +36,17 @@ def perimetre_invite(db: Session, user_id_invite: int, foyer_id: int) -> list[in
     lignes = (
         db.query(PerimetreInvite.detenteur_id)
         .join(Detenteur, Detenteur.id == PerimetreInvite.detenteur_id)
-        .filter(PerimetreInvite.user_id == user_id_invite, Detenteur.user_id == foyer_id)
+        .filter(PerimetreInvite.user_id == user_id_invite, Detenteur.foyer_id == foyer_id)
         .all()
     )
     return [detenteur_id for (detenteur_id,) in lignes]
 
 
-def list_detenteurs(db: Session, user_id: int) -> list[Detenteur]:
-    return db.query(Detenteur).filter(Detenteur.user_id == user_id).order_by(Detenteur.nom).all()
+def list_detenteurs(db: Session, foyer_id: int) -> list[Detenteur]:
+    return db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id).order_by(Detenteur.nom).all()
 
 
-def _verifier_nom_detenteur_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
+def _verifier_nom_detenteur_libre(db: Session, foyer_id: int, nom: str, id_exclu: int | None = None) -> None:
     """Contrairement à `Compte`/`Etablissement`, `Detenteur` n'a pas de contrainte
     d'unicité en base : deux « Alice » pouvaient donc coexister, indiscernables dans
     tous les sélecteurs de quotités (fiche d'un actif, d'un compte, d'un emprunt) et
@@ -54,16 +54,16 @@ def _verifier_nom_detenteur_libre(db: Session, user_id: int, nom: str, id_exclu:
     laquelle il répartissait (recette du 02/09/2026). Refus explicite plutôt qu'une
     migration ajoutant la contrainte : une base existante peut déjà contenir des
     doublons, qu'une contrainte rétroactive rendrait immigrable."""
-    requete = db.query(Detenteur).filter(Detenteur.user_id == user_id, Detenteur.nom == nom)
+    requete = db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.nom == nom)
     if id_exclu is not None:
         requete = requete.filter(Detenteur.id != id_exclu)
     if requete.first() is not None:
         raise ValueError(tr("Un détenteur nommé « {nom} » existe déjà.", nom=nom))
 
 
-def create_detenteur(db: Session, user_id: int, nom: str) -> Detenteur:
-    _verifier_nom_detenteur_libre(db, user_id, nom)
-    detenteur = Detenteur(user_id=user_id, nom=nom)
+def create_detenteur(db: Session, foyer_id: int, nom: str) -> Detenteur:
+    _verifier_nom_detenteur_libre(db, foyer_id, nom)
+    detenteur = Detenteur(foyer_id=foyer_id, nom=nom)
     db.add(detenteur)
     db.commit()
     db.refresh(detenteur)
@@ -72,7 +72,7 @@ def create_detenteur(db: Session, user_id: int, nom: str) -> Detenteur:
 
 def update_detenteur(db: Session, detenteur: Detenteur, **champs: str) -> Detenteur:
     if champs.get("nom") is not None:
-        _verifier_nom_detenteur_libre(db, detenteur.user_id, champs["nom"], id_exclu=detenteur.id)
+        _verifier_nom_detenteur_libre(db, detenteur.foyer_id, champs["nom"], id_exclu=detenteur.id)
     for cle, valeur in champs.items():
         if valeur is not None:
             setattr(detenteur, cle, valeur)
@@ -106,7 +106,7 @@ def delete_detenteur(db: Session, detenteur: Detenteur) -> None:
     db.commit()
 
 
-def _valider_quotites(db: Session, user_id: int, quotites: list[tuple[int, float]]) -> None:
+def _valider_quotites(db: Session, foyer_id: int, quotites: list[tuple[int, float]]) -> None:
     """Lève `ValueError` (message destiné à l'utilisateur) si la répartition proposée
     est invalide : détenteur en double, détenteur d'un autre compte (IDOR), ou somme
     différente de 100 %. Une liste vide est toujours valide (retire toute
@@ -118,7 +118,7 @@ def _valider_quotites(db: Session, user_id: int, quotites: list[tuple[int, float
     if len(set(detenteur_ids)) != len(detenteur_ids):
         raise ValueError("Un même détenteur ne peut apparaître qu'une seule fois dans la répartition")
 
-    nb_valides = db.query(Detenteur).filter(Detenteur.user_id == user_id, Detenteur.id.in_(detenteur_ids)).count()
+    nb_valides = db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.id.in_(detenteur_ids)).count()
     if nb_valides != len(set(detenteur_ids)):
         raise ValueError("Détenteur introuvable")
 
@@ -128,7 +128,7 @@ def _valider_quotites(db: Session, user_id: int, quotites: list[tuple[int, float
 
 
 def set_quotites_holding(
-    db: Session, user_id: int, holding: Holding, quotites: list[tuple[int, float]], *, commit: bool = True
+    db: Session, foyer_id: int, holding: Holding, quotites: list[tuple[int, float]], *, commit: bool = True
 ) -> None:
     """Remplace intégralement la répartition d'un actif (même pattern delete-puis-
     insert que `FundComposition` ailleurs dans le code).
@@ -137,7 +137,7 @@ def set_quotites_holding(
     opération utilisateur (`comptes_service.set_quotites_compte`) et doit pouvoir
     tout annuler d'un bloc — sans quoi un échec à mi-parcours laissait le compte à
     moitié réparti, sans aucun moyen de savoir où (revue du 03/09/2026)."""
-    _valider_quotites(db, user_id, quotites)
+    _valider_quotites(db, foyer_id, quotites)
     db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).delete()
     db.add_all(QuotiteHolding(holding_id=holding.id, detenteur_id=d, quotite_pct=p) for d, p in quotites)
     if commit:
@@ -145,10 +145,10 @@ def set_quotites_holding(
 
 
 def set_quotites_loan(
-    db: Session, user_id: int, loan: Loan, quotites: list[tuple[int, float]], *, commit: bool = True
+    db: Session, foyer_id: int, loan: Loan, quotites: list[tuple[int, float]], *, commit: bool = True
 ) -> None:
     """Même principe que `set_quotites_holding`, pour un emprunt."""
-    _valider_quotites(db, user_id, quotites)
+    _valider_quotites(db, foyer_id, quotites)
     db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == loan.id).delete()
     db.add_all(QuotiteLoan(loan_id=loan.id, detenteur_id=d, quotite_pct=p) for d, p in quotites)
     if commit:

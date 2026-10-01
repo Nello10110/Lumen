@@ -36,10 +36,10 @@ def test_create_rename_delete_categorie(db):
 
 def test_delete_categorie_nullifie_les_mouvements_et_supprime_cibles_et_regles_associees(db):
     c = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Loisirs", None)
-    m = MouvementBancaire(user_id=ID_FOYER_TEST, transaction_id="tx-1", date="2026-01-01", libelle="Ciné", montant=-15.0, categorie_id=c.id)
+    m = MouvementBancaire(foyer_id=ID_FOYER_TEST, transaction_id="tx-1", date="2026-01-01", libelle="Ciné", montant=-15.0, categorie_id=c.id)
     db.add(m)
-    db.add(BudgetCible(user_id=ID_FOYER_TEST, categorie_id=c.id, montant_mensuel=50.0))
-    db.add(RegleCategorisation(user_id=ID_FOYER_TEST, motif="cine", categorie_id=c.id))
+    db.add(BudgetCible(foyer_id=ID_FOYER_TEST, categorie_id=c.id, montant_mensuel=50.0))
+    db.add(RegleCategorisation(foyer_id=ID_FOYER_TEST, motif="cine", categorie_id=c.id))
     db.commit()
 
     budget_categories_service.delete_categorie(db, ID_FOYER_TEST, c.id)
@@ -62,7 +62,7 @@ def test_delete_categorie_cascade_ses_sous_categories(db):
 
 def test_create_categorie_avec_parent_dun_autre_utilisateur_leve(db):
     creer_foyer(db, 999)
-    parent_autre = budget_categories_service.create_categorie(db, user_id=999, nom="Intrus", parent_id=None)
+    parent_autre = budget_categories_service.create_categorie(db, foyer_id=999, nom="Intrus", parent_id=None)
     with pytest.raises(ValueError, match="introuvable"):
         budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Sous-intrus", parent_autre.id)
 

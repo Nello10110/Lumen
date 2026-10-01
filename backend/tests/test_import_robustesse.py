@@ -203,7 +203,7 @@ def test_import_confirm_nouveau_compte_avec_etablissement_cree_le_compte_rattach
     )
 
     assert reponse.status_code == 200, reponse.text
-    compte = db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST, Compte.nom == "PEA Boursorama").first()
+    compte = db.query(Compte).filter(Compte.foyer_id == ID_FOYER_TEST, Compte.nom == "PEA Boursorama").first()
     assert compte is not None
     assert compte.etablissement_id == etablissement.id
 
@@ -223,7 +223,7 @@ def test_import_transactions_nouvel_etablissement_avec_logo_key(client, db):
     )
 
     assert reponse.status_code == 200, reponse.text
-    etablissement = db.query(Etablissement).filter(Etablissement.user_id == ID_FOYER_TEST, Etablissement.nom == "Trade Republic").first()
+    etablissement = db.query(Etablissement).filter(Etablissement.foyer_id == ID_FOYER_TEST, Etablissement.nom == "Trade Republic").first()
     assert etablissement is not None
     assert etablissement.logo_key == "trade_republic"
 
@@ -294,7 +294,7 @@ def _erreur_de_base():
     """Ce que lève SQLAlchemy sur une contrainte violée : son texte contient la
     requête et ses paramètres."""
     return IntegrityError(
-        "INSERT INTO holdings (user_id, ticker, quantite) VALUES (?, ?, ?)",
+        "INSERT INTO holdings (foyer_id, ticker, quantite) VALUES (?, ?, ?)",
         (1, "AAA", None),
         Exception("NOT NULL constraint failed: holdings.quantite"),
     )
@@ -396,8 +396,8 @@ def test_remplacer_existant_epargne_les_lignes_du_grand_livre(db, client, monkey
     l'utilisateur gère lui-même : une position issue du grand livre de transactions
     appartient au grand livre et doit survivre à l'import d'un relevé de positions —
     la supprimer créerait un état que le prochain import rétablirait tout seul."""
-    db.add(Holding(user_id=ID_FOYER_TEST, ticker="RECONSTRUIT", quantite=5.0, prix_revient_moyen=10.0, origine=ORIGINE_RECONSTRUIT))
-    db.add(Holding(user_id=ID_FOYER_TEST, ticker="MANUELLE", quantite=3.0, prix_revient_moyen=20.0, origine=ORIGINE_MANUEL))
+    db.add(Holding(foyer_id=ID_FOYER_TEST, ticker="RECONSTRUIT", quantite=5.0, prix_revient_moyen=10.0, origine=ORIGINE_RECONSTRUIT))
+    db.add(Holding(foyer_id=ID_FOYER_TEST, ticker="MANUELLE", quantite=3.0, prix_revient_moyen=20.0, origine=ORIGINE_MANUEL))
     db.commit()
 
     tableau = Tableau(colonnes=["Ticker", "Qte"], lignes=[Ligne({"Ticker": "NOUVELLE", "Qte": "7"}, numero=2)])

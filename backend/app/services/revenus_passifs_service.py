@@ -25,8 +25,8 @@ from ..models import Holding, HoldingImmobilierDetail, Transaction
 TYPES_LIVRETS_AVEC_TAUX = ("REGULATED_SAVINGS", "EMPLOYEE_SAVINGS")
 
 
-def _loyers_nets_annuels(db: Session, user_id: int) -> Decimal:
-    holdings_immobiliers = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif == "REAL_ESTATE").all()
+def _loyers_nets_annuels(db: Session, foyer_id: int) -> Decimal:
+    holdings_immobiliers = db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.type_actif == "REAL_ESTATE").all()
     if not holdings_immobiliers:
         return ZERO
 
@@ -48,22 +48,22 @@ def _loyers_nets_annuels(db: Session, user_id: int) -> Decimal:
     return total
 
 
-def _interets_livrets_annuels(db: Session, user_id: int) -> float:
+def _interets_livrets_annuels(db: Session, foyer_id: int) -> float:
     holdings = (
         db.query(Holding)
-        .filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_LIVRETS_AVEC_TAUX))
+        .filter(Holding.foyer_id == foyer_id, Holding.type_actif.in_(TYPES_LIVRETS_AVEC_TAUX))
         .all()
     )
     return sum(h.valeur_estimee * h.taux_pct / 100 for h in holdings if h.valeur_estimee and h.taux_pct)
 
 
-def _revenus_boursiers_douze_derniers_mois(db: Session, user_id: int) -> tuple[float, float]:
+def _revenus_boursiers_douze_derniers_mois(db: Session, foyer_id: int) -> tuple[float, float]:
     """`(dividendes, interets_courtage)` réellement perçus sur les 365 derniers
     jours — la base d'extrapolation pour la partie ESTIMÉE de la projection."""
     depuis = (date.today() - timedelta(days=365)).isoformat()
     transactions = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.category == "CASH", Transaction.date >= depuis)
+        .filter(Transaction.foyer_id == foyer_id, Transaction.category == "CASH", Transaction.date >= depuis)
         .all()
     )
     dividendes = sum(tx.amount + tx.fee + tx.tax for tx in transactions if tx.type == "DIVIDEND")
@@ -71,12 +71,12 @@ def _revenus_boursiers_douze_derniers_mois(db: Session, user_id: int) -> tuple[f
     return dividendes, interets
 
 
-def compute_revenus_passifs(db: Session, user_id: int) -> dict:
-    loyers_nets_annuels = _loyers_nets_annuels(db, user_id)
-    interets_livrets_annuels = _interets_livrets_annuels(db, user_id)
+def compute_revenus_passifs(db: Session, foyer_id: int) -> dict:
+    loyers_nets_annuels = _loyers_nets_annuels(db, foyer_id)
+    interets_livrets_annuels = _interets_livrets_annuels(db, foyer_id)
     revenu_certain_annuel = loyers_nets_annuels + interets_livrets_annuels
 
-    dividendes_estimes, interets_courtage_estimes = _revenus_boursiers_douze_derniers_mois(db, user_id)
+    dividendes_estimes, interets_courtage_estimes = _revenus_boursiers_douze_derniers_mois(db, foyer_id)
     revenu_estime_annuel = dividendes_estimes + interets_courtage_estimes
 
     revenu_total_annuel = revenu_certain_annuel + revenu_estime_annuel

@@ -168,10 +168,10 @@ def test_reappliquer_regles_ne_touche_pas_une_categorisation_manuelle(db):
     c2 = budget_categories_service.create_categorie(db, ID_FOYER_TEST, "Manuelle", None)
     budget_categories_service.create_regle(db, ID_FOYER_TEST, "sncf", c1.id)
 
-    db.add(MouvementBancaire(user_id=ID_FOYER_TEST, transaction_id="t1", date="2026-02-01", libelle="SNCF Connect", montant=-10.0))
+    db.add(MouvementBancaire(foyer_id=ID_FOYER_TEST, transaction_id="t1", date="2026-02-01", libelle="SNCF Connect", montant=-10.0))
     db.add(
         MouvementBancaire(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             transaction_id="t2",
             date="2026-02-02",
             libelle="SNCF Connect",
@@ -226,7 +226,7 @@ def test_la_premiere_occurrence_garde_l_identifiant_d_avant(db):
     ancien_id = budget_import_service._transaction_id_calcule("2026-02-03", -0.85, "CB PAIN QUOTIDIEN")
     db.add(
         MouvementBancaire(
-            user_id=ID_FOYER_TEST, transaction_id=ancien_id, date="2026-02-03", libelle="CB PAIN QUOTIDIEN", montant=-0.85, compte_id=compte.id
+            foyer_id=ID_FOYER_TEST, transaction_id=ancien_id, date="2026-02-03", libelle="CB PAIN QUOTIDIEN", montant=-0.85, compte_id=compte.id
         )
     )
     db.commit()

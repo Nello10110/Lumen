@@ -24,8 +24,8 @@ def test_actifs_totaux_couvre_le_portefeuille_financier_et_le_patrimoine_manuel(
 
 def test_passifs_totaux_somme_les_emprunts(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0)
-    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt A", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
-    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt B", capital_initial=20000.0, taux_annuel_pct=0.0, mensualite=500.0, date_debut=datetime(2020, 1, 1), duree_mois=40, capital_restant_du_manuel=5000.0))
+    db.add(Loan(foyer_id=ID_FOYER_TEST, libelle="Prêt A", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
+    db.add(Loan(foyer_id=ID_FOYER_TEST, libelle="Prêt B", capital_initial=20000.0, taux_annuel_pct=0.0, mensualite=500.0, date_debut=datetime(2020, 1, 1), duree_mois=40, capital_restant_du_manuel=5000.0))
     db.commit()
 
     resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
@@ -35,7 +35,7 @@ def test_passifs_totaux_somme_les_emprunts(db):
 
 def test_patrimoine_net_est_actifs_moins_passifs(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
-    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Crédit immo", capital_initial=200000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=200, capital_restant_du_manuel=120000.0))
+    db.add(Loan(foyer_id=ID_FOYER_TEST, libelle="Crédit immo", capital_initial=200000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=200, capital_restant_du_manuel=120000.0))
     db.commit()
 
     resultat = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
@@ -156,7 +156,7 @@ def test_repartition_par_classe_nette_soustrait_lemprunt_rattache_a_sa_propre_li
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -184,7 +184,7 @@ def test_repartition_par_classe_nette_peut_etre_negative_si_lemprunt_depasse_la_
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=100000.0)
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -207,7 +207,7 @@ def test_repartition_par_classe_nette_bucket_dettes_non_rattachees(db):
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Prêt perso",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -230,7 +230,7 @@ def test_repartition_par_classe_nette_detenteur_reutilise_part_nette(db):
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -261,7 +261,7 @@ def test_detenteur_id_none_reproduit_exactement_la_vue_foyer(db):
     """Non-régression explicite : le comportement par défaut (aucun filtre) ne doit
     strictement rien changer, même après l'ajout du paramètre `detenteur_id`."""
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
-    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
+    db.add(Loan(foyer_id=ID_FOYER_TEST, libelle="Prêt", capital_initial=50000.0, taux_annuel_pct=0.0, mensualite=1000.0, date_debut=datetime(2020, 1, 1), duree_mois=60, capital_restant_du_manuel=30000.0))
     db.commit()
 
     sans_filtre = patrimoine_service.compute_patrimoine_net(db, ID_FOYER_TEST)
@@ -292,7 +292,7 @@ def test_actif_non_reparti_est_invisible_dans_la_vue_dun_detenteur(db):
 def test_detenteur_id_filtre_a_la_part_de_ce_detenteur(db):
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Crédit immo",
         capital_initial=200000.0,
         taux_annuel_pct=0.0,
@@ -394,7 +394,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST,
+                foyer_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=200000.0,
                 taux_annuel_pct=0.0,
@@ -437,7 +437,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST,
+                foyer_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=250000.0,
                 taux_annuel_pct=0.0,
@@ -462,7 +462,7 @@ class TestExpositionConsolidee:
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST,
+                foyer_id=ID_FOYER_TEST,
                 libelle="Prêt perso",
                 capital_initial=10000.0,
                 taux_annuel_pct=0.0,
@@ -503,7 +503,7 @@ class TestCompositionCategorieConsolidee:
         h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST,
+                foyer_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=200000.0,
                 taux_annuel_pct=0.0,
@@ -526,7 +526,7 @@ class TestCompositionCategorieConsolidee:
         h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST,
+                foyer_id=ID_FOYER_TEST,
                 libelle="Crédit immo",
                 capital_initial=250000.0,
                 taux_annuel_pct=0.0,
@@ -604,7 +604,7 @@ class TestLignesPatrimoineFiltrees:
         maison = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST, libelle="Crédit", holding_id=maison.id, capital_initial=200000.0,
+                foyer_id=ID_FOYER_TEST, libelle="Crédit", holding_id=maison.id, capital_initial=200000.0,
                 taux_annuel_pct=1.5, mensualite=1000.0, date_debut=datetime(2024, 1, 1), duree_mois=240,
                 capital_restant_du_manuel=180000.0,
             )
@@ -678,8 +678,8 @@ def test_indicateurs_de_situation_calcules_en_decimal_sans_erreur(db):
     make_holding(db, ticker="APPART", type_actif=TYPE_ACTIF_REAL_ESTATE, quantite=1, valeur_estimee=200000)
     aujourdhui = date.today().isoformat()
     for i, montant in enumerate([-1000.10, -999.90, -1000, 2500, 2500, 2500]):
-        db.add(MouvementBancaire(user_id=ID_FOYER_TEST, transaction_id=f"m{i}", date=aujourdhui, libelle=f"m{i}", montant=montant))
-    db.add(Loan(user_id=ID_FOYER_TEST, libelle="Prêt", capital_initial=100000, taux_annuel_pct=0, mensualite=750, date_debut=datetime(2020, 1, 1), duree_mois=240))
+        db.add(MouvementBancaire(foyer_id=ID_FOYER_TEST, transaction_id=f"m{i}", date=aujourdhui, libelle=f"m{i}", montant=montant))
+    db.add(Loan(foyer_id=ID_FOYER_TEST, libelle="Prêt", capital_initial=100000, taux_annuel_pct=0, mensualite=750, date_debut=datetime(2020, 1, 1), duree_mois=240))
     db.commit()
 
     resultat = patrimoine_service.compute_indicateurs_situation(db, ID_FOYER_TEST)

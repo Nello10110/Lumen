@@ -27,7 +27,7 @@ def test_score_nominal_avec_les_trois_sous_scores(db):
     # seuils -> score = round(100 * (0,80 - 0,50) / (0,80 - 0,30)) = round(60) = 60.
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -80,7 +80,7 @@ def test_endettement_100_au_seuil_sain_exactement(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=8000.0, valeur_estimee=10000.0)
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,
@@ -101,7 +101,7 @@ def test_endettement_0_au_seuil_eleve_exactement(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=8000.0, valeur_estimee=10000.0)
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=10000.0,
             taux_annuel_pct=0.0,

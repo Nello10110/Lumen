@@ -119,18 +119,39 @@ def test_export_produit_un_document_complet_et_versionne(client, db):
         assert contenu.get(table, 0) > 0, f"{table} absente de l'export"
 
 
-def test_export_nexpose_jamais_le_user_id_ni_les_donnees_sensibles(client, db):
-    """`user_id` appartient au foyer SOURCE ; les tables sensibles (mots de passe,
-    jetons, journaux) ne doivent jamais se retrouver dans un fichier qui circule."""
+def test_export_nexpose_jamais_le_rattachement_au_foyer_ni_les_donnees_sensibles(client, db):
+    """Le rattachement au foyer SOURCE (`foyer_id`, qui s'appelait `user_id` avant le
+    lot BK.2e) ne voyage jamais dans le fichier : c'est ce qui garde le format
+    compatible dans les deux sens à travers le renommage. Les tables sensibles (mots de
+    passe, jetons, journaux) ne doivent pas non plus se retrouver dans un fichier qui
+    circule."""
     _peupler_foyer(client, db)
 
     document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
     for lignes in document["donnees"].values():
         for ligne in lignes:
+            assert "foyer_id" not in ligne
             assert "user_id" not in ligne
     tables_interdites = {"users", "auth_tokens", "access_log_entries", "liens_partage", "partage_acces", "parametres"}
     assert tables_interdites.isdisjoint(document["donnees"].keys())
+
+
+def test_import_ignore_le_rattachement_porte_par_un_fichier_sous_l_un_ou_l_autre_nom(client, db):
+    """Un fichier qui porterait malgré tout `user_id` (nom d'avant BK.2e) ou `foyer_id`
+    sur ses lignes ne rattache rien à un autre foyer : l'import repose le foyer courant,
+    et ignore ces colonnes comme toute colonne inconnue."""
+    _peupler_foyer(client, db)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
+    for lignes in document["donnees"].values():
+        for ligne in lignes:
+            ligne["user_id"] = 999
+            ligne["foyer_id"] = 999
+
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
+
+    assert db.query(Holding).filter(Holding.foyer_id == 999).count() == 0
+    assert db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).count() > 0
 
 
 def test_aller_retour_complet_restitue_le_meme_patrimoine(client, db):
@@ -234,24 +255,24 @@ def test_import_ne_duplique_pas_en_cas_dimports_successifs(client, db):
 
     assert len(client.get("/api/portfolio/holdings").json()) == apres_un
     # PEA et compte courant du relevé bancaire, chacun une seule fois.
-    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).count() == 2
+    assert db.query(Compte).filter(Compte.foyer_id == ID_FOYER_TEST).count() == 2
 
 
 def test_import_ne_touche_jamais_les_donnees_dun_autre_foyer(client, db):
     """Le remplacement est strictement borné au foyer courant."""
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    make_holding(db, ticker="FOYER-B", user_id=ID_FOYER_B)
+    make_holding(db, ticker="FOYER-B", foyer_id=ID_FOYER_B)
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
     _peupler_foyer(client, db)
     document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
 
     donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
 
-    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_B).count() == 1
+    assert db.query(Holding).filter(Holding.foyer_id == ID_FOYER_B).count() == 1
 
 
 def test_un_export_dun_foyer_est_importable_dans_un_autre(client, db):
-    """Cas d'usage « migration d'instance » : le fichier ne porte aucun `user_id`,
+    """Cas d'usage « migration d'instance » : le fichier ne porte aucun `foyer_id`,
     il se réimporte donc sous l'identité du foyer qui l'importe."""
     _peupler_foyer(client, db)
     document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
@@ -259,10 +280,10 @@ def test_un_export_dun_foyer_est_importable_dans_un_autre(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
     donnees_service.importer_foyer(db, ID_FOYER_B, document)
 
-    lignes_b = db.query(Holding).filter(Holding.user_id == ID_FOYER_B).all()
+    lignes_b = db.query(Holding).filter(Holding.foyer_id == ID_FOYER_B).all()
     assert {h.ticker for h in lignes_b} == {"AAA", "MAISON"}
     # Les quotités importées appartiennent bien au foyer B, pas au foyer source.
-    quotites = db.query(QuotiteHolding).join(Holding).filter(Holding.user_id == ID_FOYER_B).count()
+    quotites = db.query(QuotiteHolding).join(Holding).filter(Holding.foyer_id == ID_FOYER_B).count()
     assert quotites == 2
 
 
@@ -401,7 +422,7 @@ def test_import_refuse_une_valeur_hors_enumeration(db, table, colonne, valeur):
     des écrans sans que rien n'explique pourquoi."""
     document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
     modele = next(t.modele for t in donnees_service.TABLES if t.nom == table)
-    colonnes = {c.name for c in modele.__table__.columns} - {"user_id"}
+    colonnes = {c.name for c in modele.__table__.columns} - {"foyer_id"}
     ligne = {c: None for c in colonnes}
     ligne["id"] = 1
     ligne[colonne] = valeur
@@ -438,27 +459,27 @@ def test_import_refuse_laisse_les_donnees_intactes(db):
 
 def test_reinitialiser_foyer_efface_tout_le_patrimoine(client, db):
     _peupler_foyer(client, db)
-    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).count() > 0
+    assert db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).count() > 0
 
     donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
-    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).count() == 0
-    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).count() == 0
-    assert db.query(Etablissement).filter(Etablissement.user_id == ID_FOYER_TEST).count() == 0
-    assert db.query(Detenteur).filter(Detenteur.user_id == ID_FOYER_TEST).count() == 0
-    assert db.query(Loan).filter(Loan.user_id == ID_FOYER_TEST).count() == 0
-    assert db.query(Salaire).filter(Salaire.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Compte).filter(Compte.foyer_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Etablissement).filter(Etablissement.foyer_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Detenteur).filter(Detenteur.foyer_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Loan).filter(Loan.foyer_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Salaire).filter(Salaire.foyer_id == ID_FOYER_TEST).count() == 0
 
 
 def test_reinitialiser_foyer_ne_touche_pas_un_autre_foyer(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    make_holding(db, ticker="FOYER-B", user_id=ID_FOYER_B)
+    make_holding(db, ticker="FOYER-B", foyer_id=ID_FOYER_B)
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
     _peupler_foyer(client, db)
 
     donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
-    assert db.query(Holding).filter(Holding.user_id == ID_FOYER_B).count() == 1
+    assert db.query(Holding).filter(Holding.foyer_id == ID_FOYER_B).count() == 1
 
 
 def test_reinitialiser_foyer_preserve_les_comptes_utilisateurs(client, db):
@@ -480,11 +501,11 @@ def test_reinitialiser_foyer_efface_les_liens_de_partage(client, db):
     reste une donnée du foyer à effacer pour une remise à zéro réelle."""
     _peupler_foyer(client, db)
     client.post("/api/partage", json={"nom": "Pour la banque"})
-    assert db.query(LienPartage).filter(LienPartage.user_id == ID_FOYER_TEST).count() == 1
+    assert db.query(LienPartage).filter(LienPartage.foyer_id == ID_FOYER_TEST).count() == 1
 
     donnees_service.reinitialiser_foyer(db, ID_FOYER_TEST)
 
-    assert db.query(LienPartage).filter(LienPartage.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(LienPartage).filter(LienPartage.foyer_id == ID_FOYER_TEST).count() == 0
 
 
 def test_reinitialiser_foyer_efface_les_perimetres_invites_et_resiste_a_la_reutilisation_dun_id(client, db):

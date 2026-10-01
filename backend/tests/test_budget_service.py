@@ -16,7 +16,7 @@ _compteur_transaction_id = itertools.count(1)
 
 def make_mouvement(db, **overrides):
     defaults = dict(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         transaction_id=f"tx-test-{next(_compteur_transaction_id)}",
         date="2026-02-01",
         libelle="Mouvement",

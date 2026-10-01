@@ -105,7 +105,7 @@ def retirer_du_foyer(db: Session, user_id: int, appartenance: Appartenance) -> N
     de ce foyer les sessions qui y pointaient (elles repassent sans foyer). Les données
     restent au foyer, et le compte aussi : c'est ce que fait le propriétaire qui retire un
     membre. À appeler sur le foyer courant de la session."""
-    detenteurs = db.query(Detenteur.id).filter(Detenteur.user_id == appartenance.foyer_id)
+    detenteurs = db.query(Detenteur.id).filter(Detenteur.foyer_id == appartenance.foyer_id)
     db.query(PerimetreInvite).filter(
         PerimetreInvite.user_id == user_id, PerimetreInvite.detenteur_id.in_(detenteurs.scalar_subquery())
     ).delete(synchronize_session=False)
@@ -271,7 +271,7 @@ def apercu_suppression_foyer(db: Session, foyer_id: int) -> ApercuSuppressionFoy
         foyer_nom=foyer.nom,
         confirmation_attendue=confirmation_attendue(db, foyer_id),
         patrimoine=donnees_service.compter_patrimoine(db, foyer_id),
-        liens_partage=db.query(LienPartage).filter(LienPartage.user_id == foyer_id).count(),
+        liens_partage=db.query(LienPartage).filter(LienPartage.foyer_id == foyer_id).count(),
         invitations=db.query(Invitation).filter(Invitation.foyer_id == foyer_id).count(),
         comptes=len(comptes),
         comptes_sans_foyer=len(comptes) - gardant_un_foyer,

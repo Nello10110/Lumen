@@ -79,13 +79,13 @@ def _score_endettement(actifs_totaux: float, passifs_totaux: float) -> int:
     return round(100 * (SEUIL_ENDETTEMENT_ELEVE - ratio) / (SEUIL_ENDETTEMENT_ELEVE - SEUIL_ENDETTEMENT_SAIN))
 
 
-def compute_score_patrimonial(db: Session, user_id: int) -> dict:
+def compute_score_patrimonial(db: Session, foyer_id: int) -> dict:
     """Moyenne PONDÉRÉE des sous-scores APPLICABLES : le poids d'un sous-score
     exclu (aujourd'hui, seul `qualite_donnees` peut l'être) est redistribué
     proportionnellement aux autres, jamais perdu ni comblé par une valeur
     neutre."""
-    net = patrimoine_service.compute_patrimoine_net(db, user_id)
-    valued_financier = analysis_service.value_holdings(analysis_service.holdings_financiers(db, user_id))
+    net = patrimoine_service.compute_patrimoine_net(db, foyer_id)
+    valued_financier = analysis_service.value_holdings(analysis_service.holdings_financiers(db, foyer_id))
     qualite = analysis_service.compute_data_quality(db, valued_financier)
 
     s_diversification = _score_diversification(net["repartition_par_classe"], net["actifs_totaux"])

@@ -28,42 +28,42 @@ from ..models import (
 from . import analysis_service, detenteurs_service, historique_cache
 
 
-def _verifier_nom_etablissement_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
-    """`UniqueConstraint(user_id, nom)` est la garantie de dernier recours ; sans ce
+def _verifier_nom_etablissement_libre(db: Session, foyer_id: int, nom: str, id_exclu: int | None = None) -> None:
+    """`UniqueConstraint(foyer_id, nom)` est la garantie de dernier recours ; sans ce
     contrôle en amont, un doublon remonterait en `IntegrityError` SQLAlchemy non
     interceptée, donc en HTTP 500 avec une trace brute au lieu d'un message
     exploitable (recette du 02/09/2026). `id_exclu` : le renommage d'un
     établissement vers son propre nom ne doit pas se refuser lui-même."""
-    requete = db.query(Etablissement).filter(Etablissement.user_id == user_id, Etablissement.nom == nom)
+    requete = db.query(Etablissement).filter(Etablissement.foyer_id == foyer_id, Etablissement.nom == nom)
     if id_exclu is not None:
         requete = requete.filter(Etablissement.id != id_exclu)
     if requete.first() is not None:
         raise ValueError(tr("Un établissement nommé « {nom} » existe déjà.", nom=nom))
 
 
-def _verifier_nom_compte_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
+def _verifier_nom_compte_libre(db: Session, foyer_id: int, nom: str, id_exclu: int | None = None) -> None:
     """Même rôle que `_verifier_nom_etablissement_libre`, pour les comptes."""
-    requete = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom)
+    requete = db.query(Compte).filter(Compte.foyer_id == foyer_id, Compte.nom == nom)
     if id_exclu is not None:
         requete = requete.filter(Compte.id != id_exclu)
     if requete.first() is not None:
         raise ValueError(tr("Un compte nommé « {nom} » existe déjà.", nom=nom))
 
 
-def list_etablissements(db: Session, user_id: int) -> list[Etablissement]:
-    return db.query(Etablissement).filter(Etablissement.user_id == user_id).order_by(Etablissement.nom).all()
+def list_etablissements(db: Session, foyer_id: int) -> list[Etablissement]:
+    return db.query(Etablissement).filter(Etablissement.foyer_id == foyer_id).order_by(Etablissement.nom).all()
 
 
-def create_etablissement(db: Session, user_id: int, nom: str, logo_key: str | None = None) -> Etablissement:
-    _verifier_nom_etablissement_libre(db, user_id, nom)
-    etablissement = Etablissement(user_id=user_id, nom=nom, logo_key=logo_key)
+def create_etablissement(db: Session, foyer_id: int, nom: str, logo_key: str | None = None) -> Etablissement:
+    _verifier_nom_etablissement_libre(db, foyer_id, nom)
+    etablissement = Etablissement(foyer_id=foyer_id, nom=nom, logo_key=logo_key)
     db.add(etablissement)
     db.commit()
     db.refresh(etablissement)
     return etablissement
 
 
-def get_or_create_etablissement(db: Session, user_id: int, nom: str, logo_key: str | None = None) -> Etablissement:
+def get_or_create_etablissement(db: Session, foyer_id: int, nom: str, logo_key: str | None = None) -> Etablissement:
     """Résolution d'un nom saisi vers un établissement existant, ou création à la
     volée (revue du 03/09/2026) — même patron que `get_or_create_compte`, pour les
     formulaires qui créent un compte ET son établissement en une seule saisie
@@ -75,15 +75,15 @@ def get_or_create_etablissement(db: Session, user_id: int, nom: str, logo_key: s
     établissement déjà existant sous ce nom garde son logo actuel, jamais écrasé
     silencieusement par un appelant qui en fournirait un différent (même doctrine
     que `etablissement_id` dans `get_or_create_compte_sans_commit`)."""
-    etablissement = db.query(Etablissement).filter(Etablissement.user_id == user_id, Etablissement.nom == nom).first()
+    etablissement = db.query(Etablissement).filter(Etablissement.foyer_id == foyer_id, Etablissement.nom == nom).first()
     if etablissement is not None:
         return etablissement
-    return create_etablissement(db, user_id, nom, logo_key)
+    return create_etablissement(db, foyer_id, nom, logo_key)
 
 
 def update_etablissement(db: Session, etablissement: Etablissement, **champs) -> Etablissement:
     if champs.get("nom") is not None:
-        _verifier_nom_etablissement_libre(db, etablissement.user_id, champs["nom"], id_exclu=etablissement.id)
+        _verifier_nom_etablissement_libre(db, etablissement.foyer_id, champs["nom"], id_exclu=etablissement.id)
     for cle, valeur in champs.items():
         if valeur is not None:
             setattr(etablissement, cle, valeur)
@@ -101,13 +101,13 @@ def delete_etablissement(db: Session, etablissement: Etablissement) -> None:
     db.commit()
 
 
-def list_comptes(db: Session, user_id: int) -> list[Compte]:
-    return db.query(Compte).filter(Compte.user_id == user_id).order_by(Compte.nom).all()
+def list_comptes(db: Session, foyer_id: int) -> list[Compte]:
+    return db.query(Compte).filter(Compte.foyer_id == foyer_id).order_by(Compte.nom).all()
 
 
-def create_compte(db: Session, user_id: int, nom: str, etablissement_id: int | None) -> Compte:
-    _verifier_nom_compte_libre(db, user_id, nom)
-    compte = Compte(user_id=user_id, nom=nom, etablissement_id=etablissement_id)
+def create_compte(db: Session, foyer_id: int, nom: str, etablissement_id: int | None) -> Compte:
+    _verifier_nom_compte_libre(db, foyer_id, nom)
+    compte = Compte(foyer_id=foyer_id, nom=nom, etablissement_id=etablissement_id)
     db.add(compte)
     db.commit()
     db.refresh(compte)
@@ -116,7 +116,7 @@ def create_compte(db: Session, user_id: int, nom: str, etablissement_id: int | N
 
 def update_compte(db: Session, compte: Compte, **champs) -> Compte:
     if champs.get("nom") is not None:
-        _verifier_nom_compte_libre(db, compte.user_id, champs["nom"], id_exclu=compte.id)
+        _verifier_nom_compte_libre(db, compte.foyer_id, champs["nom"], id_exclu=compte.id)
     for cle, valeur in champs.items():
         if valeur is not None or cle == "etablissement_id":
             # `etablissement_id=None` explicite = dérattacher (même contrat que
@@ -165,7 +165,7 @@ def delete_compte(db: Session, compte: Compte) -> None:
     historique_cache.invalider_historiques_patrimoine(db)
 
 
-def get_or_create_compte_sans_commit(db: Session, user_id: int, nom: str, etablissement_id: int | None = None) -> Compte:
+def get_or_create_compte_sans_commit(db: Session, foyer_id: int, nom: str, etablissement_id: int | None = None) -> Compte:
     """Variante sans commit — pour un appelant qui gère lui-même sa frontière de
     transaction (import CSV en masse, reconstruction du grand livre) : `db.flush()`
     rend le nouvel id visible aux requêtes suivantes de la MÊME session (donc au
@@ -179,27 +179,27 @@ def get_or_create_compte_sans_commit(db: Session, user_id: int, nom: str, etabli
     successifs qui ne s'accordent pas sur l'établissement d'un même nom de compte).
     Pas d'IDOR à vérifier ici (pas d'accès réseau dans ce service) : à charge de
     l'appelant, comme pour `Compte.etablissement_id` partout ailleurs."""
-    compte = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom).first()
+    compte = db.query(Compte).filter(Compte.foyer_id == foyer_id, Compte.nom == nom).first()
     if compte is not None:
         return compte
-    compte = Compte(user_id=user_id, nom=nom, etablissement_id=etablissement_id)
+    compte = Compte(foyer_id=foyer_id, nom=nom, etablissement_id=etablissement_id)
     db.add(compte)
     db.flush()
     return compte
 
 
-def get_or_create_compte(db: Session, user_id: int, nom: str, etablissement_id: int | None = None) -> Compte:
+def get_or_create_compte(db: Session, foyer_id: int, nom: str, etablissement_id: int | None = None) -> Compte:
     """Résolution d'un nom saisi vers un compte existant, ou création à la volée —
     committe immédiatement (usage : une seule mutation isolée, ex.
     `routers/portfolio.py::create_holding`/`update_holding`). Pour un import en
     masse qui gère sa propre transaction, cf. `get_or_create_compte_sans_commit`."""
-    compte = get_or_create_compte_sans_commit(db, user_id, nom, etablissement_id)
+    compte = get_or_create_compte_sans_commit(db, foyer_id, nom, etablissement_id)
     db.commit()
     db.refresh(compte)
     return compte
 
 
-def compter_holdings_sans_compte(db: Session, user_id: int) -> int:
+def compter_holdings_sans_compte(db: Session, foyer_id: int) -> int:
     """Nombre de lignes financières sans compte (revue du 03/09/2026) — alimente le
     compteur `holdings_sans_compte` exposé par `/api/auth/me` (même point
     d'injection que `onboarding_termine`), qui déclenche l'écran de rattrapage
@@ -215,7 +215,7 @@ def compter_holdings_sans_compte(db: Session, user_id: int) -> int:
     return (
         db.query(Holding)
         .filter(
-            Holding.user_id == user_id,
+            Holding.foyer_id == foyer_id,
             Holding.compte_id.is_(None),
             or_(Holding.type_actif.is_(None), Holding.type_actif.notin_(TYPES_ACTIF_SANS_ETABLISSEMENT)),
         )
@@ -223,7 +223,7 @@ def compter_holdings_sans_compte(db: Session, user_id: int) -> int:
     )
 
 
-def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: list[tuple[int, float]]) -> None:
+def set_quotites_compte(db: Session, foyer_id: int, compte: Compte, quotites: list[tuple[int, float]]) -> None:
     """Applique la MÊME répartition à chaque `Holding` actuellement rattaché à ce
     compte, ET à chaque `Loan` rattaché à l'une de ces lignes (`Loan.holding_id`) —
     pas de nouvelle table de quotités, boucle sur `detenteurs_service.
@@ -234,10 +234,10 @@ def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: lis
     même répartition que le bien lui-même, sans étape séparée. Un compte sans
     aucune ligne ni emprunt ne fait rien (pas d'erreur) ; un compte à une seule
     ligne sans emprunt se comporte exactement comme l'ancienne saisie par ligne."""
-    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.foyer_id == foyer_id).all()
     holding_ids = [h.id for h in holdings]
     loans = (
-        db.query(Loan).filter(Loan.holding_id.in_(holding_ids), Loan.user_id == user_id).all() if holding_ids else []
+        db.query(Loan).filter(Loan.holding_id.in_(holding_ids), Loan.foyer_id == foyer_id).all() if holding_ids else []
     )
 
     # UN SEUL commit pour tout le compte (revue du 03/09/2026). Auparavant chaque
@@ -248,16 +248,16 @@ def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: lis
     # change rien.
     try:
         for holding in holdings:
-            detenteurs_service.set_quotites_holding(db, user_id, holding, quotites, commit=False)
+            detenteurs_service.set_quotites_holding(db, foyer_id, holding, quotites, commit=False)
         for loan in loans:
-            detenteurs_service.set_quotites_loan(db, user_id, loan, quotites, commit=False)
+            detenteurs_service.set_quotites_loan(db, foyer_id, loan, quotites, commit=False)
         db.commit()
     except Exception:
         db.rollback()
         raise
 
 
-def set_zone_geo_compte(db: Session, user_id: int, compte: Compte, zone_geo: str | None) -> int:
+def set_zone_geo_compte(db: Session, foyer_id: int, compte: Compte, zone_geo: str | None) -> int:
     """Applique la MÊME zone géographique (`Holding.zone_geo`) à chaque ligne
     actuellement rattachée à ce compte — retour utilisateur du 17/09/2026 (§ AP.3) :
     « pouvoir éditer sur un compte entier (donc tous les actifs qui le composent en
@@ -267,20 +267,20 @@ def set_zone_geo_compte(db: Session, user_id: int, compte: Compte, zone_geo: str
     (`analysis_service.value_holdings`), jamais une valeur inventée. Renvoie le
     nombre de lignes modifiées ; un compte sans aucune ligne ne fait rien (pas
     d'erreur)."""
-    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.foyer_id == foyer_id).all()
     for holding in holdings:
         holding.zone_geo = zone_geo
     db.commit()
     return len(holdings)
 
 
-def set_secteur_compte(db: Session, user_id: int, compte: Compte, secteur: str | None) -> int:
+def set_secteur_compte(db: Session, foyer_id: int, compte: Compte, secteur: str | None) -> int:
     """Applique le MÊME secteur (`Holding.secteur`) à chaque ligne actuellement
     rattachée à ce compte — même patron que `set_zone_geo_compte` juste au-dessus
     (retour utilisateur du 17/09/2026, § AP.3 : « pouvoir éditer de la même façon
     la répartition sectorielle »). `secteur=None` efface la déclaration manuelle
     sur chaque ligne. Renvoie le nombre de lignes modifiées."""
-    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.foyer_id == foyer_id).all()
     for holding in holdings:
         holding.secteur = secteur
     db.commit()
@@ -349,7 +349,7 @@ def _holdings_repartition_non_renseignee(db: Session, holding_ids: list[int]) ->
     return set(holding_ids) - holdings_avec_quotite
 
 
-def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] | None = None) -> list[dict]:
+def solde_par_compte(db: Session, foyer_id: int, holdings_visibles_ids: set[int] | None = None) -> list[dict]:
     """Solde de chaque compte du foyer, TOUS types d'actifs confondus (contrairement
     à `analysis_service.repartition_par_compte`, restreinte au portefeuille
     financier) — réutilise `value_holdings` pour la valorisation individuelle,
@@ -362,7 +362,7 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
     avec un périmètre invité, un compte qui n'a plus AUCUNE ligne visible dans ce
     périmètre est entièrement omis (un invité ne doit jamais voir un compte dont il
     ne peut voir aucune ligne)."""
-    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id).all()
     if holdings_visibles_ids is not None:
         holdings = [h for h in holdings if h.id in holdings_visibles_ids]
     valued = analysis_service.value_holdings(holdings)
@@ -372,11 +372,11 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
     # personne entre qui répartir, chaque ligne est légitimement à 100 % implicite.
     holdings_non_renseignees = (
         _holdings_repartition_non_renseignee(db, [h.id for h in holdings])
-        if len(detenteurs_service.list_detenteurs(db, user_id)) >= 2
+        if len(detenteurs_service.list_detenteurs(db, foyer_id)) >= 2
         else set()
     )
 
-    comptes = list_comptes(db, user_id)
+    comptes = list_comptes(db, foyer_id)
     par_compte_id: dict[int | None, dict] = {
         compte.id: {
             "compte": compte,

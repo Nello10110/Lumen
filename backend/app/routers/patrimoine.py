@@ -49,7 +49,7 @@ def _verifier_acces_detenteur(db: Session, current_user: User, detenteur_id: int
     périmètre assigné -> 403. Factorisé pour ne jamais diverger entre les deux routes."""
     if detenteur_id is not None:
         detenteur = db.get(Detenteur, detenteur_id)
-        if detenteur is None or detenteur.user_id != auth_service.id_foyer(current_user):
+        if detenteur is None or detenteur.foyer_id != auth_service.id_foyer(current_user):
             raise HTTPException(status_code=404, detail="Détenteur introuvable")
     if current_user.role == ROLE_INVITE:
         # Un invité (2.L.2) n'a jamais accès à la vue Foyer consolidée : le

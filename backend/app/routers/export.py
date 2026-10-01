@@ -54,7 +54,7 @@ def _formater_date(date_iso: str | None) -> str:
 
 @router.get("/positions")
 def export_positions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    holdings = db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user)).order_by(Holding.ticker).all()
+    holdings = db.query(Holding).filter(Holding.foyer_id == auth_service.id_foyer(current_user)).order_by(Holding.ticker).all()
     # Clé sur l'`id`, pas sur le ticker : rien n'empêche deux lignes du même foyer
     # de porter le même ticker (aucune contrainte d'unicité), et la seconde
     # écrasait alors silencieusement la valeur de la première dans l'export
@@ -108,7 +108,7 @@ def export_positions(db: Session = Depends(get_db), current_user: User = Depends
 def export_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     transactions = (
         db.query(Transaction)
-        .filter(Transaction.user_id == auth_service.id_foyer(current_user))
+        .filter(Transaction.foyer_id == auth_service.id_foyer(current_user))
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
@@ -206,15 +206,15 @@ def export_declaration_patrimoine_pdf(
     par actif, filtrage par détenteur, reprise du profil pour un tiers concret
     (banque, notaire). `POST` (pas `GET`) : la sélection peut porter sur un grand
     nombre d'identifiants, mal adapté à une chaîne de requête."""
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     if payload.detenteur_id is not None:
         detenteur = db.get(Detenteur, payload.detenteur_id)
-        if detenteur is None or detenteur.user_id != user_id:
+        if detenteur is None or detenteur.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Détenteur introuvable")
 
     contenu = declaration_patrimoine_service.generer_pdf_declaration(
         db,
-        user_id,
+        foyer_id,
         holding_ids=payload.holding_ids,
         loan_ids=payload.loan_ids,
         detenteur_id=payload.detenteur_id,

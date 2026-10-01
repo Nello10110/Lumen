@@ -246,18 +246,18 @@ class _CategoriesDeLaBanque:
     sous le nom que lui donne la banque. `categories_exclues` : racines créées exclues
     des totaux — une catégorie déjà présente garde le choix de l'utilisateur."""
 
-    def __init__(self, db: Session, user_id: int, categories_exclues: frozenset[str]):
+    def __init__(self, db: Session, foyer_id: int, categories_exclues: frozenset[str]):
         self._db = db
-        self._user_id = user_id
+        self._foyer_id = foyer_id
         self._categories_exclues = categories_exclues
-        self._categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).order_by(CategorieBudget.id).all()
+        self._categories = db.query(CategorieBudget).filter(CategorieBudget.foyer_id == foyer_id).order_by(CategorieBudget.id).all()
 
     def _trouver_ou_creer(self, nom: str, parent_id: int | None) -> CategorieBudget:
         existante = budget_categories_service.categorie_de_meme_nom([c for c in self._categories if c.parent_id == parent_id], nom)
         if existante is not None:
             return existante
         creee = CategorieBudget(
-            user_id=self._user_id,
+            foyer_id=self._foyer_id,
             nom=nom,
             parent_id=parent_id,
             exclue_des_totaux=parent_id is None and normaliser(nom) in self._categories_exclues,
@@ -277,7 +277,7 @@ class _CategoriesDeLaBanque:
 
 def importer_mouvements(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     mouvements: list[MouvementBrut],
     *,
     compte_id: int,
@@ -290,10 +290,10 @@ def importer_mouvements(
     du tout, il est classé comme un nouveau : réimporter un relevé pris avant § BM.3
     range ses mouvements sans les doubler. Une catégorisation manuelle n'est jamais
     touchée."""
-    budget_categories_service.assurer_categories_par_defaut(db, user_id)
-    regles = budget_categories_service.list_regles(db, user_id)
-    banque = _CategoriesDeLaBanque(db, user_id, categories_exclues)
-    existants = {m.transaction_id: m for m in db.query(MouvementBancaire).filter(MouvementBancaire.user_id == user_id).all()}
+    budget_categories_service.assurer_categories_par_defaut(db, foyer_id)
+    regles = budget_categories_service.list_regles(db, foyer_id)
+    banque = _CategoriesDeLaBanque(db, foyer_id, categories_exclues)
+    existants = {m.transaction_id: m for m in db.query(MouvementBancaire).filter(MouvementBancaire.foyer_id == foyer_id).all()}
 
     importees = 0
     doublons = 0
@@ -319,7 +319,7 @@ def importer_mouvements(
             categorie_id = categorie_banque_id
             par_la_banque += 1
         nouveau = MouvementBancaire(
-            user_id=user_id,
+            foyer_id=foyer_id,
             transaction_id=tx_id,
             date=m.date,
             libelle=m.libelle,
@@ -343,16 +343,16 @@ def importer_mouvements(
     )
 
 
-def reappliquer_regles(db: Session, user_id: int) -> int:
+def reappliquer_regles(db: Session, foyer_id: int) -> int:
     """Réapplique les règles à tout mouvement non catégorisé manuellement (cf.
     `MouvementBancaire.categorise_manuellement`) — permet à une règle ajoutée après
     coup de corriger un mouvement déjà catégorisé par une règle plus ancienne, ou
     resté sans catégorie. Sans règle correspondante, le mouvement revient à la
     catégorie de sa banque (§ BM.3) : il ne perd pas celle-ci faute de règle."""
-    regles = budget_categories_service.list_regles(db, user_id)
+    regles = budget_categories_service.list_regles(db, foyer_id)
     mouvements = (
         db.query(MouvementBancaire)
-        .filter(MouvementBancaire.user_id == user_id, MouvementBancaire.categorise_manuellement.is_(False))
+        .filter(MouvementBancaire.foyer_id == foyer_id, MouvementBancaire.categorise_manuellement.is_(False))
         .all()
     )
     modifies = 0

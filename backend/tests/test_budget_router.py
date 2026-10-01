@@ -373,7 +373,7 @@ def test_import_sur_le_compte_ou_l_etablissement_d_un_autre_foyer_refuse(client,
     assert reponse.json()["detail"] == "Établissement introuvable"
 
     assert _mouvements(db) == []
-    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).count() == 0
+    assert db.query(Compte).filter(Compte.foyer_id == ID_FOYER_TEST).count() == 0
 
 
 def _deux_comptes_avec_mouvements(client, db) -> tuple[Compte, Compte]:
