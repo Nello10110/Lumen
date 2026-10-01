@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) : serveur réalisé (30/09/2026), interface réalisée (01/10/2026), reste la vérification par la CI Postgres |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; reste **BK.2e** (durcissement) |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -102,7 +102,8 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
   partagée. **Conception validée le 29/09/2026 ; lot BK.2a (objet foyer) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2b (invitations) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2c (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI
-  Postgres ; lot BK.2d (opérateur et naissance des foyers) : serveur réalisé le 30/09/2026, interface le 01/10/2026 ; puis BK.2e** (§ BK.2, point 9).
+  Postgres ; lot BK.2d (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI
+  Postgres ; reste BK.2e (durcissement)** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7078,12 +7079,11 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 
 #### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
 
-**État au 30/09/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
+**État au 01/10/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
 détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
 (invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2c** `traité (30/09/2026)`
-(cycle de vie côté foyer, « Lot BK.2c — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2d** (opérateur et naissance des
-foyers) : serveur réalisé le 30/09/2026 (« Lot BK.2d — réalisé (serveur) »), interface réalisée le 01/10/2026 (« Lot BK.2d — réalisé
-(interface) ») ; puis BK.2e (§ 9).
+(cycle de vie côté foyer, « Lot BK.2c — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2d** `traité (01/10/2026)`
+(opérateur et naissance des foyers, « Lot BK.2d — réalisé »), **vérifié par la CI Postgres** ; reste BK.2e (§ 9).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7469,7 +7469,7 @@ précédente, puis montée par la nouvelle.
 | **BK.2d** — Opérateur et naissance des foyers | Compte opérateur (bandeau, commande), console, création de foyer par lien propriétaire, suspension, suppression, nouveau propriétaire, modes `fermé` / `invitation`, SSO qui crée son foyer, **correction de la faille de liaison SSO par nom d'utilisateur** (`resoudre_ou_provisionner_utilisateur`, lignes 273-278 : liaison retirée, remplacée par « Lier mon compte SSO » depuis Réglages), réglages d'installation déplacés | `users.est_operateur` déjà là ; état `app.operateur` dans les politiques | Opérateur qui voit un patrimoine ; SSO | Test générique des routes avec jeton d'opérateur ; RLS : zéro ligne de patrimoine sous périmètre opérateur ; E2E console |
 | **BK.2e** — Durcissement | RLS sur `users`, `auth_tokens`, `access_log_entries` (état « authentification ») ; jetons de session et de partage hachés ; renommage `user_id` → `foyer_id` (option C) | Politiques ; hachage des jetons existants (sessions conservées) ; renommage | Connexion cassée sous Postgres | Suite Postgres ; test d'intrusion : lister `users` d'un autre foyer, filtre retiré |
 
-L'installation de l'utilisateur ne peut accueillir une autre famille qu'**après BK.2d** ; BK.2e est
+BK.2d étant traité, l'installation de l'utilisateur peut désormais accueillir une autre famille ; BK.2e est
 recommandé avant, obligatoire avant toute version publique.
 
 ##### 10. Décisions
@@ -7804,9 +7804,13 @@ la vérifie de nouveau.
 **Gardé pour plus tard** : l'opérateur qui désigne un nouveau propriétaire et supprime un foyer (BK.2d).
 
 
+##### Lot BK.2d — réalisé (serveur 30/09/2026 et interface 01/10/2026), `traité (01/10/2026)`
+
+**Vérification (01/10/2026).** CI verte sur la pull request n° 10 : les huit jobs, dont `backend-postgres` (opérateur : zéro ligne de patrimoine sous son périmètre, test générique des routes), `e2e-postgres` (93 tests, dont le projet `operateur`), `deploiement-postgres` et `montee-version` (SQLite et Postgres, deux nouvelles migrations). La relecture de sécurité a trouvé un CSRF de liaison dans la première version de « Lier mon compte SSO » (un attaquant faisait lier l'identité SSO d'une victime à son propre compte) : corrigé avant fusion par une liaison en attente, confirmée depuis le compte connecté. `montee-version (sqlite)` a échoué une fois sur un aléa d'infrastructure (connexion coupée pendant le démarrage de l'image publiée, avant tout code de la branche) et est passé à la relance ; le durcissement du job est prévu en BK.2e.
+
 ##### Lot BK.2d — réalisé (serveur, 30/09/2026)
 
-Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la console et les écrans (bandeau d'amorçage, « Lier mon compte SSO », lien « créer votre foyer ») sont l'interface, réalisée le 01/10/2026 (section suivante). Vérifié sous SQLite (suite backend complète) ; les tests Postgres (`test_separation_foyers.py`, étendu) tournent en CI. Contrat des routes : `docs/SPECIFICATIONS_FONCTIONNELLES.md` § 3.27 ; exploitation : `docs/MANUEL_EXPLOITATION.md` § 12.2.
+Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la console et les écrans (bandeau d'amorçage, « Lier mon compte SSO », lien « créer votre foyer ») sont l'interface, réalisée le 01/10/2026 (section suivante). Vérifié sous SQLite (suite backend complète) ; les tests Postgres (`test_separation_foyers.py`, étendu) ont tourné en CI (voir ci-dessus). Contrat des routes : `docs/SPECIFICATIONS_FONCTIONNELLES.md` § 3.27 ; exploitation : `docs/MANUEL_EXPLOITATION.md` § 12.2.
 
 **Décisions de l'utilisateur au lancement (30/09/2026)** : un compte n'est supprimé que par lui-même ou par l'opérateur, et un compte sans foyer reste sans foyer (décisions 10 et 11) ; repartir de zéro sur son installation est accepté (pas de contrainte de compatibilité, mais migrations correctes) ; modes de naissance `ferme` (défaut) et `invitation` ; réglage d'opérateur distinct « un nouveau compte SSO crée son foyer » (oui par défaut) ; le réglage `creation_foyer_par_compte_sans_foyer` (BK.2b) devient réglable par l'opérateur.
 
@@ -7823,7 +7827,7 @@ Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la con
 
 **Tests.** `test_operateur.py` (connexion de l'opérateur ; **test générique** : toutes les routes du schéma OpenAPI hors `/api/operateur` et `/api/auth` répondent 403 à un jeton d'opérateur, les routes publiques étant listées en clair ; aucune clé de réponse de la console ne désigne un montant ; foyers, suspension complète — sessions, liens, invitations, données intactes, autre foyer intact —, réactivation, suppression avec confirmation et comptes conservés, nouveau propriétaire et ses refus, comptes sans foyer, journal complet et journal du propriétaire ; liens de création par un nouveau compte et par un compte existant, opérateur refusé, révocation, modes `ferme` et `invitation` et extinction des liens, IDOR entre propriétaires ; réglages et déplacement des routes d'installation ; amorçage accepté / refusé (opérateur existant, deux foyers, rôle) ; commande en ligne avec `getpass` simulé ; SSO : nouveau compte avec foyer / sans foyer selon le réglage, compte local homonyme **non pris**, liaison, refus d'une identité déjà liée, refus pour l'opérateur, `state` signé, déliaison, opérateur jamais connecté par SSO). `test_separation_foyers.py` (Postgres) étendu : **zéro ligne de patrimoine sous périmètre opérateur, table par table, même en SQL direct** ; foyers, appartenances et comptes lisibles ; suspendre, désigner, supprimer un foyer et un compte depuis ce périmètre ; jamais d'appartenance pour un opérateur ; un propriétaire ne suspend pas un foyer ; visibilité des liens de création (à leur créateur, tous pour l'opérateur, jamais les invitations d'un foyer) ; naissance du foyer à l'acceptation sans appartenance préalable. Les tests SSO des lots précédents qui décrivaient le rattachement au foyer unique et la liaison par nom sont remplacés.
 
-**Limites.** Les politiques Postgres n'ont pas été jouées localement (aucun Postgres disponible sur le poste de développement) : la CI (`backend-postgres`, `montee-version`) en est la vérification. Les tâches de fond ne sautent pas les foyers suspendus (facultatif dans la fiche ; sans enjeu). L'interface de la console est décrite dans la section suivante.
+**Limites.** Les politiques Postgres n'ont pas été jouées localement (aucun Postgres disponible sur le poste de développement) : la CI (`backend-postgres`, `montee-version`) les a vérifiées (voir ci-dessus). Les tâches de fond ne sautent pas les foyers suspendus (facultatif dans la fiche ; sans enjeu). L'interface de la console est décrite dans la section suivante.
 
 ##### Lot BK.2d — réalisé (interface, 01/10/2026)
 
@@ -7843,7 +7847,7 @@ Partie interface du lot « Opérateur et naissance des foyers » (§ 9) : la con
 
 **E2E et base partagée.** Un opérateur qui existe change l'écran du propriétaire seedé, et son amorçage depuis le bandeau exige un foyer unique : `e2e/operateur.spec.ts` a donc son propre projet Playwright (`operateur`), exécuté **avant** le projet `chromium` (qui en dépend), quand l'installation est exactement celle du seed. Il rend l'installation comme il l'a trouvée — le foyer et le compte créés sont supprimés par la console, puis l'opérateur supprime son propre compte —, le dernier test le vérifie (le propriétaire seedé retrouve le bandeau et l'onglet Automatisations) et `afterAll` refait ce ménage en cas d'échec. Aucune base dédiée : il tourne aussi sous Postgres. Scénario : le propriétaire seedé crée l'opérateur par le bandeau (et l'API refuse ensuite ses routes d'installation) ; l'opérateur se connecte, ne voit que `/operateur`, les routes de foyer lui répondent 403 ; mode `invitation` (section du propriétaire, lien révoqué par l'opérateur, retour au mode fermé) ; un navigateur vierge en locale espagnole crée son compte et son foyer par un lien (le foyer naît en `es`, assistant joué, lien à usage unique) ; l'opérateur suspend puis réactive, supprime le foyer par son nom, supprime le compte resté sans foyer ; journal complet.
 
-**Limites.** Les politiques Postgres du lot serveur restent vérifiées par la CI (`backend-postgres`, `e2e-postgres`, qui rejouera le nouveau projet). « Lier mon compte SSO » est dans Réglages pour le propriétaire et, pour un membre ou un invité (qui n'ont pas Réglages), dans le menu du compte et la feuille « Plus » (« Connexion SSO… », fenêtre partageant la logique de la carte : `useLiaisonSso`). Pas de test automatisé du parcours complet chez un vrai fournisseur SSO (le retour est testé par un double du rappel).
+**Limites.** Les politiques Postgres du lot serveur ont été vérifiées par la CI (`backend-postgres`, `e2e-postgres`, qui a rejoué le nouveau projet). « Lier mon compte SSO » est dans Réglages pour le propriétaire et, pour un membre ou un invité (qui n'ont pas Réglages), dans le menu du compte et la feuille « Plus » (« Connexion SSO… », fenêtre partageant la logique de la carte : `useLiaisonSso`). Pas de test automatisé du parcours complet chez un vrai fournisseur SSO (le retour est testé par un double du rappel).
 
 ### BL. Application multilingue (cadrée le 23/09/2026)
 
