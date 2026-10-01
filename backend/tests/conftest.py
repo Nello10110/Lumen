@@ -86,6 +86,9 @@ def _db_postgres():
     # Le banc de test agit en administrateur : il crée et relit les données de
     # plusieurs foyers. La séparation (§ BI.5) se vérifie dans ses tests dédiés.
     session = database.session_tous_foyers()
+    # ... et des comptes : `users`, `auth_tokens` et `access_log_entries` n'obéissent pas aux
+    # foyers mais à l'état d'authentification (§ BK.2e), que ce banc garde posé en permanence.
+    session.info["authentification"] = "on"
     _creer_proprietaire_de_test(session)
     _resynchroniser_sequences(session)
     try:

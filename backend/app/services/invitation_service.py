@@ -30,7 +30,11 @@ route est publique et un jeton inconnu n'a pas de compte auquel rattacher un éc
 **Périmètre de la base (Postgres).** Une invitation appartient à son foyer (politique
 de la migration `d1a7c5e3b9f4`). La consultation et l'acceptation précèdent
 l'appartenance : elles lèvent la restriction le temps de leur opération
-(`database.tous_les_foyers_le_temps`), et rien d'autre.
+(`database.tous_les_foyers_le_temps`), et rien d'autre. L'acceptation par un NOUVEAU compte pose en
+plus l'état d'authentification de la base (`database.authentification_le_temps`, § BK.2e) : le compte
+se crée et se retrouve par son nom avant d'avoir une identité. Les noms des comptes qui ont créé ou
+accepté une invitation ne se lisent que parmi ceux que la base montre au foyer courant : celui qui
+a quitté le foyer depuis n'y figure plus.
 """
 
 import secrets
@@ -330,8 +334,7 @@ def _creation_autorisee(db: Session, invitation: Invitation) -> bool:
     autorisée."""
     if invitation.foyer_id is not None:
         return True
-    createur = db.get(User, invitation.cree_par) if invitation.cree_par is not None else None
-    if createur is not None and createur.est_operateur:
+    if auth_service.compte_est_operateur(db, invitation.cree_par):
         return True
     return installation_service.mode_naissance(db) == installation_service.MODE_INVITATION
 
@@ -431,7 +434,9 @@ def accepter_nouveau_compte(db: Session, jeton: str, username: str, password: st
     """Crée le compte, son appartenance au foyer de l'invitation (ou le foyer que l'invitation
     fait naître, dans `langue`), et réclame l'invitation : tout ou rien."""
     hache = auth_service.hacher_jeton(jeton)
-    with database.tous_les_foyers_le_temps(db):
+    # Un compte neuf, créé avant toute appartenance : sous l'état d'authentification de la base
+    # (§ BK.2e) autant que sous « tous les foyers » ; les deux se lèvent à la sortie.
+    with database.tous_les_foyers_le_temps(db), database.authentification_le_temps(db):
         maintenant = _maintenant()
         trouve = _invitation_utilisable(db, hache, maintenant)
         if trouve is None:

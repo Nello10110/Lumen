@@ -94,12 +94,20 @@ def test_verrouillage_se_leve_apres_la_duree(db):
         auth_service.journaliser_acces(db, "paul", None, "1.2.3.4", "echec", "mot_de_passe_incorrect")
     assert auth_service.verrouillage_actif(db, "paul") is not None
 
-    # Recule artificiellement les entrées du journal au-delà de la fenêtre de
+    # Remplace les entrées du journal par les mêmes, antérieures à la fenêtre de
     # verrouillage — équivalent à laisser le temps réel s'écouler, sans dépendre
-    # d'une vraie attente dans le test.
+    # d'une vraie attente dans le test. (Le journal ne se modifie pas : sous Postgres,
+    # aucune politique n'autorise l'`UPDATE`, § BK.2e.)
     decalage = timedelta(minutes=auth_service.FENETRE_VERROUILLAGE_MINUTES + auth_service.DUREE_VERROUILLAGE_MINUTES + 1)
-    for entree in db.query(AccessLogEntry).filter(AccessLogEntry.username_saisi == "paul").all():
-        entree.timestamp = entree.timestamp - decalage
+    anciennes = db.query(AccessLogEntry).filter(AccessLogEntry.username_saisi == "paul").all()
+    horodatages = [entree.timestamp - decalage for entree in anciennes]
+    db.query(AccessLogEntry).filter(AccessLogEntry.username_saisi == "paul").delete()
+    for horodatage in horodatages:
+        db.add(
+            AccessLogEntry(
+                username_saisi="paul", user_id=None, ip="1.2.3.4", action="login", resultat="echec", raison="mot_de_passe_incorrect", timestamp=horodatage
+            )
+        )
     db.commit()
 
     assert auth_service.verrouillage_actif(db, "paul") is None

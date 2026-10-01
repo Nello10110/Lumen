@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from app import cli
+from app import cli, database
 from app.main import app
 from app.models import (
     ROLE_INVITE,
@@ -331,7 +331,8 @@ def test_le_proprietaire_ne_voit_plus_les_inconnus_des_qu_un_operateur_existe(cl
     client_jetons.post("/api/auth/login", json={"username": "fantome", "password": "nimporte-quoi"})
     en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)
     avant = {ligne["username_saisi"] for ligne in client_jetons.get("/api/auth/access-log", headers=en_tete).json()}
-    assert "fantome" in avant  # un seul foyer, pas d'opérateur : comme avant le lot
+    if database.EST_SQLITE:  # sous Postgres, seul l'opérateur lit ce qui ne se rattache à aucun foyer (§ BK.2e)
+        assert "fantome" in avant  # un seul foyer, pas d'opérateur : comme avant le lot
 
     auth_service.creer_utilisateur(db, "admin", MOT_DE_PASSE, est_operateur=True)
 

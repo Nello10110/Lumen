@@ -13,7 +13,7 @@
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from .database import get_db
+from .database import authentification_le_temps, fixer_foyer, get_db
 from .i18n import definir_langue
 from .models import ROLE_PROPRIETAIRE, AuthToken, User
 from .services import auth_service, preferences_service
@@ -30,7 +30,14 @@ def get_current_token(request: Request, db: Session = Depends(get_db)) -> AuthTo
     if not en_tete.startswith("Bearer "):
         raise HTTPException(status_code=401, detail=MESSAGE_NON_AUTHENTIFIE)
     token = en_tete.removeprefix("Bearer ").strip()
-    auth_token = auth_service.token_par_valeur(db, token) if token else None
+    # Lire le jeton précède toute identité (§ BK.2e) : sous Postgres, la base ne montre les
+    # sessions qu'à leur titulaire. L'état d'authentification vaut le temps de cette lecture ; le
+    # compte du jeton trouvé se voit aussitôt poser comme périmètre (« soi-même »), AVANT de
+    # lever l'état — c'est ce qui permet de relire la session et le compte après un `commit`.
+    with authentification_le_temps(db):
+        auth_token = auth_service.token_par_valeur(db, token) if token else None
+        if auth_token is not None:
+            fixer_foyer(db, None, auth_token.user_id)
     if auth_token is None:
         raise HTTPException(status_code=401, detail=MESSAGE_NON_AUTHENTIFIE)
     # Mise à jour de la dernière activité de la session (2.L.2), affichée dans la

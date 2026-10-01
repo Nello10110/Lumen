@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
+from app import database
 from app.models import ROLE_PROPRIETAIRE, Appartenance, Foyer, User
 from app.services import auth_service, oidc_service
 from tests.conftest import ID_UTILISATEUR_TEST
@@ -413,6 +414,7 @@ def test_login_oidc_suivant_cree_son_propre_foyer(db_vide):
     foyer = auth_service.creer_foyer(db_vide, proprietaire)
 
     resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-2", "preferred_username": "bob"})
+    database.tous_les_foyers(db_vide)  # le service pose le périmètre du compte trouvé : le banc reprend la main
 
     appartenance = _appartenance(db_vide, resultat)
     assert appartenance.role == ROLE_PROPRIETAIRE

@@ -11,6 +11,7 @@ from datetime import datetime
 
 import pytest
 
+from app import database
 from app.models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, AccessLogEntry, Appartenance, AuthToken, Detenteur, PerimetreInvite, User
 from app.services import auth_service, detenteurs_service, oidc_service
 
@@ -126,7 +127,9 @@ def test_avec_un_seul_foyer_le_journal_reste_complet(client_jetons, db):
 
     journal = client_jetons.get("/api/auth/access-log", headers=jeton_de_session(db, ID_UTILISATEUR_TEST)).json()
 
-    assert [e["username_saisi"] for e in journal] == ["inconnu"]
+    # Sous Postgres, la base ne montre pas à un propriétaire ce qui ne se rattache à aucun foyer (§ BK.2e) :
+    # seul l'opérateur le lit. Sous SQLite, qui ne sépare rien par la base, le journal reste complet.
+    assert [e["username_saisi"] for e in journal] == (["inconnu"] if database.EST_SQLITE else [])
 
 
 def test_le_perimetre_dun_invite_se_lit_dans_le_foyer_courant(deux_foyers):

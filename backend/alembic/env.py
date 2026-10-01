@@ -59,12 +59,14 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         # Séparation des foyers (§ BI.5) : sous Postgres, les tables de foyer ne
-        # montrent rien à une connexion sans périmètre. Une migration de données porte
-        # sur tous les foyers ; sans ce réglage, elle ne toucherait aucune ligne, et
-        # en silence. Réglage de SESSION (`false`) : la connexion (`NullPool`) meurt
-        # avec la migration.
+        # montrent rien à une connexion sans périmètre, ni les comptes, les sessions et le
+        # journal d'accès sans l'état d'authentification (§ BK.2e). Une migration de données
+        # porte sur tous les foyers et tous les comptes ; sans ces réglages, elle ne
+        # toucherait aucune ligne, et en silence. Réglages de SESSION (`false`) : la
+        # connexion (`NullPool`) meurt avec la migration.
         if connection.dialect.name == "postgresql":
             connection.execute(text("SELECT set_config('app.tous_foyers', 'on', false)"))
+            connection.execute(text("SELECT set_config('app.authentification', 'on', false)"))
             connection.commit()
         context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=True)
 

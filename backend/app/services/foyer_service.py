@@ -104,7 +104,11 @@ def retirer_du_foyer(db: Session, user_id: int, appartenance: Appartenance) -> N
     """Supprime l'appartenance, le périmètre d'invité du compte dans CE foyer, et détache
     de ce foyer les sessions qui y pointaient (elles repassent sans foyer). Les données
     restent au foyer, et le compte aussi : c'est ce que fait le propriétaire qui retire un
-    membre. À appeler sur le foyer courant de la session."""
+    membre. À appeler sur le foyer courant de la session.
+
+    Sous Postgres, un propriétaire n'écrit que SES sessions (§ BK.2e) : celles du membre retiré
+    ne sont pas touchées par cette requête. Elles n'en perdent pas moins leur foyer à leur
+    prochaine requête, que `auth_service.reprendre_session` revérifie en base."""
     detenteurs = db.query(Detenteur.id).filter(Detenteur.foyer_id == appartenance.foyer_id)
     db.query(PerimetreInvite).filter(
         PerimetreInvite.user_id == user_id, PerimetreInvite.detenteur_id.in_(detenteurs.scalar_subquery())
@@ -301,6 +305,10 @@ def _effacer_foyer(db: Session, foyer_id: int) -> None:
         db.query(Invitation).filter(Invitation.foyer_id == foyer_id).delete(synchronize_session=False)
         donnees_service.supprimer_patrimoine_du_foyer(db, foyer_id)
         historique_cache.supprimer_historiques_du_foyer(db, foyer_id)
+        # Sous SQLite, qui n'applique pas les clés étrangères. Sous Postgres, `foyer_id` est `ON DELETE
+        # SET NULL` : la clé étrangère détache de ce foyer les sessions de TOUS ses comptes, ce
+        # que la politique d'`auth_tokens` ne laisserait pas faire à cette session (qui n'écrit
+        # que ses propres sessions), et cette requête n'en touche alors aucune.
         db.query(AuthToken).filter(AuthToken.foyer_id == foyer_id).update({"foyer_id": None}, synchronize_session=False)
         db.query(Appartenance).filter(Appartenance.foyer_id == foyer_id).delete(synchronize_session=False)
         db.delete(foyer)
