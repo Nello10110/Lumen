@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router-do
 import { api } from './api/client'
 import type { AuthUser, Jalon, Role } from './api/types'
 import AccueilFoyer from './components/AccueilFoyer'
+import BandeauLiaisonSso from './components/BandeauLiaisonSso'
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
 import CelebrationJalon from './components/CelebrationJalon'
@@ -24,11 +25,12 @@ import { ROUTES } from './layout/routes'
 import AucunFoyerPage from './pages/AucunFoyerPage'
 import LoginPage from './pages/LoginPage'
 import PageIntrouvablePage from './pages/PageIntrouvablePage'
+import { useRetourLiaisonSso } from './hooks/useRetourLiaisonSso'
 import { useTendancePatrimoine } from './hooks/useTendancePatrimoine'
 import { rechargerApplication } from './auth/changementFoyer'
 import { invitationGardee, oublierInvitation } from './auth/invitationEnAttente'
 import { consommerFlashConnexion } from './utils/flashConnexion'
-import { estLangue } from './i18n'
+import { estLangue, langueActive } from './i18n'
 import { LangueProvider } from './i18n/LangueProvider'
 import { useLangue } from './i18n/useLangue'
 
@@ -38,6 +40,8 @@ import { useLangue } from './i18n/useLangue'
 const PartagePublicPage = lazy(() => import('./pages/PartagePublicPage'))
 // `/invitation` (backlog § BK.2b) : même statut — page publique, hors `AuthProvider`.
 const InvitationPage = lazy(() => import('./pages/InvitationPage'))
+// Console de l'opérateur (§ BK.2d) : la seule page d'un compte `est_operateur`.
+const OperateurPage = lazy(() => import('./pages/OperateurPage'))
 
 // Anciennes URL (avant le renommage backlog 2.K.2) : redirigées plutôt que
 // supprimées, pour ne pas casser les marque-pages ou l'historique du navigateur.
@@ -52,12 +56,15 @@ function RedirectionTicker() {
 // Titre d'onglet dynamique (backlog 2.K.2) : `ROUTES` (`layout/routes.ts`) est la
 // source unique pour l'URL, le libellé de navigation ET le titre d'onglet — évite
 // que les trois divergent au fil des évolutions, comme le relevait l'audit UX.
-function useTitreDocument() {
+// `actif` faux pour l'opérateur (§ BK.2d) : sa console pose son propre titre, que cet effet
+// — monté plus haut, donc exécuté après celui de la page — écraserait par « Lumen ».
+function useTitreDocument(actif: boolean) {
   const location = useLocation()
   useEffect(() => {
+    if (!actif) return
     const route = ROUTES.find((r) => matchPath({ path: r.path, end: true }, location.pathname))
     document.title = route ? `${route.titre} · Lumen` : 'Lumen'
-  }, [location.pathname])
+  }, [actif, location.pathname])
 }
 
 /** Foyer rejoint depuis l'écran d'accueil de l'application : ce qu'`AccueilFoyer` affiche. */
@@ -76,19 +83,29 @@ interface FoyerRejoint {
  * dernier : un changement de langue (celle du foyer, dès que l'utilisateur est connu)
  * le remonte, et emporterait l'état de cet accueil en cours de route.
  *
+ * Une invitation à CRÉER un foyer (§ BK.2d) fait du compte le propriétaire du foyer neuf :
+ * pas d'accueil court, l'utilisateur est rechargé et l'assistant de bienvenue se joue.
+ *
  * Le jeton gardé n'est accepté que s'il a été ARMÉ pour un retour SSO
  * (`armerRetourSso`) : un lien simplement ouvert puis abandonné ne doit jamais être
  * accepté par la connexion suivante, faite pour tout autre chose. */
 function useInvitationAcceptee() {
-  const { user, loading } = useAuth()
+  const { user, loading, refetchUser } = useAuth()
   const [enCours, setEnCours] = useState(() => invitationGardee()?.apresSso === true)
   const [accueil, setAccueil] = useState<FoyerRejoint | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const traitee = useRef(false)
 
-  const accueillir = useCallback((utilisateur: AuthUser) => {
-    setAccueil({ foyerNom: utilisateur.foyer_nom ?? null, role: utilisateur.role ?? 'membre' })
-  }, [])
+  const accueillir = useCallback(
+    (utilisateur: AuthUser) => {
+      if (utilisateur.role === 'proprietaire') {
+        refetchUser().catch(() => {})
+        return
+      }
+      setAccueil({ foyerNom: utilisateur.foyer_nom ?? null, role: utilisateur.role ?? 'membre' })
+    },
+    [refetchUser],
+  )
 
   useEffect(() => {
     if (loading || traitee.current) return
@@ -105,7 +122,7 @@ function useInvitationAcceptee() {
       return
     }
     api
-      .accepterInvitation(attente.jeton)
+      .accepterInvitation(attente.jeton, langueActive())
       .then(accueillir)
       .catch((err) => setErreur((err as Error).message))
       .finally(() => setEnCours(false))
@@ -127,19 +144,27 @@ function AppAuthentifiee() {
   const { user } = useAuth()
   const { langue, changerLangue } = useLangue()
   const invitation = useInvitationAcceptee()
-  const langueFoyer = user?.langue
+  const liaison = useRetourLiaisonSso()
+  // Sans foyer courant (l'opérateur, un compte qui n'en a plus), il n'y a pas de langue de
+  // foyer : l'interface garde celle de l'appareil, que `UserOut.langue` ne désigne pas.
+  const langueFoyer = user && user.role !== null && !user.est_operateur ? user.langue : undefined
   useEffect(() => {
     if (!estLangue(langueFoyer) || langueFoyer === langue) return
     // Fichier de langue injoignable : l'interface reste dans la langue courante.
     changerLangue(langueFoyer).catch(() => {})
   }, [langueFoyer, langue, changerLangue])
 
-  return <ContenuAuthentifie key={langue} invitation={invitation} />
+  return (
+    <>
+      <ContenuAuthentifie key={langue} invitation={invitation} />
+      <BandeauLiaisonSso retour={liaison.retour} onFermer={liaison.fermer} />
+    </>
+  )
 }
 
 function ContenuAuthentifie({ invitation }: { invitation: ReturnType<typeof useInvitationAcceptee> }) {
   const { user, loading } = useAuth()
-  useTitreDocument()
+  useTitreDocument(user?.est_operateur !== true)
 
   // Flash lumineux à la connexion (backlog § AH.1, 15/09/2026) : consomme le signal
   // posé par `LoginPage` (`armerFlashConnexion`) dès que `user` devient vrai — donc
@@ -209,6 +234,17 @@ function ContenuAuthentifie({ invitation }: { invitation: ReturnType<typeof useI
     )
   }
   if (!user) return <LoginPage />
+  // Opérateur de l'installation (backlog § BK.2d) : aucun foyer, aucune donnée — la console, et
+  // rien d'autre. Toute autre adresse y renvoie ; l'API, de son côté, lui refuse tout le reste.
+  if (user.est_operateur)
+    return (
+      <Suspense fallback={<SkeletonTexte />}>
+        <Routes>
+          <Route path="/operateur" element={<OperateurPage />} />
+          <Route path="*" element={<Navigate to="/operateur" replace />} />
+        </Routes>
+      </Suspense>
+    )
   // Foyer tout juste rejoint (backlog § BK.2b) : court accueil — le nom du foyer et le
   // rôle — puis rechargement complet sur le nouveau foyer. Ce n'est pas l'assistant de
   // bienvenue : un membre ou un invité ne règle pas un foyer qui existe déjà.

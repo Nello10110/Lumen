@@ -762,7 +762,7 @@ Principe (décision du 30/09/2026) : **un compte n'est supprimé que par lui-mê
 
 ### 3.27 Opérateur et naissance des foyers — contrat serveur (backlog § BK.2d)
 
-**L'opérateur** est un compte distinct (`users.est_operateur`), sans aucune appartenance (refusé par le service, et sous Postgres par la politique d'`appartenances`), qui se connecte par mot de passe local uniquement. Sa session prend le périmètre `app.operateur` de la base : aucune politique de patrimoine ne le connaît, il n'y lit aucune ligne, même en SQL direct. `get_membre_foyer` lui répond 403 sur toute route de foyer ; `/api/auth/me` porte `est_operateur`, `operateur_existe`, `peut_amorcer_operateur` et `sso_lie`. Test générique : toutes les routes de l'application hors `/api/operateur` et `/api/auth` répondent 403 à un jeton d'opérateur.
+**L'opérateur** est un compte distinct (`users.est_operateur`), sans aucune appartenance (refusé par le service, et sous Postgres par la politique d'`appartenances`), qui se connecte par mot de passe local uniquement. Sa session prend le périmètre `app.operateur` de la base : aucune politique de patrimoine ne le connaît, il n'y lit aucune ligne, même en SQL direct. `get_membre_foyer` lui répond 403 sur toute route de foyer ; `/api/auth/me` porte `est_operateur`, `operateur_existe`, `peut_amorcer_operateur`, `peut_inviter_a_creer_foyer` (le propriétaire peut inviter un proche à créer son foyer : mode `invitation`) et `sso_lie`. Test générique : toutes les routes de l'application hors `/api/operateur` et `/api/auth` répondent 403 à un jeton d'opérateur.
 
 **Création de l'opérateur.** `POST /api/auth/operateur {username, password}` (propriétaire ; 201 `{id, username, created_at}`) tant qu'aucun opérateur n'existe (409 sinon) et que l'installation n'a qu'un foyer (403 sinon) ; `python -m app.cli operateur creer <nom>` / `operateur mot-de-passe <nom>` (mot de passe demandé au terminal, jamais en argument ; la seconde ne vaut que pour un opérateur et coupe ses sessions).
 
@@ -788,6 +788,76 @@ Tant qu'aucun opérateur n'existe, `/api/settings/jobs…` et `/api/settings/log
 **Naissance d'un foyer.** Mode `ferme` (défaut) : seul l'opérateur crée un foyer. Mode `invitation` : un propriétaire peut aussi générer un lien (`POST /api/invitations/foyer {libelle?, duree_jours}`, `GET /api/invitations/foyer`, `DELETE /api/invitations/foyer/{id}` ; 403 en mode `ferme`, où ses liens déjà créés s'éteignent). Un lien est une invitation `foyer_id` vide, rôle `proprietaire`, figé côté serveur. `POST /api/invitations/consulter` renvoie alors `{foyer_nom: null, role: "proprietaire", libelle, langue: null, cree_un_foyer: true}` (la page garde la langue de l'appareil). `accepter-nouveau-compte` et `accepter` prennent un champ `langue` facultatif : le foyer naît à l'acceptation dans cette langue, l'accepteur en est le propriétaire (l'assistant de bienvenue se joue). Un compte existant garde ses autres foyers ; un opérateur est refusé (403).
 
 **SSO.** Un nouveau compte SSO crée son propre foyer (ou reste sans foyer si `sso_cree_son_foyer` est à non). Plus aucune liaison automatique par nom d'utilisateur : `POST /api/auth/oidc/lier` (compte connecté ; `{url}` à ouvrir ; 404 SSO non configuré, 403 opérateur, 409 déjà lié) puis le rappel du fournisseur **ne lie rien** (anti-CSRF de liaison : un lien d'autorisation tendu à un tiers lierait son identité au compte de l'attaquant) : il enregistre une liaison en attente (`liaisons_sso_en_attente` : compte visé, `sub`, email, nom ; 10 minutes, usage unique, code aléatoire dont seule l'empreinte est stockée) et redirige vers `/?oidc_liaison=<code>` (ou `/?oidc_liaison_erreur=…`), sans session ouverte ; l'interface, connectée, confirme par `POST /api/auth/oidc/lier/confirmer {code}` → `UserOut` : le compte courant doit être exactement le compte visé, sinon 404 uniforme (code inconnu, expiré, déjà utilisé, ou autre compte — la liaison en attente est alors détruite) ; 403 opérateur, 409 compte déjà lié ou identité déjà liée à un autre compte ; `POST /api/auth/oidc/delier` (409 si non lié ou sans mot de passe).
+
+### 3.28 Opérateur et naissance des foyers — interface (backlog § BK.2d)
+
+Le contrat serveur est au § 3.27. Cette section fixe ce que voient et font l'opérateur et le propriétaire.
+
+**Routage de l'opérateur** (`App.tsx`, `ContenuAuthentifie`). Un utilisateur `est_operateur` ne reçoit que
+`<Routes>` : `/operateur` (`OperateurPage`, chargée à la demande) et `*` qui y renvoie (`Navigate`, `replace`). Ni barre latérale,
+ni barre de contrôles, ni assistant de bienvenue, ni jalons. Sa langue est celle de l'**appareil** : l'application
+ne lui applique pas `UserOut.langue` (qui vaut `fr` par défaut pour un compte sans foyer), et la console propose
+`SelecteurLangue` en en-tête. Le titre de l'onglet du navigateur est posé par la page (`useTitreDocument` est
+désactivé pour lui). Un 401 sur `/operateur/...` déconnecte comme ailleurs.
+
+**Console** (`pages/OperateurPage.tsx`, `/operateur?onglet=foyers|installation|taches|journal`, composants sous
+`components/operateur/`). En-tête (nom, langue, « Se déconnecter »), **avertissement permanent** si `moteur === 'sqlite'`
+ou `!separation_par_la_base` (`role="alert"`, sans bouton de fermeture, au-dessus des onglets donc sur chacun), puis :
+
+- *Foyers* : `FoyersOperateurCard` (`GET /foyers` ; suspendre / réactiver sans confirmation, la réponse remplace la ligne ;
+  « Désigner un propriétaire » = `DesignerProprietaireModale`, `GET /foyers/{id}/comptes` filtré sur le rôle `membre` ;
+  « Supprimer » = `ConfirmationParSaisieModale` sur `confirmation_attendue`, bouton fermé tant que la saisie n'est pas
+  exacte, erreur du serveur affichée dans la fenêtre), puis la carte « Créer un foyer » (`SectionLiensFoyer` sur
+  `/operateur/invitations-foyer`), puis `ComptesSansFoyerCard` (suppression confirmée par le nom d'utilisateur ; la carte est
+  remontée après la suppression d'un foyer, qui allonge la liste). Aucun aperçu de suppression, par principe.
+- *Installation* : `ReglagesInstallationCard` (mode de naissance en boutons radio, deux cases ; chaque changement envoie
+  **ce seul champ** à `PUT /reglages` et reprend la réponse) et `LogoConnexionSsoCard` branchée sur `/operateur/logo-connexion-sso…`.
+- *Tâches planifiées* : `TachesPlanifieesSection` — les `JobCard` de l'ancien onglet Automatisations, branchées sur
+  `/operateur/jobs…`, avec `RafraichissementCoursProvider lireEtat={apiOperateur.getRefreshStatus}` (le suivi d'un rafraîchissement
+  passe par `/operateur/etat-rafraichissement`, la route des foyers étant fermée à l'opérateur). L'état des sauvegardes est celui de
+  la tâche « Sauvegarde chiffrée ».
+- *Journal d'accès* : `JournalAccesCard` branchée sur `/operateur/journal-acces` (`complet`) ; l'action `liaison_sso` et la raison
+  `operateur_sans_sso` sont traduites.
+
+**Réutilisation des routes d'installation.** `api/client.ts` décrit les routes des tâches planifiées et du logo SSO une seule fois
+(`routesInstallation('/settings' | '/operateur')`) : `api` en reçoit la version du propriétaire, `apiOperateur` celle de l'opérateur ;
+`JobCard`, `LogoConnexionSsoCard` et `TachesPlanifieesSection` prennent la source en prop (`source`, celle du propriétaire par
+défaut).
+
+**Côté propriétaire** (Réglages).
+
+- `BandeauOperateur`, en tête de l'écran, tant que `peut_amorcer_operateur` : replié (« Créer l'opérateur… »), puis `CreationOperateur`
+  (nom, mot de passe — 8 caractères au moins —, confirmation, `POST /api/auth/operateur`), puis l'explication (compte distinct, se connecter avec
+  lui). Après la création, `refetchUser()` éteint `peut_amorcer_operateur` : le bandeau garde son état local pour continuer à afficher
+  l'explication.
+- `operateur_existe` : l'onglet *Automatisations* et `LogoConnexionSsoCard` ne sont plus rendus (ils répondraient 403) ; une adresse
+  `?onglet=automatisations` retombe sur l'onglet par défaut ; plus aucun appel à `/api/settings/jobs`.
+- `InviterCreationFoyerCard` (onglet Comptes & sécurité) : visible si `peut_inviter_a_creer_foyer` (champ de `/api/auth/me`, vrai pour le
+  propriétaire quand le mode de naissance est `invitation` — le contrat ne permettait pas de le déduire autrement que par un 403 à la
+  création). `SectionLiensFoyer` sur `/api/invitations/foyer`.
+- `LiaisonSsoCard` (même onglet) : visible si `GET /auth/oidc/status` est `enabled` et que le compte n'est pas opérateur ; « Lier mon
+  compte SSO » = `POST /auth/oidc/lier` puis `window.location.assign(url)` ; « Délier » = `POST /auth/oidc/delier` (409 sans mot de passe,
+  message affiché) puis rechargement de l'utilisateur (`sso_lie`).
+
+**Retour d'une liaison SSO** (`hooks/useRetourLiaisonSso.ts`, monté dans `AppAuthentifiee`, message par `BandeauLiaisonSso`). Le rappel
+redirige vers `/?oidc_liaison=<code>` sans ouvrir de session. Le hook lit le paramètre **une seule fois** par chargement (garde par
+référence, insensible au double montage de `StrictMode`) et le **retire aussitôt** de la barre d'adresse (`history.replaceState`, le reste
+de l'adresse et le fragment sont conservés) ; le code vit en mémoire, jamais dans un stockage. Dès que l'utilisateur est connu, il le confirme
+(`POST /auth/oidc/lier/confirmer`) avec la session de ce compte, recharge l'utilisateur et annonce le succès ; le message d'une erreur du serveur
+est affiché tel quel. **Sans session ouverte au retour**, le code est abandonné et un message demande de relancer la liaison : un compte qui se
+connecterait ensuite ne reprend jamais un code. `?oidc_liaison_erreur=<message>` affiche le message (borné à 300 caractères : il arrive dans
+l'adresse) et est lui aussi retiré de l'URL.
+
+**Page `/invitation` pour un lien « créer votre foyer »** (`ApercuInvitation.cree_un_foyer`, `langue: null`). Titre « Invitation à créer votre
+foyer », phrase « Vous êtes invité à créer votre foyer : vous en serez le propriétaire », boutons « Créer mon compte et mon foyer » /
+« Me connecter et créer mon foyer » / « Créer mon foyer ». Les deux acceptations envoient `langue` = la langue de l'appareil
+(`langueActive()`), y compris celle faite par l'application au retour d'un SSO. L'accepteur étant propriétaire, **pas d'accueil court** :
+`rechargerApplication()` (page), ou `refetchUser()` (écran « aucun foyer » et retour SSO) ; l'assistant de bienvenue se joue.
+
+**Assistant de bienvenue.** `steps.ts` : l'étape `operateur` (« Administration de l'installation », `EtapeOperateur` = texte + `CreationOperateur`)
+n'est proposée que si `peut_amorcer_operateur` ; placée après « Inviter », avant « Démarrer le portefeuille ». La liste des étapes est
+**figée à l'ouverture** (`etapesPourUtilisateur`) : créer l'opérateur éteint la condition, ce qui sinon ferait disparaître l'étape. Elle se passe sans rien saisir
+(« plus tard »).
 
 ## 4. Modèle de données (tables principales)
 

@@ -44,6 +44,17 @@ export interface AuthUser {
   foyers?: FoyerResume[]
   foyer_courant_id?: number | null
   peut_creer_foyer?: boolean
+  // Opérateur de l'installation (backlog § BK.2d) : un compte sans foyer qui n'a que la
+  // console. `operateur_existe` : les réglages d'installation ne sont plus ceux du
+  // propriétaire ; `peut_amorcer_operateur` : le propriétaire peut en créer un (aucun
+  // n'existe, un seul foyer) ; `peut_inviter_a_creer_foyer` : mode de naissance
+  // `invitation`, le propriétaire peut inviter un proche à créer son foyer ; `sso_lie` :
+  // le compte est lié à une identité SSO.
+  est_operateur?: boolean
+  operateur_existe?: boolean
+  peut_amorcer_operateur?: boolean
+  peut_inviter_a_creer_foyer?: boolean
+  sso_lie?: boolean
 }
 
 // Aperçu de la suppression du foyer courant (backlog § BK.2c) : des nombres, jamais un
@@ -103,6 +114,13 @@ export interface LogoConnexionSso {
   logo: string | null
 }
 
+// Le compte opérateur tout juste créé (`POST /auth/operateur`).
+export interface OperateurCree {
+  id: number
+  username: string
+  created_at: string
+}
+
 // Sessions et journal d'accès (backlog 2.L.2).
 export interface Session {
   id_session: string
@@ -119,7 +137,7 @@ export interface AccessLogEntry {
   timestamp: string
   username_saisi: string
   ip: string | null
-  action: 'login' | 'logout'
+  action: 'login' | 'logout' | 'liaison_sso'
   resultat: 'succes' | 'echec'
   raison: string | null
 }
@@ -185,5 +203,20 @@ export interface ApercuInvitation {
   foyer_nom: string | null
   role: Role
   libelle: string | null
-  langue: string
+  // `null` pour une invitation à créer un foyer : la page garde la langue de l'appareil.
+  langue: string | null
+  // Vrai pour une invitation à CRÉER un foyer (§ BK.2d) : celui qui l'accepte en sera le propriétaire.
+  cree_un_foyer: boolean
+}
+
+// Invitation à créer un foyer (backlog § BK.2d) : pas de rôle ni de périmètre, le foyer
+// n'existe pas encore. Le rôle (`proprietaire`) est figé côté serveur.
+export interface InvitationFoyerInput {
+  libelle?: string
+  duree_jours: 1 | 7 | 30
+}
+
+// Lien d'autorisation du fournisseur SSO, où le navigateur se rend pour lier son compte.
+export interface LienSso {
+  url: string
 }

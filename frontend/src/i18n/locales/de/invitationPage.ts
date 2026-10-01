@@ -26,6 +26,12 @@ const invitationPage: Structure<typeof fr> = {
   rejoindre: "Diesem Haushalt beitreten",
   autreCompte: "Anderes Konto verwenden",
   ouvrirApplication: "App öffnen, ohne beizutreten",
+  titreCreation: "Einladung, Ihren Haushalt zu erstellen",
+  inviteCreation: "Sie sind eingeladen, Ihren Haushalt zu erstellen: Sie werden sein Eigentümer.",
+  creerLeFoyer: "Meinen Haushalt erstellen",
+  ajouteAuxFoyersCreation: "Ihr neuer Haushalt kommt zu denen dieses Kontos hinzu, falls es schon welche hat: Über die Seitenleiste wechseln Sie zwischen ihnen.",
+  creerEtCreerFoyer: "Konto und Haushalt erstellen",
+  seConnecterEtCreerFoyer: "Anmelden und meinen Haushalt erstellen",
 }
 
 export default invitationPage

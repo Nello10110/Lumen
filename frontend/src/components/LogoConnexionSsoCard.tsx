@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api/client'
+import { api, type RoutesInstallation } from '../api/client'
 import Card from './Card'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import { Field, Input } from './Field'
 import { t } from '../i18n'
+
+type SourceLogo = Pick<
+  RoutesInstallation,
+  'getLogoConnexionSso' | 'setLogoConnexionSsoUrl' | 'uploadLogoConnexionSso' | 'deleteLogoConnexionSso'
+>
 
 type Action = 'chargement' | 'fichier' | 'url' | 'suppression' | null
 
@@ -21,8 +26,11 @@ type Action = 'chargement' | 'fichier' | 'url' | 'suppression' | null
  * reste porté par des variables d'environnement et n'est délibérément PAS éditable
  * ici : cf. `services/logo_oidc_service.py` côté serveur, qui explique pourquoi
  * cette image est la seule exception. L'encart le redit à l'exploitant, pour qu'il ne
- * cherche pas le reste de la configuration sur cet écran. */
-export default function LogoConnexionSsoCard() {
+ * cherche pas le reste de la configuration sur cet écran.
+ *
+ * `source` : les routes à appeler — celles du propriétaire (`/settings`) par défaut, celles
+ * de l'opérateur (`/operateur`) dans sa console (backlog § BK.2d). */
+export default function LogoConnexionSsoCard({ source = api }: { source?: SourceLogo }) {
   const fichierRef = useRef<HTMLInputElement>(null)
   const [logo, setLogo] = useState<string | null>(null)
   const [url, setUrl] = useState('')
@@ -30,12 +38,12 @@ export default function LogoConnexionSsoCard() {
   const [erreur, setErreur] = useState<string | null>(null)
 
   useEffect(() => {
-    api
+    source
       .getLogoConnexionSso()
       .then((r) => setLogo(r.logo))
       .catch((err) => setErreur((err as Error).message))
       .finally(() => setEnCours(null))
-  }, [])
+  }, [source])
 
   async function executer(action: Exclude<Action, null | 'chargement'>, appel: () => Promise<{ logo: string | null }>) {
     setEnCours(action)
@@ -77,7 +85,7 @@ export default function LogoConnexionSsoCard() {
         </SecondaryButton>
         {logo && (
           <SecondaryButton
-            onClick={() => void executer('suppression', () => api.deleteLogoConnexionSso())}
+            onClick={() => void executer('suppression', () => source.deleteLogoConnexionSso())}
             disabled={occupe}
             className="text-negatif hover:bg-neg-bg"
           >
@@ -95,7 +103,7 @@ export default function LogoConnexionSsoCard() {
         onChange={(e) => {
           const fichier = e.target.files?.[0]
           if (!fichier) return
-          void executer('fichier', () => api.uploadLogoConnexionSso(fichier))
+          void executer('fichier', () => source.uploadLogoConnexionSso(fichier))
           e.target.value = ''
         }}
       />
@@ -103,7 +111,7 @@ export default function LogoConnexionSsoCard() {
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          if (url.trim()) void executer('url', () => api.setLogoConnexionSsoUrl(url.trim()))
+          if (url.trim()) void executer('url', () => source.setLogoConnexionSsoUrl(url.trim()))
         }}
         className="mt-4 flex flex-wrap items-end gap-3"
       >

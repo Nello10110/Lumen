@@ -26,6 +26,12 @@ const invitationPage: Structure<typeof fr> = {
   rejoindre: "Join this household",
   autreCompte: "Use another account",
   ouvrirApplication: "Open the app without joining",
+  titreCreation: "Invitation to create your household",
+  inviteCreation: "You are invited to create your household: you will be its owner.",
+  creerLeFoyer: "Create my household",
+  ajouteAuxFoyersCreation: "Your new household will be added to the ones this account already has, if any: the sidebar will let you switch between them.",
+  creerEtCreerFoyer: "Create my account and my household",
+  seConnecterEtCreerFoyer: "Sign in and create my household",
 }
 
 export default invitationPage

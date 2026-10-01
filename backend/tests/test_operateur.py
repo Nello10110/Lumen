@@ -430,6 +430,18 @@ def test_en_mode_invitation_un_proprietaire_cree_un_lien_qui_fait_naitre_un_foye
     assert accepte.json()["user"]["foyer_courant_id"] != ID_FOYER_TEST
 
 
+def test_moi_annonce_si_le_proprietaire_peut_inviter_a_creer_un_foyer(client_jetons, db, en_tete_operateur):
+    en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)
+    assert client_jetons.get("/api/auth/me", headers=en_tete).json()["peut_inviter_a_creer_foyer"] is False
+
+    client_jetons.put("/api/operateur/reglages", json={"mode_naissance_foyers": "invitation"}, headers=en_tete_operateur)
+    assert client_jetons.get("/api/auth/me", headers=en_tete).json()["peut_inviter_a_creer_foyer"] is True
+
+    # Un membre, lui, n'a jamais cette section.
+    membre = _ajouter_membre(db, ID_FOYER_TEST, "conjoint")
+    assert client_jetons.get("/api/auth/me", headers=jeton_de_session(db, membre.id)).json()["peut_inviter_a_creer_foyer"] is False
+
+
 def test_le_lien_d_un_proprietaire_s_eteint_au_retour_au_mode_ferme(client_jetons, db, en_tete_operateur):
     client_jetons.put("/api/operateur/reglages", json={"mode_naissance_foyers": "invitation"}, headers=en_tete_operateur)
     en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)

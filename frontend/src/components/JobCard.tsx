@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '../api/client'
+import { api, type RoutesInstallation } from '../api/client'
 import type { ScheduledJob } from '../api/types'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
@@ -38,7 +38,18 @@ const INTERVAL_OPTIONS = [1, 6, 12, 24, 48, 168]
 // défaut à chaque rafraîchissement — ce bouton, réservé à ce job précis, permet de
 // les réinterroger explicitement (utile après une évolution de leur cotabilité).
 
-export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: ScheduledJob) => void }) {
+/** `source` : les routes des tâches planifiées à appeler — celles du propriétaire
+ * (`/settings`) par défaut, celles de l'opérateur (`/operateur`) dans sa console
+ * (backlog § BK.2d). */
+export default function JobCard({
+  job,
+  onChange,
+  source = api,
+}: {
+  job: ScheduledJob
+  onChange: (job: ScheduledJob) => void
+  source?: Pick<RoutesInstallation, 'listJobs' | 'updateJob' | 'runJobNow'>
+}) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,7 +65,7 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
     declencher,
   } = useRafraichissementCours(async () => {
     try {
-      const jobs = await api.listJobs()
+      const jobs = await source.listJobs()
       const miseAJour = jobs.find((j) => j.job_key === job.job_key)
       if (miseAJour) onChange(miseAJour)
     } catch (err) {
@@ -66,7 +77,7 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
     setSaving(true)
     setError(null)
     try {
-      onChange(await api.updateJob(job.job_key, { enabled, intervalle_heures: job.intervalle_heures }))
+      onChange(await source.updateJob(job.job_key, { enabled, intervalle_heures: job.intervalle_heures }))
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -78,7 +89,7 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
     setSaving(true)
     setError(null)
     try {
-      onChange(await api.updateJob(job.job_key, { enabled: job.enabled, intervalle_heures }))
+      onChange(await source.updateJob(job.job_key, { enabled: job.enabled, intervalle_heures }))
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -88,7 +99,7 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
 
   function handleRunNow(forcerNonCotables = false) {
     setError(null)
-    declencher(() => api.runJobNow(job.job_key, forcerNonCotables))
+    declencher(() => source.runJobNow(job.job_key, forcerNonCotables))
   }
 
   const libelleRunNow =

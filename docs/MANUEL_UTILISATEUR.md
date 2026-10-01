@@ -475,6 +475,17 @@ Six onglets : **Général**, **Détenteurs**, **Comptes & sécurité**, **Partag
 et **Badges**. L'onglet ouvert est porté par l'adresse (`/reglages?onglet=...`) : un lien peut y
 conduire directement, et le retour du navigateur restitue l'onglet précédent.
 
+Deux choses changent selon l'état de l'installation (cf. « Console de l'opérateur ») :
+
+- tant qu'**aucun compte opérateur n'existe et que l'installation n'a qu'un foyer**, un encart
+  **« Créer le compte opérateur »** s'affiche en tête de l'écran. Il est replié : « Créer l'opérateur… »
+  ouvre un formulaire (nom d'utilisateur, mot de passe, confirmation). Une fois le compte créé, l'encart
+  explique la suite : ce compte est **distinct du vôtre**, il n'appartient à aucun foyer et ne voit aucun
+  patrimoine ; pour administrer l'installation, déconnectez-vous puis connectez-vous avec lui ;
+- **dès qu'un opérateur existe**, les réglages d'installation quittent cet écran : l'onglet
+  **Automatisations** (tâches planifiées) disparaît, de même que la carte du **logo du bouton SSO**.
+  Ils se règlent désormais depuis la console de l'opérateur.
+
 ### Onglet Général
 
 #### Assistant de bienvenue
@@ -483,8 +494,10 @@ conduire directement, et le retour du navigateur restitue l'onglet précédent.
 configuration initiale s'affiche à la place de l'application : bienvenue — avec, en tête de cette
 toute première page, le **choix de la langue** du foyer —, méthode de calcul du
 coût de revient, détenteurs du foyer, établissements et comptes, **inviter les membres du foyer**
-(facultatif, cf. « Onglet Comptes & sécurité »), puis les deux façons de démarrer
-le portefeuille (import de transactions ou saisie manuelle). Le propriétaire d'un foyer qu'il crée
+(facultatif, cf. « Onglet Comptes & sécurité »), **administration de l'installation** (facultatif : uniquement
+quand un compte opérateur peut encore être créé, donc en pratique pour le premier compte d'une installation
+neuve — l'étape propose de créer l'opérateur tout de suite, ou plus tard depuis Réglages), puis les deux façons
+de démarrer le portefeuille (import de transactions ou saisie manuelle). Le propriétaire d'un foyer qu'il crée
 lui-même (cf. « Compte sans foyer ») voit lui aussi cet assistant ; un membre ou un invité qui rejoint un
 foyer existant, non : il voit seulement un court accueil. Chaque étape peut être passée ;
 "Passer l'assistant" comme "Terminer" marquent le parcours comme fait — il ne réapparaît plus aux
@@ -597,6 +610,20 @@ Section visible uniquement par le propriétaire du compte.
     son nom d'utilisateur pour confirmer. Vous devenez simple membre — les données ne bougent pas — et
     l'application se recharge : Réglages ne vous est plus accessible, seul le nouveau propriétaire peut vous rendre
     la propriété. Le bouton n'apparaît que s'il y a un membre à qui la confier.
+- **Inviter un proche à créer son foyer** : carte visible **seulement si l'installation est en mode
+  « sur invitation »** (cf. « Console de l'opérateur »). Elle produit un lien « créer votre foyer » : la
+  personne y crée son compte — ou utilise celui qu'elle a déjà — **et son propre foyer**, dont elle est
+  propriétaire ; elle n'entre pas dans le vôtre. Même fonctionnement que les invitations ci-dessous : durée de
+  validité (1, 7 ou 30 jours), libellé facultatif, lien affiché **une seule fois**, liste des liens (en attente,
+  acceptés et par qui, révoqués, expirés) avec révocation. En mode « fermé », seul l'opérateur crée des foyers et
+  cette carte n'apparaît pas.
+- **Connexion SSO** : carte visible si ce déploiement propose une connexion SSO. « **Lier mon compte SSO** »
+  vous envoie chez le fournisseur pour vous y authentifier, puis vous ramène dans l'application, qui **confirme**
+  la liaison avec votre session ; un message indique le résultat. Une fois lié, vous pouvez vous connecter avec
+  votre identité SSO (ou toujours avec votre mot de passe). « **Délier mon compte SSO** » retire cette identité ;
+  c'est refusé pour un compte qui n'a pas de mot de passe, qui ne pourrait plus se connecter. Un compte n'est
+  **jamais** lié automatiquement à un compte SSO du même nom : c'est cette carte, depuis le compte connecté,
+  qui lie. Le compte opérateur n'est pas concerné (mot de passe seulement).
 - **Sessions actives** : chaque appareil ou navigateur connecté avec ce compte, avec sa dernière
   activité. « Révoquer » déconnecte immédiatement cet appareil précis, sans toucher aux autres — la
   session en cours d'utilisation ne peut pas se révoquer elle-même.
@@ -631,6 +658,13 @@ ou déjà utilisé ») : il faut en demander un nouveau.
 
 Le jeton est dans la partie de l'adresse qui suit le « # » : elle n'est jamais envoyée au serveur, et la
 page l'efface de la barre d'adresse dès qu'elle l'a lu.
+
+**Lien « créer votre foyer ».** Un lien généré par l'opérateur (ou par un propriétaire, en mode « sur
+invitation ») ouvre la même page, mais elle dit « **Vous êtes invité à créer votre foyer** » au lieu d'inviter à
+en rejoindre un. On y crée un compte (ou l'on se connecte à son compte existant) et **le foyer naît à ce
+moment-là, dans la langue de votre appareil** ; vous en êtes le propriétaire. Il n'y a pas d'accueil court :
+l'application s'ouvre directement sur l'assistant de bienvenue, comme pour tout nouveau foyer. Un compte
+opérateur ne peut pas accepter un tel lien.
 
 **Plusieurs foyers, changer de foyer.** Un même compte peut appartenir à plusieurs foyers, avec un rôle
 différent dans chacun (invité chez l'un, propriétaire de l'autre). À partir de deux foyers, un
@@ -674,7 +708,8 @@ d'accès sont effacés définitivement (irréversible), et vous revenez à l'éc
 
 #### Logo du bouton de connexion SSO
 
-Réservé au propriétaire du foyer. Si ce déploiement propose une connexion SSO, son
+Réservé au propriétaire du foyer **tant qu'aucun compte opérateur n'existe** ; ensuite, il se règle depuis la
+console de l'opérateur (onglet Installation), avec la même carte. Si ce déploiement propose une connexion SSO, son
 bouton sur l'écran de connexion peut afficher le logo du fournisseur à gauche de son libellé. Deux
 façons de le fournir : **téléverser une image** (PNG, JPEG, WebP ou ICO), ou **coller l'adresse d'une
 image** — c'est alors le serveur qui va la chercher, pas ton navigateur, de sorte que la page de
@@ -700,6 +735,10 @@ Un lien de partage donne à un tiers (une banque pour un prêt, un notaire, un m
 Chaque lien créé apparaît dans la liste avec son URL complète (à copier-coller), un badge s'il est révoqué, expiré, ou protégé par un code. **Révoquer** coupe l'accès immédiatement et définitivement — le visiteur qui rouvre le lien voit un message d'indisponibilité, sans plus de détail (impossible de deviner si le lien a expiré, a été révoqué, ou n'a jamais existé).
 
 ### Onglet Automatisations
+
+Cet onglet n'existe que **tant qu'aucun compte opérateur n'existe** : ensuite, les tâches planifiées — un réglage
+de l'installation, pas d'un foyer — se règlent dans l'onglet **Tâches planifiées** de la console de l'opérateur, avec
+les mêmes cartes.
 
 Cinq tâches planifiées, chacune avec sa propre carte :
 
@@ -734,6 +773,84 @@ Pour chacune :
 Une galerie strictement personnelle des jalons obtenus et à venir — premier import, ancienneté du
 suivi... Elle valorise la régularité du suivi, jamais le montant investi ni le risque pris : aucun
 chiffre en euros, rien de partageable ni de comparé à d'autres.
+
+## Console de l'opérateur
+
+L'**opérateur** administre l'**installation** — pas un foyer. C'est un compte **distinct** de tout propriétaire :
+il n'appartient à aucun foyer et **ne voit jamais un patrimoine** (ni montant, ni ligne, ni compte bancaire) ;
+l'application le lui interdit, et sous Postgres la base elle-même ne lui en montre aucune ligne. Il se connecte
+par mot de passe seulement (jamais par SSO) et n'a **qu'un seul écran**, la console, à l'adresse `/operateur` :
+toute autre adresse l'y renvoie. Il n'a donc ni barre latérale ni assistant de bienvenue, et la console suit la
+**langue de son appareil** (une liste en tête de page permet d'en changer). « Se déconnecter » est dans l'en-tête.
+
+**Créer l'opérateur.** Deux voies :
+
+- depuis **Réglages** (encart « Créer le compte opérateur » ou étape de l'assistant de bienvenue), par le
+  propriétaire, tant qu'aucun opérateur n'existe et que l'installation n'a qu'un foyer ;
+- en **ligne de commande** par l'exploitant (`python -m app.cli operateur creer <nom>`, cf. le manuel d'exploitation),
+  qui sert aussi à réinitialiser un mot de passe perdu — il n'y a pas de serveur mail.
+
+Dès qu'un opérateur existe, la création depuis Réglages n'est plus proposée, et les réglages d'installation
+(tâches planifiées, logo du bouton SSO) quittent l'écran du propriétaire : ils sont dans la console.
+
+**Avertissement SQLite.** Quand l'installation utilise SQLite, un encadré orange s'affiche **en permanence**, sur
+tous les onglets, sans bouton pour le fermer : « La séparation des foyers n'est assurée que par l'application ».
+La base de données n'impose alors pas la séparation entre foyers, seul le code de l'application la garantit —
+acceptable entre proches sur son propre serveur ; pour accueillir des foyers qui ne se connaissent pas, il faut
+passer sur PostgreSQL.
+
+La console a quatre onglets.
+
+### Onglet Foyers
+
+- **Foyers** : la liste de tous les foyers, avec leur nom, leur statut (*Actif* ou *Suspendu*), le nom de leur
+  propriétaire, le nombre de comptes, la date de création et la dernière activité. Pour chacun :
+  - **Suspendre** : les comptes du foyer perdent aussitôt l'accès (leur session repasse « sans foyer »), ses liens de
+    partage et ses invitations cessent de fonctionner ; les données restent intactes. **Réactiver** rend le foyer.
+  - **Désigner un propriétaire** : quand le propriétaire a disparu, choisir un **membre** du foyer (un invité ne
+    peut pas devenir propriétaire) ; l'éventuel propriétaire actuel devient simple membre.
+  - **Supprimer** : efface le foyer **définitivement** — patrimoine, réglages, liens de partage, invitations,
+    appartenances. La confirmation se fait en saisissant le **nom du foyer** (ou `SUPPRIMER` s'il n'en a pas). Aucun
+    aperçu de ce qui sera effacé n'est proposé : compter des lignes de patrimoine, ce serait déjà en voir. **Les comptes
+    ne sont pas supprimés** : ceux qui n'avaient que ce foyer restent sans foyer.
+- **Créer un foyer** : un foyer naît d'un **lien « créer votre foyer »**. On choisit la validité (1, 7 ou 30 jours) et,
+  si l'on veut, un libellé (« famille Martin »), puis « Créer le lien ». **Le lien n'est affiché qu'une fois** : copiez-le
+  (« Copier le lien ») et transmettez-le vous-même. Le foyer **naît quand la personne l'accepte** — nouveau compte ou
+  compte existant —, dans la langue de son appareil, et elle en est le propriétaire. La liste dessous montre tous les
+  liens — les vôtres et ceux que des propriétaires ont générés en mode « sur invitation » —, avec leur état, le compte qui
+  les a acceptés, et la possibilité de **révoquer** ceux qui sont en attente.
+- **Comptes sans foyer** : les comptes qui se connectent mais n'appartiennent à aucun foyer (le dernier foyer supprimé
+  ou quitté les laisse là). Un compte se supprime lui-même ; tant qu'il n'a plus de foyer, l'opérateur peut le
+  supprimer à sa place, avec ses sessions et son journal d'accès, en saisissant son **nom d'utilisateur**. Un compte qui
+  a encore un foyer ne figure pas dans la liste.
+
+### Onglet Installation
+
+- **Comment naît un foyer ?** Deux modes, pour toute l'installation :
+  - **Fermé** (par défaut) : seul l'opérateur crée un foyer, en générant un lien ;
+  - **Sur invitation** : un propriétaire peut aussi générer un lien « créer votre foyer » pour un proche (carte
+    « Inviter un proche à créer son foyer » dans ses Réglages). Repasser en mode fermé **éteint les liens des
+    propriétaires**, pas ceux de l'opérateur.
+- **Un nouveau compte SSO crée son foyer** (activé par défaut) : à la première connexion d'une identité SSO inconnue,
+  un compte est créé avec son propre foyer. Désactivé, le compte est créé **sans foyer** et attend une invitation.
+- **Un compte sans foyer peut créer le sien** (activé par défaut) : désactivé, un compte sans foyer doit accepter
+  une invitation (ou être supprimé).
+- **Logo du bouton de connexion SSO** : la même carte que dans Réglages (cf. plus haut).
+
+Chaque changement s'enregistre immédiatement.
+
+### Onglet Tâches planifiées
+
+Les cinq tâches planifiées (cours, composition des fonds, sauvegarde chiffrée, logos, historique des cours), avec les
+mêmes cartes que l'ancien onglet Automatisations : activer, intervalle, **Lancer maintenant** (avec la progression d'un
+rafraîchissement des cours), dernière exécution. **L'état des sauvegardes se lit dans la carte « Sauvegarde chiffrée »**
+(date et résultat de la dernière exécution).
+
+### Onglet Journal d'accès
+
+Le journal **complet** de l'installation : tous les comptes, et les tentatives sur un identifiant inconnu, que les
+propriétaires ne voient plus dès qu'un opérateur existe. Chaque entrée porte le nom saisi, l'action (connexion,
+déconnexion, liaison SSO), l'adresse IP, le résultat et sa date ; la liste est paginée.
 
 ## Écran Aide
 

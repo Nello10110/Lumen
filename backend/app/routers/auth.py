@@ -46,6 +46,7 @@ from ..services import (
     budget_categories_service,
     comptes_service,
     foyer_service,
+    installation_service,
     logo_oidc_service,
     oidc_service,
     operateur_service,
@@ -98,6 +99,9 @@ def construire_user_out(db: Session, user: User) -> UserOut:
     sortie.sso_lie = user.oidc_subject is not None
     sortie.operateur_existe = auth_service.operateur_existe(db)
     sortie.peut_amorcer_operateur = user.role == ROLE_PROPRIETAIRE and operateur_service.amorcage_possible(db)
+    sortie.peut_inviter_a_creer_foyer = (
+        user.role == ROLE_PROPRIETAIRE and installation_service.mode_naissance(db) == installation_service.MODE_INVITATION
+    )
     # Les foyers du compte se décrivent même sans foyer courant : c'est ce que propose
     # l'écran « aucun foyer ».
     foyers = auth_service.foyers_du_compte(db, user.id)

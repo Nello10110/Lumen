@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, Invitation, InvitationCreee, StatutInvitation } from '../api/types'
+import type { Detenteur, Invitation, InvitationCreee } from '../api/types'
 import { copierTexte } from '../utils/presse-papiers'
 import { formatDateHeure } from '../utils/format'
 import { lienInvitation } from '../utils/invitation'
 import { libelleRole } from '../utils/libelleRole'
+import { TON_STATUT_INVITATION, libelleStatutInvitation } from '../utils/statutInvitation'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import { Badge, Field, Input, Select } from './Field'
@@ -13,20 +14,6 @@ import { t } from '../i18n'
 
 const DUREES = [1, 7, 30] as const
 type Duree = (typeof DUREES)[number]
-
-const TON_STATUT: Record<StatutInvitation, 'accent' | 'positif' | 'neutre' | 'avertissement'> = {
-  en_attente: 'accent',
-  acceptee: 'positif',
-  revoquee: 'neutre',
-  expiree: 'avertissement',
-}
-
-function libelleStatut(statut: StatutInvitation): string {
-  if (statut === 'en_attente') return t('sectionInvitations.statutEnAttente')
-  if (statut === 'acceptee') return t('sectionInvitations.statutAcceptee')
-  if (statut === 'revoquee') return t('sectionInvitations.statutRevoquee')
-  return t('sectionInvitations.statutExpiree')
-}
 
 /** Invitations à rejoindre le foyer (backlog § BK.2b), réservées au propriétaire :
  * un formulaire (rôle, périmètre d'un invité, durée, libellé) qui produit un lien, puis
@@ -197,7 +184,7 @@ export default function SectionInvitations() {
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-texte">
                       <span className="font-medium">{nom}</span>
                       {inv.libelle && <span className="text-xs text-texte-attenue">{libelleRole(inv.role)}</span>}
-                      <Badge ton={TON_STATUT[inv.statut]}>{libelleStatut(inv.statut)}</Badge>
+                      <Badge ton={TON_STATUT_INVITATION[inv.statut]}>{libelleStatutInvitation(inv.statut)}</Badge>
                     </div>
                     <p className="mt-0.5 text-xs text-texte-attenue">
                       {inv.statut === 'acceptee' && inv.utilisee_le

@@ -1,28 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { api } from '../api/client'
-import type { ScheduledJob } from '../api/types'
 import BadgesCard from '../components/BadgesCard'
+import BandeauOperateur from '../components/BandeauOperateur'
 import Card from '../components/Card'
 import { CLASSES_BOUTON_PRIMAIRE, CLASSES_BOUTON_SECONDAIRE, Pill, SecondaryButton, SegmentedControl } from '../components/Controls'
 import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal'
 import DetenteursCard from '../components/DetenteursCard'
-import EtatErreur from '../components/EtatErreur'
-import EtatVide from '../components/EtatVide'
 import { Select } from '../components/Field'
 import FoyerCard from '../components/FoyerCard'
 import LangueFoyerCard from '../components/LangueFoyerCard'
 import GestionFoyerCard from '../components/GestionFoyerCard'
 import { IconBadge, IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
-import JobCard from '../components/JobCard'
+import InviterCreationFoyerCard from '../components/InviterCreationFoyerCard'
 import JournalAccesCard from '../components/JournalAccesCard'
+import LiaisonSsoCard from '../components/LiaisonSsoCard'
 import LogoConnexionSsoCard from '../components/LogoConnexionSsoCard'
 import WelcomeWizard from '../components/onboarding/WelcomeWizard'
 import PartageCard from '../components/PartageCard'
 import PreferencesCard from '../components/PreferencesCard'
 import SauvegardeDonneesCard from '../components/SauvegardeDonneesCard'
 import SessionsCard from '../components/SessionsCard'
-import { SkeletonTexte } from '../components/Skeleton'
+import TachesPlanifieesSection from '../components/TachesPlanifieesSection'
 import { useAuth } from '../hooks/useAuth'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { t } from '../i18n'
@@ -64,8 +62,12 @@ export default function ReglagesPage() {
   const { user } = useAuth()
   const { langageSimple, toggleLangageSimple } = usePreferencesAffichage()
   const [searchParams, setSearchParams] = useSearchParams()
+  // Les tâches planifiées sont un réglage d'INSTALLATION : dès qu'un opérateur existe, elles
+  // vivent dans sa console (backlog § BK.2d) et l'onglet quitte l'écran du propriétaire.
+  const operateurExiste = user?.operateur_existe === true
+  const onglets = operateurExiste ? ONGLETS.filter((o) => o.key !== 'automatisations') : ONGLETS
   const ongletParam = searchParams.get('onglet') as OngletKey | null
-  const onglet = ONGLETS.some((o) => o.key === ongletParam) ? (ongletParam as OngletKey) : ONGLET_PAR_DEFAUT
+  const onglet = onglets.some((o) => o.key === ongletParam) ? (ongletParam as OngletKey) : ONGLET_PAR_DEFAUT
 
   function setOnglet(suivant: OngletKey) {
     setSearchParams((prev) => {
@@ -76,28 +78,9 @@ export default function ReglagesPage() {
     })
   }
 
-  const [jobs, setJobs] = useState<ScheduledJob[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [declarationOuverte, setDeclarationOuverte] = useState(false)
   const [anneeBilan, setAnneeBilan] = useState(() => new Date().getFullYear())
   const [assistantOuvert, setAssistantOuvert] = useState(false)
-
-  function chargerJobs() {
-    setLoading(true)
-    setError(null)
-    api
-      .listJobs()
-      .then(setJobs)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(chargerJobs, [])
-
-  function updateJobInState(updated: ScheduledJob) {
-    setJobs((prev) => prev.map((j) => (j.job_key === updated.job_key ? updated : j)))
-  }
 
   return (
     // Colonne unique de 760 px (maquette de la refonte) : des réglages se lisent en
@@ -112,8 +95,11 @@ export default function ReglagesPage() {
     <div className="mx-auto max-w-[760px] space-y-[14px]">
       <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">{t('reglagesPage.reglages')}</h1>
 
+      {/* Création du compte opérateur, tant qu'elle est possible (backlog § BK.2d). */}
+      <BandeauOperateur />
+
       <SegmentedControl
-        options={ONGLETS.map(({ key, label, Icone }) => ({
+        options={onglets.map(({ key, label, Icone }) => ({
           valeur: key,
           libelle: (
             <span className="flex items-center gap-1.5">
@@ -213,7 +199,10 @@ export default function ReglagesPage() {
       {onglet === 'securite' && (
         <div className="space-y-[14px]">
           <GestionFoyerCard />
-          <LogoConnexionSsoCard />
+          <InviterCreationFoyerCard />
+          <LiaisonSsoCard />
+          {/* Le logo du bouton SSO est un réglage d'installation : à l'opérateur dès qu'il existe. */}
+          {!operateurExiste && <LogoConnexionSsoCard />}
           <SessionsCard />
           <JournalAccesCard />
         </div>
@@ -226,14 +215,7 @@ export default function ReglagesPage() {
       )}
 
       {onglet === 'automatisations' && (
-        <div className="space-y-[14px]">
-          {loading && <SkeletonTexte />}
-          {error && <EtatErreur message={error} onReessayer={chargerJobs} />}
-          {!loading && !error && jobs.length === 0 && <EtatVide titre={t('reglagesPage.aucuneTachePlanifiee')} />}
-          {jobs.map((job) => (
-            <JobCard key={job.job_key} job={job} onChange={updateJobInState} />
-          ))}
-        </div>
+        <TachesPlanifieesSection />
       )}
 
       {onglet === 'badges' && (

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { EtatRafraichissement } from '../api/types'
 import { useRafraichissementCours } from './useRafraichissementCours'
+import { useRafraichissementCoursEtat } from './useRafraichissementCoursEtat'
 
 vi.mock('../api/client', () => ({
   api: {
@@ -160,5 +161,22 @@ describe('useRafraichissementCours', () => {
 
     expect(onTermine).toHaveBeenCalledTimes(1)
     expect(result.current.enCours).toBe(false)
+  })
+
+  it("sonde la route fournie plutôt que celle des foyers (console de l'opérateur, § BK.2d)", async () => {
+    const lireEtat = vi.fn().mockResolvedValue(etat({ en_cours: true, positions_traitees: 1, positions_total: 4 }))
+    const { result } = renderHook(() => useRafraichissementCoursEtat(lireEtat))
+
+    await act(async () => {
+      await result.current.declencher(async () => undefined)
+    })
+    expect(result.current.etat?.en_cours).toBe(true)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600)
+    })
+
+    expect(lireEtat.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect(api.getRefreshStatus).not.toHaveBeenCalled()
   })
 })

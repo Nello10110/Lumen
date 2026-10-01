@@ -35,7 +35,8 @@ l'API » ci-dessous.
   modales, graphiques, tuiles de statistiques...).
 - `src/hooks/` — logique d'état réutilisable indépendante de l'affichage (ex. suivi
   d'un rafraîchissement en tâche de fond, gestion du thème clair/sombre).
-- `src/api/` — `client.ts` (appels HTTP vers l'API, un point d'entrée unique `api.*`)
+- `src/api/` — `client.ts` (appels HTTP vers l'API : `api.*` pour un foyer, `apiOperateur.*` pour la
+  console de l'opérateur)
   et `types/` (types TypeScript reflétant les schémas Pydantic du backend, un fichier par
   domaine ; `types.ts` les réexporte tous).
 - `src/contexts/` — état partagé par toute l'application (session, préférences d'affichage :
@@ -43,6 +44,8 @@ l'API » ci-dessous.
 - `src/layout/` — table des routes (`routes.ts` : titre, entrée de navigation, rôles autorisés)
   et correspondance route → écran (`pageComponents.ts`).
 - `e2e/` — tests de bout en bout Playwright, et leur jeu de données (`backend/scripts/seed_e2e.py`).
+  `operateur.spec.ts` a son propre projet, exécuté avant les autres (il crée puis supprime un compte
+  opérateur, ce qui change l'écran du propriétaire seedé : cf. son en-tête).
 - `src/utils/` — fonctions pures partagées (formatage de nombres, dates...).
 - `src/i18n/` — traduction de l'interface (backlog § BL) : `t('cle.du.texte')`, un dictionnaire
   par langue dans `locales/` (`fr.ts` fait référence, les autres sont typés d'après lui et chargés

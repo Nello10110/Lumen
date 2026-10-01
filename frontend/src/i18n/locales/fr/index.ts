@@ -11,6 +11,7 @@ import allocationChartCard from './allocationChartCard'
 import analysePage from './analysePage'
 import aucunFoyer from './aucunFoyer'
 import badgesCard from './badgesCard'
+import bandeauOperateur from './bandeauOperateur'
 import budgetPage from './budgetPage'
 import catalogueEtablissementPicker from './catalogueEtablissementPicker'
 import categoriesEtReglesSection from './categoriesEtReglesSection'
@@ -25,9 +26,13 @@ import compteDetailContent from './compteDetailContent'
 import compteDetailModal from './compteDetailModal'
 import compteDetailPage from './compteDetailPage'
 import comptesPage from './comptesPage'
+import comptesSansFoyer from './comptesSansFoyer'
+import confirmationParSaisie from './confirmationParSaisie'
 import coutGestionCard from './coutGestionCard'
+import creationOperateur from './creationOperateur'
 import dashboardPage from './dashboardPage'
 import declarationPatrimoineModal from './declarationPatrimoineModal'
+import designerProprietaire from './designerProprietaire'
 import detenteursCard from './detenteursCard'
 import detenteursSection from './detenteursSection'
 import donnees from './donnees'
@@ -40,6 +45,7 @@ import evolutionFinanciereCard from './evolutionFinanciereCard'
 import expositionConsolideeCard from './expositionConsolideeCard'
 import field from './field'
 import foyerCard from './foyerCard'
+import foyersOperateur from './foyersOperateur'
 import gestionFoyerCard from './gestionFoyerCard'
 import guidesExport from './guidesExport'
 import holdingCategories from './holdingCategories'
@@ -57,9 +63,11 @@ import importRelevePositionsSection from './importRelevePositionsSection'
 import importTransactionsSection from './importTransactionsSection'
 import indicateursSituationCard from './indicateursSituationCard'
 import invitationPage from './invitationPage'
+import inviterCreationFoyer from './inviterCreationFoyer'
 import jobCard from './jobCard'
 import journalAccesCard from './journalAccesCard'
 import labelAdaptatif from './labelAdaptatif'
+import liaisonSso from './liaisonSso'
 import ligneEpargne from './ligneEpargne'
 import lignesPatrimoineTable from './lignesPatrimoineTable'
 import loanFormFields from './loanFormFields'
@@ -69,6 +77,7 @@ import lumenFaitAmusant from './lumenFaitAmusant'
 import metriquesAvanceesCard from './metriquesAvanceesCard'
 import miseAJourDisponible from './miseAJourDisponible'
 import mouvementsSection from './mouvementsSection'
+import operateurPage from './operateurPage'
 import pageIntrouvablePage from './pageIntrouvablePage'
 import paletteRecherche from './paletteRecherche'
 import partageCard from './partageCard'
@@ -89,6 +98,7 @@ import rafraichissementCoursIndicateur from './rafraichissementCoursIndicateur'
 import rapportPage from './rapportPage'
 import rattrapageComptes from './rattrapageComptes'
 import recurrencesSection from './recurrencesSection'
+import reglagesInstallation from './reglagesInstallation'
 import reglagesPage from './reglagesPage'
 import repartitionSection from './repartitionSection'
 import resultatImport from './resultatImport'
@@ -98,6 +108,7 @@ import salairePage from './salairePage'
 import sauvegardeDonneesCard from './sauvegardeDonneesCard'
 import scorePatrimonialCard from './scorePatrimonialCard'
 import sectionInvitations from './sectionInvitations'
+import sectionLiensFoyer from './sectionLiensFoyer'
 import selecteurCompte from './selecteurCompte'
 import selecteurEtablissement from './selecteurEtablissement'
 import selecteurFoyer from './selecteurFoyer'
@@ -124,6 +135,7 @@ const espaces = {
   analysePage,
   aucunFoyer,
   badgesCard,
+  bandeauOperateur,
   budgetPage,
   catalogueEtablissementPicker,
   categoriesEtReglesSection,
@@ -138,9 +150,13 @@ const espaces = {
   compteDetailModal,
   compteDetailPage,
   comptesPage,
+  comptesSansFoyer,
+  confirmationParSaisie,
   coutGestionCard,
+  creationOperateur,
   dashboardPage,
   declarationPatrimoineModal,
+  designerProprietaire,
   detenteursCard,
   detenteursSection,
   donnees,
@@ -153,6 +169,7 @@ const espaces = {
   expositionConsolideeCard,
   field,
   foyerCard,
+  foyersOperateur,
   gestionFoyerCard,
   guidesExport,
   holdingCategories,
@@ -170,9 +187,11 @@ const espaces = {
   importTransactionsSection,
   indicateursSituationCard,
   invitationPage,
+  inviterCreationFoyer,
   jobCard,
   journalAccesCard,
   labelAdaptatif,
+  liaisonSso,
   ligneEpargne,
   lignesPatrimoineTable,
   loanFormFields,
@@ -182,6 +201,7 @@ const espaces = {
   metriquesAvanceesCard,
   miseAJourDisponible,
   mouvementsSection,
+  operateurPage,
   pageIntrouvablePage,
   paletteRecherche,
   partageCard,
@@ -202,6 +222,7 @@ const espaces = {
   rapportPage,
   rattrapageComptes,
   recurrencesSection,
+  reglagesInstallation,
   reglagesPage,
   repartitionSection,
   resultatImport,
@@ -211,6 +232,7 @@ const espaces = {
   sauvegardeDonneesCard,
   scorePatrimonialCard,
   sectionInvitations,
+  sectionLiensFoyer,
   selecteurCompte,
   selecteurEtablissement,
   selecteurFoyer,

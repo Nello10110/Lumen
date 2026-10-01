@@ -22,7 +22,7 @@ vi.mock('../api/client', () => ({
 
 vi.mock('../auth/changementFoyer', () => ({ rechargerApplication: vi.fn() }))
 
-const APERCU = { foyer_nom: 'Famille Dupont', role: 'membre' as const, libelle: 'Sophie', langue: 'fr' }
+const APERCU = { foyer_nom: 'Famille Dupont', role: 'membre' as const, libelle: 'Sophie', langue: 'fr', cree_un_foyer: false }
 
 function utilisateur(overrides = {}) {
   return {
@@ -134,7 +134,7 @@ describe('InvitationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Créer mon compte et rejoindre le foyer' }))
 
     await screen.findByRole('heading', { name: 'Bienvenue dans le foyer Famille Dupont' })
-    expect(api.accepterInvitationNouveauCompte).toHaveBeenCalledWith('jeton_de-test123', 'sophie', 'mot-de-passe-1')
+    expect(api.accepterInvitationNouveauCompte).toHaveBeenCalledWith('jeton_de-test123', 'sophie', 'mot-de-passe-1', 'fr')
     expect(getToken()).toBe('session-neuve')
     expect(invitationGardee()).toBeNull()
     expect(screen.getByText('Votre rôle dans ce foyer : Membre du foyer.')).toBeInTheDocument()
@@ -170,7 +170,7 @@ describe('InvitationPage', () => {
 
     await screen.findByRole('heading', { name: 'Bienvenue dans le foyer Famille Dupont' })
     expect(api.login).toHaveBeenCalledWith('sophie', 'mot-de-passe-1')
-    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton_de-test123')
+    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton_de-test123', 'fr')
     expect(getToken()).toBe('session-existante')
     expect(invitationGardee()).toBeNull()
   })
@@ -201,7 +201,7 @@ describe('InvitationPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre ce foyer' }))
 
     await screen.findByRole('heading', { name: 'Bienvenue dans le foyer Famille Dupont' })
-    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton_de-test123')
+    expect(api.accepterInvitation).toHaveBeenCalledWith('jeton_de-test123', 'fr')
     expect(screen.queryByLabelText("Nom d'utilisateur")).not.toBeInTheDocument()
   })
 
@@ -235,5 +235,80 @@ describe('InvitationPage', () => {
 
     await screen.findByText(/Famille Dupont vous invite/)
     expect(screen.queryByRole('link', { name: /Continuer avec/ })).not.toBeInTheDocument()
+  })
+
+  // Invitation à CRÉER un foyer (backlog § BK.2d).
+  describe('invitation à créer un foyer', () => {
+    const CREATION = { foyer_nom: null, role: 'proprietaire' as const, libelle: 'Famille Martin', langue: null, cree_un_foyer: true }
+
+    beforeEach(() => {
+      vi.mocked(api.consulterInvitation).mockResolvedValue(CREATION)
+    })
+
+    it('dit « créer votre foyer » au lieu de « rejoindre », sans nom de foyer', async () => {
+      render(<InvitationPage />)
+
+      expect(await screen.findByText('Vous êtes invité à créer votre foyer : vous en serez le propriétaire.')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Invitation à créer votre foyer' })).toBeInTheDocument()
+      expect(screen.getByText('Invitation destinée à : Famille Martin')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Créer mon compte et mon foyer' })).toBeInTheDocument()
+      expect(screen.queryByText(/rejoindre/i)).not.toBeInTheDocument()
+      expect(document.title).toBe('Invitation à créer votre foyer · Lumen')
+    })
+
+    it("créer un compte envoie la langue de l'appareil et mène directement à l'application (propriétaire : pas d'accueil court)", async () => {
+      vi.mocked(api.accepterInvitationNouveauCompte).mockResolvedValue({
+        token: 'session-neuve',
+        user: utilisateur({ role: 'proprietaire', onboarding_termine: false }),
+      })
+      render(<InvitationPage />)
+      await screen.findByText(/en serez le propriétaire/)
+
+      fireEvent.change(screen.getByLabelText("Nom d'utilisateur"), { target: { value: 'martin' } })
+      fireEvent.change(screen.getByLabelText(/^Mot de passe/), { target: { value: 'mot-de-passe-1' } })
+      fireEvent.change(screen.getByLabelText('Confirmer le mot de passe'), { target: { value: 'mot-de-passe-1' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Créer mon compte et mon foyer' }))
+
+      await waitFor(() => expect(rechargerApplication).toHaveBeenCalledTimes(1))
+      expect(api.accepterInvitationNouveauCompte).toHaveBeenCalledWith('jeton_de-test123', 'martin', 'mot-de-passe-1', 'fr')
+      expect(getToken()).toBe('session-neuve')
+      expect(invitationGardee()).toBeNull()
+      expect(screen.queryByRole('heading', { name: /^Bienvenue dans/ })).not.toBeInTheDocument()
+    })
+
+    it('un compte déjà connecté crée son foyer d’un clic, avec la langue de l’appareil', async () => {
+      setToken('session-existante')
+      vi.mocked(api.getMe).mockResolvedValue(utilisateur())
+      vi.mocked(api.accepterInvitation).mockResolvedValue(utilisateur({ role: 'proprietaire', onboarding_termine: false }))
+      render(<InvitationPage />)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Créer mon foyer' }))
+
+      await waitFor(() => expect(rechargerApplication).toHaveBeenCalledTimes(1))
+      expect(api.accepterInvitation).toHaveBeenCalledWith('jeton_de-test123', 'fr')
+    })
+
+    it('« J’ai déjà un compte » propose de se connecter et créer le foyer', async () => {
+      render(<InvitationPage />)
+      await screen.findByText(/en serez le propriétaire/)
+
+      fireEvent.click(screen.getByRole('button', { name: "J'ai déjà un compte" }))
+
+      expect(screen.getByRole('button', { name: 'Me connecter et créer mon foyer' })).toBeInTheDocument()
+    })
+
+    it('affiche le refus du serveur (un opérateur ne crée pas de foyer)', async () => {
+      setToken('session-operateur')
+      vi.mocked(api.getMe).mockResolvedValue(utilisateur())
+      vi.mocked(api.accepterInvitation).mockRejectedValue(
+        new Error("Un compte opérateur n'appartient à aucun foyer et ne peut pas en rejoindre ni en créer."),
+      )
+      render(<InvitationPage />)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Créer mon foyer' }))
+
+      expect(await screen.findByText(/compte opérateur n'appartient à aucun foyer/)).toBeInTheDocument()
+      expect(rechargerApplication).not.toHaveBeenCalled()
+    })
   })
 })

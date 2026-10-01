@@ -45,6 +45,11 @@ function lireJeton(): string | null {
  * par le SSO (l'acceptation se fait au retour, cf. `ContenuAuthentifie`). Un compte déjà
  * connecté accepte d'un clic.
  *
+ * Une invitation peut aussi servir à CRÉER un foyer (§ BK.2d, `cree_un_foyer`) : la page ne dit
+ * plus « rejoindre » mais « créer votre foyer », envoie la langue de l'appareil (qui devient celle
+ * du foyer neuf), et mène directement à l'application — le compte en est le propriétaire,
+ * l'assistant de bienvenue se joue, il n'y a pas d'accueil court.
+ *
  * Le jeton est envoyé dans le CORPS des requêtes, jamais dans l'URL. Toute erreur de
  * jeton est un 404 identique pour le serveur (absent, expiré, révoqué, utilisé) : la page
  * n'en dit pas plus, elle ne le pourrait pas. */
@@ -63,8 +68,14 @@ export default function InvitationPage() {
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
 
+  const creeUnFoyer = apercu?.cree_un_foyer === true
+  const titre = creeUnFoyer ? t('invitationPage.titreCreation') : t('invitationPage.titre')
+
   useEffect(() => {
-    document.title = `${t('invitationPage.titre')} · Lumen`
+    document.title = `${titre} · Lumen`
+  }, [titre])
+
+  useEffect(() => {
     if (!jeton) return
     let actif = true
     api
@@ -76,7 +87,6 @@ export default function InvitationPage() {
         if (estLangue(vue.langue) && vue.langue !== langueActive()) {
           await activerLangue(vue.langue).catch(() => undefined)
           document.documentElement.lang = vue.langue
-          document.title = `${t('invitationPage.titre')} · Lumen`
         }
         if (actif) setApercu(vue)
       })
@@ -102,6 +112,10 @@ export default function InvitationPage() {
 
   function rejoint(utilisateur: AuthUser) {
     oublierInvitation()
+    if (creeUnFoyer) {
+      rechargerApplication()
+      return
+    }
     setAccueil({ foyerNom: utilisateur.foyer_nom ?? apercu?.foyer_nom ?? null, role: utilisateur.role ?? apercu?.role ?? 'membre' })
   }
 
@@ -115,7 +129,7 @@ export default function InvitationPage() {
     setEnCours(true)
     setErreur(null)
     try {
-      const { token, user } = await api.accepterInvitationNouveauCompte(jeton, username.trim(), password)
+      const { token, user } = await api.accepterInvitationNouveauCompte(jeton, username.trim(), password, langueActive())
       setToken(token)
       rejoint(user)
     } catch (err) {
@@ -130,7 +144,7 @@ export default function InvitationPage() {
     setEnCours(true)
     setErreur(null)
     try {
-      rejoint(await api.accepterInvitation(jeton))
+      rejoint(await api.accepterInvitation(jeton, langueActive()))
     } catch (err) {
       setErreur((err as Error).message)
     } finally {
@@ -150,7 +164,7 @@ export default function InvitationPage() {
       // Connecté quoi qu'il arrive à l'acceptation : si elle échoue (déjà membre, jeton
       // devenu inutilisable), l'écran « connecté » prend le relais avec son message.
       try {
-        rejoint(await api.accepterInvitation(jeton))
+        rejoint(await api.accepterInvitation(jeton, langueActive()))
       } catch (err) {
         setErreur((err as Error).message)
       }
@@ -180,7 +194,7 @@ export default function InvitationPage() {
       <GlassPanel niveau="hero" className="w-full max-w-[420px] rounded-[26px] px-7 py-[30px]">
         <div className="flex items-center gap-3">
           <LumenMark className="h-11 w-11 shrink-0" />
-          <h1 className="text-[22px] font-semibold tracking-title text-ink">{t('invitationPage.titre')}</h1>
+          <h1 className="text-[22px] font-semibold tracking-title text-ink">{titre}</h1>
         </div>
 
         {erreurLien ? (
@@ -197,18 +211,20 @@ export default function InvitationPage() {
         ) : (
           <>
             <p className="mt-5 text-sm text-ink2">
-              {apercu.foyer_nom
-                ? t('invitationPage.inviteAvecNom', { foyer: apercu.foyer_nom, role: libelleRole(apercu.role) })
-                : t('invitationPage.inviteSansNom', { role: libelleRole(apercu.role) })}
+              {creeUnFoyer
+                ? t('invitationPage.inviteCreation')
+                : apercu.foyer_nom
+                  ? t('invitationPage.inviteAvecNom', { foyer: apercu.foyer_nom, role: libelleRole(apercu.role) })
+                  : t('invitationPage.inviteSansNom', { role: libelleRole(apercu.role) })}
             </p>
             {apercu.libelle && <p className="mt-1 text-sm text-ink3">{t('invitationPage.pour', { libelle: apercu.libelle })}</p>}
 
             {connecte ? (
               <div className="mt-6 space-y-3">
                 <p className="text-sm text-ink2">{t('invitationPage.connecteEn', { nom: connecte.nom || connecte.username })}</p>
-                <p className="text-xs text-ink3">{t('invitationPage.ajouteAuxFoyers')}</p>
+                <p className="text-xs text-ink3">{creeUnFoyer ? t('invitationPage.ajouteAuxFoyersCreation') : t('invitationPage.ajouteAuxFoyers')}</p>
                 <PrimaryButton onClick={() => void accepter()} disabled={enCours} className="w-full">
-                  {t('invitationPage.rejoindre')}
+                  {creeUnFoyer ? t('invitationPage.creerLeFoyer') : t('invitationPage.rejoindre')}
                 </PrimaryButton>
                 <SecondaryButton onClick={autreCompte} className="w-full">
                   {t('invitationPage.autreCompte')}
@@ -256,14 +272,18 @@ export default function InvitationPage() {
                       />
                     </Field>
                   )}
-                  {mode === 'connexion' && <p className="-mt-2 text-xs text-ink3">{t('invitationPage.ajouteAuxFoyers')}</p>}
+                  {mode === 'connexion' && (
+                    <p className="-mt-2 text-xs text-ink3">
+                      {creeUnFoyer ? t('invitationPage.ajouteAuxFoyersCreation') : t('invitationPage.ajouteAuxFoyers')}
+                    </p>
+                  )}
                   {erreur && <EtatErreur message={erreur} />}
                   <PrimaryButton type="submit" disabled={enCours}>
                     {enCours
                       ? t('invitationPage.unInstant')
                       : mode === 'creation'
-                        ? t('invitationPage.creerEtRejoindre')
-                        : t('invitationPage.seConnecterEtRejoindre')}
+                        ? t(creeUnFoyer ? 'invitationPage.creerEtCreerFoyer' : 'invitationPage.creerEtRejoindre')
+                        : t(creeUnFoyer ? 'invitationPage.seConnecterEtCreerFoyer' : 'invitationPage.seConnecterEtRejoindre')}
                   </PrimaryButton>
                 </form>
 

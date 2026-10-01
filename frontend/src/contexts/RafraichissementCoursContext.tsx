@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useRafraichissementCoursEtat } from '../hooks/useRafraichissementCoursEtat'
+import { useRafraichissementCoursEtat, type LectureEtatRafraichissement } from '../hooks/useRafraichissementCoursEtat'
 import { RafraichissementCoursContext } from './rafraichissementCoursContextObject'
 
 /** Retour utilisateur du 16/09/2026 : « il faut que ça continue quand on change de
@@ -23,7 +23,15 @@ import { RafraichissementCoursContext } from './rafraichissementCoursContextObje
  * (montée aux côtés de ce Provider) qui rend la progression/fin visible quel que
  * soit l'écran affiché — sans elle, ce Provider corrigerait le suivi en silence
  * mais l'utilisateur n'aurait toujours aucun moyen de VOIR que c'est fini. */
-export function RafraichissementCoursProvider({ children }: { children: ReactNode }) {
-  const moteur = useRafraichissementCoursEtat()
+export function RafraichissementCoursProvider({
+  children,
+  lireEtat,
+}: {
+  children: ReactNode
+  /** Route à sonder : celle de l'opérateur dans sa console (backlog § BK.2d), celle des
+   * foyers sinon. */
+  lireEtat?: LectureEtatRafraichissement
+}) {
+  const moteur = useRafraichissementCoursEtat(lireEtat)
   return <RafraichissementCoursContext.Provider value={moteur}>{children}</RafraichissementCoursContext.Provider>
 }
