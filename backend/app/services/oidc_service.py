@@ -329,10 +329,6 @@ def _maintenant() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def hacher_code(code: str) -> str:
-    return hashlib.sha256(code.encode("utf-8")).hexdigest()
-
-
 def preparer_liaison(db: Session, user: User, claims: dict, config: OidcConfig) -> str:
     """Rappel d'un « Lier mon compte SSO » : n'établit RIEN. Enregistre une liaison en attente
     (`DUREE_LIAISON_MINUTES`, à usage unique) pour le compte visé `user` — celui du `state` signé —
@@ -353,7 +349,7 @@ def preparer_liaison(db: Session, user: User, claims: dict, config: OidcConfig) 
     code = secrets.token_urlsafe(32)
     db.add(
         LiaisonSsoEnAttente(
-            code_hash=hacher_code(code),
+            code_hash=auth_service.hacher_jeton(code),
             user_id=user.id,
             sub=sub,
             email=claims.get(config.claim_email),
@@ -372,7 +368,7 @@ def confirmer_liaison(db: Session, user: User, code: str) -> None:
     même que pour un code inconnu (`LiaisonIntrouvableError`). Usage unique : la ligne est
     consommée avant tout contrôle de fond. Refus de fond (`OidcError`), comme avant : compte
     opérateur, compte déjà lié, identité déjà liée à un autre compte."""
-    liaison = db.query(LiaisonSsoEnAttente).filter(LiaisonSsoEnAttente.code_hash == hacher_code(code)).first()
+    liaison = db.query(LiaisonSsoEnAttente).filter(LiaisonSsoEnAttente.code_hash == auth_service.hacher_jeton(code)).first()
     if liaison is None:
         raise LiaisonIntrouvableError
     visee, expiree, sub, email, nom = liaison.user_id, liaison.expire_le <= _maintenant(), liaison.sub, liaison.email, liaison.nom

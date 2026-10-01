@@ -245,7 +245,7 @@ def test_page_de_partage_public_annonce_la_langue_du_foyer(client, db):
     from app.services import partage_service, preferences_service
 
     preferences_service.enregistrer_langue_foyer(db, ID_FOYER_TEST, "es")
-    lien = partage_service.creer_lien(
+    _, jeton_lien = partage_service.creer_lien(
         db,
         ID_FOYER_TEST,
         nom="Banque",
@@ -258,7 +258,7 @@ def test_page_de_partage_public_annonce_la_langue_du_foyer(client, db):
         masquer_valeurs=False,
         code=None,
     )
-    reponse = client.get(f"/api/partage-public/{lien.token}/meta")
+    reponse = client.get(f"/api/partage-public/{jeton_lien}/meta")
     assert reponse.json()["langue"] == "es"
 
 

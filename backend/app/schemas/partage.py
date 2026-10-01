@@ -47,15 +47,13 @@ class LienPartageCreate(BaseModel):
 
 
 class LienPartageOut(BaseModel):
-    """Contrairement à `AuthToken` (jeton de session, jamais réaffiché après sa
-    création — cf. `SessionOut`), `token` reste exposé à chaque relecture : un lien
-    de partage est fait pour être recopié/renvoyé plus tard par le propriétaire, pas
-    consulté une seule fois à sa création. Différence assumée, pas un oubli."""
+    """Un lien de partage tel que la liste le décrit : jamais son jeton. La base n'en garde que
+    l'empreinte (§ BK.2e) : le jeton, donc l'adresse à transmettre, n'existe qu'à la création
+    (`LienPartageCreeOut`), comme celui d'une invitation."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    token: str
     nom: str
     detenteur_id: int | None
     inclure_patrimoine_net: bool
@@ -67,6 +65,13 @@ class LienPartageOut(BaseModel):
     created_at: datetime
     expires_at: datetime
     revoked_at: datetime | None
+
+
+class LienPartageCreeOut(LienPartageOut):
+    """Réponse de la création, seule occasion où le jeton en clair est rendu : l'adresse publique
+    du lien se compose de lui (`<origine>/partage/<jeton>`) et ne pourra plus être reconstituée."""
+
+    token: str
 
 
 class PartageAccesRequest(BaseModel):

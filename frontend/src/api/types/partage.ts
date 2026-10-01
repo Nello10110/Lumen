@@ -2,7 +2,6 @@
 // et consultation publique (aucune authentification).
 export interface LienPartage {
   id: number
-  token: string
   nom: string
   detenteur_id: number | null
   inclure_patrimoine_net: boolean
@@ -14,6 +13,12 @@ export interface LienPartage {
   created_at: string
   expires_at: string
   revoked_at: string | null
+}
+
+/** Réponse de la création, seule occasion où le jeton est rendu : le serveur n'en garde que
+ * l'empreinte (§ BK.2e). L'adresse publique du lien se compose de lui. */
+export interface LienPartageCree extends LienPartage {
+  token: string
 }
 
 export interface LienPartageInput {

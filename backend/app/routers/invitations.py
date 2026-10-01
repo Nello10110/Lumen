@@ -173,9 +173,9 @@ def accepter_avec_nouveau_compte(payload: AcceptationNouveauCompte, request: Req
         raise _introuvable(ip) from erreur
     except auth_service.NomUtilisateurPrisError as erreur:
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE) from erreur
-    token = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
+    _, jeton = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "invitation")
-    return AuthResponse(token=token.token, user=construire_user_out(db, user))
+    return AuthResponse(token=jeton, user=construire_user_out(db, user))
 
 
 @router.post("/accepter", response_model=UserOut)

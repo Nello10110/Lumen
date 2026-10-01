@@ -4,13 +4,15 @@ construction de la charge utile publique (masquage, activation par section)."""
 
 from datetime import timedelta
 
+from sqlalchemy import text
+
 from app.models import PartageAcces
-from app.services import partage_service
+from app.services import auth_service, partage_service
 
 from .conftest import ID_FOYER_TEST, make_holding
 
 
-def _creer(db, **overrides):
+def _creer_avec_jeton(db, **overrides):
     defaults = dict(
         nom="Pour la banque",
         detenteur_id=None,
@@ -26,11 +28,24 @@ def _creer(db, **overrides):
     return partage_service.creer_lien(db, ID_FOYER_TEST, **defaults)
 
 
+def _creer(db, **overrides):
+    """Le lien seul ; `_creer_avec_jeton` rend aussi son jeton en clair."""
+    return _creer_avec_jeton(db, **overrides)[0]
+
+
 def test_creer_lien_genere_un_jeton_opaque_unique(db):
-    lien1 = _creer(db)
-    lien2 = _creer(db)
-    assert lien1.token != lien2.token
-    assert len(lien1.token) == 64  # 32 octets en hexadécimal
+    _, jeton1 = _creer_avec_jeton(db)
+    _, jeton2 = _creer_avec_jeton(db)
+    assert jeton1 != jeton2
+    assert len(jeton1) == 64  # 32 octets en hexadécimal
+
+
+def test_creer_lien_ne_garde_que_l_empreinte_du_jeton(db):
+    lien, jeton = _creer_avec_jeton(db)
+    assert lien.token_hash == auth_service.hacher_jeton(jeton)
+    assert jeton not in lien.token_hash
+    # Rien de la base ne contient le jeton en clair.
+    assert db.execute(text("SELECT COUNT(*) FROM liens_partage WHERE token_hash = :jeton"), {"jeton": jeton}).scalar() == 0
 
 
 def test_creer_lien_avec_code_stocke_un_hash_jamais_le_code_en_clair(db):
@@ -47,25 +62,31 @@ def test_lister_liens_ne_renvoie_que_ceux_du_foyer(db):
 
 
 def test_revoquer_lien_invalide_immediatement_la_consultation(db):
-    lien = _creer(db)
-    assert partage_service.lien_valide_par_token(db, lien.token) is not None
+    lien, jeton = _creer_avec_jeton(db)
+    assert partage_service.lien_valide_par_token(db, jeton) is not None
 
     partage_service.revoquer_lien(db, lien)
 
     assert lien.revoked_at is not None
-    assert partage_service.lien_valide_par_token(db, lien.token) is None
+    assert partage_service.lien_valide_par_token(db, jeton) is None
 
 
 def test_lien_expire_nest_plus_valide(db):
-    lien = _creer(db, duree_jours=1)
+    lien, jeton = _creer_avec_jeton(db, duree_jours=1)
     lien.expires_at = lien.expires_at - timedelta(days=2)
     db.commit()
 
-    assert partage_service.lien_valide_par_token(db, lien.token) is None
+    assert partage_service.lien_valide_par_token(db, jeton) is None
 
 
 def test_lien_valide_par_token_inconnu_renvoie_none(db):
     assert partage_service.lien_valide_par_token(db, "jeton-inexistant") is None
+
+
+def test_l_empreinte_n_est_pas_un_jeton(db):
+    """Lire l'empreinte dans la base ne suffit pas à ouvrir le lien."""
+    lien = _creer(db)
+    assert partage_service.lien_valide_par_token(db, lien.token_hash) is None
 
 
 def test_verifier_code_sans_code_requis_accepte_tout(db):

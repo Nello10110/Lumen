@@ -39,16 +39,16 @@ def test_creer_utilisateur_normalise_les_espaces_du_nom_dutilisateur(db):
 
 def test_creer_token_expire_dans_le_futur(db):
     user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
-    token = auth_service.creer_token(db, user)
+    token, _ = auth_service.creer_token(db, user)
     assert token.expires_at > token.created_at
     assert (token.expires_at - token.created_at) == timedelta(days=auth_service.TOKEN_TTL_JOURS)
 
 
 def test_utilisateur_par_token_retrouve_le_bon_utilisateur(db):
     user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
-    token = auth_service.creer_token(db, user)
+    _, jeton = auth_service.creer_token(db, user)
 
-    retrouve = auth_service.utilisateur_par_token(db, token.token)
+    retrouve = auth_service.utilisateur_par_token(db, jeton)
 
     assert retrouve is not None
     assert retrouve.id == user.id
@@ -60,21 +60,21 @@ def test_utilisateur_par_token_absent_renvoie_none(db):
 
 def test_utilisateur_par_token_expire_renvoie_none(db):
     user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
-    token = auth_service.creer_token(db, user)
+    token, jeton = auth_service.creer_token(db, user)
     token.expires_at = token.created_at - timedelta(days=1)
     db.commit()
 
-    assert auth_service.utilisateur_par_token(db, token.token) is None
+    assert auth_service.utilisateur_par_token(db, jeton) is None
 
 
-def test_supprimer_token_revoque_laccess(db):
+def test_revoquer_session_revoque_laccess(db):
     user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
-    token = auth_service.creer_token(db, user)
+    token, jeton = auth_service.creer_token(db, user)
 
-    auth_service.supprimer_token(db, token.token)
+    auth_service.revoquer_session(db, token)
 
-    assert auth_service.utilisateur_par_token(db, token.token) is None
-    assert db.get(AuthToken, token.token) is None
+    assert auth_service.utilisateur_par_token(db, jeton) is None
+    assert db.get(AuthToken, auth_service.hacher_jeton(jeton)) is None
 
 
 def test_verrouillage_actif_sous_le_seuil_renvoie_none(db):

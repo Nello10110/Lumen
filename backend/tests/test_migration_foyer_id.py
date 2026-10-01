@@ -103,7 +103,9 @@ def test_le_schema_migre_est_celui_des_modeles(base):
 
     for table in TABLES_DE_FOYER:
         modele = Base.metadata.tables[table]
-        index_attendus = {i.name for i in modele.indexes}
+        # `liens_partage.token` n'a été renommée `token_hash` (et son index) que par la révision suivante
+        # (`c4f1a8d2e6b3`, jetons hachés) : à cette révision, l'index porte encore l'ancien nom.
+        index_attendus = {i.name.replace("token_hash", "token") for i in modele.indexes}
         assert {i["name"] for i in inspecteur.get_indexes(table)} == index_attendus, table
         unicites_attendues = {c.name for c in modele.constraints if isinstance(c, UniqueConstraint)}
         assert {u["name"] for u in inspecteur.get_unique_constraints(table)} == unicites_attendues, table

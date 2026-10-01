@@ -1048,12 +1048,17 @@ class AuthToken(Base):
     mécanisme, une FK classique est le choix naturel pour lier un jeton à son compte.
     `id_session` (2.L.2) est l'identifiant PUBLIC de la session, renvoyé par
     `GET /api/auth/sessions` et utilisé pour la révocation individuelle — jamais
-    `token` lui-même (le secret porteur), qui ne doit plus jamais réapparaître dans
-    une réponse une fois émis."""
+    le jeton lui-même (le secret porteur), qui ne doit plus jamais réapparaître dans
+    une réponse une fois émis.
+
+    Depuis le lot BK.2e, la base ne garde que l'EMPREINTE du jeton (`token_hash`, SHA-256,
+    cf. `auth_service.hacher_jeton`) : une fuite de la base ne donne plus de session valide.
+    Le jeton en clair n'existe que le temps de la réponse de connexion ; la recherche se fait
+    par empreinte. Un hachage lent serait inutile face à 256 bits d'entropie."""
 
     __tablename__ = "auth_tokens"
 
-    token: Mapped[str] = mapped_column(String, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String, primary_key=True)
     id_session: Mapped[str] = mapped_column(String, nullable=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     # Foyer courant de la session (§ BK.2) : côté serveur plutôt qu'un identifiant de
@@ -1204,12 +1209,16 @@ class LienPartage(Base):
     activés à côté d'un détenteur, limite assumée et signalée à la création du
     lien plutôt que silencieuse. `code_hash` (même format `pbkdf2_sha256$...`
     que `User.password_hash`, cf. `auth_service.hash_password`) : `None` si aucun
-    code n'est exigé pour consulter ce lien."""
+    code n'est exigé pour consulter ce lien.
+
+    Comme une session (`AuthToken`), le jeton du lien n'est gardé qu'en empreinte (`token_hash`,
+    SHA-256) : il n'est renvoyé qu'une fois, à la création, et la consultation publique retrouve
+    le lien par l'empreinte du jeton reçu."""
 
     __tablename__ = "liens_partage"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    token: Mapped[str] = mapped_column(String, unique=True, index=True)
+    token_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
     foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     detenteur_id: Mapped[int | None] = mapped_column(ForeignKey("detenteurs.id"), nullable=True)

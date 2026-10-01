@@ -33,7 +33,6 @@ l'appartenance : elles lèvent la restriction le temps de leur opération
 (`database.tous_les_foyers_le_temps`), et rien d'autre.
 """
 
-import hashlib
 import secrets
 import threading
 from dataclasses import dataclass
@@ -136,10 +135,6 @@ def _maintenant() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def hacher_jeton(jeton: str) -> str:
-    return hashlib.sha256(jeton.encode("utf-8")).hexdigest()
-
-
 # --- Limitation de débit -----------------------------------------------------------
 
 
@@ -194,7 +189,7 @@ def creer_invitation(
         foyer_id=foyer_id,
         role=role,
         libelle=libelle,
-        jeton_hash=hacher_jeton(jeton),
+        jeton_hash=auth_service.hacher_jeton(jeton),
         cree_par=cree_par,
         cree_le=maintenant,
         expire_le=maintenant + timedelta(days=duree_jours),
@@ -221,7 +216,7 @@ def creer_invitation_foyer(
         foyer_id=None,
         role=ROLE_PROPRIETAIRE,
         libelle=libelle,
-        jeton_hash=hacher_jeton(jeton),
+        jeton_hash=auth_service.hacher_jeton(jeton),
         cree_par=createur.id,
         cree_le=maintenant,
         expire_le=maintenant + timedelta(days=duree_jours),
@@ -363,7 +358,7 @@ def _invitation_utilisable(db: Session, hache: str, maintenant: datetime) -> tup
 
 def consulter(db: Session, jeton: str) -> ApercuInvitation:
     with database.tous_les_foyers_le_temps(db):
-        trouve = _invitation_utilisable(db, hacher_jeton(jeton), _maintenant())
+        trouve = _invitation_utilisable(db, auth_service.hacher_jeton(jeton), _maintenant())
         if trouve is None:
             raise InvitationIntrouvableError
         invitation, foyer = trouve
@@ -435,7 +430,7 @@ def _rattacher(db: Session, invitation: Invitation, user_id: int, maintenant: da
 def accepter_nouveau_compte(db: Session, jeton: str, username: str, password: str, langue: str | None = None) -> User:
     """Crée le compte, son appartenance au foyer de l'invitation (ou le foyer que l'invitation
     fait naître, dans `langue`), et réclame l'invitation : tout ou rien."""
-    hache = hacher_jeton(jeton)
+    hache = auth_service.hacher_jeton(jeton)
     with database.tous_les_foyers_le_temps(db):
         maintenant = _maintenant()
         trouve = _invitation_utilisable(db, hache, maintenant)
@@ -469,7 +464,7 @@ def accepter_compte_existant(db: Session, jeton: str, user: User, langue: str | 
     opérateur est refusé d'emblée, quel que soit le jeton."""
     if user.est_operateur:
         raise auth_service.CompteOperateurError
-    hache = hacher_jeton(jeton)
+    hache = auth_service.hacher_jeton(jeton)
     with database.tous_les_foyers_le_temps(db):
         maintenant = _maintenant()
         trouve = _invitation_utilisable(db, hache, maintenant)

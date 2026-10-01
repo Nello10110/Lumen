@@ -123,8 +123,8 @@ def deux_foyers_remplis(db):
         [
             Appartenance(user_id=partage.id, foyer_id=ID_FOYER_TEST, role="membre"),
             Appartenance(user_id=partage.id, foyer_id=ID_FOYER_B, role="membre"),
-            AuthToken(token="jeton-partage-a", id_session="partage-a", user_id=partage.id, foyer_id=ID_FOYER_TEST, expires_at=demain),
-            AuthToken(token="jeton-partage-b", id_session="partage-b", user_id=partage.id, foyer_id=ID_FOYER_B, expires_at=demain),
+            AuthToken(token_hash="jeton-partage-a", id_session="partage-a", user_id=partage.id, foyer_id=ID_FOYER_TEST, expires_at=demain),
+            AuthToken(token_hash="jeton-partage-b", id_session="partage-b", user_id=partage.id, foyer_id=ID_FOYER_B, expires_at=demain),
         ]
     )
     for compte in (supprime.membre, temoin.membre):
@@ -175,7 +175,7 @@ def test_les_comptes_et_leurs_sessions_survivent_au_foyer(db, deux_foyers_rempli
     # Le compte des deux foyers ne perd que sa place chez le foyer supprimé.
     partage = db.query(User).filter(User.username == "partage").one()
     assert [a.foyer_id for a in db.query(Appartenance).filter(Appartenance.user_id == partage.id)] == [ID_FOYER_B]
-    assert {s.token: s.foyer_id for s in db.query(AuthToken).filter(AuthToken.user_id == partage.id)} == {
+    assert {s.token_hash: s.foyer_id for s in db.query(AuthToken).filter(AuthToken.user_id == partage.id)} == {
         "jeton-partage-a": None,
         "jeton-partage-b": ID_FOYER_B,
     }

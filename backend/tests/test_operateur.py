@@ -191,11 +191,11 @@ def test_suspendre_un_foyer_coupe_sessions_liens_et_invitations_sans_toucher_aux
 
     en_tete_proprietaire = jeton_de_session(deux_foyers, ID_UTILISATEUR_TEST)
     jeton_invitation = client_jetons.post("/api/invitations", json={"role": "membre"}, headers=en_tete_proprietaire).json()["jeton"]
-    lien = partage_service.creer_lien(
+    _, jeton_lien = partage_service.creer_lien(
         deux_foyers, ID_FOYER_TEST, nom="Banque", detenteur_id=None, duree_jours=7, inclure_patrimoine_net=True,
         inclure_repartition=False, inclure_performance=False, inclure_budget=False, masquer_valeurs=False, code=None,
     )  # fmt: skip
-    assert client_jetons.get(f"/api/partage-public/{lien.token}/meta").status_code == 200
+    assert client_jetons.get(f"/api/partage-public/{jeton_lien}/meta").status_code == 200
     assert client_jetons.post("/api/invitations/consulter", json={"jeton": jeton_invitation}).status_code == 200
 
     reponse = client_jetons.post(f"/api/operateur/foyers/{ID_FOYER_TEST}/suspendre", headers=en_tete_operateur)
@@ -209,7 +209,7 @@ def test_suspendre_un_foyer_coupe_sessions_liens_et_invitations_sans_toucher_aux
     # Il ne peut pas non plus le rouvrir.
     assert client_jetons.put("/api/auth/foyer-courant", json={"foyer_id": ID_FOYER_TEST}, headers=en_tete_proprietaire).status_code == 404
     # Lien de partage et invitation répondent 404.
-    assert client_jetons.get(f"/api/partage-public/{lien.token}/meta").status_code == 404
+    assert client_jetons.get(f"/api/partage-public/{jeton_lien}/meta").status_code == 404
     assert client_jetons.post("/api/invitations/consulter", json={"jeton": jeton_invitation}).status_code == 404
     # Les données restent intactes.
     assert deux_foyers.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).count() == 1

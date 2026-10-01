@@ -7,6 +7,11 @@ appliquée dans ce projet (`html.parser` plutôt que `lxml`, `bisect` plutôt qu
 dépendance de recherche...). Le nombre d'itérations est stocké dans le hash lui-même
 (format `pbkdf2_sha256$<iterations>$<sel>$<hash>`) pour pouvoir l'augmenter plus
 tard sans invalider les mots de passe déjà enregistrés.
+
+**Jetons.** Un jeton de session (comme celui d'un lien de partage, d'une invitation) a 256 bits
+d'entropie : le SHA-256 (`hacher_jeton`) suffit, et il est déterministe, ce qui permet de
+retrouver la ligne par empreinte. La base ne garde jamais que l'empreinte (§ BK.2e) ; le jeton
+en clair n'est rendu qu'une fois, par `creer_token`.
 """
 
 import hashlib
@@ -45,6 +50,12 @@ def _maintenant_naif() -> datetime:
     implicite), SQLite ne conservant pas `tzinfo` — comparer un `datetime` naïf lu en
     base à un `datetime.now(timezone.utc)` aware lèverait une `TypeError`."""
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def hacher_jeton(jeton: str) -> str:
+    """Empreinte SHA-256 d'un jeton à haute entropie (session, lien de partage, invitation) : ce
+    que la base stocke et ce par quoi elle le retrouve."""
+    return hashlib.sha256(jeton.encode("utf-8")).hexdigest()
 
 
 def hash_password(password: str) -> str:
@@ -142,8 +153,11 @@ def reprendre_session(db: Session, user: User, auth_token: AuthToken) -> None:
     adopter_foyer(db, user, appartenance)
 
 
-def ouvrir_session(db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None) -> AuthToken:
-    """Connexion réussie : le foyer de la session est le dernier utilisé par ce compte."""
+def ouvrir_session(
+    db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None
+) -> tuple[AuthToken, str]:
+    """Connexion réussie : le foyer de la session est le dernier utilisé par ce compte. Renvoie
+    la session et son jeton en clair (`creer_token`)."""
     database.fixer_foyer(db, None, user.id)
     appartenance = appartenance_par_defaut(db, user.id)
     adopter_foyer(db, user, appartenance)
@@ -311,11 +325,16 @@ def delier_oidc(db: Session, user: User) -> None:
     db.commit()
 
 
-def creer_token(db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None) -> AuthToken:
-    """La session emporte le foyer courant de `user` (`adopter_foyer`)."""
+def creer_token(
+    db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None
+) -> tuple[AuthToken, str]:
+    """La session emporte le foyer courant de `user` (`adopter_foyer`). Renvoie la session et son
+    jeton EN CLAIR, que la base n'a jamais : seule son empreinte y est écrite, et ce retour est le
+    seul moment où il existe côté serveur."""
     maintenant = _maintenant_naif()
-    token = AuthToken(
-        token=secrets.token_hex(32),
+    jeton = secrets.token_hex(32)
+    session = AuthToken(
+        token_hash=hacher_jeton(jeton),
         id_session=secrets.token_hex(8),
         user_id=user.id,
         foyer_id=user.foyer_courant_id,
@@ -325,16 +344,17 @@ def creer_token(db: Session, user: User, *, ip: str | None = None, user_agent: s
         ip=ip,
         user_agent=user_agent,
     )
-    db.add(token)
+    db.add(session)
     db.commit()
-    return token
+    return session, jeton
 
 
 def token_par_valeur(db: Session, token: str) -> AuthToken | None:
     """`None` si le jeton est absent, ou présent mais expiré — un jeton expiré n'est
     pas purgé ici (pas de conséquence : il ne redonne jamais accès), un futur nettoyage
-    périodique pourrait le faire mais n'a rien d'urgent pour ce volume de données."""
-    auth_token = db.get(AuthToken, token)
+    périodique pourrait le faire mais n'a rien d'urgent pour ce volume de données. La
+    recherche se fait par empreinte (`hacher_jeton`)."""
+    auth_token = db.get(AuthToken, hacher_jeton(token))
     if auth_token is None:
         return None
     if auth_token.expires_at < _maintenant_naif():
@@ -351,11 +371,6 @@ def utilisateur_par_token(db: Session, token: str) -> User | None:
 
 def marquer_session_utilisee(db: Session, auth_token: AuthToken) -> None:
     auth_token.derniere_utilisation = _maintenant_naif()
-    db.commit()
-
-
-def supprimer_token(db: Session, token: str) -> None:
-    db.query(AuthToken).filter(AuthToken.token == token).delete()
     db.commit()
 
 
@@ -385,7 +400,7 @@ def nombre_sessions_actives(db: Session, user_ids: Sequence[int]) -> dict[int, i
     if not user_ids:
         return {}
     lignes = (
-        db.query(AuthToken.user_id, func.count(AuthToken.token))
+        db.query(AuthToken.user_id, func.count(AuthToken.token_hash))
         .filter(AuthToken.user_id.in_(user_ids), AuthToken.expires_at > _maintenant_naif())
         .group_by(AuthToken.user_id)
         .all()

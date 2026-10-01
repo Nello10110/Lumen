@@ -2,7 +2,8 @@
 la fixture `client`) et de consultation publique (`/api/partage-public`, testée
 directement sans jeton — mêmes routes que verrait un vrai visiteur anonyme)."""
 
-from app.services import partage_service
+from app.models import LienPartage
+from app.services import auth_service, partage_service
 
 from .conftest import make_holding
 
@@ -16,6 +17,19 @@ def test_create_lien(client):
     assert corps["code_requis"] is False
     assert "token" in corps
     assert corps["revoked_at"] is None
+
+
+def test_la_liste_ne_renvoie_jamais_le_jeton_et_la_base_ne_le_garde_pas(client, db):
+    """Le jeton n'est rendu qu'à la création (§ BK.2e) : la base n'en garde que l'empreinte, la
+    liste ne peut donc pas le redonner."""
+    jeton = client.post("/api/partage", json={"nom": "Test"}).json()["token"]
+
+    liste = client.get("/api/partage").json()
+
+    assert len(liste) == 1 and "token" not in liste[0]
+    assert jeton not in str(liste)
+    assert db.query(LienPartage).one().token_hash == auth_service.hacher_jeton(jeton)
+    assert client.get(f"/api/partage-public/{jeton}/meta").status_code == 200
 
 
 def test_create_lien_nom_vide_rejete(client):

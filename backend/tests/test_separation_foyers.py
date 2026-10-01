@@ -187,7 +187,7 @@ def test_route_au_filtre_oublie_ne_montre_que_le_foyer_connecte(deux_foyers, mon
     """Le scénario que tout ceci doit empêcher, de bout en bout : une route réelle,
     authentifiée pour de bon (aucune dépendance substituée), dont le filtre par foyer
     a été oublié. Sans la base, elle renverrait les lignes des deux foyers."""
-    jeton = auth_service.ouvrir_session(deux_foyers, deux_foyers.get(User, ID_UTILISATEUR_TEST)).token
+    _, jeton = auth_service.ouvrir_session(deux_foyers, deux_foyers.get(User, ID_UTILISATEUR_TEST))
     monkeypatch.setattr(portfolio, "_holdings_visibles", lambda db, _utilisateur: db.query(Holding).all())
 
     assert app.dependency_overrides == {}
@@ -202,7 +202,7 @@ def test_lien_public_restreint_au_foyer_du_lien(deux_foyers):
     """Route publique, sans utilisateur : le jeton ouvre le foyer du lien, et lui seul."""
     from app.services import partage_service
 
-    lien = partage_service.creer_lien(
+    _, jeton_lien = partage_service.creer_lien(
         deux_foyers,
         ID_FOYER_B,
         nom="Pour la banque",
@@ -216,7 +216,7 @@ def test_lien_public_restreint_au_foyer_du_lien(deux_foyers):
         code=None,
     )
     with database.SessionLocal() as session:
-        assert partage_service.lien_valide_par_token(session, lien.token) is not None
+        assert partage_service.lien_valide_par_token(session, jeton_lien) is not None
         assert [h.ticker for h in session.query(Holding).all()] == ["B-SEUL"]
         assert partage_service.lien_valide_par_token(session, "jeton-bidon") is None
         assert session.query(Holding).count() == 0

@@ -24,6 +24,15 @@ const partageCard: Structure<typeof fr> = {
   masquerLesMontantsProportionsSeulement: "Nascondi gli importi (solo proporzioni)",
   creation: "Creazione...",
   creerLeLien: "Crea il link",
+  adresseUneSeuleFois: "L'indirizzo di un link viene mostrato solo alla creazione. Se lo hai perso, revoca il link e creane uno nuovo.",
+  lienPret: "Il link di condivisione è pronto.",
+  lienUneSeuleFois: "Copialo ora: non verrà più mostrato. Inoltralo tu stesso alla persona (messaggio, e-mail…).",
+  lienAria: "Link di condivisione",
+  copier: "Copia il link",
+  copie: "Link copiato",
+  masquer: "Nascondi",
+  copieImpossible: "La copia automatica non è possibile qui: seleziona il link e copialo a mano.",
+  valableJusquAu: "Valido fino al {date}.",
 }
 
 export default partageCard
