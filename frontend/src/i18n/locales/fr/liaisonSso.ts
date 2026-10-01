@@ -10,6 +10,7 @@ const liaisonSso = {
   sessionAbsente: "Aucune session n'était ouverte au retour du fournisseur : la liaison n'a pas été confirmée. Connectez-vous, puis relancez-la depuis Réglages.",
   echec: "Liaison SSO impossible : {motif}",
   reussie: "Ton compte est maintenant lié à ton identité SSO.",
+  menu: "Connexion SSO…",
   fermer: "Fermer",
 } as const
 

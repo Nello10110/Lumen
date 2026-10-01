@@ -13,6 +13,7 @@ const liaisonSso: Structure<typeof fr> = {
   sessionAbsente: "Al ritorno dal provider non c'era nessuna sessione aperta: il collegamento non è stato confermato. Acceda e lo riavvii da Impostazioni.",
   echec: "Collegamento SSO non riuscito: {motif}",
   reussie: "Il tuo account è ora collegato alla tua identità SSO.",
+  menu: "Accesso SSO…",
   fermer: "Chiudi",
 }
 

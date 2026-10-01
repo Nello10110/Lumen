@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useLiaisonSso } from '../hooks/useLiaisonSso'
 import { Label } from './Field'
 import { routesDuRang } from '../layout/routes'
-import { IconDeconnexion, IconMaison, IconPersonne } from './icons'
+import { IconBouclier, IconDeconnexion, IconMaison, IconPersonne } from './icons'
+import LiaisonSsoModale from './LiaisonSsoModale'
 import QuitterFoyerModale from './QuitterFoyerModale'
 import SupprimerCompteModale from './SupprimerCompteModale'
 import { t } from '../i18n'
@@ -29,6 +31,10 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
   // elle en dépendait.
   const [quitterOuvert, setQuitterOuvert] = useState(false)
   const [supprimerOuvert, setSupprimerOuvert] = useState(false)
+  const [ssoOuvert, setSsoOuvert] = useState(false)
+  // Un membre ou un invité n'a pas Réglages : c'est ici qu'il lie son compte au SSO. Le
+  // propriétaire a la carte de Réglages, inutile de la lui répéter (et d'interroger le serveur).
+  const liaisonSso = useLiaisonSso(user?.role === 'membre' || user?.role === 'invite')
   const conteneurRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -121,6 +127,21 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
             </button>
           )}
 
+          {liaisonSso.disponible && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOuvert(false)
+                setSsoOuvert(true)
+              }}
+              className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-texte hover:bg-surface-elevee"
+            >
+              <IconBouclier className="h-4 w-4 text-texte-attenue" />
+              {t('liaisonSso.menu')}
+            </button>
+          )}
+
           {/* Supprimer son compte (backlog § BK.2c) : offert à tout compte connecté, quel que
               soit son rôle — la fenêtre explique ce qui l'en empêche, le cas échéant. */}
           <button
@@ -153,6 +174,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
 
       {quitterOuvert && <QuitterFoyerModale onClose={() => setQuitterOuvert(false)} />}
       {supprimerOuvert && <SupprimerCompteModale onClose={() => setSupprimerOuvert(false)} />}
+      {ssoOuvert && <LiaisonSsoModale liaison={liaisonSso} onClose={() => setSsoOuvert(false)} />}
     </div>
   )
 }

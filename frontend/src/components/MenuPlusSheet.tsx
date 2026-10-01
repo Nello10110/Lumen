@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useLiaisonSso } from '../hooks/useLiaisonSso'
 import { routesDuRang, type RouteMeta } from '../layout/routes'
 import BasculeTheme from './BasculeTheme'
-import { IconDeconnexion, IconMaison, IconPersonne, IconPlusOptions } from './icons'
+import { IconBouclier, IconDeconnexion, IconMaison, IconPersonne, IconPlusOptions } from './icons'
+import LiaisonSsoModale from './LiaisonSsoModale'
 import Modale from './Modale'
 import QuitterFoyerModale from './QuitterFoyerModale'
 import SupprimerCompteModale from './SupprimerCompteModale'
@@ -22,6 +24,9 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
   const [ouvert, setOuvert] = useState(false)
   const [quitterOuvert, setQuitterOuvert] = useState(false)
   const [supprimerOuvert, setSupprimerOuvert] = useState(false)
+  const [ssoOuvert, setSsoOuvert] = useState(false)
+  // Même règle que `MenuCompte` : entrée réservée au membre et à l'invité, qui n'ont pas Réglages.
+  const liaisonSso = useLiaisonSso(user?.role === 'membre' || user?.role === 'invite')
 
   if (!user) return null
 
@@ -101,6 +106,20 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
                 </button>
               )}
 
+              {liaisonSso.disponible && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOuvert(false)
+                    setSsoOuvert(true)
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-texte hover:bg-surface-elevee"
+                >
+                  <IconBouclier className="h-5 w-5 text-texte-attenue" />
+                  {t('liaisonSso.menu')}
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
@@ -131,6 +150,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
 
       {quitterOuvert && <QuitterFoyerModale onClose={() => setQuitterOuvert(false)} />}
       {supprimerOuvert && <SupprimerCompteModale onClose={() => setSupprimerOuvert(false)} />}
+      {ssoOuvert && <LiaisonSsoModale liaison={liaisonSso} onClose={() => setSsoOuvert(false)} />}
     </>
   )
 }

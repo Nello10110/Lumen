@@ -13,6 +13,7 @@ const liaisonSso: Structure<typeof fr> = {
   sessionAbsente: "Beim Zurückkehren vom Anbieter war keine Sitzung geöffnet: Die Verknüpfung wurde nicht bestätigt. Melden Sie sich an und starten Sie sie erneut unter Einstellungen.",
   echec: "SSO-Verknüpfung nicht möglich: {motif}",
   reussie: "Dein Konto ist jetzt mit deiner SSO-Identität verknüpft.",
+  menu: "SSO-Anmeldung …",
   fermer: "Schließen",
 }
 

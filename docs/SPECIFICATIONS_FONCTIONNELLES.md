@@ -837,7 +837,10 @@ défaut).
   création). `SectionLiensFoyer` sur `/api/invitations/foyer`.
 - `LiaisonSsoCard` (même onglet) : visible si `GET /auth/oidc/status` est `enabled` et que le compte n'est pas opérateur ; « Lier mon
   compte SSO » = `POST /auth/oidc/lier` puis `window.location.assign(url)` ; « Délier » = `POST /auth/oidc/delier` (409 sans mot de passe,
-  message affiché) puis rechargement de l'utilisateur (`sso_lie`).
+  message affiché) puis rechargement de l'utilisateur (`sso_lie`). La logique est dans `hooks/useLiaisonSso.ts` (état, `lier`, `delier` ;
+  `disponible` = SSO configuré et compte non opérateur) et le texte et les boutons dans `LiaisonSsoContenu`. **Membre ou invité** (sans Réglages) :
+  entrée « Connexion SSO… » de `MenuCompte` et de la feuille « Plus » (`MenuPlusSheet`), qui ouvre `LiaisonSsoModale` sur le même contenu ; le hook n'y est
+  actif que pour ces deux rôles (le propriétaire a la carte, et son menu n'interroge pas le serveur).
 
 **Retour d'une liaison SSO** (`hooks/useRetourLiaisonSso.ts`, monté dans `AppAuthentifiee`, message par `BandeauLiaisonSso`). Le rappel
 redirige vers `/?oidc_liaison=<code>` sans ouvrir de session. Le hook lit le paramètre **une seule fois** par chargement (garde par

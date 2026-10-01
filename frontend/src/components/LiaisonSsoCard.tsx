@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react'
-import { api } from '../api/client'
-import type { OidcStatus } from '../api/types'
-import { useAuth } from '../hooks/useAuth'
+import { useLiaisonSso } from '../hooks/useLiaisonSso'
 import Card from './Card'
-import { PrimaryButton, SecondaryButton } from './Controls'
+import LiaisonSsoContenu from './LiaisonSsoContenu'
 import { t } from '../i18n'
 
 /** « Lier mon compte SSO » (backlog § BK.2d), dans la sécurité du compte : relie le compte
@@ -16,73 +13,16 @@ import { t } from '../i18n'
  * se rend. Au retour, l'application (`useRetourLiaisonSso`, `App.tsx`) lit le code que le
  * rappel lui transmet et le confirme avec la session de CE compte : rien n'est lié sans lui.
  *
- * Absente si le SSO n'est pas configuré sur l'installation, et pour un opérateur (qui se
- * connecte par mot de passe seulement). « Délier » rend le compte à son seul mot de passe ;
- * le serveur le refuse (409) pour un compte qui n'en a pas. */
+ * Carte de Réglages, donc du propriétaire ; un membre ou un invité, qui n'a pas Réglages, y
+ * accède par le menu du compte (`LiaisonSsoModale`, même logique : `useLiaisonSso`). Absente si
+ * le SSO n'est pas configuré sur l'installation, et pour un opérateur (mot de passe seulement). */
 export default function LiaisonSsoCard() {
-  const { user, refetchUser } = useAuth()
-  const [sso, setSso] = useState<OidcStatus | null>(null)
-  const [enCours, setEnCours] = useState(false)
-  const [erreur, setErreur] = useState<string | null>(null)
-
-  useEffect(() => {
-    api
-      .getOidcStatus()
-      .then(setSso)
-      .catch(() => setSso(null))
-  }, [])
-
-  if (!user || user.est_operateur || !sso?.enabled) return null
-
-  async function lier() {
-    setEnCours(true)
-    setErreur(null)
-    try {
-      const { url } = await api.lierSso()
-      window.location.assign(url)
-    } catch (err) {
-      setErreur((err as Error).message)
-      setEnCours(false)
-    }
-  }
-
-  async function delier() {
-    setEnCours(true)
-    setErreur(null)
-    try {
-      await api.delierSso()
-      await refetchUser()
-    } catch (err) {
-      setErreur((err as Error).message)
-    } finally {
-      setEnCours(false)
-    }
-  }
+  const liaison = useLiaisonSso()
+  if (!liaison.disponible) return null
 
   return (
     <Card title={t('liaisonSso.titre')}>
-      {user.sso_lie ? (
-        <>
-          <p className="text-sm text-texte">{t('liaisonSso.lie', { fournisseur: sso.display_name })}</p>
-          <p className="mt-1 text-xs text-texte-attenue">{t('liaisonSso.delierExplication')}</p>
-          <div className="mt-4">
-            <SecondaryButton onClick={() => void delier()} disabled={enCours}>
-              {t('liaisonSso.delier')}
-            </SecondaryButton>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className="text-sm text-texte">{t('liaisonSso.nonLie', { fournisseur: sso.display_name })}</p>
-          <p className="mt-1 text-xs text-texte-attenue">{t('liaisonSso.lierExplication')}</p>
-          <div className="mt-4">
-            <PrimaryButton onClick={() => void lier()} disabled={enCours}>
-              {t('liaisonSso.lier')}
-            </PrimaryButton>
-          </div>
-        </>
-      )}
-      {erreur && <p className="mt-3 text-sm text-negatif">{erreur}</p>}
+      <LiaisonSsoContenu liaison={liaison} />
     </Card>
   )
 }
