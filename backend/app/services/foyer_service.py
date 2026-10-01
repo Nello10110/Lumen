@@ -40,6 +40,7 @@ from ..models import (
     Foyer,
     Invitation,
     InvitationPerimetre,
+    LiaisonSsoEnAttente,
     LienPartage,
     PerimetreInvite,
     User,
@@ -409,6 +410,7 @@ def _effacer_compte(db: Session, user: User) -> None:
         db.query(PerimetreInvite).filter(PerimetreInvite.user_id == user.id).delete(synchronize_session=False)
         db.query(Appartenance).filter(Appartenance.user_id == user.id).delete(synchronize_session=False)
     db.query(AuthToken).filter(AuthToken.user_id == user.id).delete(synchronize_session=False)
+    db.query(LiaisonSsoEnAttente).filter(LiaisonSsoEnAttente.user_id == user.id).delete(synchronize_session=False)
     db.query(AccessLogEntry).filter(
         (AccessLogEntry.user_id == user.id) | (AccessLogEntry.username_saisi == user.username)
     ).delete(synchronize_session=False)

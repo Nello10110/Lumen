@@ -1020,6 +1020,26 @@ class InvitationPerimetre(Base):
     detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), primary_key=True, index=True)
 
 
+class LiaisonSsoEnAttente(Base):
+    """Liaison d'une identité SSO à un compte, EN ATTENTE de confirmation (§ BK.2d). Le rappel du
+    fournisseur ne lie rien : il ne prouve pas que celui dont le navigateur revient est le titulaire
+    du compte visé (un lien d'autorisation peut être tendu à un tiers : CSRF de liaison). Il
+    enregistre `(compte visé, sub, email, nom)` pour 10 minutes ; l'interface, connectée, confirme
+    avec le code, et le serveur exige que le compte COURANT soit le compte visé. Le code (aléatoire,
+    à usage unique) n'est jamais stocké : seul son SHA-256 l'est. Il n'ouvre aucune session."""
+
+    __tablename__ = "liaisons_sso_en_attente"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    sub: Mapped[str] = mapped_column(String)
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
+    nom: Mapped[str | None] = mapped_column(String, nullable=True)
+    cree_le: Mapped[datetime] = mapped_column(DateTime)
+    expire_le: Mapped[datetime] = mapped_column(DateTime)
+
+
 class AuthToken(Base):
     """Jeton de session opaque (pas de JWT : un simple `DELETE` suffit à le révoquer,
     pas de secret de signature à gérer). Vraie `ForeignKey` ici, contrairement au

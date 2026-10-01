@@ -36,6 +36,7 @@ from .authentification import (  # noqa: F401
     HouseholdMemberOut,
     HouseholdMemberUpdate,
     LangueFoyerUpdate,
+    LiaisonSsoConfirmation,
     LienSsoOut,
     LoginRequest,
     OidcStatus,

@@ -37,13 +37,14 @@ import os
 import secrets
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 from urllib.parse import urlencode
 
 import requests
 from sqlalchemy.orm import Session
 
-from ..models import User
+from ..models import LiaisonSsoEnAttente, User
 from . import auth_service, installation_service
 
 VARIABLE_ENABLED = "PATRIMOINE_OIDC_ENABLED"
@@ -71,6 +72,7 @@ DRAPEAU_ORDINAIRE = "n"
 # « Lier mon compte SSO » : le drapeau porte l'identifiant du compte connecté qui demande la
 # liaison (`l12`), signé avec le reste du `state`.
 PREFIXE_DRAPEAU_LIAISON = "l"
+DUREE_LIAISON_MINUTES = 10  # validité d'une liaison SSO en attente de confirmation
 STATE_TTL_SECONDES = 300  # 5 minutes : largement suffisant pour l'aller-retour vers le fournisseur SSO
 SCOPES = "openid profile email"
 
@@ -83,6 +85,7 @@ CLAIM_EMAIL_PAR_DEFAUT = "email"
 CLAIM_NOM_PAR_DEFAUT = "name"
 
 MESSAGE_SSO_DEJA_LIE_AILLEURS = "Cette identité SSO est déjà liée à un autre compte."
+MESSAGE_COMPTE_DEJA_LIE_SSO = "Ce compte est déjà lié à une identité SSO."
 MESSAGE_OPERATEUR_SANS_SSO = "Un compte opérateur se connecte uniquement par mot de passe : il ne peut pas utiliser le SSO."
 
 _discovery_cache: dict[str, dict] = {}
@@ -292,7 +295,7 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
        **Jamais de liaison à un compte existant par ressemblance de nom.** Une identité du
        fournisseur qui porterait le nom d'un compte local d'un autre foyer en prendrait le
        contrôle (faille corrigée au lot BK.2d) : un compte local se lie explicitement, depuis
-       sa session (`lier_identite`, « Lier mon compte SSO »).
+       sa session (`preparer_liaison` puis `confirmer_liaison`, « Lier mon compte SSO »).
 
        `pour_invitation` (§ BK.2b, `state` signé) : la connexion sert à accepter une
        invitation, qui donnera au compte son foyer et son rôle — un NOUVEAU compte est
@@ -318,17 +321,72 @@ def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims
     return user
 
 
-def lier_identite(db: Session, user: User, claims: dict, config: OidcConfig) -> None:
-    """« Lier mon compte SSO » : rattache l'identité du fournisseur (`sub`) au compte CONNECTÉ
-    `user`, qui l'a demandé — c'est ce qui remplace la liaison automatique par nom d'utilisateur.
-    `email`/`nom` sont repris de l'identité. Lève `OidcError` pour un compte opérateur (mot de
-    passe seulement), ou si cette identité est déjà liée à un autre compte. Une identité déjà
-    liée à CE compte est un succès, sans rien changer."""
+class LiaisonIntrouvableError(LookupError):
+    """Liaison absente, expirée, déjà confirmée, ou destinée à un autre compte : indiscernables."""
+
+
+def _maintenant() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+def hacher_code(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def preparer_liaison(db: Session, user: User, claims: dict, config: OidcConfig) -> str:
+    """Rappel d'un « Lier mon compte SSO » : n'établit RIEN. Enregistre une liaison en attente
+    (`DUREE_LIAISON_MINUTES`, à usage unique) pour le compte visé `user` — celui du `state` signé —
+    et renvoie son code, que le rappel transmet à l'interface. Une demande plus récente remplace
+    la précédente du même compte. Lève `OidcError` pour un compte opérateur (mot de passe
+    seulement) ou une identité déjà liée à un autre compte (refus dès le rappel ; revérifié à la
+    confirmation)."""
     if user.est_operateur:
         raise OidcError(MESSAGE_OPERATEUR_SANS_SSO)
     sub = claims["sub"]
     deja = auth_service.utilisateur_par_oidc_subject(db, sub)
     if deja is not None and deja.id != user.id:
         raise OidcError(MESSAGE_SSO_DEJA_LIE_AILLEURS)
+    maintenant = _maintenant()
+    db.query(LiaisonSsoEnAttente).filter(
+        (LiaisonSsoEnAttente.expire_le <= maintenant) | (LiaisonSsoEnAttente.user_id == user.id)
+    ).delete(synchronize_session=False)
+    code = secrets.token_urlsafe(32)
+    db.add(
+        LiaisonSsoEnAttente(
+            code_hash=hacher_code(code),
+            user_id=user.id,
+            sub=sub,
+            email=claims.get(config.claim_email),
+            nom=claims.get(config.claim_nom),
+            cree_le=maintenant,
+            expire_le=maintenant + timedelta(minutes=DUREE_LIAISON_MINUTES),
+        )
+    )
+    db.commit()
+    return code
+
+
+def confirmer_liaison(db: Session, user: User, code: str) -> None:
+    """Confirmation, par le compte CONNECTÉ `user`, d'une liaison en attente. Le compte courant doit
+    être exactement le compte visé : sinon la liaison en attente est détruite et la réponse est la
+    même que pour un code inconnu (`LiaisonIntrouvableError`). Usage unique : la ligne est
+    consommée avant tout contrôle de fond. Refus de fond (`OidcError`), comme avant : compte
+    opérateur, compte déjà lié, identité déjà liée à un autre compte."""
+    liaison = db.query(LiaisonSsoEnAttente).filter(LiaisonSsoEnAttente.code_hash == hacher_code(code)).first()
+    if liaison is None:
+        raise LiaisonIntrouvableError
+    visee, expiree, sub, email, nom = liaison.user_id, liaison.expire_le <= _maintenant(), liaison.sub, liaison.email, liaison.nom
+    # `DELETE` conditionnel : de deux confirmations simultanées, une seule consomme la ligne.
+    consommee = db.query(LiaisonSsoEnAttente).filter(LiaisonSsoEnAttente.id == liaison.id).delete(synchronize_session=False)
+    db.commit()
+    if consommee != 1 or expiree or visee != user.id:
+        raise LiaisonIntrouvableError
+    if user.est_operateur:
+        raise OidcError(MESSAGE_OPERATEUR_SANS_SSO)
+    if user.oidc_subject is not None:
+        raise OidcError(MESSAGE_COMPTE_DEJA_LIE_SSO)
+    deja = auth_service.utilisateur_par_oidc_subject(db, sub)
+    if deja is not None and deja.id != user.id:
+        raise OidcError(MESSAGE_SSO_DEJA_LIE_AILLEURS)
     auth_service.lier_oidc(db, user, sub)
-    auth_service.mettre_a_jour_profil_oidc(db, user, email=claims.get(config.claim_email), nom=claims.get(config.claim_nom))
+    auth_service.mettre_a_jour_profil_oidc(db, user, email=email, nom=nom)

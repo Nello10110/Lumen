@@ -160,6 +160,12 @@ class LienSsoOut(BaseModel):
     url: str
 
 
+class LiaisonSsoConfirmation(BaseModel):
+    """Le code que le rappel du SSO a transmis à l'interface (`?oidc_liaison=<code>`)."""
+
+    code: str
+
+
 class SessionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

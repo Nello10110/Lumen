@@ -8,7 +8,7 @@ Jetons de session réels, comme `test_foyers.py`. La séparation par la base (Po
 dans `test_separation_foyers.py`."""
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -27,6 +27,7 @@ from app.models import (
     Foyer,
     Holding,
     Invitation,
+    LiaisonSsoEnAttente,
     Parametre,
     User,
 )
@@ -714,19 +715,37 @@ def _lier(client, en_tete, service) -> str:
     return parse_qs(urlparse(reponse.json()["url"]).query)["state"][0]
 
 
-def test_lier_depuis_un_compte_connecte_rattache_l_identite_a_ce_compte(client_jetons, db, monkeypatch):
+def _rappel_de_liaison(client, service, state: str) -> str:
+    """Le rappel du fournisseur pour un `state` de liaison : renvoie le code transmis à l'interface."""
+    retour = client.get(f"/api/auth/oidc/callback?code=c&state={state}", follow_redirects=False)
+    adresse = retour.headers["location"]
+    assert adresse.startswith("https://patrimoine.example.com/?oidc_liaison="), adresse
+    assert "#token=" not in adresse  # aucune session ouverte
+    return parse_qs(urlparse(adresse).query)["oidc_liaison"][0]
+
+
+def test_lier_depuis_un_compte_connecte_exige_la_confirmation_du_compte_vise(client_jetons, db, monkeypatch):
     service = _identite_sso(monkeypatch, "sub-paul", "un-autre-nom")
     en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)
     state = _lier(client_jetons, en_tete, service)
     assert service.verifier_state(state, "secret-xyz").lier_compte_id == ID_UTILISATEUR_TEST
 
-    retour = client_jetons.get(f"/api/auth/oidc/callback?code=c&state={state}", follow_redirects=False)
+    code = _rappel_de_liaison(client_jetons, service, state)
 
-    assert retour.headers["location"] == "https://patrimoine.example.com/?oidc_liaison=ok"  # pas de session ouverte
+    # Le rappel ne lie RIEN : seule la confirmation authentifiée le fait.
+    db.expire_all()
+    assert db.get(User, ID_UTILISATEUR_TEST).oidc_subject is None
+    assert db.query(User).count() == 1  # aucun compte créé
+    assert db.query(LiaisonSsoEnAttente).count() == 1
+    assert db.query(LiaisonSsoEnAttente).one().code_hash != code  # seul l'empreinte est stockée
+
+    reponse = client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": code}, headers=en_tete)
+
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["sso_lie"] is True
     db.expire_all()
     assert db.get(User, ID_UTILISATEUR_TEST).oidc_subject == "sub-paul"
-    assert db.query(User).count() == 1  # aucun compte créé
-    assert client_jetons.get("/api/auth/me", headers=en_tete).json()["sso_lie"] is True
+    assert db.query(LiaisonSsoEnAttente).count() == 0
     assert db.query(AccessLogEntry).filter(AccessLogEntry.action == "liaison_sso").count() == 1
     # Dès lors, la connexion SSO retrouve ce compte.
     verifier, _ = service.code_verifier_et_challenge()
@@ -737,6 +756,94 @@ def test_lier_depuis_un_compte_connecte_rattache_l_identite_a_ce_compte(client_j
     assert client_jetons.get("/api/auth/me", headers={"Authorization": f"Bearer {jeton}"}).json()["id"] == ID_UTILISATEUR_TEST
 
 
+def test_csrf_de_liaison_la_confirmation_par_un_autre_compte_ne_lie_rien(client_jetons, deux_foyers, monkeypatch):
+    """Scénario d'attaque : l'attaquant (compte B) demande une liaison et tend l'adresse d'autorisation à une victime, dont
+    l'identité SSO revient au rappel. La liaison en attente vise B ; la victime, connectée comme A, ne peut pas la confirmer
+    — et l'attaquant n'a jamais le code, transmis au navigateur de la victime."""
+    service = _identite_sso(monkeypatch, "sub-victime", "victime")
+    en_tete_attaquant = jeton_de_session(deux_foyers, ID_UTILISATEUR_B)
+    en_tete_victime = jeton_de_session(deux_foyers, ID_UTILISATEUR_TEST)
+    state_de_l_attaquant = _lier(client_jetons, en_tete_attaquant, service)
+    code = _rappel_de_liaison(client_jetons, service, state_de_l_attaquant)  # le navigateur de la victime
+
+    refus = client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": code}, headers=en_tete_victime)
+
+    assert refus.status_code == 404
+    deux_foyers.expire_all()
+    assert deux_foyers.get(User, ID_UTILISATEUR_B).oidc_subject is None
+    assert deux_foyers.get(User, ID_UTILISATEUR_TEST).oidc_subject is None
+    assert deux_foyers.query(LiaisonSsoEnAttente).count() == 0  # détruite par la tentative
+    # Le titulaire du compte visé n'y peut plus rien non plus : le code est mort.
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": code}, headers=en_tete_attaquant).status_code == 404
+    assert deux_foyers.get(User, ID_UTILISATEUR_B).oidc_subject is None
+
+
+def test_une_liaison_ne_se_confirme_qu_une_fois(client_jetons, db, monkeypatch):
+    service = _identite_sso(monkeypatch, "sub-paul")
+    en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)
+    code = _rappel_de_liaison(client_jetons, service, _lier(client_jetons, en_tete, service))
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": code}, headers=en_tete).status_code == 200
+
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": code}, headers=en_tete).status_code == 404
+
+
+def test_une_liaison_expire_apres_dix_minutes(client_jetons, db, monkeypatch):
+    service = _identite_sso(monkeypatch, "sub-paul")
+    en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)
+    code = _rappel_de_liaison(client_jetons, service, _lier(client_jetons, en_tete, service))
+    liaison = db.query(LiaisonSsoEnAttente).one()
+    assert timedelta(minutes=9) < liaison.expire_le - liaison.cree_le <= timedelta(minutes=10)
+    liaison.expire_le = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
+    db.commit()
+
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": code}, headers=en_tete).status_code == 404
+    db.expire_all()
+    assert db.get(User, ID_UTILISATEUR_TEST).oidc_subject is None
+    assert db.query(LiaisonSsoEnAttente).count() == 0
+
+
+def test_la_confirmation_exige_une_session_et_un_code_connu(client_jetons, db, monkeypatch):
+    _identite_sso(monkeypatch, "sub-x")
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": "x"}).status_code == 401
+    en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": "inconnu"}, headers=en_tete).status_code == 404
+
+
+def test_une_nouvelle_demande_remplace_la_precedente_du_meme_compte(client_jetons, db, monkeypatch):
+    service = _identite_sso(monkeypatch, "sub-paul")
+    en_tete = jeton_de_session(db, ID_UTILISATEUR_TEST)
+    premier = _rappel_de_liaison(client_jetons, service, _lier(client_jetons, en_tete, service))
+    second = _rappel_de_liaison(client_jetons, service, _lier(client_jetons, en_tete, service))
+
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": premier}, headers=en_tete).status_code == 404
+    assert client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": second}, headers=en_tete).status_code == 200
+
+
+def test_une_identite_liee_entre_la_demande_et_la_confirmation_est_refusee(client_jetons, deux_foyers, monkeypatch):
+    service = _identite_sso(monkeypatch, "sub-course")
+    en_tete = jeton_de_session(deux_foyers, ID_UTILISATEUR_TEST)
+    code = _rappel_de_liaison(client_jetons, service, _lier(client_jetons, en_tete, service))
+    deux_foyers.get(User, ID_UTILISATEUR_B).oidc_subject = "sub-course"
+    deux_foyers.commit()
+
+    reponse = client_jetons.post("/api/auth/oidc/lier/confirmer", json={"code": code}, headers=en_tete)
+
+    assert reponse.status_code == 409
+    deux_foyers.expire_all()
+    assert deux_foyers.get(User, ID_UTILISATEUR_TEST).oidc_subject is None
+
+
+def test_supprimer_un_compte_efface_ses_liaisons_en_attente(client_jetons, db, monkeypatch):
+    service = _identite_sso(monkeypatch, "sub-paul")
+    egare = auth_service.creer_utilisateur(db, "egare", MOT_DE_PASSE)
+    en_tete = jeton_de_session(db, egare.id)
+    _rappel_de_liaison(client_jetons, service, _lier(client_jetons, en_tete, service))
+    assert db.query(LiaisonSsoEnAttente).count() == 1
+
+    reponse = client_jetons.post("/api/auth/compte/supprimer", json={"confirmation": "egare"}, headers=en_tete)
+
+    assert reponse.status_code == 204
+    assert db.query(LiaisonSsoEnAttente).count() == 0
 def test_une_identite_deja_liee_a_un_autre_compte_est_refusee(client_jetons, deux_foyers, monkeypatch):
     deux_foyers.get(User, ID_UTILISATEUR_B).oidc_subject = "sub-pris"
     deux_foyers.commit()

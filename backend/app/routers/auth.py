@@ -28,6 +28,7 @@ from ..schemas import (
     HouseholdMemberOut,
     HouseholdMemberUpdate,
     LangueFoyerUpdate,
+    LiaisonSsoConfirmation,
     LienSsoOut,
     LoginRequest,
     OidcStatus,
@@ -70,7 +71,7 @@ MESSAGE_CIBLE_TRANSFERT_INVALIDE = "Seul un membre du foyer peut en devenir prop
 MESSAGE_CONFIRMATION_TRANSFERT_INCORRECTE = "Confirmation incorrecte. Saisissez le nom d'utilisateur du nouveau propriétaire."
 MESSAGE_CONFIRMATION_COMPTE_INCORRECTE = "Confirmation incorrecte. Saisissez votre nom d'utilisateur pour confirmer."
 MESSAGE_SSO_NON_CONFIGURE = "Connexion SSO non configurée sur ce déploiement."
-MESSAGE_COMPTE_DEJA_LIE_SSO = "Ce compte est déjà lié à une identité SSO."
+MESSAGE_LIAISON_SSO_INTROUVABLE = "Liaison SSO introuvable, expirée ou déjà utilisée."
 MESSAGE_COMPTE_NON_LIE_SSO = "Ce compte n'est lié à aucune identité SSO."
 MESSAGE_DELIAISON_SSO_IMPOSSIBLE = "Ce compte n'a pas de mot de passe : sans le SSO, il ne pourrait plus se connecter."
 MESSAGE_OPERATEUR_EXISTE = "Un compte opérateur existe déjà sur cette installation."
@@ -195,21 +196,48 @@ def oidc_login(invitation: bool = False):
 def oidc_lier(current_user: User = Depends(get_current_user)):
     """« Lier mon compte SSO » (§ BK.2d) : le compte CONNECTÉ demande à rattacher une identité du
     fournisseur. Renvoie l'adresse d'autorisation, que le navigateur ouvre (une redirection ne
-    porterait pas l'en-tête `Authorization`) ; le compte à lier voyage dans le `state` signé. Au
-    retour, `oidc_callback` lie l'identité à ce compte — jamais à un compte du même nom — et
-    renvoie à l'interface avec `?oidc_liaison=ok` ou `?oidc_liaison_erreur=<message>`, sans
-    ouvrir de session. 403 pour l'opérateur (mot de passe seulement), 409 si le compte est déjà
-    lié."""
+    porterait pas l'en-tête `Authorization`) ; le compte visé voyage dans le `state` signé. Au
+    retour, `oidc_callback` ne lie RIEN : il enregistre une liaison en attente (10 minutes, usage
+    unique) et renvoie à l'interface avec `?oidc_liaison=<code>` (ou `?oidc_liaison_erreur=<message>`),
+    sans ouvrir de session. C'est `POST /oidc/lier/confirmer`, appelée par le compte connecté, qui
+    lie. Sans cette confirmation, un lien d'autorisation tendu à un tiers lierait son identité au
+    compte de l'attaquant (CSRF de liaison). 403 pour l'opérateur (mot de passe seulement), 409 si
+    le compte est déjà lié."""
     config = oidc_service.charger_config()
     if config is None:
         raise HTTPException(status_code=404, detail=MESSAGE_SSO_NON_CONFIGURE)
     if current_user.est_operateur:
         raise HTTPException(status_code=403, detail=oidc_service.MESSAGE_OPERATEUR_SANS_SSO)
     if current_user.oidc_subject is not None:
-        raise HTTPException(status_code=409, detail=MESSAGE_COMPTE_DEJA_LIE_SSO)
+        raise HTTPException(status_code=409, detail=oidc_service.MESSAGE_COMPTE_DEJA_LIE_SSO)
     code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(code_verifier, config.client_secret, lier_compte_id=current_user.id)
     return LienSsoOut(url=oidc_service.url_autorisation(config, state, code_challenge))
+
+
+@router.post("/oidc/lier/confirmer", response_model=UserOut)
+def oidc_confirmer_liaison(
+    payload: LiaisonSsoConfirmation,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Seconde moitié de « Lier mon compte SSO » : le compte CONNECTÉ confirme la liaison en attente
+    dont le rappel lui a transmis le `code`, avec son en-tête `Authorization`. Le compte courant
+    doit être exactement le compte visé : sinon la liaison en attente est détruite et la réponse est
+    le même 404 que pour un code inconnu, expiré ou déjà utilisé — rien n'est lié. Mêmes refus que
+    pour la demande : 403 opérateur, 409 compte déjà lié ou identité déjà liée à un autre compte."""
+    try:
+        oidc_service.confirmer_liaison(db, current_user, payload.code)
+    except oidc_service.LiaisonIntrouvableError as erreur:
+        raise HTTPException(status_code=404, detail=MESSAGE_LIAISON_SSO_INTROUVABLE) from erreur
+    except oidc_service.OidcError as erreur:
+        refus_operateur = str(erreur) == oidc_service.MESSAGE_OPERATEUR_SANS_SSO
+        raise HTTPException(status_code=403 if refus_operateur else 409, detail=str(erreur)) from erreur
+    auth_service.journaliser_acces(
+        db, current_user.username, current_user.id, _adresse_client(request), "succes", None, action="liaison_sso"
+    )
+    return construire_user_out(db, current_user)
 
 
 @router.post("/oidc/delier", response_model=UserOut)
@@ -258,9 +286,10 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
             compte = db.get(User, etat.lier_compte_id)
             if compte is None:
                 raise oidc_service.OidcError("Connexion SSO invalide (state altéré). Réessayez.")
-            oidc_service.lier_identite(db, compte, claims, config)
-            auth_service.journaliser_acces(db, compte.username, compte.id, ip, "succes", None, action="liaison_sso")
-            return RedirectResponse(f"{config.frontend_url}/?oidc_liaison=ok")
+            # Rien n'est lié ici : le navigateur qui revient n'est pas forcément celui du titulaire du
+            # compte visé. L'interface, connectée, confirme avec ce code (`oidc_confirmer_liaison`).
+            code_liaison = oidc_service.preparer_liaison(db, compte, claims, config)
+            return RedirectResponse(f"{config.frontend_url}/?oidc_liaison={quote(code_liaison)}")
         user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims, pour_invitation=etat.pour_invitation)
     except oidc_service.OidcError as err:
         auth_service.journaliser_acces(db, "?", None, ip, "echec", "oidc_echec")

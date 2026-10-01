@@ -48,6 +48,7 @@ TABLES_EXCLUES = {
     # que lui-même, avec son journal d'accès.
     "users": "un compte n'est supprimé que par lui-même (décision du 30/09/2026)",
     "access_log_entries": "journal d'accès des comptes, qui survivent à leur foyer",
+    "liaisons_sso_en_attente": "liaison SSO d'un compte en attente de confirmation (10 minutes) : rattachée à un compte, pas à un foyer",
     # Pas de clé étrangère : rattaché au foyer par la CLÉ (`historique_portefeuille:{foyer}`,
     # `historique_patrimoine:{foyer}:…`), vérifié par `test_les_historiques_du_foyer_disparaissent_seuls`.
     "historique_cache": "rattaché au foyer par sa clé, pas par une colonne : test dédié",
