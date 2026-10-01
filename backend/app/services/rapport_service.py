@@ -124,11 +124,11 @@ def _versements_declares_periode(db: Session, holdings: list[Holding], date_debu
     return float(sum(p.versement for p in points))
 
 
-def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str, user_id: int) -> dict:
+def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str, foyer_id: int) -> dict:
     """Bloc épargne du rapport (backlog § U.1/U.2) — voir le docstring de
     `RapportEpargnePeriode` pour les deux régimes possibles (`decomposition_estimee`)
     d'`interets_periode`/`versements_periode`."""
-    holdings = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_EPARGNE)).all()
+    holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.type_actif.in_(TYPES_EPARGNE)).all()
     if not holdings:
         return {
             "a_des_donnees": False,
@@ -174,10 +174,10 @@ def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str,
     }
 
 
-def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id: int) -> dict:
-    """`date_debut`/`date_fin` : bornes inclusives au format `AAAA-MM-JJ`. `user_id` :
+def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, foyer_id: int) -> dict:
+    """`date_debut`/`date_fin` : bornes inclusives au format `AAAA-MM-JJ`. `foyer_id` :
     Milestone 2a, multi-utilisateur — le rapport ne porte jamais que sur ce compte."""
-    points = historical_performance_service.compute_portfolio_history(db, user_id)
+    points = historical_performance_service.compute_portfolio_history(db, foyer_id)
     valeur_debut = _valeur_a_ou_avant(points, date_debut)
     valeur_fin = _valeur_a_ou_avant(points, date_fin)
     evolution_pct = (
@@ -195,7 +195,7 @@ def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id
     # depuis l'origine. `valeur_realisee_cumulee` (ventes + dividendes + intérêts +
     # autres revenus, cumulée) fait déjà partie de chaque point de
     # `compute_portfolio_history`.
-    montant_investi_periode = float(performance_service.montant_investi_periode(db, user_id, date_debut, date_fin))
+    montant_investi_periode = float(performance_service.montant_investi_periode(db, foyer_id, date_debut, date_fin))
     if points:
         valeur_debut_stricte = _champ_strict_a_ou_avant(points, date_debut, "valeur_portefeuille")
         valeur_fin_stricte = _champ_strict_a_ou_avant(points, date_fin, "valeur_portefeuille")
@@ -209,7 +209,7 @@ def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id
 
     transactions_periode = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
+        .filter(Transaction.foyer_id == foyer_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
@@ -242,5 +242,5 @@ def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id
             }
             for tx in plus_gros_mouvements
         ],
-        "epargne": compute_rapport_epargne_periode(db, date_debut, date_fin, user_id),
+        "epargne": compute_rapport_epargne_periode(db, date_debut, date_fin, foyer_id),
     }

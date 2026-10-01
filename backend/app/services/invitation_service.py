@@ -185,7 +185,7 @@ def creer_invitation(
         raise ValueError(role)
     ids = sorted(set(detenteur_ids)) if role == ROLE_INVITE else []
     if ids:
-        valides = db.query(Detenteur).filter(Detenteur.user_id == foyer_id, Detenteur.id.in_(ids)).count()
+        valides = db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.id.in_(ids)).count()
         if valides != len(ids):
             raise DetenteurInconnuError
     jeton = secrets.token_urlsafe(32)
@@ -423,7 +423,7 @@ def _rattacher(db: Session, invitation: Invitation, user_id: int, maintenant: da
         detenteurs = (
             db.query(InvitationPerimetre.detenteur_id)
             .join(Detenteur, Detenteur.id == InvitationPerimetre.detenteur_id)
-            .filter(InvitationPerimetre.invitation_id == invitation.id, Detenteur.user_id == invitation.foyer_id)
+            .filter(InvitationPerimetre.invitation_id == invitation.id, Detenteur.foyer_id == invitation.foyer_id)
             .all()
         )
         for (detenteur_id,) in detenteurs:

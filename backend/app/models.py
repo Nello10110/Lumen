@@ -121,10 +121,10 @@ class Holding(Base):
     # `compte_id` fait donc partie de la clé d'unicité, pas seulement `ticker` —
     # cette contrainte SQL n'existait pas avant ce lot (seul un garde-fou
     # applicatif dans `routers/portfolio.py::create_holding` empêchait un doublon
-    # `(user_id, ticker)` à la saisie manuelle). NULL est traité comme distinct par
+    # `(foyer_id, ticker)` à la saisie manuelle). NULL est traité comme distinct par
     # SQLite : plusieurs lignes « sans compte » du même ticker restent chacune une
     # position séparée, comme avant ce lot.
-    __table_args__ = (UniqueConstraint("user_id", "ticker", "compte_id", name="uq_holding_user_ticker_compte"),)
+    __table_args__ = (UniqueConstraint("foyer_id", "ticker", "compte_id", name="uq_holding_foyer_ticker_compte"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Multi-utilisateur (Milestone 2a, cf. docs/BACKLOG.md § 2.I.1) : les lignes
@@ -133,7 +133,7 @@ class Holding(Base):
     # complet vit désormais dans `backend/alembic/versions/`) — le code applicatif
     # la traite comme toujours renseignée dès qu'une ligne est créée ou lue via
     # l'API (jamais `None` en pratique).
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     ticker: Mapped[str] = mapped_column(String, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
     quantite: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_QUANTITE))
@@ -247,8 +247,8 @@ class Loan(Base):
     __tablename__ = "loans"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.foyer_id`.
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     libelle: Mapped[str] = mapped_column(String)
     capital_initial: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     taux_annuel_pct: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_TAUX))
@@ -261,7 +261,7 @@ class Loan(Base):
     # plus un actif, pas encore de clé de répartition multi-actifs) : condition
     # nécessaire pour que la "part nette" par détenteur (2.L.1) ait un sens, un
     # emprunt non rattaché ne pouvant être imputé à aucune ligne du patrimoine.
-    # Vraie FK (comme `user_id`) : ce rattachement est une vraie relation CRUD, pas
+    # Vraie FK (comme `foyer_id`) : ce rattachement est une vraie relation CRUD, pas
     # une correspondance issue de la reconstruction du grand livre (cf. docstring de
     # module).
     holding_id: Mapped[int | None] = mapped_column(ForeignKey("holdings.id"), nullable=True, index=True)
@@ -368,10 +368,10 @@ class Etablissement(Base):
     cf. `services/comptes_service.delete_etablissement`)."""
 
     __tablename__ = "etablissements"
-    __table_args__ = (UniqueConstraint("user_id", "nom", name="uq_etablissement_user_nom"),)
+    __table_args__ = (UniqueConstraint("foyer_id", "nom", name="uq_etablissement_foyer_nom"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     # Clé du catalogue d'établissements connus choisie à la création (revue import,
     # 05/09/2026 — ex. "trade_republic", "boursorama"), affichée comme un badge coloré
@@ -455,10 +455,10 @@ class Compte(Base):
     `services/comptes_service.delete_compte`/`delete_etablissement`)."""
 
     __tablename__ = "comptes"
-    __table_args__ = (UniqueConstraint("user_id", "nom", name="uq_compte_user_nom"),)
+    __table_args__ = (UniqueConstraint("foyer_id", "nom", name="uq_compte_foyer_nom"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     etablissement_id: Mapped[int | None] = mapped_column(ForeignKey("etablissements.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -481,7 +481,7 @@ class Detenteur(Base):
     __tablename__ = "detenteurs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
@@ -557,7 +557,7 @@ class Salaire(Base):
     __tablename__ = "salaires"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     annee: Mapped[int] = mapped_column(Integer, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
     montant: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
@@ -590,20 +590,20 @@ class Transaction(Base):
     # recoupent par coïncidence sans que ce soit un doublon. Remplace l'ancien
     # `unique=True` sur la seule colonne `transaction_id` (Milestone 2a, backlog 2.I.1).
     # Index composite (revue du 03/09/2026) : les rapports, la performance mensuelle
-    # et les revenus passifs filtrent tous sur `user_id` + une plage de `date`.
-    # L'index sur le seul `user_id` obligeait à parcourir toutes les transactions du
+    # et les revenus passifs filtrent tous sur `foyer_id` + une plage de `date`.
+    # L'index sur le seul `foyer_id` obligeait à parcourir toutes les transactions du
     # foyer pour n'en garder qu'une poignée — mesuré sur une base réelle :
     # plusieurs milliers de lignes parcourues pour quelques dizaines d'utiles,
     # 0,491 ms -> 0,009 ms une fois l'index posé
     # (il devient couvrant, SQLite ne touche plus la table).
     __table_args__ = (
-        UniqueConstraint("transaction_id", "user_id", name="uq_transaction_user_transaction_id"),
-        Index("ix_transactions_user_id_date", "user_id", "date"),
+        UniqueConstraint("transaction_id", "foyer_id", name="uq_transaction_foyer_transaction_id"),
+        Index("ix_transactions_foyer_id_date", "foyer_id", "date"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.foyer_id`.
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     transaction_id: Mapped[str] = mapped_column(String, index=True)
     datetime_utc: Mapped[datetime] = mapped_column(DateTime, index=True)
     date: Mapped[str] = mapped_column(String)
@@ -653,10 +653,10 @@ class JournalImport(Base):
     signifie qu'un import a réellement abouti, pas qu'il a été tenté puis annulé."""
 
     __tablename__ = "journal_import"
-    __table_args__ = (UniqueConstraint("user_id", "source", name="uq_journal_import_user_source"),)
+    __table_args__ = (UniqueConstraint("foyer_id", "source", name="uq_journal_import_foyer_source"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     source: Mapped[str] = mapped_column(String)
     importe_le: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     # Lignes retenues par le dernier import, pour la pastille « 14/09 · 312 lignes ».
@@ -855,10 +855,10 @@ STATUT_FOYER_SUSPENDU = "suspendu"
 
 class Foyer(Base):
     """Un foyer (backlog § BK.2) : ce à quoi appartiennent les données. Les 13 tables
-    de patrimoine s'y rattachent par `user_id` — nom trompeur, gardé le temps du lot
-    BK.2a pour ne pas mêler un renommage mécanique au changement de modèle ; il devient
-    `foyer_id` en BK.2e. Une installation antérieure a gardé l'identifiant de chaque
-    ancien propriétaire comme identifiant de son foyer : aucune ligne n'a été réécrite.
+    de patrimoine s'y rattachent par `foyer_id` (colonne qui s'appelait `user_id` jusqu'au
+    lot BK.2e, pour ne pas mêler un renommage mécanique au changement de modèle de
+    BK.2a). Une installation antérieure a gardé l'identifiant de chaque ancien
+    propriétaire comme identifiant de son foyer : aucune ligne n'a été réécrite.
 
     `langue` : celle de l'interface pour tous ses comptes (§ BL). `statut`,
     `suspendu_le`, `derniere_activite` : pour l'opérateur (lot BK.2d)."""
@@ -1069,7 +1069,7 @@ class AuthToken(Base):
 
 class CategorieBudget(Base):
     """Arbre de catégories de dépenses/revenus (backlog 2.N.1), propre à chaque
-    utilisateur (`user_id`) et entièrement modifiable — les catégories par défaut
+    foyer (`foyer_id`) et entièrement modifiable — les catégories par défaut
     (`services/budget_categories_service.CATEGORIES_PAR_DEFAUT`) ne sont que le point de
     départ suggéré à la première utilisation, jamais recréées après coup. `parent_id`
     autorise UN niveau de sous-catégorie (ex. "Alimentation" > "Restaurants") ; les
@@ -1078,10 +1078,10 @@ class CategorieBudget(Base):
     mouvements sans complexifier la comparaison cible/réel."""
 
     __tablename__ = "categories_budget"
-    __table_args__ = (UniqueConstraint("user_id", "nom", "parent_id", name="uq_categorie_budget_user_nom_parent"),)
+    __table_args__ = (UniqueConstraint("foyer_id", "nom", "parent_id", name="uq_categorie_budget_foyer_nom_parent"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
     # Repère stable d'une catégorie par défaut (`epargne`, `logement`...), backlog § BL.3 :
@@ -1116,10 +1116,10 @@ class MouvementBancaire(Base):
     (`services/comptes_service.delete_compte`)."""
 
     __tablename__ = "mouvements_bancaires"
-    __table_args__ = (UniqueConstraint("user_id", "transaction_id", name="uq_mouvement_bancaire_user_txid"),)
+    __table_args__ = (UniqueConstraint("foyer_id", "transaction_id", name="uq_mouvement_bancaire_foyer_txid"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     transaction_id: Mapped[str] = mapped_column(String, index=True)
     date: Mapped[str] = mapped_column(String, index=True)  # "YYYY-MM-DD"
     libelle: Mapped[str] = mapped_column(String)
@@ -1147,7 +1147,7 @@ class RegleCategorisation(Base):
     __tablename__ = "regles_categorisation"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     motif: Mapped[str] = mapped_column(String)
     categorie_id: Mapped[int] = mapped_column(ForeignKey("categories_budget.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -1159,10 +1159,10 @@ class BudgetCible(Base):
     au plus (`UniqueConstraint`), montant toujours positif (dépense attendue)."""
 
     __tablename__ = "budget_cibles"
-    __table_args__ = (UniqueConstraint("user_id", "categorie_id", name="uq_budget_cible_user_categorie"),)
+    __table_args__ = (UniqueConstraint("foyer_id", "categorie_id", name="uq_budget_cible_foyer_categorie"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     categorie_id: Mapped[int] = mapped_column(ForeignKey("categories_budget.id"))
     montant_mensuel: Mapped[Decimal] = mapped_column(Decimale(ECHELLE_MONTANT))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
@@ -1210,7 +1210,7 @@ class LienPartage(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     token: Mapped[str] = mapped_column(String, unique=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
+    foyer_id: Mapped[int] = mapped_column(ForeignKey("foyers.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
     detenteur_id: Mapped[int | None] = mapped_column(ForeignKey("detenteurs.id"), nullable=True)
     inclure_patrimoine_net: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")

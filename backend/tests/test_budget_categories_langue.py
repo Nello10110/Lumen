@@ -20,7 +20,7 @@ from .test_budget_service import make_mouvement
 def _noms(db):
     return {
         c.code: c.nom
-        for c in db.query(CategorieBudget).filter(CategorieBudget.user_id == ID_FOYER_TEST).all()
+        for c in db.query(CategorieBudget).filter(CategorieBudget.foyer_id == ID_FOYER_TEST).all()
     }
 
 

@@ -93,7 +93,7 @@ def test_ligne_cotee_affiche_le_cours_de_marche(db):
 def test_passifs_affiches_par_defaut(db):
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -141,7 +141,7 @@ def test_filtre_detenteur_affiche_la_part_dette_de_lemprunt_rattache(db):
     h = make_holding(db, ticker="MAISON", nom="Maison", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
     detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 100.0)])
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Crédit immo",
         capital_initial=200000.0,
         taux_annuel_pct=0.0,
@@ -171,7 +171,7 @@ def test_filtre_detenteur_affiche_chaque_emprunt_rattache_separement(db):
     for libelle, crd in (("Crédit immo", 100000.0), ("Prêt travaux", 20000.0)):
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST,
+                foyer_id=ID_FOYER_TEST,
                 libelle=libelle,
                 capital_initial=crd,
                 taux_annuel_pct=0.0,

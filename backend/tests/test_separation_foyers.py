@@ -1,7 +1,7 @@
 """Séparation des foyers imposée par Postgres (backlog § BI.5, étendue aux tables de
 l'objet foyer § BK.2).
 
-Ces tests ne vérifient pas les filtres `user_id == …` du code — `test_isolation_utilisateurs`
+Ces tests ne vérifient pas les filtres `foyer_id == …` du code — `test_isolation_utilisateurs`
 le fait — mais ce qui tient QUAND UN FILTRE MANQUE : la base, seule. Postgres uniquement
 (SQLite ne connaît pas la sécurité au niveau des lignes) ; la suite s'y exécute avec un
 rôle ordinaire (`conftest.py` racine), faute de quoi la base ne protégerait rien."""
@@ -54,7 +54,7 @@ def deux_foyers(db):
     """Une ligne, avec un point d'historique, dans chacun de deux foyers."""
     creer_utilisateur(db, ID_UTILISATEUR_B, "foyer-b")
     for foyer, ticker in ((ID_FOYER_TEST, "A-SEUL"), (ID_FOYER_B, "B-SEUL")):
-        ligne = make_holding(db, user_id=foyer, ticker=ticker)
+        ligne = make_holding(db, foyer_id=foyer, ticker=ticker)
         db.add(HoldingValuationHistory(holding_id=ligne.id, valeur=1000.0, date_valeur=datetime(2026, 1, 1)))
     db.commit()
     return db
@@ -69,7 +69,7 @@ def _session_du_foyer(foyer_id: int | None, utilisateur_id: int | None = None):
 def test_une_requete_sans_filtre_ne_voit_que_son_foyer(deux_foyers):
     with _session_du_foyer(ID_FOYER_TEST) as session:
         assert [h.ticker for h in session.query(Holding).all()] == ["A-SEUL"]
-        # Table fille, sans `user_id` : filtrée par sa ligne parente.
+        # Table fille, sans `foyer_id` : filtrée par sa ligne parente.
         assert session.query(HoldingValuationHistory).count() == 1
 
 
@@ -84,7 +84,7 @@ def test_sans_perimetre_la_base_ne_montre_rien(deux_foyers):
 
 def test_ecrire_dans_un_autre_foyer_est_refuse(deux_foyers):
     with _session_du_foyer(ID_FOYER_TEST) as session:
-        session.add(Holding(user_id=ID_FOYER_B, ticker="INTRUS", quantite=1, type_actif="STOCK"))
+        session.add(Holding(foyer_id=ID_FOYER_B, ticker="INTRUS", quantite=1, type_actif="STOCK"))
         with pytest.raises(ProgrammingError, match="row-level security"):
             session.commit()
 
@@ -231,7 +231,7 @@ def invitations_des_deux_foyers(deux_foyers):
     foyer. Renvoie les jetons en clair, par foyer."""
     jetons = {}
     for foyer in (ID_FOYER_TEST, ID_FOYER_B):
-        detenteur = Detenteur(user_id=foyer, nom=f"Détenteur {foyer}")
+        detenteur = Detenteur(foyer_id=foyer, nom=f"Détenteur {foyer}")
         deux_foyers.add(detenteur)
         deux_foyers.commit()
         vue, jeton = invitation_service.creer_invitation(
@@ -266,7 +266,7 @@ def test_ecrire_une_invitation_dans_un_autre_foyer_est_refuse(invitations_des_de
 
 def test_rattacher_un_perimetre_a_l_invitation_d_un_autre_foyer_est_refuse(invitations_des_deux_foyers, deux_foyers):
     invitation_b = deux_foyers.query(Invitation).filter(Invitation.foyer_id == ID_FOYER_B).one()
-    detenteur_a = deux_foyers.query(Detenteur).filter(Detenteur.user_id == ID_FOYER_TEST).one()
+    detenteur_a = deux_foyers.query(Detenteur).filter(Detenteur.foyer_id == ID_FOYER_TEST).one()
     with _session_du_foyer(ID_FOYER_TEST, ID_UTILISATEUR_TEST) as session:
         session.add(InvitationPerimetre(invitation_id=invitation_b.id, detenteur_id=detenteur_a.id))
         with pytest.raises(ProgrammingError, match="row-level security"):
@@ -412,7 +412,7 @@ def test_supprimer_son_compte_sous_rls_efface_le_foyer_solo_et_quitte_les_autres
     db.add(utilisateur)
     db.commit()
     solo_id = auth_service.creer_foyer(db, utilisateur, nom="Le solo").id
-    ligne_solo = make_holding(db, user_id=solo_id, ticker="SOLO").id
+    ligne_solo = make_holding(db, foyer_id=solo_id, ticker="SOLO").id
     utilisateur_id = utilisateur.id
     db.add(Appartenance(user_id=utilisateur_id, foyer_id=ID_FOYER_B, role=ROLE_MEMBRE))
     db.commit()

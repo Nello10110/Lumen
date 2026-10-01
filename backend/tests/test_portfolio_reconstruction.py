@@ -666,7 +666,7 @@ def test_rebuild_holdings_preserve_le_compte_rattache_manuellement(db):
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
     rebuild_holdings(db, ID_FOYER_TEST)
 
-    compte = Compte(user_id=ID_FOYER_TEST, nom="PEA")
+    compte = Compte(foyer_id=ID_FOYER_TEST, nom="PEA")
     db.add(compte)
     db.commit()
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
@@ -706,7 +706,7 @@ def test_rebuild_holdings_preserve_les_quotites_par_detenteur(db):
     filtre par détenteur, déclaration de patrimoine) tout en laissant des lignes
     orphelines en base. Régression d'autant plus sournoise que le compte, lui,
     était bien reporté : rien ne signalait que la propriété ne l'était pas."""
-    detenteur = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
+    detenteur = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
     db.add(detenteur)
     db.commit()
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
@@ -726,7 +726,7 @@ def test_rebuild_holdings_preserve_les_quotites_par_detenteur(db):
 def test_rebuild_holdings_ne_laisse_aucune_quotite_orpheline(db):
     """Un ticker qui SORT du portefeuille (position soldée) ne doit pas laisser sa
     répartition derrière lui."""
-    detenteur = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
+    detenteur = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
     db.add(detenteur)
     db.commit()
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
@@ -855,8 +855,8 @@ def test_fifo_vente_avec_lots_insuffisants_ne_retire_pas_plus_que_le_cout_dispon
 
 
 def test_meme_ticker_deux_comptes_produit_deux_positions_distinctes(db):
-    compte_ledger = Compte(user_id=ID_FOYER_TEST, nom="Ledger")
-    compte_tr = Compte(user_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
+    compte_ledger = Compte(foyer_id=ID_FOYER_TEST, nom="Ledger")
+    compte_tr = Compte(foyer_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
     db.add_all([compte_ledger, compte_tr])
     db.commit()
 
@@ -882,8 +882,8 @@ def test_meme_ticker_deux_comptes_cree_deux_holdings_apres_rebuild(db):
     """Vérifie le bug rapporté tel quel : sans ce correctif, une seule ligne `Holding`
     « BTC » apparaissait (celle du DERNIER compte importé), l'autre établissement
     disparaissant entièrement de l'écran Portefeuille/Comptes."""
-    compte_ledger = Compte(user_id=ID_FOYER_TEST, nom="Ledger")
-    compte_tr = Compte(user_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
+    compte_ledger = Compte(foyer_id=ID_FOYER_TEST, nom="Ledger")
+    compte_tr = Compte(foyer_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
     db.add_all([compte_ledger, compte_tr])
     db.commit()
 
@@ -898,7 +898,7 @@ def test_meme_ticker_deux_comptes_cree_deux_holdings_apres_rebuild(db):
 
     rebuild_holdings(db, ID_FOYER_TEST)
 
-    lignes = db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST, Holding.ticker == "BTC").all()
+    lignes = db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST, Holding.ticker == "BTC").all()
     assert len(lignes) == 2
     par_compte = {h.compte_id: h for h in lignes}
     assert par_compte[compte_ledger.id].quantite == Decimal("0.1")
@@ -910,8 +910,8 @@ def test_meme_ticker_deux_comptes_cree_deux_holdings_apres_rebuild(db):
 def test_meme_ticker_deux_comptes_puis_achat_supplementaire_reste_scinde(db):
     """Un deuxième import (nouvel achat sur l'un des deux comptes) ne doit ni
     refusionner les deux positions, ni perdre la quantité déjà connue de l'autre."""
-    compte_ledger = Compte(user_id=ID_FOYER_TEST, nom="Ledger")
-    compte_tr = Compte(user_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
+    compte_ledger = Compte(foyer_id=ID_FOYER_TEST, nom="Ledger")
+    compte_tr = Compte(foyer_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
     db.add_all([compte_ledger, compte_tr])
     db.commit()
 
@@ -931,7 +931,7 @@ def test_meme_ticker_deux_comptes_puis_achat_supplementaire_reste_scinde(db):
     )
     rebuild_holdings(db, ID_FOYER_TEST)
 
-    lignes = db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST, Holding.ticker == "BTC").all()
+    lignes = db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST, Holding.ticker == "BTC").all()
     assert len(lignes) == 2
     par_compte = {h.compte_id: h for h in lignes}
     assert par_compte[compte_ledger.id].quantite == Decimal("0.15")  # 0.1 + 0.05, exact depuis § BI.1
@@ -942,7 +942,7 @@ def test_transaction_sans_compte_forme_son_propre_groupe_distinct_des_comptes_re
     """`compte_id=None` (mouvement sans compte connu, ex. transaction antérieure au
     correctif jamais rétro-remplie) ne doit jamais se fondre avec un compte réel du
     même ticker — cf. docstring de `compute_positions`."""
-    compte_tr = Compte(user_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
+    compte_tr = Compte(foyer_id=ID_FOYER_TEST, nom="Trade Republic Crypto")
     db.add(compte_tr)
     db.commit()
 

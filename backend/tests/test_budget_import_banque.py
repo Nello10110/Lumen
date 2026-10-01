@@ -82,7 +82,7 @@ def _importer_ce(client, contenu: str = RELEVE_CE, **surcharges) -> dict:
 
 def _categories(db) -> list[CategorieBudget]:
     db.expire_all()
-    return db.query(CategorieBudget).filter(CategorieBudget.user_id == ID_FOYER_TEST).all()
+    return db.query(CategorieBudget).filter(CategorieBudget.foyer_id == ID_FOYER_TEST).all()
 
 
 def _categorie(db, nom: str, parent: CategorieBudget | None = None) -> CategorieBudget:
@@ -449,7 +449,7 @@ def test_import_d_un_foyer_ne_reutilise_pas_les_categories_d_un_autre(client, db
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
     _importer_ce(client)
     db.expire_all()
-    mouvements_b = db.query(MouvementBancaire).filter(MouvementBancaire.user_id == ID_FOYER_B).all()
+    mouvements_b = db.query(MouvementBancaire).filter(MouvementBancaire.foyer_id == ID_FOYER_B).all()
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     assert mouvements_b

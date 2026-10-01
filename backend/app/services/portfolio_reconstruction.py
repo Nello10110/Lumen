@@ -405,9 +405,9 @@ def _trier_pour_reconstruction(transactions: list[Transaction]) -> list[Transact
 
 
 def compute_positions(
-    db: Session, user_id: int, methode: str | None = None
+    db: Session, foyer_id: int, methode: str | None = None
 ) -> dict[tuple[str, int | None], PositionState]:
-    """`user_id` : reconstruction strictement scopée à ce compte — le grand livre
+    """`foyer_id` : reconstruction strictement scopée à ce compte — le grand livre
     d'un autre utilisateur ne doit JAMAIS entrer dans ce calcul (Milestone 2a,
     multi-utilisateur, cf. `docs/BACKLOG.md` § 2.I.1). `methode` :
     `preferences_service.METHODE_COUT_MOYEN_PONDERE` ou `METHODE_FIFO`. Explicite
@@ -425,11 +425,11 @@ def compute_positions(
     ici. `compte_id=None` (mouvement sans compte connu) forme son propre bucket,
     distinct de tout compte réel — jamais fusionné avec eux ni entre eux."""
     if methode is None:
-        methode = preferences_service.lire_methode_cout(db, user_id)
+        methode = preferences_service.lire_methode_cout(db, foyer_id)
 
     transactions = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.symbol.isnot(None), Transaction.symbol != "")
+        .filter(Transaction.foyer_id == foyer_id, Transaction.symbol.isnot(None), Transaction.symbol != "")
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
@@ -454,7 +454,7 @@ def compute_position(db: Session, holding: Holding, methode: str | None = None) 
     que de rejouer tout le grand livre pour n'en garder qu'une position, comme le
     faisait `holding_detail_service` en passant par `compute_positions(db)` complet
     pour afficher une seule fiche. Résultat rigoureusement identique à
-    `compute_positions(db, holding.user_id).get((holding.ticker, holding.compte_id))`
+    `compute_positions(db, holding.foyer_id).get((holding.ticker, holding.compte_id))`
     — même fonction de traitement (`_apply_transaction`/`_controler_coherence`)
     appliquée aux mêmes transactions, seule la requête source change.
 
@@ -464,14 +464,14 @@ def compute_position(db: Session, holding: Holding, methode: str | None = None) 
     plus à désigner sans ambiguïté "de quelle position on parle". Renvoie `None` si
     cette position n'a aucune transaction correspondante."""
     if methode is None:
-        methode = preferences_service.lire_methode_cout(db, holding.user_id)
+        methode = preferences_service.lire_methode_cout(db, holding.foyer_id)
 
     transactions = (
         db.query(Transaction)
         .filter(
             Transaction.symbol == holding.ticker,
             Transaction.compte_id == holding.compte_id,
-            Transaction.user_id == holding.user_id,
+            Transaction.foyer_id == holding.foyer_id,
         )
         .order_by(Transaction.datetime_utc.asc())
         .all()
@@ -536,9 +536,9 @@ def _detacher_references(db: Session, ids_holdings: list[int]) -> None:
     db.query(Loan).filter(Loan.holding_id.in_(ids_holdings)).update({"holding_id": None}, synchronize_session=False)
 
 
-def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
+def rebuild_holdings(db: Session, foyer_id: int) -> ReconstructionResult:
     """Reconstruit les lignes du portefeuille depuis le grand livre, pour UN SEUL
-    utilisateur (`user_id`, Milestone 2a) — ne touche jamais aux lignes/transactions
+    utilisateur (`foyer_id`, Milestone 2a) — ne touche jamais aux lignes/transactions
     d'un autre compte.
 
     Compte d'origine (revu le 14/09/2026, retour utilisateur : un même ticker
@@ -574,7 +574,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     ligne manuelle n'a jamais eu de notion de compte d'origine issue d'un grand
     livre, il n'y a qu'un compte réel pour elle.
     """
-    positions = compute_positions(db, user_id)
+    positions = compute_positions(db, foyer_id)
 
     # Existant AVANT suppression (cf. docstring ci-dessus) : dernier repère pour
     # savoir si CE ticker portait une réassignation manuelle du compte à préserver.
@@ -583,7 +583,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     # juste plus bas — son compte doit survivre à ce remplacement tout autant qu'à
     # une reconstruction ordinaire.
     comptes_reconstruits_existants: dict[str, list[int | None]] = {}
-    for ticker, compte_id in db.query(Holding.ticker, Holding.compte_id).filter(Holding.user_id == user_id).all():
+    for ticker, compte_id in db.query(Holding.ticker, Holding.compte_id).filter(Holding.foyer_id == foyer_id).all():
         comptes_reconstruits_existants.setdefault(ticker, []).append(compte_id)
 
     # Nombre de positions distinctes par ticker dans CE calcul — un ticker scindé
@@ -593,7 +593,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
         etats_par_symbole[symbol] = etats_par_symbole.get(symbol, 0) + 1
 
     lignes_manuelles_existantes = {
-        h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_MANUEL).all()
+        h.ticker: h for h in db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.origine == ORIGINE_MANUEL).all()
     }
 
     # Répartition entre détenteurs, reportée pour une raison structurelle : une
@@ -612,7 +612,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     for ticker, compte_id, detenteur_id, quotite_pct in (
         db.query(Holding.ticker, Holding.compte_id, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct)
         .join(QuotiteHolding, QuotiteHolding.holding_id == Holding.id)
-        .filter(Holding.user_id == user_id)
+        .filter(Holding.foyer_id == foyer_id)
         .all()
     ):
         quotites_par_cle.setdefault((ticker, compte_id), []).append((detenteur_id, quotite_pct))
@@ -622,7 +622,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     # sort du portefeuille n'ont plus de raison d'exister.
     lignes_supprimees = (
         db.query(Holding.id, Holding.ticker, Holding.compte_id)
-        .filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT)
+        .filter(Holding.foyer_id == foyer_id, Holding.origine == ORIGINE_RECONSTRUIT)
         .all()
     )
     ids_supprimes = [ligne.id for ligne in lignes_supprimees]
@@ -637,7 +637,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
         for loan_id, holding_id in db.query(Loan.id, Loan.holding_id).filter(Loan.holding_id.in_(ids_supprimes)).all():
             emprunts_par_cle.setdefault(cle_par_id[holding_id], []).append(loan_id)
         _detacher_references(db, ids_supprimes)
-    db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT).delete()
+    db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.origine == ORIGINE_RECONSTRUIT).delete()
 
     count = 0
     lignes_manuelles_remplacees = 0
@@ -685,7 +685,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
 
         prix_revient = state.cost_basis / state.shares
         nouvelle_ligne = Holding(
-            user_id=user_id,
+            foyer_id=foyer_id,
             ticker=state.symbol,
             nom=state.name,
             quantite=state.shares,

@@ -599,7 +599,7 @@ def _comptes_out(db: Session, foyer_id: int, comptes: list[tuple[User, Appartena
     perimetres = (
         db.query(PerimetreInvite)
         .join(Detenteur, Detenteur.id == PerimetreInvite.detenteur_id)
-        .filter(PerimetreInvite.user_id.in_(ids), Detenteur.user_id == foyer_id)
+        .filter(PerimetreInvite.user_id.in_(ids), Detenteur.foyer_id == foyer_id)
         .all()
     )
     for p in perimetres:
@@ -644,7 +644,7 @@ def create_household_member(
     membre = auth_service.creer_utilisateur(db, payload.username, payload.password)
     appartenance = auth_service.ajouter_au_foyer(db, membre, foyer, payload.role)
     if payload.detenteur_ids:
-        detenteurs_valides = db.query(Detenteur).filter(Detenteur.id.in_(payload.detenteur_ids), Detenteur.user_id == foyer).all()
+        detenteurs_valides = db.query(Detenteur).filter(Detenteur.id.in_(payload.detenteur_ids), Detenteur.foyer_id == foyer).all()
         for detenteur in detenteurs_valides:
             db.add(PerimetreInvite(user_id=membre.id, detenteur_id=detenteur.id))
         db.commit()

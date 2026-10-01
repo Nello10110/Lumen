@@ -83,7 +83,7 @@ def test_get_or_create_compte_reutilise_un_compte_existant(db):
     second = comptes_service.get_or_create_compte(db, ID_FOYER_TEST, "PEA")
 
     assert premier.id == second.id
-    assert db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST, Compte.nom == "PEA").count() == 1
+    assert db.query(Compte).filter(Compte.foyer_id == ID_FOYER_TEST, Compte.nom == "PEA").count() == 1
 
 
 def test_get_or_create_compte_cree_si_absent(db):
@@ -124,7 +124,7 @@ def test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches(db):
     bob_id = _creer_detenteur(db, "Bob")
     appartement = make_holding(db, ticker="MAISON", compte_id=compte.id)
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Prêt immobilier",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,
@@ -138,7 +138,7 @@ def test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches(db):
     db.refresh(loan)
     # Emprunt sans rattachement : ne doit jamais être touché.
     loan_orphelin = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Prêt conso",
         capital_initial=5000.0,
         taux_annuel_pct=2.0,
@@ -347,7 +347,7 @@ def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incompl
         db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, valeur_estimee=250000.0, compte_id=compte.id
     )
     pret = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Crédit immobilier",
         capital_initial=200000.0,
         taux_annuel_pct=3.0,
@@ -419,7 +419,7 @@ def test_solde_par_compte_non_renseignee_jamais_sur_le_bucket_sans_compte(db):
 def _creer_detenteur(db, nom: str) -> int:
     from app.models import Detenteur
 
-    detenteur = Detenteur(user_id=ID_FOYER_TEST, nom=nom)
+    detenteur = Detenteur(foyer_id=ID_FOYER_TEST, nom=nom)
     db.add(detenteur)
     db.commit()
     db.refresh(detenteur)

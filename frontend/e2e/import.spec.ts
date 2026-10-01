@@ -87,7 +87,7 @@ test('Import : grand livre multi-comptes (PEA/Compte-titres/Cryptomonnaie/Obliga
   await expect(page.getByLabel('Obligations (1 ligne)')).toBeVisible()
 
   // Suffixe unique : un nom de compte est UNIQUE PAR UTILISATEUR, pas par
-  // établissement (`UniqueConstraint(user_id, nom)`) — sans lui, relancer ce test
+  // établissement (`UniqueConstraint(foyer_id, nom)`) — sans lui, relancer ce test
   // une seconde fois retrouverait les comptes déjà créés par le premier passage
   // (`get_or_create_compte_sans_commit`) au lieu d'en créer 4 nouveaux, et
   // `comptes_crees` retomberait à 0.

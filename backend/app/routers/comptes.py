@@ -82,7 +82,7 @@ def update_etablissement(
     current_user: User = Depends(_peut_ecrire),
 ):
     etablissement = db.get(Etablissement, etablissement_id)
-    if etablissement is None or etablissement.user_id != auth_service.id_foyer(current_user):
+    if etablissement is None or etablissement.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Établissement introuvable")
     try:
         return comptes_service.update_etablissement(db, etablissement, **payload.model_dump(exclude_unset=True))
@@ -93,7 +93,7 @@ def update_etablissement(
 @router.delete("/etablissements/{etablissement_id}")
 def delete_etablissement(etablissement_id: int, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     etablissement = db.get(Etablissement, etablissement_id)
-    if etablissement is None or etablissement.user_id != auth_service.id_foyer(current_user):
+    if etablissement is None or etablissement.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Établissement introuvable")
     comptes_service.delete_etablissement(db, etablissement)
     return {"ok": True}
@@ -112,7 +112,7 @@ def delete_etablissement(etablissement_id: int, db: Session = Depends(get_db), c
 
 def _etablissement_du_foyer(db: Session, etablissement_id: int, current_user: User) -> Etablissement:
     etablissement = db.get(Etablissement, etablissement_id)
-    if etablissement is None or etablissement.user_id != auth_service.id_foyer(current_user):
+    if etablissement is None or etablissement.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Établissement introuvable")
     return etablissement
 
@@ -212,27 +212,27 @@ def list_comptes(db: Session = Depends(get_db), current_user: User = Depends(get
 
 @router.post("", response_model=CompteOut)
 def create_compte(payload: CompteCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
     try:
-        return comptes_service.create_compte(db, user_id, payload.nom, payload.etablissement_id)
+        return comptes_service.create_compte(db, foyer_id, payload.nom, payload.etablissement_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/{compte_id}", response_model=CompteOut)
 def update_compte(compte_id: int, payload: CompteUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     compte = db.get(Compte, compte_id)
-    if compte is None or compte.user_id != user_id:
+    if compte is None or compte.foyer_id != foyer_id:
         raise HTTPException(status_code=404, detail="Compte introuvable")
     updates = payload.model_dump(exclude_unset=True)
     if updates.get("etablissement_id") is not None:
         etablissement = db.get(Etablissement, updates["etablissement_id"])
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
     try:
         return comptes_service.update_compte(db, compte, **updates)
@@ -243,7 +243,7 @@ def update_compte(compte_id: int, payload: CompteUpdate, db: Session = Depends(g
 @router.delete("/{compte_id}")
 def delete_compte(compte_id: int, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     compte = db.get(Compte, compte_id)
-    if compte is None or compte.user_id != auth_service.id_foyer(current_user):
+    if compte is None or compte.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Compte introuvable")
     comptes_service.delete_compte(db, compte)
     return {"ok": True}
@@ -268,12 +268,12 @@ def get_soldes(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 @router.get("/{compte_id}/holdings", response_model=list[HoldingOut])
 def get_compte_holdings(compte_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     compte = db.get(Compte, compte_id)
-    if compte is None or compte.user_id != user_id:
+    if compte is None or compte.foyer_id != foyer_id:
         raise HTTPException(status_code=404, detail="Compte introuvable")
     holdings_visibles_ids = _holdings_visibles_ids_invite(db, current_user)
-    requete = db.query(Holding).filter(Holding.compte_id == compte_id, Holding.user_id == user_id)
+    requete = db.query(Holding).filter(Holding.compte_id == compte_id, Holding.foyer_id == foyer_id)
     if holdings_visibles_ids is not None:
         requete = requete.filter(Holding.id.in_(holdings_visibles_ids or [-1]))
     holdings = requete.order_by(Holding.ticker).all()
@@ -292,12 +292,12 @@ def set_compte_quotites(compte_id: int, payload: QuotitesUpdate, db: Session = D
     ce compte entre détenteurs — cf. `comptes_service.set_quotites_compte`. Une
     liste vide retire toute répartition (retombe à 100 % foyer implicite sur
     chaque ligne)."""
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     compte = db.get(Compte, compte_id)
-    if compte is None or compte.user_id != user_id:
+    if compte is None or compte.foyer_id != foyer_id:
         raise HTTPException(status_code=404, detail="Compte introuvable")
     try:
-        comptes_service.set_quotites_compte(db, user_id, compte, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites])
+        comptes_service.set_quotites_compte(db, foyer_id, compte, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     historique_cache.invalider_historiques_patrimoine(db)
@@ -311,11 +311,11 @@ def set_compte_zone_geo(
     """Applique la même zone géographique à CHAQUE ligne rattachée à ce compte —
     cf. `comptes_service.set_zone_geo_compte`. `zone_geo=None` efface la
     déclaration manuelle de chaque ligne (retour à la détection automatique)."""
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     compte = db.get(Compte, compte_id)
-    if compte is None or compte.user_id != user_id:
+    if compte is None or compte.foyer_id != foyer_id:
         raise HTTPException(status_code=404, detail="Compte introuvable")
-    lignes_modifiees = comptes_service.set_zone_geo_compte(db, user_id, compte, payload.zone_geo)
+    lignes_modifiees = comptes_service.set_zone_geo_compte(db, foyer_id, compte, payload.zone_geo)
     return {"ok": True, "lignes_modifiees": lignes_modifiees}
 
 
@@ -326,9 +326,9 @@ def set_compte_secteur(
     """Applique le même secteur à CHAQUE ligne rattachée à ce compte — cf.
     `comptes_service.set_secteur_compte`. `secteur=None` efface la déclaration
     manuelle de chaque ligne (retour à la détection automatique)."""
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     compte = db.get(Compte, compte_id)
-    if compte is None or compte.user_id != user_id:
+    if compte is None or compte.foyer_id != foyer_id:
         raise HTTPException(status_code=404, detail="Compte introuvable")
-    lignes_modifiees = comptes_service.set_secteur_compte(db, user_id, compte, payload.secteur)
+    lignes_modifiees = comptes_service.set_secteur_compte(db, foyer_id, compte, payload.secteur)
     return {"ok": True, "lignes_modifiees": lignes_modifiees}

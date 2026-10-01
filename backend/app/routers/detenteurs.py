@@ -36,7 +36,7 @@ def update_detenteur(
     current_user: User = Depends(get_current_user),
 ):
     detenteur = db.get(Detenteur, detenteur_id)
-    if detenteur is None or detenteur.user_id != auth_service.id_foyer(current_user):
+    if detenteur is None or detenteur.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Détenteur introuvable")
     try:
         return detenteurs_service.update_detenteur(db, detenteur, **payload.model_dump(exclude_unset=True))
@@ -47,7 +47,7 @@ def update_detenteur(
 @router.delete("/{detenteur_id}")
 def delete_detenteur(detenteur_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     detenteur = db.get(Detenteur, detenteur_id)
-    if detenteur is None or detenteur.user_id != auth_service.id_foyer(current_user):
+    if detenteur is None or detenteur.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Détenteur introuvable")
     detenteurs_service.delete_detenteur(db, detenteur)
     return {"ok": True}

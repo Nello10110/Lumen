@@ -18,12 +18,12 @@ from . import patrimoine_service
 SEUIL_JOURS_ALERTE_FRAICHEUR = 365
 
 
-def compute_alertes_fraicheur(db: Session, user_id: int) -> list[dict]:
+def compute_alertes_fraicheur(db: Session, foyer_id: int) -> list[dict]:
     maintenant = datetime.now(UTC).replace(tzinfo=None)
     holdings = (
         db.query(Holding)
         .filter(
-            Holding.user_id == user_id,
+            Holding.foyer_id == foyer_id,
             Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL),
             Holding.valeur_estimee.isnot(None),
         )

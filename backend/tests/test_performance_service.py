@@ -37,7 +37,7 @@ def test_xirr_none_si_tous_les_flux_ont_le_meme_signe():
 
 
 def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
-    holding = Holding(user_id=ID_FOYER_TEST, ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0)
+    holding = Holding(foyer_id=ID_FOYER_TEST, ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0)
     db.add(holding)
     db.add(
         MarketDataCache(
@@ -121,7 +121,7 @@ def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
     """Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/BACKLOG.md` § 4.2) : pas de
     `MarketDataCache`, mais `valeur_estimee` joue le rôle du prix actuel."""
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="MAISON",
         nom="Résidence",
         quantite=1.0,
@@ -146,7 +146,7 @@ def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisitio
     (`compute_holding_returns`/`compute_holding_return`, cf. `_rendement_pour_ligne`),
     pas seulement dans la rentabilité locative de la fiche immobilier."""
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="MAISON_FRAIS",
         nom="Résidence",
         quantite=1.0,
@@ -178,7 +178,7 @@ def test_cout_acquisition_derive_de_lhistorique_quand_prix_revient_moyen_est_vid
     ligne à coût `None`). Scénario exact du retour terrain : PER à 0€ en 2024, puis
     50 000€ aujourd'hui dont 5 000€ de plus-value déclarée -> 45 000€ de versement."""
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="PER_TEST",
         nom="PER",
         quantite=1.0,
@@ -207,7 +207,7 @@ def test_cout_acquisition_non_derive_quand_prix_revient_moyen_est_deja_renseigne
     `prix_revient_moyen` explicitement saisi, même si un historique de valorisation
     existe aussi pour la même ligne."""
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="PER_AVEC_PRIX",
         nom="PER",
         quantite=1.0,
@@ -235,7 +235,7 @@ def test_rendement_annualise_derive_de_lhistorique_sans_date_acquisition(db):
     à un seul flux déjà verrouillé par `test_rendement_annualise_via_date_acquisition_pour_actif_manuel`,
     mais dérivée ici du premier point de l'historique plutôt que d'un champ séparé)."""
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="PER_HISTORIQUE",
         nom="PER",
         quantite=1.0,
@@ -264,7 +264,7 @@ def test_rendement_annualise_derive_de_plusieurs_versements_declares(db):
     valorisation finale à 2310€ : ≈ 10 %/an (1000*1.1² + 1000*1.1 = 2310)."""
     maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="PER_VERSEMENTS",
         nom="PER",
         quantite=1.0,
@@ -292,7 +292,7 @@ def test_rendement_annualise_repli_sur_date_acquisition_si_lhistorique_ne_suffit
     calculable par cette autre voie."""
     maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="PER_DEGENERE",
         nom="PER",
         quantite=1.0,
@@ -325,7 +325,7 @@ def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
     n'existe pour fournir un flux réel — `xirr` avec exactement un flux entrant et un
     flux sortant se réduit à la formule CAGR classique."""
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="MAISON_DATEE",
         nom="Résidence",
         quantite=1.0,
@@ -345,7 +345,7 @@ def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
 
 def test_pas_de_rendement_annualise_si_detention_trop_courte_meme_avec_date_acquisition(db):
     holding = Holding(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         ticker="MAISON_RECENTE",
         nom="Achat récent",
         quantite=1.0,
@@ -370,7 +370,7 @@ def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
     rebuild_holdings(db, ID_FOYER_TEST)
     db.add(MarketDataCache(ticker="ABC", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
-    db.add(Holding(user_id=ID_FOYER_TEST, ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.add(Holding(foyer_id=ID_FOYER_TEST, ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
     db.commit()
 
     resultat = compute_performance(db, ID_FOYER_TEST)
@@ -392,7 +392,7 @@ def test_compute_performance_deduit_le_cout_dune_ligne_financiere_saisie_manuell
     `valeur_positions` — seul son coût manquait."""
     db.add(
         Holding(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             ticker="MANUEL",
             quantite=10.0,
             prix_revient_moyen=100.0,
@@ -681,7 +681,7 @@ def test_compute_holding_return_identique_a_compute_holding_returns_sur_plusieur
     db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
     db.add(MarketDataCache(ticker="BBB", prix_actuel=90.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
-    holdings_par_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == ID_FOYER_TEST).all()}
+    holdings_par_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST).all()}
 
     ensemble = compute_holding_returns(db, ID_FOYER_TEST)
     assert set(ensemble) == {h.id for h in holdings_par_ticker.values()}
@@ -740,9 +740,9 @@ def test_positions_partagees_evite_un_recalcul_quand_plusieurs_fonctions_sont_en
     compteur = {"n": 0}
     original = portfolio_reconstruction.compute_positions
 
-    def _compte_et_calcule(db_, user_id_):
+    def _compte_et_calcule(db_, foyer_id_):
         compteur["n"] += 1
-        return original(db_, user_id_)
+        return original(db_, foyer_id_)
 
     monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _compte_et_calcule)
 

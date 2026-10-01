@@ -144,7 +144,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Sous Postgres, chaque table de foyer porte une politique de sécurité au niveau des
 # lignes (RLS, migration `c3a8e1f0b6d2`) : une requête ne voit et n'écrit que les
 # lignes du foyer désigné par le réglage de transaction `app.foyer_id`. Un filtre
-# `user_id == …` oublié dans une route future ne renvoie alors plus les données de
+# `foyer_id == …` oublié dans une route future ne renvoie alors plus les données de
 # tous les foyers : il ne renvoie que celles du foyer connecté.
 #
 # Le PÉRIMÈTRE d'une session vit dans `session.info` et il est reposé au début de

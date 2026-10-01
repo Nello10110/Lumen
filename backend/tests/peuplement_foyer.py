@@ -79,16 +79,16 @@ def peupler_foyer(db, foyer_id: int, etiquette: str) -> FoyerPeuple:
     membre = _compte(db, f"membre-{etiquette}", foyer_id, ROLE_MEMBRE)
     invite = _compte(db, f"invite-{etiquette}", foyer_id, ROLE_INVITE)
 
-    etablissement = Etablissement(user_id=foyer_id, nom=f"Banque {etiquette}")
+    etablissement = Etablissement(foyer_id=foyer_id, nom=f"Banque {etiquette}")
     db.add(etablissement)
     db.flush()
-    compte = Compte(user_id=foyer_id, nom=f"PEA {etiquette}", etablissement_id=etablissement.id)
-    detenteur = Detenteur(user_id=foyer_id, nom=f"Alice {etiquette}")
+    compte = Compte(foyer_id=foyer_id, nom=f"PEA {etiquette}", etablissement_id=etablissement.id)
+    detenteur = Detenteur(foyer_id=foyer_id, nom=f"Alice {etiquette}")
     db.add_all([compte, detenteur])
     db.commit()
 
-    holding = make_holding(db, user_id=foyer_id, ticker=f"AAA-{etiquette}", compte_id=compte.id)
-    maison = make_holding(db, user_id=foyer_id, ticker=f"MAISON-{etiquette}", type_actif="REAL_ESTATE")
+    holding = make_holding(db, foyer_id=foyer_id, ticker=f"AAA-{etiquette}", compte_id=compte.id)
+    maison = make_holding(db, foyer_id=foyer_id, ticker=f"MAISON-{etiquette}", type_actif="REAL_ESTATE")
     db.add_all(
         [
             HoldingImmobilierDetail(holding_id=maison.id, type_location="nue"),
@@ -97,7 +97,7 @@ def peupler_foyer(db, foyer_id: int, etiquette: str) -> FoyerPeuple:
         ]
     )
     pret = Loan(
-        user_id=foyer_id,
+        foyer_id=foyer_id,
         libelle=f"Prêt {etiquette}",
         capital_initial=200000,
         taux_annuel_pct=3,
@@ -110,32 +110,32 @@ def peupler_foyer(db, foyer_id: int, etiquette: str) -> FoyerPeuple:
     db.add(pret)
     db.flush()
     db.add(QuotiteLoan(loan_id=pret.id, detenteur_id=detenteur.id, quotite_pct=100))
-    make_transaction(db, user_id=foyer_id, transaction_id=f"tx-{etiquette}", symbol=f"AAA-{etiquette}", compte_id=compte.id)
+    make_transaction(db, foyer_id=foyer_id, transaction_id=f"tx-{etiquette}", symbol=f"AAA-{etiquette}", compte_id=compte.id)
     db.add(
-        Salaire(user_id=foyer_id, annee=2026, nom=f"Salaire {etiquette}", montant=45000, type_montant="brut", periodicite="annuel", statut="cadre", detenteur_id=detenteur.id)
+        Salaire(foyer_id=foyer_id, annee=2026, nom=f"Salaire {etiquette}", montant=45000, type_montant="brut", periodicite="annuel", statut="cadre", detenteur_id=detenteur.id)
     )
 
-    racine = CategorieBudget(user_id=foyer_id, nom=f"Courses {etiquette}")
+    racine = CategorieBudget(foyer_id=foyer_id, nom=f"Courses {etiquette}")
     db.add(racine)
     db.flush()
-    fille = CategorieBudget(user_id=foyer_id, nom=f"Marché {etiquette}", parent_id=racine.id)
+    fille = CategorieBudget(foyer_id=foyer_id, nom=f"Marché {etiquette}", parent_id=racine.id)
     db.add(fille)
     db.flush()
     db.add_all(
         [
             MouvementBancaire(
-                user_id=foyer_id, transaction_id=f"mv-{etiquette}", date="2026-01-02", libelle="Boulangerie", montant=-4.5, compte_id=compte.id, categorie_id=fille.id
+                foyer_id=foyer_id, transaction_id=f"mv-{etiquette}", date="2026-01-02", libelle="Boulangerie", montant=-4.5, compte_id=compte.id, categorie_id=fille.id
             ),
-            RegleCategorisation(user_id=foyer_id, motif="boulangerie", categorie_id=racine.id),
-            BudgetCible(user_id=foyer_id, categorie_id=racine.id, montant_mensuel=300),
-            JournalImport(user_id=foyer_id, source="releve", nb_lignes=1),
+            RegleCategorisation(foyer_id=foyer_id, motif="boulangerie", categorie_id=racine.id),
+            BudgetCible(foyer_id=foyer_id, categorie_id=racine.id, montant_mensuel=300),
+            JournalImport(foyer_id=foyer_id, source="releve", nb_lignes=1),
             FoyerParametre(foyer_id=foyer_id, cle="methode_cout", valeur="fifo"),
         ]
     )
 
     lien = LienPartage(
         token=f"lien-{etiquette}",
-        user_id=foyer_id,
+        foyer_id=foyer_id,
         nom=f"Lien {etiquette}",
         detenteur_id=detenteur.id,
         expires_at=datetime.now() + timedelta(days=30),

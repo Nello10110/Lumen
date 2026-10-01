@@ -89,28 +89,28 @@ def cle_regroupement(libelle: str) -> str:
     return cle or normaliser(libelle)
 
 
-def assurer_categories_par_defaut(db: Session, user_id: int) -> list[CategorieBudget]:
+def assurer_categories_par_defaut(db: Session, foyer_id: int) -> list[CategorieBudget]:
     """Crée l'arbre par défaut à la toute première utilisation ; ne touche à rien
     ensuite — un utilisateur qui a déjà tout supprimé volontairement (ou n'a jamais
     accepté les catégories par défaut, cf. `create_categorie` qui marque aussi le
     foyer comme initialisé) ne doit pas les voir réapparaître (drapeau posé via
     `preferences_service`, seul point d'accès à `FoyerParametre`)."""
-    existantes = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
+    existantes = db.query(CategorieBudget).filter(CategorieBudget.foyer_id == foyer_id).all()
     if existantes:
         return existantes
-    if preferences_service.budget_categories_initialisees(db, user_id):
+    if preferences_service.budget_categories_initialisees(db, foyer_id):
         return []
-    langue = preferences_service.lire_langue_foyer(db, user_id)
-    creees = [CategorieBudget(user_id=user_id, nom=nom_par_defaut(code, langue), code=code) for code, _ in CATEGORIES_PAR_DEFAUT]
+    langue = preferences_service.lire_langue_foyer(db, foyer_id)
+    creees = [CategorieBudget(foyer_id=foyer_id, nom=nom_par_defaut(code, langue), code=code) for code, _ in CATEGORIES_PAR_DEFAUT]
     db.add_all(creees)
-    preferences_service.marquer_budget_categories_initialisees(db, user_id)
+    preferences_service.marquer_budget_categories_initialisees(db, foyer_id)
     db.commit()
     for c in creees:
         db.refresh(c)
     return creees
 
 
-def categorie_racine_par_code(db: Session, user_id: int, code: str) -> CategorieBudget | None:
+def categorie_racine_par_code(db: Session, foyer_id: int, code: str) -> CategorieBudget | None:
     """Catégorie racine repérée par son code (§ BL.3) ; à défaut, par son nom par défaut
     dans l'une des langues proposées — une catégorie recréée à la main après
     suppression de l'originale (donc sans code) reste reconnue, comme avant les codes.
@@ -119,7 +119,7 @@ def categorie_racine_par_code(db: Session, user_id: int, code: str) -> Categorie
     "Épargne" == "épargne"."""
     racines = (
         db.query(CategorieBudget)
-        .filter(CategorieBudget.user_id == user_id, CategorieBudget.parent_id.is_(None))
+        .filter(CategorieBudget.foyer_id == foyer_id, CategorieBudget.parent_id.is_(None))
         .order_by(CategorieBudget.id)
         .all()
     )
@@ -130,7 +130,7 @@ def categorie_racine_par_code(db: Session, user_id: int, code: str) -> Categorie
     return next((c for c in racines if c.code is None and normaliser(c.nom) in noms), None)
 
 
-def traduire_categories_par_defaut(db: Session, user_id: int, ancienne_langue: str, nouvelle_langue: str) -> None:
+def traduire_categories_par_defaut(db: Session, foyer_id: int, ancienne_langue: str, nouvelle_langue: str) -> None:
     """Au changement de langue du foyer (§ BL.3), renomme les catégories par défaut
     que l'utilisateur n'a PAS renommées — un nom personnalisé est un choix, jamais
     écrasé. Un nom déjà pris par une autre catégorie au même niveau est laissé tel
@@ -138,7 +138,7 @@ def traduire_categories_par_defaut(db: Session, user_id: int, ancienne_langue: s
     Ne valide pas : l'appelant enregistre la langue dans la même transaction."""
     if ancienne_langue == nouvelle_langue:
         return
-    categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
+    categories = db.query(CategorieBudget).filter(CategorieBudget.foyer_id == foyer_id).all()
     for categorie in categories:
         if categorie.code not in _NOMS_PAR_CODE or categorie.nom != nom_par_defaut(categorie.code, ancienne_langue):
             continue
@@ -148,27 +148,27 @@ def traduire_categories_par_defaut(db: Session, user_id: int, ancienne_langue: s
             categorie.nom = cible
 
 
-def list_categories(db: Session, user_id: int) -> list[CategorieBudget]:
-    return assurer_categories_par_defaut(db, user_id)
+def list_categories(db: Session, foyer_id: int) -> list[CategorieBudget]:
+    return assurer_categories_par_defaut(db, foyer_id)
 
 
-def create_categorie(db: Session, user_id: int, nom: str, parent_id: int | None) -> CategorieBudget:
+def create_categorie(db: Session, foyer_id: int, nom: str, parent_id: int | None) -> CategorieBudget:
     if parent_id is not None:
-        parent = db.query(CategorieBudget).filter(CategorieBudget.id == parent_id, CategorieBudget.user_id == user_id).first()
+        parent = db.query(CategorieBudget).filter(CategorieBudget.id == parent_id, CategorieBudget.foyer_id == foyer_id).first()
         if parent is None:
             raise ValueError("Catégorie parente introuvable")
-    categorie = CategorieBudget(user_id=user_id, nom=nom.strip(), parent_id=parent_id)
+    categorie = CategorieBudget(foyer_id=foyer_id, nom=nom.strip(), parent_id=parent_id)
     db.add(categorie)
-    preferences_service.marquer_budget_categories_initialisees(db, user_id)
+    preferences_service.marquer_budget_categories_initialisees(db, foyer_id)
     db.commit()
     db.refresh(categorie)
     return categorie
 
 
 def modifier_categorie(
-    db: Session, user_id: int, categorie_id: int, *, nom: str | None = None, exclue_des_totaux: bool | None = None
+    db: Session, foyer_id: int, categorie_id: int, *, nom: str | None = None, exclue_des_totaux: bool | None = None
 ) -> CategorieBudget:
-    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.user_id == user_id).first()
+    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.foyer_id == foyer_id).first()
     if categorie is None:
         raise ValueError("Catégorie introuvable")
     if nom is not None:
@@ -180,11 +180,11 @@ def modifier_categorie(
     return categorie
 
 
-def ids_categories_exclues(db: Session, user_id: int) -> set[int]:
+def ids_categories_exclues(db: Session, foyer_id: int) -> set[int]:
     """Catégories dont les mouvements ne comptent dans aucun total (§ BM.3) : celles
     marquées, et les sous-catégories d'une racine marquée — exclure « Transaction
     exclue » exclut « Virement interne » qu'elle contient."""
-    categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
+    categories = db.query(CategorieBudget).filter(CategorieBudget.foyer_id == foyer_id).all()
     marquees = {c.id for c in categories if c.exclue_des_totaux}
     return marquees | {c.id for c in categories if c.parent_id in marquees}
 
@@ -224,8 +224,8 @@ class _PlanFusion:
     apercu: ApercuFusion
 
 
-def _planifier_fusion(db: Session, user_id: int, source_id: int, cible_id: int) -> _PlanFusion:
-    categories = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id).all()
+def _planifier_fusion(db: Session, foyer_id: int, source_id: int, cible_id: int) -> _PlanFusion:
+    categories = db.query(CategorieBudget).filter(CategorieBudget.foyer_id == foyer_id).all()
     par_id = {c.id: c for c in categories}
     source, cible = par_id.get(source_id), par_id.get(cible_id)
     if source is None or cible is None:
@@ -259,17 +259,17 @@ def _planifier_fusion(db: Session, user_id: int, source_id: int, cible_id: int) 
                 absorbees.add(enfant.id)
 
     ids = [s.id for s, _ in paires]
-    budgets = {b.categorie_id for b in db.query(BudgetCible).filter(BudgetCible.user_id == user_id)}
-    exclues = ids_categories_exclues(db, user_id)
+    budgets = {b.categorie_id for b in db.query(BudgetCible).filter(BudgetCible.foyer_id == foyer_id)}
+    exclues = ids_categories_exclues(db, foyer_id)
     apercu = ApercuFusion(
         mouvements=db.query(func.count(MouvementBancaire.id))
         .filter(
-            MouvementBancaire.user_id == user_id,
+            MouvementBancaire.foyer_id == foyer_id,
             or_(MouvementBancaire.categorie_id.in_(ids), MouvementBancaire.categorie_banque_id.in_(ids)),
         )
         .scalar(),
         regles=db.query(func.count(RegleCategorisation.id))
-        .filter(RegleCategorisation.user_id == user_id, RegleCategorisation.categorie_id.in_(ids))
+        .filter(RegleCategorisation.foyer_id == foyer_id, RegleCategorisation.categorie_id.in_(ids))
         .scalar(),
         sous_categories_deplacees=len(deplacees),
         sous_categories_fusionnees=len(paires) - 1,
@@ -280,26 +280,26 @@ def _planifier_fusion(db: Session, user_id: int, source_id: int, cible_id: int) 
     return _PlanFusion(paires, deplacees, apercu)
 
 
-def apercu_fusion(db: Session, user_id: int, source_id: int, cible_id: int) -> ApercuFusion:
+def apercu_fusion(db: Session, foyer_id: int, source_id: int, cible_id: int) -> ApercuFusion:
     """Ce que la fusion déplacerait, sans rien modifier — de quoi confirmer en connaissance de cause."""
-    return _planifier_fusion(db, user_id, source_id, cible_id).apercu
+    return _planifier_fusion(db, foyer_id, source_id, cible_id).apercu
 
 
-def fusionner_categories(db: Session, user_id: int, source_id: int, cible_id: int) -> ApercuFusion:
+def fusionner_categories(db: Session, foyer_id: int, source_id: int, cible_id: int) -> ApercuFusion:
     """Absorbe la source dans la cible : mouvements (catégorie ET catégorie de la banque), règles,
     budget cible et sous-catégories passent à la cible, puis la source disparaît. Une
     sous-catégorie de même nom des deux côtés est fusionnée à son tour. La cible garde son budget
     cible, son drapeau d'exclusion et son nom ; la source lui laisse son nom et ses alias, pour
     que le prochain import ne la recrée pas. Une catégorisation manuelle reste manuelle."""
-    plan = _planifier_fusion(db, user_id, source_id, cible_id)
-    budgets = {b.categorie_id: b for b in db.query(BudgetCible).filter(BudgetCible.user_id == user_id)}
+    plan = _planifier_fusion(db, foyer_id, source_id, cible_id)
+    budgets = {b.categorie_id: b for b in db.query(BudgetCible).filter(BudgetCible.foyer_id == foyer_id)}
     for absorbee, absorbante in plan.paires:
         for colonne in (MouvementBancaire.categorie_id, MouvementBancaire.categorie_banque_id):
-            db.query(MouvementBancaire).filter(MouvementBancaire.user_id == user_id, colonne == absorbee.id).update(
+            db.query(MouvementBancaire).filter(MouvementBancaire.foyer_id == foyer_id, colonne == absorbee.id).update(
                 {colonne: absorbante.id}, synchronize_session=False
             )
         db.query(RegleCategorisation).filter(
-            RegleCategorisation.user_id == user_id, RegleCategorisation.categorie_id == absorbee.id
+            RegleCategorisation.foyer_id == foyer_id, RegleCategorisation.categorie_id == absorbee.id
         ).update({"categorie_id": absorbante.id}, synchronize_session=False)
         budget = budgets.get(absorbee.id)
         if budget is not None:
@@ -327,27 +327,27 @@ def fusionner_categories(db: Session, user_id: int, source_id: int, cible_id: in
     return plan.apercu
 
 
-def delete_categorie(db: Session, user_id: int, categorie_id: int) -> None:
+def delete_categorie(db: Session, foyer_id: int, categorie_id: int) -> None:
     """Supprime la catégorie et ses sous-catégories directes (arbre à un seul
     niveau, cf. `CategorieBudget`) : les mouvements qui les référençaient retombent
     à `categorie_id = None` (non catégorisé) plutôt que d'être supprimés, les cibles
     et règles associées disparaissent avec elles."""
-    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.user_id == user_id).first()
+    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.foyer_id == foyer_id).first()
     if categorie is None:
         raise ValueError("Catégorie introuvable")
-    enfants = db.query(CategorieBudget).filter(CategorieBudget.parent_id == categorie_id, CategorieBudget.user_id == user_id).all()
+    enfants = db.query(CategorieBudget).filter(CategorieBudget.parent_id == categorie_id, CategorieBudget.foyer_id == foyer_id).all()
     ids = [categorie_id] + [e.id for e in enfants]
 
-    db.query(MouvementBancaire).filter(MouvementBancaire.categorie_id.in_(ids), MouvementBancaire.user_id == user_id).update(
+    db.query(MouvementBancaire).filter(MouvementBancaire.categorie_id.in_(ids), MouvementBancaire.foyer_id == foyer_id).update(
         {"categorie_id": None}, synchronize_session=False
     )
     # La catégorie de la banque disparaît avec elle : `reappliquer_regles` ne doit pas
     # y reclasser les mouvements que l'utilisateur vient d'en sortir.
-    db.query(MouvementBancaire).filter(MouvementBancaire.categorie_banque_id.in_(ids), MouvementBancaire.user_id == user_id).update(
+    db.query(MouvementBancaire).filter(MouvementBancaire.categorie_banque_id.in_(ids), MouvementBancaire.foyer_id == foyer_id).update(
         {"categorie_banque_id": None}, synchronize_session=False
     )
-    db.query(BudgetCible).filter(BudgetCible.categorie_id.in_(ids), BudgetCible.user_id == user_id).delete(synchronize_session=False)
-    db.query(RegleCategorisation).filter(RegleCategorisation.categorie_id.in_(ids), RegleCategorisation.user_id == user_id).delete(
+    db.query(BudgetCible).filter(BudgetCible.categorie_id.in_(ids), BudgetCible.foyer_id == foyer_id).delete(synchronize_session=False)
+    db.query(RegleCategorisation).filter(RegleCategorisation.categorie_id.in_(ids), RegleCategorisation.foyer_id == foyer_id).delete(
         synchronize_session=False
     )
     for e in enfants:
@@ -361,23 +361,23 @@ def delete_categorie(db: Session, user_id: int, categorie_id: int) -> None:
     db.commit()
 
 
-def list_regles(db: Session, user_id: int) -> list[RegleCategorisation]:
-    return db.query(RegleCategorisation).filter(RegleCategorisation.user_id == user_id).order_by(RegleCategorisation.id).all()
+def list_regles(db: Session, foyer_id: int) -> list[RegleCategorisation]:
+    return db.query(RegleCategorisation).filter(RegleCategorisation.foyer_id == foyer_id).order_by(RegleCategorisation.id).all()
 
 
-def create_regle(db: Session, user_id: int, motif: str, categorie_id: int) -> RegleCategorisation:
-    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.user_id == user_id).first()
+def create_regle(db: Session, foyer_id: int, motif: str, categorie_id: int) -> RegleCategorisation:
+    categorie = db.query(CategorieBudget).filter(CategorieBudget.id == categorie_id, CategorieBudget.foyer_id == foyer_id).first()
     if categorie is None:
         raise ValueError("Catégorie introuvable")
-    regle = RegleCategorisation(user_id=user_id, motif=motif.strip(), categorie_id=categorie_id)
+    regle = RegleCategorisation(foyer_id=foyer_id, motif=motif.strip(), categorie_id=categorie_id)
     db.add(regle)
     db.commit()
     db.refresh(regle)
     return regle
 
 
-def delete_regle(db: Session, user_id: int, regle_id: int) -> None:
-    regle = db.query(RegleCategorisation).filter(RegleCategorisation.id == regle_id, RegleCategorisation.user_id == user_id).first()
+def delete_regle(db: Session, foyer_id: int, regle_id: int) -> None:
+    regle = db.query(RegleCategorisation).filter(RegleCategorisation.id == regle_id, RegleCategorisation.foyer_id == foyer_id).first()
     if regle is None:
         raise ValueError("Règle introuvable")
     db.delete(regle)

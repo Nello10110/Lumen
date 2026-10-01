@@ -78,10 +78,10 @@ def _generer_foyer(client, db) -> str:
     debut = aujourdhui - timedelta(days=6 * 365)
     minuit = datetime.min.time()
 
-    etablissement = Etablissement(user_id=uid, nom="Courtier")
+    etablissement = Etablissement(foyer_id=uid, nom="Courtier")
     db.add(etablissement)
     db.flush()
-    comptes = {nom: Compte(user_id=uid, nom=nom, etablissement_id=etablissement.id) for nom in ("PEA", "CTO", "Crypto")}
+    comptes = {nom: Compte(foyer_id=uid, nom=nom, etablissement_id=etablissement.id) for nom in ("PEA", "CTO", "Crypto")}
     db.add_all(comptes.values())
     db.flush()
 
@@ -120,7 +120,7 @@ def _generer_foyer(client, db) -> str:
         while jour <= aujourdhui - timedelta(days=3):
             prix = cours_a(ticker, jour)
             commun = {
-                "user_id": uid, "datetime_utc": datetime.combine(jour, minuit), "date": jour.isoformat(), "asset_class": classe,
+                "foyer_id": uid, "datetime_utc": datetime.combine(jour, minuit), "date": jour.isoformat(), "asset_class": classe,
                 "symbol": ticker, "compte_id": comptes[compte].id, "price": prix,
             }  # fmt: skip
             if rnd.random() < 0.12 and detenu > 0:
@@ -176,7 +176,7 @@ def _generer_foyer(client, db) -> str:
 
     def ligne_manuelle(ticker: str, type_actif: str, depart: float, croissance: float, versement: float | None) -> Holding:
         ligne = Holding(
-            user_id=uid, ticker=ticker, nom=ticker, quantite=1, type_actif=type_actif, origine="manuel",
+            foyer_id=uid, ticker=ticker, nom=ticker, quantite=1, type_actif=type_actif, origine="manuel",
             prix_revient_moyen=depart, date_acquisition=datetime.combine(debut, minuit), taux_pct=3.0,
         )  # fmt: skip
         db.add(ligne)
@@ -201,7 +201,7 @@ def _generer_foyer(client, db) -> str:
     debut_pret = datetime.combine(debut, minuit)
     db.add(
         Loan(
-            user_id=uid,
+            foyer_id=uid,
             libelle="Prêt immo",
             capital_initial=220000,
             taux_annuel_pct=1.35,
@@ -213,7 +213,7 @@ def _generer_foyer(client, db) -> str:
     )
     db.add(
         Loan(
-            user_id=uid,
+            foyer_id=uid,
             libelle="Prêt auto",
             capital_initial=15000,
             taux_annuel_pct=4.2,
@@ -229,7 +229,7 @@ def _generer_foyer(client, db) -> str:
         for _ in range(2):
             db.add(
                 MouvementBancaire(
-                    user_id=uid,
+                    foyer_id=uid,
                     transaction_id=f"m{k}",
                     date=jour.isoformat(),
                     libelle=rnd.choice(libelles),
@@ -238,12 +238,12 @@ def _generer_foyer(client, db) -> str:
             )
             k += 1
         if jour.day == 1:
-            db.add(MouvementBancaire(user_id=uid, transaction_id=f"m{k}", date=jour.isoformat(), libelle="Salaire", montant=3400))
+            db.add(MouvementBancaire(foyer_id=uid, transaction_id=f"m{k}", date=jour.isoformat(), libelle="Salaire", montant=3400))
             k += 1
         jour += timedelta(days=1)
     db.commit()
     nb_cours = sum(len(s) for s in cours.values())
-    nb_positions = db.query(Holding).filter(Holding.user_id == uid).count()
+    nb_positions = db.query(Holding).filter(Holding.foyer_id == uid).count()
     return f"{n} transactions, {k} mouvements bancaires, {nb_cours} cours, {nb_positions} positions"
 
 

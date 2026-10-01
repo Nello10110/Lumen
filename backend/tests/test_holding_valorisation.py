@@ -89,7 +89,7 @@ def test_valorisation_sur_holding_introuvable_renvoie_404(client):
 
 def test_valorisation_sur_actif_dun_autre_utilisateur_est_refusee(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    h_b = make_holding(db, ticker="AV_B", user_id=ID_FOYER_B, type_actif="LIFE_INSURANCE")
+    h_b = make_holding(db, ticker="AV_B", foyer_id=ID_FOYER_B, type_actif="LIFE_INSURANCE")
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
     reponse = client.put(f"/api/portfolio/holdings/{h_b.id}/valorisation", json={"valeur": 100.0, "date": "2026-01-01"})

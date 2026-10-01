@@ -71,7 +71,7 @@ def _value_at(history: TimeSeries, date: datetime) -> float | None:
 
 
 def _serie_cumulee_ventes_et_revenus(
-    db: Session, user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None
+    db: Session, foyer_id: int, cles_filtres: set[tuple[str, int | None]] | None = None
 ) -> TimeSeries:
     """Somme cumulée, dans le temps, de tout ce que le graphique d'historique
     omettait jusqu'ici : le produit net de chaque vente (`TRADING/SELL`) et les
@@ -102,7 +102,7 @@ def _serie_cumulee_ventes_et_revenus(
     pouvoir l'attribuer à un sous-ensemble précis — comportement assumé, pas un
     oubli."""
     transactions = (
-        db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.datetime_utc.asc()).all()
+        db.query(Transaction).filter(Transaction.foyer_id == foyer_id).order_by(Transaction.datetime_utc.asc()).all()
     )
     if cles_filtres is not None:
         transactions = [tx for tx in transactions if (tx.symbol, tx.compte_id) in cles_filtres]
@@ -125,7 +125,7 @@ def _serie_cumulee_ventes_et_revenus(
     return series
 
 
-def _valeur_positions_live(db: Session, user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> Decimal:
+def _valeur_positions_live(db: Session, foyer_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> Decimal:
     """Valorisation « live » des positions financières ouvertes — exactement le
     même calcul que `valeur_positions` dans `performance_service.compute_performance`
     (`analysis_service.holdings_financiers` + `value_holdings`). Utilisée
@@ -141,7 +141,7 @@ def _valeur_positions_live(db: Session, user_id: int, cles_filtres: set[tuple[st
     compte partageant ce ticker) — SANS ce filtre, le dernier point d'une courbe
     déjà filtrée afficherait la valeur de TOUT le portefeuille au lieu du seul
     sous-ensemble affiché, un décrochage visible en fin de courbe."""
-    holdings = analysis_service.holdings_financiers(db, user_id)
+    holdings = analysis_service.holdings_financiers(db, foyer_id)
     if cles_filtres is not None:
         holdings = [h for h in holdings if (h.ticker, h.compte_id) in cles_filtres]
     valued = analysis_service.value_holdings(holdings)
@@ -156,13 +156,13 @@ _CHAMPS_POINT_PORTEFEUILLE = {"date", "valeur_portefeuille", "valeur_investie", 
 
 def compute_portfolio_history(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     positions: dict[tuple[str, int | None], PositionState] | None = None,
     cles_filtres: set[tuple[str, int | None]] | None = None,
 ) -> list[dict]:
     """Historique de valeur du portefeuille d'UN utilisateur (Milestone 2a, cf. LOT 4.5).
 
-    Mis en cache (`historique_cache`, clé `cle_historique_portefeuille(user_id, ...)` —
+    Mis en cache (`historique_cache`, clé `cle_historique_portefeuille(foyer_id, ...)` —
     scopée par utilisateur depuis Milestone 2a, sans quoi le premier utilisateur à
     calculer son historique verrait sa donnée servie à tous les autres tant que le
     cache est valide) : en cas de lecture à chaud, aucun accès au grand livre ni à
@@ -177,25 +177,25 @@ def compute_portfolio_history(
     de cache inchangée — le tableau de bord n'est jamais affecté) ; sinon restreint
     le calcul à ces seules positions, avec sa PROPRE entrée de cache (cf.
     `historique_cache.cle_historique_portefeuille`)."""
-    cle = historique_cache.cle_historique_portefeuille(user_id, cles_filtres)
+    cle = historique_cache.cle_historique_portefeuille(foyer_id, cles_filtres)
     en_cache = historique_cache.lire(db, cle)
     if en_cache is not None and historique_cache.forme_valide(en_cache, _CHAMPS_POINT_PORTEFEUILLE):
         return en_cache
 
-    toutes_positions = positions if positions is not None else portfolio_reconstruction.compute_positions(db, user_id)
+    toutes_positions = positions if positions is not None else portfolio_reconstruction.compute_positions(db, foyer_id)
     positions_filtrees = (
         toutes_positions
         if cles_filtres is None
         else {cle_pos: state for cle_pos, state in toutes_positions.items() if cle_pos in cles_filtres}
     )
-    points = _compute_portfolio_history(db, user_id, positions_filtrees, cles_filtres)
+    points = _compute_portfolio_history(db, foyer_id, positions_filtrees, cles_filtres)
     historique_cache.ecrire(db, cle, points)
     return points
 
 
 def _compute_portfolio_history(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     positions: dict[tuple[str, int | None], PositionState],
     cles_filtres: set[tuple[str, int | None]] | None = None,
 ) -> list[dict]:
@@ -215,7 +215,7 @@ def _compute_portfolio_history(
     # avant ce correctif.
     holdings_manuels = [
         h
-        for h in analysis_service.holdings_financiers(db, user_id)
+        for h in analysis_service.holdings_financiers(db, foyer_id)
         if (h.ticker, h.compte_id) not in positions
         and h.date_acquisition is not None
         and (cles_filtres is None or (h.ticker, h.compte_id) in cles_filtres)
@@ -235,7 +235,7 @@ def _compute_portfolio_history(
 
     # `(ticker, compte_id)` -> `Holding` (revu le 14/09/2026, cf. docstring de
     # module) — deux lignes peuvent désormais partager un ticker.
-    holdings_par_cle = {(h.ticker, h.compte_id): h for h in db.query(Holding).filter(Holding.user_id == user_id).all()}
+    holdings_par_cle = {(h.ticker, h.compte_id): h for h in db.query(Holding).filter(Holding.foyer_id == foyer_id).all()}
     # Les séries de COURS, elles, restent indexées par ticker seul : une donnée de
     # marché publique, partagée par toute position de ce ticker quel que soit son
     # compte — un seul téléchargement/lecture, jamais dupliqué par compte.
@@ -276,7 +276,7 @@ def _compute_portfolio_history(
         if serie:
             price_series[symbol] = serie
 
-    revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id, cles_filtres)
+    revenus_series = _serie_cumulee_ventes_et_revenus(db, foyer_id, cles_filtres)
 
     # Courbe d'évolution : calcul analytique, en flottant (§ BI.1). Les quantités et
     # montants exacts de la reconstruction y entrent convertis — une série de
@@ -315,7 +315,7 @@ def _compute_portfolio_history(
         # par la même valorisation « live » que la carte Rentabilité globale, pour
         # une coïncidence exacte plutôt qu'une approximation à quelques euros près.
         if date == grid[-1]:
-            valeur_portefeuille = float(_valeur_positions_live(db, user_id, cles_filtres))
+            valeur_portefeuille = float(_valeur_positions_live(db, foyer_id, cles_filtres))
 
         points.append(
             {
@@ -405,7 +405,7 @@ def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict
     return {"benchmark_key": benchmark_key, "label": benchmark["label"], "points": comparaison}
 
 
-def compute_holding_price_history(db: Session, holding_id: int, user_id: int) -> dict | None:
+def compute_holding_price_history(db: Session, holding_id: int, foyer_id: int) -> dict | None:
     """Performance historique du titre/fonds lui-même (indépendante de la position de
     l'utilisateur) : série de prix + volatilité annualisée + max drawdown. Retourne
     `None` si la ligne n'est pas trouvée ou si aucune donnée n'est disponible (ex.
@@ -413,7 +413,7 @@ def compute_holding_price_history(db: Session, holding_id: int, user_id: int) ->
 
     Adressé par `holding_id`, pas par ticker (revu le 14/09/2026) : deux lignes
     peuvent désormais partager un ticker (une par compte) — seul l'id désigne sans
-    ambiguïté "de quelle ligne on parle". `user_id` (Milestone 2a) : seulement pour
+    ambiguïté "de quelle ligne on parle". `foyer_id` (Milestone 2a) : seulement pour
     vérifier que CETTE ligne appartient bien à l'appelant — le résultat lui-même
     reste une donnée de marché publique (partagée par toute ligne du même ticker).
 
@@ -426,11 +426,11 @@ def compute_holding_price_history(db: Session, holding_id: int, user_id: int) ->
     n'aurait fait que dupliquer la même donnée sous une deuxième forme, avec sa propre
     expiration à faire coïncider : c'est précisément la désynchronisation que ce lot
     supprime."""
-    return _compute_holding_price_history(db, holding_id, user_id)
+    return _compute_holding_price_history(db, holding_id, foyer_id)
 
 
-def _compute_holding_price_history(db: Session, holding_id: int, user_id: int) -> dict | None:
-    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.user_id == user_id).first()
+def _compute_holding_price_history(db: Session, holding_id: int, foyer_id: int) -> dict | None:
+    holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == foyer_id).first()
     if holding is None:
         return None
 

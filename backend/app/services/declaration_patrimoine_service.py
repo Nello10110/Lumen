@@ -84,7 +84,7 @@ def _pied_de_page(canvas, doc) -> None:
 
 def generer_pdf_declaration(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     *,
     holding_ids: list[int] | None,
     loan_ids: list[int] | None,
@@ -103,13 +103,13 @@ def generer_pdf_declaration(
     `patrimoine_service.compute_patrimoine_net`, § 3.11). Un emprunt non rattaché à
     un actif (backlog 2.M.2, rattachement simple) ne peut être imputé à aucun
     détenteur et n'apparaît alors que dans la déclaration foyer entier."""
-    holdings_query = db.query(Holding).filter(Holding.user_id == user_id)
+    holdings_query = db.query(Holding).filter(Holding.foyer_id == foyer_id)
     if holding_ids is not None:
         holdings_query = holdings_query.filter(Holding.id.in_(holding_ids))
     holdings = holdings_query.all()
     valued = analysis_service.value_holdings(holdings)
 
-    loans_query = db.query(Loan).filter(Loan.user_id == user_id)
+    loans_query = db.query(Loan).filter(Loan.foyer_id == foyer_id)
     if loan_ids is not None:
         loans_query = loans_query.filter(Loan.id.in_(loan_ids))
     loans = loans_query.all()
@@ -208,12 +208,12 @@ def generer_pdf_declaration(
     if inclure_profil:
         elements.append(Spacer(1, 0.5 * cm))
         elements.append(Paragraph(tr("Profil emprunteur"), styles["Heading2"]))
-        indicateurs = patrimoine_service.compute_indicateurs_situation(db, user_id)
+        indicateurs = patrimoine_service.compute_indicateurs_situation(db, foyer_id)
         aujourdhui = date.today()
         jonction = budget_service.compute_jonction_patrimoine(
-            db, user_id, aujourdhui.replace(day=1).isoformat(), aujourdhui.isoformat()
+            db, foyer_id, aujourdhui.replace(day=1).isoformat(), aujourdhui.isoformat()
         )
-        taux_imposition = _taux_imposition_saisi(db, user_id)
+        taux_imposition = _taux_imposition_saisi(db, foyer_id)
         elements.append(
             _table(
                 [
@@ -239,5 +239,5 @@ def generer_pdf_declaration(
     return tampon.getvalue()
 
 
-def _taux_imposition_saisi(db: Session, user_id: int) -> float | None:
-    return preferences_service.lire_taux_imposition_pct(db, user_id)
+def _taux_imposition_saisi(db: Session, foyer_id: int) -> float | None:
+    return preferences_service.lire_taux_imposition_pct(db, foyer_id)

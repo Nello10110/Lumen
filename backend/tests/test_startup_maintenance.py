@@ -31,7 +31,7 @@ def test_reconstruit_quand_aucune_version_n_est_enregistree(db):
     le portefeuille stocké date de l'ancienne règle de calcul."""
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
     # Prix de revient volontairement faux, comme s'il venait d'une version antérieure.
-    db.add(Holding(user_id=ID_FOYER_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=1.0))
+    db.add(Holding(foyer_id=ID_FOYER_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=1.0))
     db.commit()
 
     recalculees = reconstruire_si_regles_de_calcul_modifiees(db)
@@ -73,7 +73,7 @@ def test_version_illisible_traitee_comme_absente(db):
 def test_base_sans_transaction_pose_la_version_sans_rien_reconstruire(db):
     """Base neuve, ou portefeuille entièrement saisi à la main : il n'y a rien à
     reconstruire, et surtout rien à écraser."""
-    db.add(Holding(user_id=ID_FOYER_TEST, ticker="MANUEL", quantite=3.0, prix_revient_moyen=50.0))
+    db.add(Holding(foyer_id=ID_FOYER_TEST, ticker="MANUEL", quantite=3.0, prix_revient_moyen=50.0))
     db.commit()
 
     assert reconstruire_si_regles_de_calcul_modifiees(db) is None
@@ -120,7 +120,7 @@ def test_les_lignes_saisies_manuellement_survivent_a_la_remise_a_niveau(db, date
     from app.models import ORIGINE_MANUEL
 
     make_transaction(db, symbol="GGG", shares=5.0, amount=-500.0, datetime_utc=datetime_utc)
-    db.add(Holding(user_id=ID_FOYER_TEST, ticker="A-LA-MAIN", quantite=7.0, prix_revient_moyen=12.0, origine=ORIGINE_MANUEL))
+    db.add(Holding(foyer_id=ID_FOYER_TEST, ticker="A-LA-MAIN", quantite=7.0, prix_revient_moyen=12.0, origine=ORIGINE_MANUEL))
     db.commit()
 
     reconstruire_si_regles_de_calcul_modifiees(db)

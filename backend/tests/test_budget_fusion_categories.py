@@ -30,7 +30,7 @@ _compteur = itertools.count(1)
 
 
 def _categorie(db, nom: str, parent: CategorieBudget | None = None, **champs) -> CategorieBudget:
-    categorie = CategorieBudget(user_id=ID_FOYER_TEST, nom=nom, parent_id=parent.id if parent else None, **champs)
+    categorie = CategorieBudget(foyer_id=ID_FOYER_TEST, nom=nom, parent_id=parent.id if parent else None, **champs)
     db.add(categorie)
     db.commit()
     return categorie
@@ -38,7 +38,7 @@ def _categorie(db, nom: str, parent: CategorieBudget | None = None, **champs) ->
 
 def _mouvement(db, libelle="Mouvement", **champs) -> MouvementBancaire:
     mouvement = MouvementBancaire(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         transaction_id=f"tx-fusion-{next(_compteur)}",
         date="2026-09-10",
         libelle=libelle,
@@ -425,11 +425,11 @@ def test_route_refuse_une_fusion_dans_elle_meme_ou_une_descendante(client, db):
 def test_route_categorie_d_un_autre_foyer_est_introuvable(client, db):
     mienne = _categorie(db, "Transport")
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    etrangere = CategorieBudget(user_id=ID_FOYER_B, nom="Transports")
+    etrangere = CategorieBudget(foyer_id=ID_FOYER_B, nom="Transports")
     db.add(etrangere)
     db.commit()
     mouvement = MouvementBancaire(
-        user_id=ID_FOYER_B, transaction_id="tx-b", date="2026-09-01", libelle="B", montant=-1, categorie_id=etrangere.id
+        foyer_id=ID_FOYER_B, transaction_id="tx-b", date="2026-09-01", libelle="B", montant=-1, categorie_id=etrangere.id
     )
     db.add(mouvement)
     db.commit()

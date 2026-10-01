@@ -117,23 +117,23 @@ def resume_depuis_ligne(ligne: Salaire) -> dict:
     }
 
 
-def _valider_detenteur(db: Session, user_id: int, detenteur_id: int | None) -> None:
+def _valider_detenteur(db: Session, foyer_id: int, detenteur_id: int | None) -> None:
     """Lève `ValueError` si `detenteur_id` est renseigné mais n'appartient pas au foyer
     (IDOR) — `None` est toujours valide (entrée non associée), même contrat que
     `detenteurs_service._valider_quotites`."""
     if detenteur_id is None:
         return
-    if db.query(Detenteur).filter(Detenteur.user_id == user_id, Detenteur.id == detenteur_id).first() is None:
+    if db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.id == detenteur_id).first() is None:
         raise ValueError("Détenteur introuvable")
 
 
-def compute_synthese_annee(db: Session, user_id: int, annee: int) -> dict:
+def compute_synthese_annee(db: Session, foyer_id: int, annee: int) -> dict:
     """Agrège TOUTES les entrées de salaire d'une année : revenu net total (après impôt
     quand connu pour l'entrée, avant impôt en repli sinon) et taux d'épargne du foyer —
     argent réellement investi sur l'année rapporté à ce revenu net total. Jamais calculé
     entrée par entrée : avec plusieurs salaires, le montant investi (unique, au niveau du
     foyer) ne doit être rapporté qu'à la somme des revenus, pas répété pour chacun."""
-    entrees = list_salaires_annee(db, user_id, annee)
+    entrees = list_salaires_annee(db, foyer_id, annee)
 
     net_total = ZERO
     toutes_avec_taux = True
@@ -153,7 +153,7 @@ def compute_synthese_annee(db: Session, user_id: int, annee: int) -> dict:
             toutes_avec_taux = False
 
     date_debut, date_fin = f"{annee}-01-01", f"{annee}-12-31"
-    montant_investi_annee = performance_service.montant_investi_periode(db, user_id, date_debut, date_fin)
+    montant_investi_annee = performance_service.montant_investi_periode(db, foyer_id, date_debut, date_fin)
     taux_epargne_pct = (montant_investi_annee / net_total * 100) if net_total > EPSILON else None
 
     return {
@@ -163,18 +163,18 @@ def compute_synthese_annee(db: Session, user_id: int, annee: int) -> dict:
         "toutes_les_entrees_ont_un_taux_imposition": toutes_avec_taux,
         "montant_investi_annee": round(montant_investi_annee, 2),
         "taux_epargne_pct": round(taux_epargne_pct, 2) if taux_epargne_pct is not None else None,
-        "investissement_par_compte": investissement_par_compte(db, user_id, date_debut, date_fin),
+        "investissement_par_compte": investissement_par_compte(db, foyer_id, date_debut, date_fin),
     }
 
 
-def investissement_par_compte(db: Session, user_id: int, date_debut: str, date_fin: str) -> list[dict]:
+def investissement_par_compte(db: Session, foyer_id: int, date_debut: str, date_fin: str) -> list[dict]:
     """Détail par compte du montant réellement investi sur la période (demande
     directe du 16/09/2026, affiché sous le taux d'épargne) — même source que
     `montant_investi_annee` ci-dessus (`performance_service.
     montant_investi_periode_par_compte`), triée du plus au moins investi. `None`
     (compte non déterminable, import antérieur à la provenance par compte) devient
     « Sans compte », même libellé que l'écran Comptes."""
-    par_compte_id = performance_service.montant_investi_periode_par_compte(db, user_id, date_debut, date_fin)
+    par_compte_id = performance_service.montant_investi_periode_par_compte(db, foyer_id, date_debut, date_fin)
     if not par_compte_id:
         return []
 
@@ -188,26 +188,26 @@ def investissement_par_compte(db: Session, user_id: int, date_debut: str, date_f
     return sorted(lignes, key=lambda ligne: ligne["montant"], reverse=True)
 
 
-def list_salaires(db: Session, user_id: int) -> list[Salaire]:
-    return db.query(Salaire).filter(Salaire.user_id == user_id).order_by(Salaire.annee.desc(), Salaire.id.asc()).all()
+def list_salaires(db: Session, foyer_id: int) -> list[Salaire]:
+    return db.query(Salaire).filter(Salaire.foyer_id == foyer_id).order_by(Salaire.annee.desc(), Salaire.id.asc()).all()
 
 
-def list_salaires_annee(db: Session, user_id: int, annee: int) -> list[Salaire]:
-    return db.query(Salaire).filter(Salaire.user_id == user_id, Salaire.annee == annee).order_by(Salaire.id.asc()).all()
+def list_salaires_annee(db: Session, foyer_id: int, annee: int) -> list[Salaire]:
+    return db.query(Salaire).filter(Salaire.foyer_id == foyer_id, Salaire.annee == annee).order_by(Salaire.id.asc()).all()
 
 
-def annees_avec_salaire(db: Session, user_id: int) -> list[int]:
-    lignes = db.query(Salaire.annee).filter(Salaire.user_id == user_id).distinct().all()
+def annees_avec_salaire(db: Session, foyer_id: int) -> list[int]:
+    lignes = db.query(Salaire.annee).filter(Salaire.foyer_id == foyer_id).distinct().all()
     return sorted({a for (a,) in lignes}, reverse=True)
 
 
-def get_salaire(db: Session, user_id: int, salaire_id: int) -> Salaire | None:
-    return db.query(Salaire).filter(Salaire.user_id == user_id, Salaire.id == salaire_id).first()
+def get_salaire(db: Session, foyer_id: int, salaire_id: int) -> Salaire | None:
+    return db.query(Salaire).filter(Salaire.foyer_id == foyer_id, Salaire.id == salaire_id).first()
 
 
 def create_salaire(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     *,
     annee: int,
     nom: str | None,
@@ -219,9 +219,9 @@ def create_salaire(
     taux_imposition_pct: float | None,
     detenteur_id: int | None = None,
 ) -> Salaire:
-    _valider_detenteur(db, user_id, detenteur_id)
+    _valider_detenteur(db, foyer_id, detenteur_id)
     ligne = Salaire(
-        user_id=user_id,
+        foyer_id=foyer_id,
         annee=annee,
         nom=nom or NOM_PAR_DEFAUT,
         montant=montant,
@@ -240,7 +240,7 @@ def create_salaire(
 
 def update_salaire(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     salaire_id: int,
     *,
     annee: int,
@@ -253,10 +253,10 @@ def update_salaire(
     taux_imposition_pct: float | None,
     detenteur_id: int | None = None,
 ) -> Salaire | None:
-    ligne = get_salaire(db, user_id, salaire_id)
+    ligne = get_salaire(db, foyer_id, salaire_id)
     if ligne is None:
         return None
-    _valider_detenteur(db, user_id, detenteur_id)
+    _valider_detenteur(db, foyer_id, detenteur_id)
     ligne.annee = annee
     ligne.nom = nom or NOM_PAR_DEFAUT
     ligne.montant = montant
@@ -271,8 +271,8 @@ def update_salaire(
     return ligne
 
 
-def delete_salaire(db: Session, user_id: int, salaire_id: int) -> bool:
-    ligne = get_salaire(db, user_id, salaire_id)
+def delete_salaire(db: Session, foyer_id: int, salaire_id: int) -> bool:
+    ligne = get_salaire(db, foyer_id, salaire_id)
     if ligne is None:
         return False
     db.delete(ligne)

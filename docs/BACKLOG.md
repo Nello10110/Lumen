@@ -7083,7 +7083,7 @@ Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'u
 détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
 (invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2c** `traité (30/09/2026)`
 (cycle de vie côté foyer, « Lot BK.2c — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2d** `traité (01/10/2026)`
-(opérateur et naissance des foyers, « Lot BK.2d — réalisé »), **vérifié par la CI Postgres** ; reste BK.2e (§ 9).
+(opérateur et naissance des foyers, « Lot BK.2d — réalisé »), **vérifié par la CI Postgres** ; reste BK.2e (§ 9) : le renommage `user_id` → `foyer_id` est fait (« Lot BK.2e — étape 1 réalisée »).
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7227,7 +7227,7 @@ disparaît (sa seule clé personnelle passe sur l'appartenance). **`users`** per
 | Code | ~680 occurrences de `user_id` dans 48 fichiers, ~290 dans les tests : inchangées | Toutes touchées, mêlées au changement de modèle | Deux diffs relisibles séparément |
 | Risque | Le nom ment : un `current_user.id` passé pour un foyer passe à la relecture | Gros diff mécanique qui masque les vraies modifications | Le nom ment le temps d'un lot |
 
-**Recommandation : C.** La vraie protection contre la confusion compte/foyer n'est pas le nom mais
+**Recommandation : C** (renommage réalisé en BK.2e, « Lot BK.2e — étape 1 réalisée »). La vraie protection contre la confusion compte/foyer n'est pas le nom mais
 un test : dans la fixture de base, les ids de foyer sont **décalés** des ids de compte (un foyer
 fantôme créé d'abord), si bien qu'un `current_user.id` employé comme foyer échoue aussitôt.
 
@@ -7848,6 +7848,44 @@ Partie interface du lot « Opérateur et naissance des foyers » (§ 9) : la con
 **E2E et base partagée.** Un opérateur qui existe change l'écran du propriétaire seedé, et son amorçage depuis le bandeau exige un foyer unique : `e2e/operateur.spec.ts` a donc son propre projet Playwright (`operateur`), exécuté **avant** le projet `chromium` (qui en dépend), quand l'installation est exactement celle du seed. Il rend l'installation comme il l'a trouvée — le foyer et le compte créés sont supprimés par la console, puis l'opérateur supprime son propre compte —, le dernier test le vérifie (le propriétaire seedé retrouve le bandeau et l'onglet Automatisations) et `afterAll` refait ce ménage en cas d'échec. Aucune base dédiée : il tourne aussi sous Postgres. Scénario : le propriétaire seedé crée l'opérateur par le bandeau (et l'API refuse ensuite ses routes d'installation) ; l'opérateur se connecte, ne voit que `/operateur`, les routes de foyer lui répondent 403 ; mode `invitation` (section du propriétaire, lien révoqué par l'opérateur, retour au mode fermé) ; un navigateur vierge en locale espagnole crée son compte et son foyer par un lien (le foyer naît en `es`, assistant joué, lien à usage unique) ; l'opérateur suspend puis réactive, supprime le foyer par son nom, supprime le compte resté sans foyer ; journal complet.
 
 **Limites.** Les politiques Postgres du lot serveur ont été vérifiées par la CI (`backend-postgres`, `e2e-postgres`, qui a rejoué le nouveau projet). « Lier mon compte SSO » est dans Réglages pour le propriétaire et, pour un membre ou un invité (qui n'ont pas Réglages), dans le menu du compte et la feuille « Plus » (« Connexion SSO… », fenêtre partageant la logique de la carte : `useLiaisonSso`). Pas de test automatisé du parcours complet chez un vrai fournisseur SSO (le retour est testé par un double du rappel).
+
+##### Lot BK.2e — étape 1 réalisée : `user_id` devient `foyer_id` (01/10/2026)
+
+Première étape du durcissement : le renommage mécanique de l'option C (§ 2), isolé des autres
+changements du lot pour rester relisible. Depuis BK.2a, le `user_id` des tables de patrimoine désignait le
+foyer ; le nom ne ment plus.
+
+- **Tables renommées (13)** : `holdings`, `transactions`, `comptes`, `etablissements`, `detenteurs`,
+  `loans`, `salaires`, `categories_budget`, `mouvements_bancaires`, `regles_categorisation`,
+  `budget_cibles`, `liens_partage`, `journal_import` — colonne, index `ix_<table>_foyer_id` (et
+  `ix_transactions_foyer_id_date`), unicités `uq_*_foyer_*` (8), clé étrangère
+  `fk_<table>_foyer_id_foyers`. **Laissées volontairement** : `appartenances`, `perimetres_invites`,
+  `auth_tokens`, `access_log_entries`, `liaisons_sso_en_attente`, dont `user_id` désigne un compte
+  (clé étrangère vers `users.id`).
+- **Migration `a9d3c7e1b5f2`** (tête précédente `f7d3b9a5c2e8`) : sous SQLite, deux reconstructions `batch`
+  par table (un index ou une contrainte créé dans le même lot que le renommage de la colonne qu'il cite
+  n'est pas retrouvé par Alembic) ; sous Postgres, `RENAME COLUMN` / `RENAME CONSTRAINT` / `ALTER INDEX
+  RENAME`, et recréation de la politique `separation_foyers` des 13 tables (`foyer_id = app.foyer_id`).
+  Les politiques des 6 tables filles (via l'`id` du parent) et celles de `foyers`, `appartenances`,
+  `invitations` ne mentionnent pas la colonne : inchangées. Descente symétrique. Aucune donnée réécrite.
+- **Code** : `models.py`, tous les services, routeurs et `scripts/banc_performance.py`, ainsi que les
+  paramètres et variables locales qui portaient le foyer sous le nom `user_id` (renommés `foyer_id`) ;
+  les `user_id` de comptes (`Appartenance`, `PerimetreInvite`, `AuthToken`, `AccessLogEntry`,
+  `LiaisonSsoEnAttente`, `auth_service`) sont restés. Le contrat d'API ne change pas : aucun schéma
+  Pydantic n'exposait cette colonne, le frontend n'est pas touché.
+- **Compatibilité** : le format de l'export JSON ne change pas (la colonne de rattachement en était
+  déjà exclue, sous ses deux noms ; l'import ignore toute colonne inconnue et repose le foyer
+  courant) — un fichier exporté avant ou après se réimporte dans l'autre version. Les clés de
+  `historique_cache` (`historique_portefeuille:{foyer}`, `historique_patrimoine:{foyer}:…`) ne changent pas
+  non plus. Une requête SQL écrite à la main contre ces tables doit lire `foyer_id`
+  (`docs/MANUEL_EXPLOITATION.md` § 6).
+- **Vérification** : test de la migration (`tests/test_migration_foyer_id.py` : montée, schéma égal à
+  celui des modèles, descente, lignes conservées) ; sur Postgres 16 jetable, montée, descente et remontée
+  avec index, contraintes et politiques identiques, la séparation des foyers vérifiée avec le rôle applicatif ;
+  `test_migration_objet_foyer` fait monter la base jusqu'à la tête avant d'appeler l'API (l'application
+  suppose le schéma le plus récent).
+- **Reste du lot BK.2e** : RLS sur `users`, `auth_tokens`, `access_log_entries` ; jetons de session et
+  de partage hachés (§ 9).
 
 ### BL. Application multilingue (cadrée le 23/09/2026)
 

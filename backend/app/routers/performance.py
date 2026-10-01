@@ -75,8 +75,8 @@ def get_portfolio_history(
     if compte_id is not None and etablissement_id is not None:
         raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
 
-    user_id = auth_service.id_foyer(current_user)
-    points = patrimoine_history_service.compute_portfolio_history_filtre(db, user_id, type_actif, compte_id, etablissement_id)
+    foyer_id = auth_service.id_foyer(current_user)
+    points = patrimoine_history_service.compute_portfolio_history_filtre(db, foyer_id, type_actif, compte_id, etablissement_id)
     return PortfolioHistoryResponse(points=points)
 
 

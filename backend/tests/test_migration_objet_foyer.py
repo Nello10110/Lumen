@@ -149,6 +149,9 @@ def test_une_installation_existante_se_retrouve_a_lidentique(base):
     assert not {"role", "owner_user_id"} & {c["name"] for c in inspect(moteur).get_columns("users")}
     assert "user_parametres" not in inspect(moteur).get_table_names()
 
+    # L'application tourne sur le schéma le plus récent (`foyer_id`, § BK.2e) : la base
+    # monte jusqu'au bout pour répondre aux appels, puis revient à l'état testé ici.
+    command.upgrade(cfg, "head")
     session = _client(moteur)
     try:
         moi = _get("/api/auth/me", JETON_PROPRIETAIRE).json()
@@ -166,7 +169,9 @@ def test_une_installation_existante_se_retrouve_a_lidentique(base):
     finally:
         app.dependency_overrides.pop(get_db, None)
         session.close()
+        moteur.dispose()
 
+    command.downgrade(cfg, APRES)
     command.downgrade(cfg, AVANT)
 
     with moteur.connect() as cx:

@@ -51,9 +51,9 @@ def test_confirmer_cree_un_etablissement_et_un_compte_ledger(client, db):
     assert corps["importees"] == 1
     assert corps["comptes_crees"] == 1
 
-    etablissement = db.query(Etablissement).filter(Etablissement.user_id == ID_FOYER_TEST).one()
+    etablissement = db.query(Etablissement).filter(Etablissement.foyer_id == ID_FOYER_TEST).one()
     assert etablissement.nom == "Ledger"
-    compte = db.query(Compte).filter(Compte.user_id == ID_FOYER_TEST).one()
+    compte = db.query(Compte).filter(Compte.foyer_id == ID_FOYER_TEST).one()
     assert compte.nom == "Ledger"
     assert compte.etablissement_id == etablissement.id
 
@@ -73,7 +73,7 @@ def test_decocher_une_devise_lexclut_de_limport(client, db):
     reponse = _confirmer(client, _csv(_ligne(hash_="0x1", ticker="BTC"), _ligne(hash_="0x2", ticker="ETH")), devises=["BTC"])
 
     assert reponse.json()["importees"] == 1
-    symboles = {t.symbol for t in db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST).all()}
+    symboles = {t.symbol for t in db.query(Transaction).filter(Transaction.foyer_id == ID_FOYER_TEST).all()}
     assert symboles == {"BTC"}
 
 
@@ -97,7 +97,7 @@ def test_reimport_du_meme_fichier_ne_duplique_pas(client, db):
     corps = reponse.json()
     assert corps["importees"] == 0
     assert corps["doublons_ignores"] == 1
-    assert db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST).count() == 1
+    assert db.query(Transaction).filter(Transaction.foyer_id == ID_FOYER_TEST).count() == 1
 
 
 def test_reimport_avec_montant_corrige_met_a_jour_la_ligne(client, db):
@@ -108,7 +108,7 @@ def test_reimport_avec_montant_corrige_met_a_jour_la_ligne(client, db):
     corps = reponse.json()
     assert corps["mises_a_jour"] == 1
     assert corps["doublons_ignores"] == 0
-    transaction = db.query(Transaction).filter(Transaction.user_id == ID_FOYER_TEST).one()
+    transaction = db.query(Transaction).filter(Transaction.foyer_id == ID_FOYER_TEST).one()
     assert transaction.amount == -42.00
 
 

@@ -130,7 +130,7 @@ def test_point_dun_autre_foyer_est_refuse(client, db):
     point_id = _point_id(client, h.id, "2026-01-01")
 
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    h_b = make_holding(db, ticker="AV_B", user_id=ID_FOYER_B, type_actif="LIFE_INSURANCE")
+    h_b = make_holding(db, ticker="AV_B", foyer_id=ID_FOYER_B, type_actif="LIFE_INSURANCE")
 
     reponse_patch = client.patch(f"/api/portfolio/holdings/{h_b.id}/immobilier-history/{point_id}", json={"valeur": 1.0, "date": "2026-01-01"})
     reponse_delete = client.delete(f"/api/portfolio/holdings/{h_b.id}/immobilier-history/{point_id}")

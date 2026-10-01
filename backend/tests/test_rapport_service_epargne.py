@@ -106,7 +106,7 @@ def test_compute_rapport_periode_inclut_le_bloc_epargne(db, monkeypatch):
     """Intégration : le rapport global embarque bien `epargne`, sans que le reste
     (100% financier, `test_rapport_service.py`) n'ait besoin de connaître son
     existence."""
-    monkeypatch.setattr(historical_performance_service, "compute_portfolio_history", lambda db_, user_id_: [])
+    monkeypatch.setattr(historical_performance_service, "compute_portfolio_history", lambda db_, foyer_id_: [])
     holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1, valeur_estimee=5000.0)
     immobilier_service.enregistrer_point_historique(db, holding.id, 5000.0, datetime(2026, 1, 1))
 

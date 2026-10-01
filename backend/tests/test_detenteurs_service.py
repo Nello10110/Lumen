@@ -47,7 +47,7 @@ def test_set_quotites_holding_rejette_un_detenteur_en_double(db):
 def test_set_quotites_holding_rejette_un_detenteur_dun_autre_compte(db):
     h = make_holding(db)
     creer_foyer(db, 999)
-    detenteur_autre_compte = detenteurs_service.create_detenteur(db, user_id=999, nom="Intrus")
+    detenteur_autre_compte = detenteurs_service.create_detenteur(db, foyer_id=999, nom="Intrus")
 
     with pytest.raises(ValueError, match="introuvable"):
         detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(detenteur_autre_compte.id, 100.0)])
@@ -92,7 +92,7 @@ def test_compute_parts_part_nette_herite_de_la_quotite_de_lactif_sans_quotite_de
     detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -121,7 +121,7 @@ def test_compute_parts_part_nette_avec_quotite_demprunt_explicite_differente(db)
     bob = make_detenteur(db, "Bob")
     detenteurs_service.set_quotites_holding(db, ID_FOYER_TEST, h, [(alice.id, 50.0), (bob.id, 50.0)])
     loan = Loan(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         libelle="Crédit",
         capital_initial=200000.0,
         taux_annuel_pct=0.0,
@@ -156,7 +156,7 @@ def test_compute_parts_somme_le_crd_de_plusieurs_emprunts_sur_le_meme_bien(db):
     for capital_restant_du_manuel in (100000.0, 50000.0):
         db.add(
             Loan(
-                user_id=ID_FOYER_TEST,
+                foyer_id=ID_FOYER_TEST,
                 libelle="Crédit",
                 capital_initial=capital_restant_du_manuel,
                 taux_annuel_pct=0.0,
@@ -210,12 +210,12 @@ def test_compute_parts_bulk_donne_exactement_le_meme_resultat_que_ligne_a_ligne(
     # Deux emprunts sur le même bien : l'un hérite des quotités de l'actif, l'autre
     # a les siennes.
     herite = Loan(
-        user_id=ID_FOYER_TEST, libelle="Hérité", holding_id=reparti.id, capital_initial=40_000.0,
+        foyer_id=ID_FOYER_TEST, libelle="Hérité", holding_id=reparti.id, capital_initial=40_000.0,
         taux_annuel_pct=1.5, mensualite=300.0, date_debut=datetime(2024, 1, 1), duree_mois=180,
         capital_restant_du_manuel=30_000.0,
     )
     propre = Loan(
-        user_id=ID_FOYER_TEST, libelle="Propre", holding_id=reparti.id, capital_initial=20_000.0,
+        foyer_id=ID_FOYER_TEST, libelle="Propre", holding_id=reparti.id, capital_initial=20_000.0,
         taux_annuel_pct=2.0, mensualite=200.0, date_debut=datetime(2024, 1, 1), duree_mois=120,
         capital_restant_du_manuel=10_000.0,
     )

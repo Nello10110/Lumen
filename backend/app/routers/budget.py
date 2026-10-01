@@ -200,7 +200,7 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
             detail=tr("Colonne(s) introuvable(s) dans le fichier : {colonnes}", colonnes=", ".join(colonnes_absentes)),
         )
 
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     # Le format est reconnu à nouveau sur le fichier déposé, jamais cru sur parole :
     # c'est lui qui dit quelles catégories de la banque sont d'attente ou exclues.
     format_ = budget_formats_service.detecter_format(tableau.colonnes)
@@ -215,42 +215,42 @@ def import_csv_confirm(mapping: BudgetColumnMapping, db: Session = Depends(get_d
         sous_categorie_col=mapping.sous_categorie_col,
         prefixes_a_categoriser=format_.prefixes_a_categoriser if format_ else (),
     )
-    compte_id = _resoudre_compte(db, user_id, mapping)
+    compte_id = _resoudre_compte(db, foyer_id, mapping)
     resultat = budget_import_service.importer_mouvements(
         db,
-        user_id,
+        foyer_id,
         mouvements,
         compte_id=compte_id,
         lignes_ignorees=ignorees,
         categories_exclues=format_.categories_exclues if format_ else frozenset(),
     )
     csv_import.clear_pending(mapping.file_token)
-    return _resultat_et_trace(db, user_id, resultat)
+    return _resultat_et_trace(db, foyer_id, resultat)
 
 
-def _resoudre_compte(db: Session, user_id: int, choix: CompteImportBancaire) -> int:
+def _resoudre_compte(db: Session, foyer_id: int, choix: CompteImportBancaire) -> int:
     """Compte du relevé (§ BM.1), même résolution que les imports courtier
     (`routers/portfolio.py::import_confirm`) : un id fourni doit appartenir au foyer
     (IDOR), un nom retrouve le compte existant ou le crée. Sans commit : le compte créé
     n'est enregistré qu'avec les mouvements, par `importer_mouvements`."""
     if choix.compte_id is not None:
         compte = db.get(Compte, choix.compte_id)
-        if compte is None or compte.user_id != user_id:
+        if compte is None or compte.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Compte introuvable")
         return compte.id
     if choix.etablissement_id is not None:
         etablissement = db.get(Etablissement, choix.etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         etablissement_id = etablissement.id
     else:
         etablissement_id = comptes_service.get_or_create_etablissement(
-            db, user_id, choix.etablissement_nom, choix.etablissement_logo_key
+            db, foyer_id, choix.etablissement_nom, choix.etablissement_logo_key
         ).id
-    return comptes_service.get_or_create_compte_sans_commit(db, user_id, choix.compte_nom, etablissement_id).id
+    return comptes_service.get_or_create_compte_sans_commit(db, foyer_id, choix.compte_nom, etablissement_id).id
 
 
-def _resultat_et_trace(db: Session, user_id: int, resultat) -> BudgetImportResult:
+def _resultat_et_trace(db: Session, foyer_id: int, resultat) -> BudgetImportResult:
     """Réponse d'import bancaire, en laissant au passage la trace « dernière source
     bancaire importée » qu'affiche l'écran Import (refonte du 22/09/2026). Le
     décompte retenu est le nombre de lignes LUES dans le fichier, pas les seules
@@ -258,7 +258,7 @@ def _resultat_et_trace(db: Session, user_id: int, resultat) -> BudgetImportResul
     import abouti, et afficher « 0 ligne » s'y lirait comme un échec."""
     journal_import_service.enregistrer(
         db,
-        user_id,
+        foyer_id,
         SOURCE_IMPORT_BANCAIRE,
         resultat.importees + resultat.doublons_ignores + resultat.lignes_ignorees,
     )
@@ -304,12 +304,12 @@ async def import_ofx(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = await _import_fichier_structure(file, budget_import_service.parse_ofx)
     resultat = budget_import_service.importer_mouvements(
-        db, user_id, mouvements, compte_id=_resoudre_compte(db, user_id, compte), lignes_ignorees=ignorees
+        db, foyer_id, mouvements, compte_id=_resoudre_compte(db, foyer_id, compte), lignes_ignorees=ignorees
     )
-    return _resultat_et_trace(db, user_id, resultat)
+    return _resultat_et_trace(db, foyer_id, resultat)
 
 
 @router.post("/import/qif", response_model=BudgetImportResult)
@@ -319,12 +319,12 @@ async def import_qif(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     mouvements, ignorees = await _import_fichier_structure(file, budget_import_service.parse_qif)
     resultat = budget_import_service.importer_mouvements(
-        db, user_id, mouvements, compte_id=_resoudre_compte(db, user_id, compte), lignes_ignorees=ignorees
+        db, foyer_id, mouvements, compte_id=_resoudre_compte(db, foyer_id, compte), lignes_ignorees=ignorees
     )
-    return _resultat_et_trace(db, user_id, resultat)
+    return _resultat_et_trace(db, foyer_id, resultat)
 
 
 # ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@ _compteur_transaction_id = itertools.count(1)
 
 def make_mouvement(db, **overrides):
     defaults = dict(
-        user_id=ID_FOYER_TEST,
+        foyer_id=ID_FOYER_TEST,
         transaction_id=f"tx-recur-{next(_compteur_transaction_id)}",
         date="2026-02-01",
         libelle="Mouvement",
@@ -378,7 +378,7 @@ def test_total_annuel_suit_le_filtre_par_compte(db):
 
 
 def test_total_annuel_ignore_les_categories_exclues_des_totaux(db):
-    exclue = CategorieBudget(user_id=ID_FOYER_TEST, nom="Virements internes", exclue_des_totaux=True)
+    exclue = CategorieBudget(foyer_id=ID_FOYER_TEST, nom="Virements internes", exclue_des_totaux=True)
     db.add(exclue)
     db.commit()
     for jour in ("2026-09-05", "2026-10-05"):

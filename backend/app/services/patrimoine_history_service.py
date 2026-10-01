@@ -127,7 +127,7 @@ def _valeur_investie_ligne_a_date(holding: Holding, serie_investie: TimeSeries, 
 
 
 def _series_financieres(
-    db: Session, user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None
+    db: Session, foyer_id: int, cles_filtres: set[tuple[str, int | None]] | None = None
 ) -> tuple[TimeSeries, TimeSeries, TimeSeries]:
     """`(valeur, investie, realisee_cumulee)` — un seul appel à `compute_portfolio_history`
     (déjà mis en cache par ce module, coûteux en réseau) plutôt que trois, pour
@@ -136,7 +136,7 @@ def _series_financieres(
     `cles_filtres` (§ AX, filtres classe/compte/établissement de l'onglet Évolution
     d'Analyse, réutilisés ici comme pour le mode étagé Net/Brut du tableau de bord) :
     `None` = portefeuille financier entier, comportement historique inchangé."""
-    points = historical_performance_service.compute_portfolio_history(db, user_id, cles_filtres=cles_filtres)
+    points = historical_performance_service.compute_portfolio_history(db, foyer_id, cles_filtres=cles_filtres)
     valeur = [(datetime.fromisoformat(p["date"]), p["valeur_portefeuille"]) for p in points]
     investie = [(datetime.fromisoformat(p["date"]), p["valeur_investie"]) for p in points]
     realisee = [(datetime.fromisoformat(p["date"]), p["valeur_realisee_cumulee"]) for p in points]
@@ -258,7 +258,7 @@ _CHAMPS_POINT_PATRIMOINE = {
 
 def compute_patrimoine_history(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     detenteur_id: int | None = None,
     type_actif: str | None = None,
     compte_id: int | None = None,
@@ -272,19 +272,19 @@ def compute_patrimoine_history(
     exclusifs, vérifié par l'appelant) que ce dernier — voir `_compute_patrimoine_history`
     ci-dessous pour comment les deux logiques de filtrage se combinent avec le
     netting d'emprunt et la vue par détenteur déjà en place ici."""
-    cle = historique_cache.cle_historique_patrimoine(user_id, detenteur_id, type_actif, compte_id, etablissement_id)
+    cle = historique_cache.cle_historique_patrimoine(foyer_id, detenteur_id, type_actif, compte_id, etablissement_id)
     en_cache = historique_cache.lire(db, cle)
     if en_cache is not None and historique_cache.forme_valide(en_cache, _CHAMPS_POINT_PATRIMOINE):
         return en_cache
 
-    points = _compute_patrimoine_history(db, user_id, detenteur_id, type_actif, compte_id, etablissement_id)
+    points = _compute_patrimoine_history(db, foyer_id, detenteur_id, type_actif, compte_id, etablissement_id)
     historique_cache.ecrire(db, cle, points)
     return points
 
 
 def _compute_patrimoine_history(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     detenteur_id: int | None,
     type_actif: str | None = None,
     compte_id: int | None = None,
@@ -293,12 +293,12 @@ def _compute_patrimoine_history(
     filtre_actif = type_actif is not None or compte_id is not None or etablissement_id is not None
 
     holdings_financiers_filtres = (
-        _holdings_financiers_filtres(db, user_id, type_actif, compte_id, etablissement_id) if filtre_actif else []
+        _holdings_financiers_filtres(db, foyer_id, type_actif, compte_id, etablissement_id) if filtre_actif else []
     )
     cles_filtres = {(h.ticker, h.compte_id) for h in holdings_financiers_filtres} if filtre_actif else None
-    serie_financiere, serie_financiere_investie, serie_financiere_realisee = _series_financieres(db, user_id, cles_filtres)
+    serie_financiere, serie_financiere_investie, serie_financiere_realisee = _series_financieres(db, foyer_id, cles_filtres)
 
-    holdings_manuels = _holdings_manuels_filtres(db, user_id, type_actif, compte_id, etablissement_id)
+    holdings_manuels = _holdings_manuels_filtres(db, foyer_id, type_actif, compte_id, etablissement_id)
     holdings_manuels_par_id = {h.id: h for h in holdings_manuels}
     # Frais d'acquisition immobiliers (retour utilisateur du 10/09/2026) : chargés en
     # une requête groupée plutôt qu'un `detail_immobilier` par holding dans la boucle
@@ -323,7 +323,7 @@ def _compute_patrimoine_history(
     # restreints à ceux rattachés à une ligne qui matche ELLE-MÊME le filtre — sinon
     # filtrer sur « compte X » soustrairait un emprunt immobilier sans rapport avec ce
     # compte, ce qui n'aurait pas de sens pour la lecture Net de ce sous-ensemble.
-    loans = db.query(Loan).filter(Loan.user_id == user_id).all()
+    loans = db.query(Loan).filter(Loan.foyer_id == foyer_id).all()
     if filtre_actif:
         ids_lignes_filtrees = set(holdings_manuels_par_id) | {h.id for h in holdings_financiers_filtres}
         loans = [loan for loan in loans if loan.holding_id in ids_lignes_filtrees]
@@ -341,8 +341,8 @@ def _compute_patrimoine_history(
     ratio_financier = 1.0
     if detenteur_id is not None and not filtre_actif:
         # Sans filtre : ratio foyer-wide déjà en place avant ce lot, inchangé.
-        patrimoine_foyer = patrimoine_service.compute_patrimoine_net(db, user_id, None)
-        patrimoine_detenteur = patrimoine_service.compute_patrimoine_net(db, user_id, detenteur_id)
+        patrimoine_foyer = patrimoine_service.compute_patrimoine_net(db, foyer_id, None)
+        patrimoine_detenteur = patrimoine_service.compute_patrimoine_net(db, foyer_id, detenteur_id)
         financier_foyer = patrimoine_foyer["patrimoine_financier"]
         ratio_financier = float(patrimoine_detenteur["patrimoine_financier"] / financier_foyer) if financier_foyer > 0 else 0.0
     elif detenteur_id is not None and filtre_actif:
@@ -447,7 +447,7 @@ def _compute_patrimoine_history(
 
 
 def _cles_financieres_filtrees(
-    db: Session, user_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
+    db: Session, foyer_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
 ) -> set[tuple[str, int | None]] | None:
     """`(ticker, compte_id)` des lignes FINANCIÈRES (jamais `TYPES_ACTIF_PATRIMOINE_MANUEL`,
     qui n'ont pas de grand livre de transactions à filtrer) correspondant aux filtres
@@ -458,7 +458,7 @@ def _cles_financieres_filtrees(
     if type_actif is None and compte_id is None and etablissement_id is None:
         return None
     requete = db.query(Holding.ticker, Holding.compte_id).filter(
-        Holding.user_id == user_id, Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL)
+        Holding.foyer_id == foyer_id, Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL)
     )
     if type_actif is not None:
         requete = requete.filter(Holding.type_actif == type_actif)
@@ -470,9 +470,9 @@ def _cles_financieres_filtrees(
 
 
 def _holdings_manuels_filtres(
-    db: Session, user_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
+    db: Session, foyer_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
 ) -> list[Holding]:
-    requete = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL))
+    requete = db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL))
     if type_actif is not None:
         requete = requete.filter(Holding.type_actif == type_actif)
     if compte_id is not None:
@@ -483,7 +483,7 @@ def _holdings_manuels_filtres(
 
 
 def _holdings_financiers_filtres(
-    db: Session, user_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
+    db: Session, foyer_id: int, type_actif: str | None, compte_id: int | None, etablissement_id: int | None
 ) -> list[Holding]:
     """Pendant financier de `_holdings_manuels_filtres` — utilisé par
     `_compute_patrimoine_history` (§ AX) pour construire `cles_filtres` ET pour
@@ -492,7 +492,7 @@ def _holdings_financiers_filtres(
     ci-dessous, mais renvoie les `Holding` eux-mêmes (nécessaires pour
     `analysis_service.value_holdings`/`detenteurs_service.compute_parts_bulk`),
     pas seulement leurs clés `(ticker, compte_id)`."""
-    requete = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL))
+    requete = db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL))
     if type_actif is not None:
         requete = requete.filter(Holding.type_actif == type_actif)
     if compte_id is not None:
@@ -504,7 +504,7 @@ def _holdings_financiers_filtres(
 
 def compute_portfolio_history_filtre(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     type_actif: str | None = None,
     compte_id: int | None = None,
     etablissement_id: int | None = None,
@@ -551,13 +551,13 @@ def compute_portfolio_history_filtre(
     seule — financier seul par contrat documenté dans son propre en-tête, cf.
     `patrimoine_service.compute_patrimoine_net`/`compute_patrimoine_history` pour la
     vue combinée déjà dédiée à cet usage-là."""
-    cles_filtres = _cles_financieres_filtrees(db, user_id, type_actif, compte_id, etablissement_id)
-    points_financiers = historical_performance_service.compute_portfolio_history(db, user_id, cles_filtres=cles_filtres)
+    cles_filtres = _cles_financieres_filtrees(db, foyer_id, type_actif, compte_id, etablissement_id)
+    points_financiers = historical_performance_service.compute_portfolio_history(db, foyer_id, cles_filtres=cles_filtres)
     serie_financiere = [(datetime.fromisoformat(p["date"]), p["valeur_portefeuille"]) for p in points_financiers]
     serie_financiere_investie = [(datetime.fromisoformat(p["date"]), p["valeur_investie"]) for p in points_financiers]
     serie_financiere_realisee = [(datetime.fromisoformat(p["date"]), p["valeur_realisee_cumulee"]) for p in points_financiers]
 
-    holdings_manuels = _holdings_manuels_filtres(db, user_id, type_actif, compte_id, etablissement_id)
+    holdings_manuels = _holdings_manuels_filtres(db, foyer_id, type_actif, compte_id, etablissement_id)
     holdings_manuels_par_id = {h.id: h for h in holdings_manuels}
     ids_immobiliers = [h.id for h in holdings_manuels if h.type_actif == TYPE_ACTIF_REAL_ESTATE]
     details_immobiliers = immobilier_service.details_immobiliers_par_holding(db, ids_immobiliers)
@@ -610,7 +610,7 @@ def compute_portfolio_history_filtre(
 LENTILLES_VALIDES = ("financier", "brut", "net")
 
 
-def points_pour_lentille(db: Session, user_id: int, lentille: str) -> list[dict]:
+def points_pour_lentille(db: Session, foyer_id: int, lentille: str) -> list[dict]:
     """`points` au format attendu par `metriques_performance_service`/
     `historical_performance_service.compute_benchmark_history` (`valeur_portefeuille`/
     `valeur_investie`/`valeur_realisee_cumulee`), selon la lentille Net/Brut/Financier
@@ -625,9 +625,9 @@ def points_pour_lentille(db: Session, user_id: int, lentille: str) -> list[dict]
     en Net — jamais `valeur_investie` brute face à un `patrimoine_net` déjà netté de
     l'emprunt, qui sous-compterait massivement les gains d'un bien financé à crédit."""
     if lentille == "financier":
-        return historical_performance_service.compute_portfolio_history(db, user_id)
+        return historical_performance_service.compute_portfolio_history(db, foyer_id)
 
-    points = compute_patrimoine_history(db, user_id)
+    points = compute_patrimoine_history(db, foyer_id)
     return [
         {
             "date": p["date"],

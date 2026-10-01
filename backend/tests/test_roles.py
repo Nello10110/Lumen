@@ -92,7 +92,7 @@ def test_membre_peut_creer_et_modifier_des_holdings(client_reel):
     maj = client_reel.patch(f"/api/portfolio/holdings/{holding_id}", json={"quantite": 2}, headers=_en_tete(token_membre))
     assert maj.status_code == 200
 
-    # Visible aussi côté propriétaire (même foyer, même `user_id` métier).
+    # Visible aussi côté propriétaire (même foyer, même `foyer_id` métier).
     holdings_proprio = client_reel.get("/api/portfolio/holdings", headers=_en_tete(token_proprio)).json()
     assert any(h["ticker"] == "AAA" for h in holdings_proprio)
 

@@ -48,16 +48,16 @@ def cle_historique_benchmark(benchmark_key: str) -> str:
     return f"historique_benchmark:{benchmark_key}"
 
 
-def cle_historique_portefeuille(user_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> str:
+def cle_historique_portefeuille(foyer_id: int, cles_filtres: set[tuple[str, int | None]] | None = None) -> str:
     """Clé de cache de l'historique de valeur du portefeuille (4.5), scopée par
-    utilisateur (Milestone 2a) — sans `user_id`, le premier utilisateur à calculer
+    utilisateur (Milestone 2a) — sans `foyer_id`, le premier utilisateur à calculer
     son historique verrait sa donnée servie à tous les autres tant que le cache est
     valide (24h).
 
     `cles_filtres` (graphique filtrable de l'écran Analyse, retour utilisateur du
     13/09/2026 ; devenu `(ticker, compte_id)` le 14/09/2026 — un ticker seul ne
     désigne plus une position sans ambiguïté) : `None` laisse la clé EXACTEMENT
-    inchangée (`historique_portefeuille:{user_id}`) — le graphique héros du tableau
+    inchangée (`historique_portefeuille:{foyer_id}`) — le graphique héros du tableau
     de bord, qui n'a jamais de filtre, continue de lire/écrire la même entrée
     qu'avant cette fonctionnalité. Un ensemble de couples ajoute un suffixe trié
     (l'ordre d'un `set` n'est pas garanti d'un appel à l'autre en Python — sans tri,
@@ -78,15 +78,15 @@ def cle_historique_portefeuille(user_id: int, cles_filtres: set[tuple[str, int |
     1 ms en lecture (mesuré sur le portefeuille réel après le Lot 13). Un facteur 300
     sur l'écran d'accueil justifie de le garder ; la symétrie, non."""
     if cles_filtres is None:
-        return f"historique_portefeuille:{user_id}"
+        return f"historique_portefeuille:{foyer_id}"
     # `compte_id` peut être `None` (position sans compte) : rendu en "-" pour rester
     # un suffixe de clé stable et lisible plutôt que le littéral `"None"`.
     suffixe = ",".join(sorted(f"{ticker}:{compte_id if compte_id is not None else '-'}" for ticker, compte_id in cles_filtres))
-    return f"historique_portefeuille:{user_id}:{suffixe}"
+    return f"historique_portefeuille:{foyer_id}:{suffixe}"
 
 
 def cle_historique_patrimoine(
-    user_id: int,
+    foyer_id: int,
     detenteur_id: int | None = None,
     type_actif: str | None = None,
     compte_id: int | None = None,
@@ -102,7 +102,7 @@ def cle_historique_patrimoine(
     d'Analyse) : les trois absents laissent la clé EXACTEMENT inchangée — le tableau
     de bord (jamais filtré) continue de lire/écrire la même entrée qu'avant ce lot,
     même principe que `cle_historique_portefeuille`/`cles_filtres` ci-dessus."""
-    base = f"historique_patrimoine:{user_id}:{detenteur_id if detenteur_id is not None else 'foyer'}"
+    base = f"historique_patrimoine:{foyer_id}:{detenteur_id if detenteur_id is not None else 'foyer'}"
     if type_actif is None and compte_id is None and etablissement_id is None:
         return base
     compte_suffixe = compte_id if compte_id is not None else "-"

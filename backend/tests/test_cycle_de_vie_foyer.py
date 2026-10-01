@@ -34,8 +34,8 @@ def deux_foyers(db):
     """Le foyer de test (propriétaire : compte 1, « test ») et le foyer B (propriétaire :
     compte 2, « voisin »), chacun avec une ligne de portefeuille."""
     creer_utilisateur(db, ID_UTILISATEUR_B, "voisin")
-    make_holding(db, user_id=ID_FOYER_TEST, ticker="A-SEUL")
-    make_holding(db, user_id=ID_FOYER_B, ticker="B-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_TEST, ticker="A-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_B, ticker="B-SEUL")
     return db
 
 
@@ -59,7 +59,7 @@ def _existe(db, user_id: int) -> bool:
 
 
 def _tickers(db, foyer_id: int) -> list[str]:
-    return sorted(h.ticker for h in db.query(Holding).filter(Holding.user_id == foyer_id))
+    return sorted(h.ticker for h in db.query(Holding).filter(Holding.foyer_id == foyer_id))
 
 
 def _basculer(client, en_tete, foyer_id: int) -> None:
@@ -182,7 +182,7 @@ def test_le_nouveau_proprietaire_peut_a_son_tour_transferer(client_jetons, deux_
 
 def test_retirer_un_invite_efface_son_perimetre_et_ses_sessions_sans_supprimer_le_compte(client_jetons, deux_foyers):
     invite = _compte(deux_foyers, "invite", ID_FOYER_TEST, ROLE_INVITE)
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
     deux_foyers.add(alice)
     deux_foyers.commit()
     deux_foyers.add(PerimetreInvite(user_id=invite.id, detenteur_id=alice.id))
@@ -202,7 +202,7 @@ def test_retirer_un_invite_efface_son_perimetre_et_ses_sessions_sans_supprimer_l
         assert client_jetons.get("/api/portfolio/holdings", headers=en_tete).status_code == 403
     # Le foyer n'a rien perdu.
     assert _tickers(deux_foyers, ID_FOYER_TEST) == ["A-SEUL"]
-    assert deux_foyers.query(Detenteur).filter(Detenteur.user_id == ID_FOYER_TEST).count() == 1
+    assert deux_foyers.query(Detenteur).filter(Detenteur.foyer_id == ID_FOYER_TEST).count() == 1
 
 
 def test_le_proprietaire_ne_se_retire_pas_lui_meme(client_jetons, deux_foyers):
@@ -285,7 +285,7 @@ def test_le_proprietaire_d_un_autre_foyer_le_retrouve_apres_la_suppression(clien
 def test_supprimer_un_foyer_d_un_proprietaire_de_deux_foyers_garde_l_autre(client_jetons, deux_foyers):
     proprietaire = deux_foyers.get(User, ID_UTILISATEUR_TEST)
     second = auth_service.creer_foyer(deux_foyers, proprietaire, nom="Le second")
-    make_holding(deux_foyers, user_id=second.id, ticker="SECOND")
+    make_holding(deux_foyers, foyer_id=second.id, ticker="SECOND")
     en_tete = jeton_de_session(deux_foyers, ID_UTILISATEUR_TEST)
     _basculer(client_jetons, en_tete, ID_FOYER_TEST)
 
@@ -328,7 +328,7 @@ def test_l_apercu_de_suppression_du_foyer(client_jetons, deux_foyers):
     conjoint = _compte(deux_foyers, "conjoint", ID_FOYER_TEST)
     partage = _compte(deux_foyers, "partage", ID_FOYER_TEST)
     deux_foyers.add(Appartenance(user_id=partage.id, foyer_id=ID_FOYER_B, role=ROLE_MEMBRE))
-    deux_foyers.add(Detenteur(user_id=ID_FOYER_TEST, nom="Alice"))
+    deux_foyers.add(Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice"))
     deux_foyers.commit()
     en_tete = jeton_de_session(deux_foyers, ID_UTILISATEUR_TEST)
     jeton_de_session(deux_foyers, conjoint.id)
@@ -441,7 +441,7 @@ def test_un_compte_de_plusieurs_foyers_perd_ses_foyers_solo_et_quitte_les_autres
     utilisateur = _compte(deux_foyers, "double")
     utilisateur_id = utilisateur.id
     solo_id = auth_service.creer_foyer(deux_foyers, utilisateur, nom="Le solo").id
-    make_holding(deux_foyers, user_id=solo_id, ticker="SOLO")
+    make_holding(deux_foyers, foyer_id=solo_id, ticker="SOLO")
     deux_foyers.add(Appartenance(user_id=utilisateur_id, foyer_id=ID_FOYER_B, role=ROLE_MEMBRE))
     deux_foyers.commit()
     en_tete = jeton_de_session(deux_foyers, utilisateur_id)

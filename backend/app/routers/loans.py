@@ -24,7 +24,7 @@ def _vers_loan_out(loan: Loan) -> LoanOut:
 
 @router.get("", response_model=list[LoanOut])
 def list_loans(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    requete = db.query(Loan).filter(Loan.user_id == auth_service.id_foyer(current_user))
+    requete = db.query(Loan).filter(Loan.foyer_id == auth_service.id_foyer(current_user))
     if current_user.role == ROLE_INVITE:
         # Visible pour un invité (2.L.2) : quotité d'emprunt explicite sur son
         # périmètre, OU emprunt rattaché à un actif dont il détient une quotité
@@ -53,12 +53,12 @@ def list_loans(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 @router.post("", response_model=LoanOut)
 def create_loan(payload: LoanCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
-    user_id = auth_service.id_foyer(current_user)
+    foyer_id = auth_service.id_foyer(current_user)
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
-        if etablissement is None or etablissement.user_id != user_id:
+        if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
-    loan = Loan(**payload.model_dump(), user_id=user_id)
+    loan = Loan(**payload.model_dump(), foyer_id=foyer_id)
     db.add(loan)
     db.commit()
     db.refresh(loan)
@@ -69,7 +69,7 @@ def create_loan(payload: LoanCreate, db: Session = Depends(get_db), current_user
 @router.patch("/{loan_id}", response_model=LoanOut)
 def update_loan(loan_id: int, payload: LoanUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     loan = db.get(Loan, loan_id)
-    if loan is None or loan.user_id != auth_service.id_foyer(current_user):
+    if loan is None or loan.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Emprunt introuvable")
     updates = payload.model_dump(exclude_unset=True)
     # Rattachement à un actif (backlog 2.M.2) : vérifie que l'actif visé appartient
@@ -77,13 +77,13 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: Session = Depends(get_db)
     # cette vérification.
     if "holding_id" in updates and updates["holding_id"] is not None:
         cible = db.get(Holding, updates["holding_id"])
-        if cible is None or cible.user_id != auth_service.id_foyer(current_user):
+        if cible is None or cible.foyer_id != auth_service.id_foyer(current_user):
             raise HTTPException(status_code=404, detail="Actif introuvable")
     # Établissement du crédit : même vérification IDOR que `holding_id` ci-dessus —
     # `None` (dérattachement) ne nécessite aucune vérification.
     if "etablissement_id" in updates and updates["etablissement_id"] is not None:
         etablissement = db.get(Etablissement, updates["etablissement_id"])
-        if etablissement is None or etablissement.user_id != auth_service.id_foyer(current_user):
+        if etablissement is None or etablissement.foyer_id != auth_service.id_foyer(current_user):
             raise HTTPException(status_code=404, detail="Établissement introuvable")
     # Un recalage manuel du capital restant dû (relevé bancaire réel) horodate
     # `derniere_maj_manuelle` — même logique que `Holding.date_valeur_estimee`
@@ -102,7 +102,7 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: Session = Depends(get_db)
 @router.delete("/{loan_id}")
 def delete_loan(loan_id: int, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     loan = db.get(Loan, loan_id)
-    if loan is None or loan.user_id != auth_service.id_foyer(current_user):
+    if loan is None or loan.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Emprunt introuvable")
     # Sa répartition entre détenteurs part avec lui. Avant § BI.4, elle restait en
     # base pointée sur l'id disparu, et le prochain emprunt qui reprenait cet id
@@ -126,7 +126,7 @@ def set_loan_quotites(loan_id: int, payload: QuotitesUpdate, db: Session = Depen
     `detenteurs_service.set_quotites_loan`, déjà écrit et testé côté service, sans
     endpoint jusqu'ici."""
     loan = db.get(Loan, loan_id)
-    if loan is None or loan.user_id != auth_service.id_foyer(current_user):
+    if loan is None or loan.foyer_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Emprunt introuvable")
     try:
         detenteurs_service.set_quotites_loan(

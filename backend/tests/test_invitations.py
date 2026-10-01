@@ -123,8 +123,8 @@ def test_le_role_proprietaire_nest_jamais_invitable(client_jetons, db, proprieta
 
 def test_le_perimetre_dun_invite_ne_designe_que_des_detenteurs_du_foyer(client_jetons, db, proprietaire):
     creer_utilisateur(db, ID_UTILISATEUR_B, "voisin")
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
-    intrus = Detenteur(user_id=ID_FOYER_B, nom="Intrus")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
+    intrus = Detenteur(foyer_id=ID_FOYER_B, nom="Intrus")
     db.add_all([alice, intrus])
     db.commit()
 
@@ -137,7 +137,7 @@ def test_le_perimetre_dun_invite_ne_designe_que_des_detenteurs_du_foyer(client_j
 
 
 def test_le_perimetre_est_ignore_pour_un_membre(client_jetons, db, proprietaire):
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
     db.add(alice)
     db.commit()
 
@@ -351,10 +351,10 @@ def test_un_nouveau_compte_rejoint_le_foyer_avec_le_role_de_linvitation(client_j
 
 
 def test_un_invite_recoit_le_perimetre_fige_dans_linvitation(client_jetons, db, proprietaire):
-    alice, bob = Detenteur(user_id=ID_FOYER_TEST, nom="Alice"), Detenteur(user_id=ID_FOYER_TEST, nom="Bob")
+    alice, bob = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice"), Detenteur(foyer_id=ID_FOYER_TEST, nom="Bob")
     db.add_all([alice, bob])
     db.commit()
-    make_holding(db, user_id=ID_FOYER_TEST, ticker="A-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_TEST, ticker="A-SEUL")
     creee = _inviter(client_jetons, proprietaire, role="invite", detenteur_ids=[alice.id])
 
     corps = _accepter_nouveau_compte(client_jetons, creee["jeton"], "banquier").json()
@@ -433,7 +433,7 @@ def test_une_erreur_en_cours_d_acceptation_laisse_linvitation_intacte(client_jet
 
 
 def test_un_detenteur_supprime_avant_l_acceptation_n_est_pas_accorde(client_jetons, db, proprietaire):
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
     db.add(alice)
     db.commit()
     creee = _inviter(client_jetons, proprietaire, role="invite", detenteur_ids=[alice.id])
@@ -446,7 +446,7 @@ def test_un_detenteur_supprime_avant_l_acceptation_n_est_pas_accorde(client_jeto
 
 
 def test_une_remise_a_zero_du_foyer_efface_les_perimetres_promis(client_jetons, db, proprietaire):
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
     db.add(alice)
     db.commit()
     creee = _inviter(client_jetons, proprietaire, role="invite", detenteur_ids=[alice.id])
@@ -462,7 +462,7 @@ def test_un_import_efface_les_perimetres_des_detenteurs_qu_il_remplace(client_je
     """L'import supprime puis recrée les détenteurs, sous de nouveaux identifiants : un
     périmètre laissé derrière pointerait vers un détenteur disparu (que SQLite redonne au
     suivant), et Postgres refuserait la suppression."""
-    alice = Detenteur(user_id=ID_FOYER_TEST, nom="Alice")
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
     db.add(alice)
     db.commit()
     invite = _ajouter_membre(db, ID_FOYER_TEST, "banquier", ROLE_INVITE)
@@ -481,7 +481,7 @@ def test_un_import_efface_les_perimetres_des_detenteurs_qu_il_remplace(client_je
 
 def test_un_compte_existant_ajoute_le_foyer_a_ses_appartenances(client_jetons, db, proprietaire):
     creer_utilisateur(db, ID_UTILISATEUR_B, "voisin")
-    make_holding(db, user_id=ID_FOYER_TEST, ticker="A-SEUL")
+    make_holding(db, foyer_id=ID_FOYER_TEST, ticker="A-SEUL")
     en_tete_b = jeton_de_session(db, ID_UTILISATEUR_B)
     creee = _inviter(client_jetons, proprietaire, role="membre")
 

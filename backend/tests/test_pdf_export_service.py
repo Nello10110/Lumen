@@ -36,7 +36,7 @@ def test_pdf_restitue_le_patrimoine_net_et_la_repartition(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
     db.add(
         Loan(
-            user_id=ID_FOYER_TEST,
+            foyer_id=ID_FOYER_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,
@@ -58,7 +58,7 @@ def test_pdf_restitue_le_patrimoine_net_et_la_repartition(db):
 
 def test_pdf_restitue_la_rentabilite_quand_des_transactions_existent(db):
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0, category="TRADING", type="BUY")
-    db.add(Holding(user_id=ID_FOYER_TEST, ticker="ABC", quantite=10.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(Holding(foyer_id=ID_FOYER_TEST, ticker="ABC", quantite=10.0, prix_revient_moyen=100.0, type_actif="STOCK"))
     db.add(MarketDataCache(ticker="ABC", prix_actuel=150.0, derniere_maj=datetime(2026, 1, 1)))
     db.commit()
 
@@ -77,7 +77,7 @@ def test_pdf_omet_la_rentabilite_sans_aucune_transaction(db):
 
 
 def test_pdf_restitue_la_repartition_par_compte_quand_annotee(db):
-    compte = Compte(user_id=ID_FOYER_TEST, nom="PEA")
+    compte = Compte(foyer_id=ID_FOYER_TEST, nom="PEA")
     db.add(compte)
     db.commit()
     make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0, compte_id=compte.id)

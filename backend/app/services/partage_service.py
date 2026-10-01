@@ -32,7 +32,7 @@ def _maintenant_naif() -> datetime:
 
 def creer_lien(
     db: Session,
-    user_id: int,
+    foyer_id: int,
     *,
     nom: str,
     detenteur_id: int | None,
@@ -46,7 +46,7 @@ def creer_lien(
 ) -> LienPartage:
     lien = LienPartage(
         token=secrets.token_hex(32),
-        user_id=user_id,
+        foyer_id=foyer_id,
         nom=nom.strip(),
         detenteur_id=detenteur_id,
         inclure_patrimoine_net=inclure_patrimoine_net,
@@ -63,12 +63,12 @@ def creer_lien(
     return lien
 
 
-def lister_liens(db: Session, user_id: int) -> list[LienPartage]:
-    return db.query(LienPartage).filter(LienPartage.user_id == user_id).order_by(LienPartage.created_at.desc()).all()
+def lister_liens(db: Session, foyer_id: int) -> list[LienPartage]:
+    return db.query(LienPartage).filter(LienPartage.foyer_id == foyer_id).order_by(LienPartage.created_at.desc()).all()
 
 
-def lien_du_foyer(db: Session, user_id: int, lien_id: int) -> LienPartage | None:
-    return db.query(LienPartage).filter(LienPartage.id == lien_id, LienPartage.user_id == user_id).first()
+def lien_du_foyer(db: Session, foyer_id: int, lien_id: int) -> LienPartage | None:
+    return db.query(LienPartage).filter(LienPartage.id == lien_id, LienPartage.foyer_id == foyer_id).first()
 
 
 def revoquer_lien(db: Session, lien: LienPartage) -> None:
@@ -86,10 +86,10 @@ def lien_valide_par_token(db: Session, token: str) -> LienPartage | None:
     au foyer du lien — ou à aucun, si le jeton ne vaut rien."""
     database.tous_les_foyers(db)
     lien = db.query(LienPartage).filter(LienPartage.token == token).first()
-    if lien is None or lien.revoked_at is not None or lien.expires_at < _maintenant_naif() or not _foyer_actif(db, lien.user_id):
+    if lien is None or lien.revoked_at is not None or lien.expires_at < _maintenant_naif() or not _foyer_actif(db, lien.foyer_id):
         database.sans_perimetre(db)
         return None
-    database.fixer_foyer(db, lien.user_id, None)
+    database.fixer_foyer(db, lien.foyer_id, None)
     return lien
 
 
@@ -157,7 +157,7 @@ def compute_payload(db: Session, lien: LienPartage) -> dict:
     payload: dict = {"nom_lien": lien.nom, "masque": m, "detenteur_id": lien.detenteur_id}
 
     if lien.inclure_patrimoine_net:
-        net = patrimoine_service.compute_patrimoine_net(db, lien.user_id, lien.detenteur_id)
+        net = patrimoine_service.compute_patrimoine_net(db, lien.foyer_id, lien.detenteur_id)
         payload["patrimoine_net"] = {
             "patrimoine_net": None if m else net["patrimoine_net"],
             "actifs_totaux": None if m else net["actifs_totaux"],
@@ -168,7 +168,7 @@ def compute_payload(db: Session, lien: LienPartage) -> dict:
         payload["patrimoine_net"] = None
 
     if lien.inclure_repartition:
-        expo = patrimoine_service.compute_exposition_consolidee(db, lien.user_id)
+        expo = patrimoine_service.compute_exposition_consolidee(db, lien.foyer_id)
         payload["exposition"] = {
             "valeur_totale": None if m else expo["valeur_totale"],
             "repartition_geo": _repartition_masquee(expo["repartition_geo"], expo["valeur_totale"], m),
@@ -185,7 +185,7 @@ def compute_payload(db: Session, lien: LienPartage) -> dict:
         payload["exposition"] = None
 
     if lien.inclure_performance:
-        perf = performance_service.compute_performance(db, lien.user_id)
+        perf = performance_service.compute_performance(db, lien.foyer_id)
         payload["performance"] = {
             "valeur_totale": None if m else perf["valeur_totale"],
             "cout_total_investi": None if m else perf["cout_total_investi"],
@@ -202,7 +202,7 @@ def compute_payload(db: Session, lien: LienPartage) -> dict:
         aujourdhui = date.today()
         date_debut = aujourdhui.replace(day=1).isoformat()
         date_fin = aujourdhui.isoformat()
-        resume = budget_service.compute_summary(db, lien.user_id, date_debut, date_fin)
+        resume = budget_service.compute_summary(db, lien.foyer_id, date_debut, date_fin)
         total_sorties = resume["sorties"]
         payload["budget"] = {
             "periode_debut": date_debut,
