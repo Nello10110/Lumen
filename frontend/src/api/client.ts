@@ -68,6 +68,7 @@ import type {
   DeclarationPatrimoineInput,
   ExpositionConsolidee,
   LienPartage,
+  LienPartageCree,
   LienPartageInput,
   PartageMeta,
   PartagePayload,
@@ -708,7 +709,7 @@ export const api = {
 
   // Liens de partage révocables (backlog 2.Q.1) : gestion réservée au propriétaire.
   listLiensPartage: () => request<LienPartage[]>('/partage'),
-  createLienPartage: (input: LienPartageInput) => request<LienPartage>('/partage', { method: 'POST', body: JSON.stringify(input) }),
+  createLienPartage: (input: LienPartageInput) => request<LienPartageCree>('/partage', { method: 'POST', body: JSON.stringify(input) }),
   revokeLienPartage: (id: number) => request<void>(`/partage/${id}`, { method: 'DELETE' }),
   // Consultation publique (aucune authentification) : chemin distinct
   // `/partage-public/...`, reconnu par `estRoutePublique` ci-dessus.

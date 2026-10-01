@@ -91,7 +91,7 @@ def test_le_jeton_nest_renvoye_qua_la_creation_et_seul_son_hachage_est_stocke(cl
 
     invitation = db.get(Invitation, creee["id"])
     assert len(creee["jeton"]) >= 43  # token_urlsafe(32)
-    assert invitation.jeton_hash == invitation_service.hacher_jeton(creee["jeton"])
+    assert invitation.jeton_hash == auth_service.hacher_jeton(creee["jeton"])
     assert creee["jeton"] not in {str(getattr(invitation, c.name)) for c in Invitation.__table__.columns}
     # La liste ne le renvoie plus jamais.
     liste = client_jetons.get("/api/invitations", headers=proprietaire).json()

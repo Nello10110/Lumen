@@ -110,7 +110,7 @@ def test_la_connexion_rouvre_le_dernier_foyer_utilise_apres_une_bascule(client_j
 
     assert client_jetons.put("/api/auth/foyer-courant", json={"foyer_id": autre}, headers=en_tete).status_code == 200
 
-    nouvelle_session = auth_service.ouvrir_session(deux_foyers, deux_foyers.get(User, membre.id))
+    nouvelle_session, _ = auth_service.ouvrir_session(deux_foyers, deux_foyers.get(User, membre.id))
     assert nouvelle_session.foyer_id == autre
 
 

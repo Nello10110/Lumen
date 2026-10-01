@@ -22,6 +22,15 @@ const partageCard = {
   masquerLesMontantsProportionsSeulement: "Masquer les montants (proportions seulement)",
   creation: "Création...",
   creerLeLien: "Créer le lien",
+  adresseUneSeuleFois: "L'adresse d'un lien n'est montrée qu'à sa création. Si tu l'as perdue, révoque le lien et crées-en un nouveau.",
+  lienPret: "Le lien de partage est prêt.",
+  lienUneSeuleFois: "Copie-le maintenant : il ne sera plus affiché ensuite. Transmets-le toi-même à la personne (message, e-mail…).",
+  lienAria: "Lien de partage",
+  copier: "Copier le lien",
+  copie: "Lien copié",
+  masquer: "Masquer",
+  copieImpossible: "Copie automatique impossible ici : sélectionne le lien et copie-le à la main.",
+  valableJusquAu: "Valable jusqu'au {date}.",
 } as const
 
 export default partageCard

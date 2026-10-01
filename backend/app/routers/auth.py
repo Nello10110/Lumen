@@ -133,8 +133,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     user = auth_service.creer_utilisateur(db, payload.username, payload.password)
     # Le premier compte crée son foyer, dans la langue de son appareil.
     auth_service.creer_foyer(db, user, langue=payload.langue)
-    token = auth_service.ouvrir_session(db, user)
-    return AuthResponse(token=token.token, user=construire_user_out(db, user))
+    _, jeton = auth_service.ouvrir_session(db, user)
+    return AuthResponse(token=jeton, user=construire_user_out(db, user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -157,9 +157,9 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     if not auth_service.verify_password(payload.password, user.password_hash):
         auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "mot_de_passe_incorrect")
         raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
-    token = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
+    _, jeton = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, payload.username, user.id, ip, "succes", None)
-    return AuthResponse(token=token.token, user=construire_user_out(db, user))
+    return AuthResponse(token=jeton, user=construire_user_out(db, user))
 
 
 # --- Connexion SSO (OIDC applicatif) ----------------------------------------------
@@ -309,9 +309,9 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
         auth_service.journaliser_acces(db, user.username, user.id, ip, "echec", "compte_verrouille")
         return _redirection_erreur(tr("Trop de tentatives. Réessayez après {heure}.", heure=verrouille_jusqua.strftime("%H:%M UTC")))
 
-    token = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
+    _, jeton = auth_service.ouvrir_session(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "oidc")
-    return RedirectResponse(f"{config.frontend_url}/#token={token.token}")
+    return RedirectResponse(f"{config.frontend_url}/#token={jeton}")
 
 
 @router.post("/logout", status_code=204)
@@ -321,7 +321,7 @@ def logout(
     token_row: AuthToken = Depends(get_current_token),
 ):
     auth_service.journaliser_acces(db, current_user.username, current_user.id, token_row.ip, "succes", None, action="logout")
-    auth_service.supprimer_token(db, token_row.token)
+    auth_service.revoquer_session(db, token_row)
 
 
 @router.get("/me", response_model=UserOut)
@@ -553,7 +553,7 @@ def list_sessions(
     resultats = []
     for session in sessions:
         sortie = SessionOut.model_validate(session)
-        sortie.est_courante = session.token == token_row.token
+        sortie.est_courante = session.token_hash == token_row.token_hash
         resultats.append(sortie)
     return resultats
 

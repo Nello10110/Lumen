@@ -10,12 +10,13 @@ import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.auth import get_current_user
 from app.database import Base, get_db
 from app.main import app
+from app.services import auth_service
 
 
 @pytest.fixture
@@ -192,6 +193,32 @@ def test_sessions_liste_plusieurs_connexions(client_reel):
     assert len(sessions) == 3  # inscription + 2 connexions
     courantes = [s for s in sessions if s["est_courante"]]
     assert len(courantes) == 1
+
+
+def _jeton_en_clair_dans_la_base(db, jeton: str) -> list[str]:
+    """Les tables dont une ligne contient `jeton` (n'importe quelle colonne)."""
+    trouvees = []
+    for table in Base.metadata.sorted_tables:
+        lignes = db.execute(text(f'SELECT * FROM "{table.name}"')).fetchall()
+        if any(jeton in str(valeur) for ligne in lignes for valeur in ligne):
+            trouvees.append(table.name)
+    return trouvees
+
+
+def test_la_base_ne_contient_aucun_jeton_de_session_en_clair(client_reel, db_vide):
+    """Une fuite de la base ne donne plus de session valide (§ BK.2e) : seule l'empreinte est
+    écrite, à l'inscription comme à la connexion — et la recherche par empreinte reste celle de
+    l'authentification (la session fonctionne)."""
+    jeton_inscription = _inscrire(client_reel).json()["token"]
+    jeton_connexion = client_reel.post("/api/auth/login", json={"username": "paul", "password": "mot-de-passe-solide"}).json()["token"]
+
+    for jeton in (jeton_inscription, jeton_connexion):
+        assert _jeton_en_clair_dans_la_base(db_vide, jeton) == []
+        assert client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {jeton}"}).status_code == 200
+    empreintes = {ligne[0] for ligne in db_vide.execute(text("SELECT token_hash FROM auth_tokens"))}
+    assert empreintes == {auth_service.hacher_jeton(jeton_inscription), auth_service.hacher_jeton(jeton_connexion)}
+    # L'empreinte lue dans la base n'ouvre pas la session.
+    assert client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {auth_service.hacher_jeton(jeton_connexion)}"}).status_code == 401
 
 
 def test_revoquer_une_session_ne_touche_pas_les_autres(client_reel):
@@ -536,7 +563,7 @@ def test_retirer_un_membre_garde_son_compte_et_son_journal(client_reel, db_vide)
     db_vide.expire_all()
     assert db_vide.get(User, membre["id"]) is not None
     assert db_vide.query(Appartenance).filter(Appartenance.user_id == membre["id"]).count() == 0
-    assert db_vide.get(AuthToken, token_membre).foyer_id is None
+    assert db_vide.get(AuthToken, auth_service.hacher_jeton(token_membre)).foyer_id is None
     entrees = client_reel.get("/api/auth/access-log", headers=entete).json()
     assert [e for e in entrees if e["username_saisi"] == "membre"], "le journal d'accès doit survivre"
     assert db_vide.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre["id"]).count() > 0

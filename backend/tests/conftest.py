@@ -193,7 +193,7 @@ def client_jetons(db):
 def jeton_de_session(db, user_id: int) -> dict:
     """En-têtes d'une session ouverte pour `user_id` (sur son dernier foyer utilisé)."""
     user = db.get(User, user_id)
-    jeton = auth_service.ouvrir_session(db, user).token
+    _, jeton = auth_service.ouvrir_session(db, user)
     database.tous_les_foyers(db)  # le banc de test reprend la main sur tous les foyers
     return {"Authorization": f"Bearer {jeton}"}
 

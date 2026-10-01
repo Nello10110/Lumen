@@ -37,7 +37,7 @@ from app.models import (
     Salaire,
     User,
 )
-from app.services import invitation_service
+from app.services import auth_service, invitation_service
 
 from .conftest import make_holding, make_transaction
 
@@ -55,7 +55,7 @@ class FoyerPeuple:
 def _session(db, user_id: int, foyer_id: int | None, jeton: str) -> AuthToken:
     maintenant = datetime.now()
     session = AuthToken(
-        token=jeton, id_session=jeton[:16], user_id=user_id, foyer_id=foyer_id, created_at=maintenant, expires_at=maintenant + timedelta(days=30)
+        token_hash=auth_service.hacher_jeton(jeton), id_session=jeton[:16], user_id=user_id, foyer_id=foyer_id, created_at=maintenant, expires_at=maintenant + timedelta(days=30)
     )
     db.add(session)
     return session
@@ -134,7 +134,7 @@ def peupler_foyer(db, foyer_id: int, etiquette: str) -> FoyerPeuple:
     )
 
     lien = LienPartage(
-        token=f"lien-{etiquette}",
+        token_hash=auth_service.hacher_jeton(f"lien-{etiquette}"),
         foyer_id=foyer_id,
         nom=f"Lien {etiquette}",
         detenteur_id=detenteur.id,

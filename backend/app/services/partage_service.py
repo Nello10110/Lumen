@@ -43,9 +43,12 @@ def creer_lien(
     inclure_budget: bool,
     masquer_valeurs: bool,
     code: str | None,
-) -> LienPartage:
+):
+    """Crée le lien. Renvoie le lien et son jeton EN CLAIR : la base n'en garde que l'empreinte
+    (§ BK.2e), le jeton n'est donc montré qu'une fois, à la création."""
+    jeton = secrets.token_hex(32)
     lien = LienPartage(
-        token=secrets.token_hex(32),
+        token_hash=auth_service.hacher_jeton(jeton),
         foyer_id=foyer_id,
         nom=nom.strip(),
         detenteur_id=detenteur_id,
@@ -60,7 +63,7 @@ def creer_lien(
     db.add(lien)
     db.commit()
     db.refresh(lien)
-    return lien
+    return lien, jeton
 
 
 def lister_liens(db: Session, foyer_id: int) -> list[LienPartage]:
@@ -85,7 +88,7 @@ def lien_valide_par_token(db: Session, token: str) -> LienPartage | None:
     recherche porte donc sur tous les foyers, et la session est aussitôt restreinte
     au foyer du lien — ou à aucun, si le jeton ne vaut rien."""
     database.tous_les_foyers(db)
-    lien = db.query(LienPartage).filter(LienPartage.token == token).first()
+    lien = db.query(LienPartage).filter(LienPartage.token_hash == auth_service.hacher_jeton(token)).first()
     if lien is None or lien.revoked_at is not None or lien.expires_at < _maintenant_naif() or not _foyer_actif(db, lien.foyer_id):
         database.sans_perimetre(db)
         return None

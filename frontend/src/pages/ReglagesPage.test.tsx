@@ -427,7 +427,6 @@ describe('ReglagesPage — écran d’administration des comptes du foyer (revue
 function lienPartage(overrides: Partial<import('../api/types').LienPartage> = {}): import('../api/types').LienPartage {
   return {
     id: 1,
-    token: 'a'.repeat(64),
     nom: 'Pour la banque',
     detenteur_id: null,
     inclure_patrimoine_net: true,
@@ -443,6 +442,11 @@ function lienPartage(overrides: Partial<import('../api/types').LienPartage> = {}
   }
 }
 
+/** Ce que rend la création : le seul moment où le jeton existe côté client (§ BK.2e). */
+function lienPartageCree(overrides: Partial<import('../api/types').LienPartageCree> = {}): import('../api/types').LienPartageCree {
+  return { ...lienPartage(), token: 'a'.repeat(64), ...overrides }
+}
+
 describe('ReglagesPage — Liens de partage (backlog 2.Q.1)', () => {
   it("affiche un message quand aucun lien n'est créé", async () => {
     vi.mocked(api.listLiensPartage).mockResolvedValue([])
@@ -452,13 +456,14 @@ describe('ReglagesPage — Liens de partage (backlog 2.Q.1)', () => {
     await screen.findByText('Aucun lien de partage créé.')
   })
 
-  it('liste les liens existants avec leur URL publique', async () => {
+  it("liste les liens existants sans jamais afficher leur adresse (le serveur n'en garde que l'empreinte)", async () => {
     vi.mocked(api.listLiensPartage).mockResolvedValue([lienPartage()])
     renderReglages()
     ouvrirOnglet('Partage')
 
     await screen.findByText('Pour la banque')
-    expect(screen.getByDisplayValue(`http://localhost:3000/partage/${'a'.repeat(64)}`)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Lien de partage')).not.toBeInTheDocument()
+    expect(screen.getByText(/n'est montrée qu'à sa création/)).toBeInTheDocument()
   })
 
   it('un lien révoqué affiche le badge « révoqué » sans URL ni bouton Révoquer', async () => {
@@ -478,9 +483,9 @@ describe('ReglagesPage — Liens de partage (backlog 2.Q.1)', () => {
     await screen.findByText('code requis')
   })
 
-  it('créer un lien appelle createLienPartage avec les sections cochées puis recharge la liste', async () => {
+  it('créer un lien appelle createLienPartage avec les sections cochées, recharge la liste et montre le lien une seule fois', async () => {
     vi.mocked(api.listLiensPartage).mockResolvedValueOnce([]).mockResolvedValue([lienPartage()])
-    vi.mocked(api.createLienPartage).mockResolvedValue(lienPartage())
+    vi.mocked(api.createLienPartage).mockResolvedValue(lienPartageCree())
     renderReglages()
     ouvrirOnglet('Partage')
     await screen.findByText('Aucun lien de partage créé.')
@@ -494,6 +499,12 @@ describe('ReglagesPage — Liens de partage (backlog 2.Q.1)', () => {
         expect.objectContaining({ nom: 'Pour la banque', inclure_budget: true, detenteur_id: null, code: null }),
       ),
     )
+    const champ = await screen.findByLabelText('Lien de partage')
+    expect(champ).toHaveValue(`http://localhost:3000/partage/${'a'.repeat(64)}`)
+    expect(screen.getByText(/il ne sera plus affiché/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Masquer' }))
+    expect(screen.queryByLabelText('Lien de partage')).not.toBeInTheDocument()
   })
 
   it('révoquer un lien appelle revokeLienPartage puis recharge la liste', async () => {

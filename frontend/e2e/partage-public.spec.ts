@@ -11,7 +11,8 @@ test('Partage : création, consultation publique sans connexion, puis révocatio
   await page.getByLabel('Nom (pour te repérer)').fill(nomLien)
   await page.getByRole('button', { name: 'Créer le lien' }).click()
 
-  const champUrl = page.locator('input[readonly]').first()
+  // L'adresse n'est montrée qu'à la création : le serveur ne garde que l'empreinte du jeton.
+  const champUrl = page.getByLabel('Lien de partage', { exact: true })
   await expect(champUrl).toHaveValue(/\/partage\//)
   const urlPublique = await champUrl.inputValue()
   const token = new URL(urlPublique).pathname.split('/').pop()

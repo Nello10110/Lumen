@@ -161,6 +161,6 @@ def test_la_connexion_rouvre_le_dernier_foyer_utilise(db):
     db.query(Appartenance).filter(Appartenance.foyer_id == ID_FOYER_TEST).one().derniere_utilisation = datetime(2026, 1, 1)
     db.commit()
 
-    jeton = auth_service.ouvrir_session(db, user)
+    session, _ = auth_service.ouvrir_session(db, user)
 
-    assert (jeton.foyer_id, user.role) == (ID_FOYER_B, ROLE_MEMBRE)
+    assert (session.foyer_id, user.role) == (ID_FOYER_B, ROLE_MEMBRE)

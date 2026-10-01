@@ -146,6 +146,7 @@ from .operateur import (  # noqa: F401
 )
 from .partage import (  # noqa: F401
     LienPartageCreate,
+    LienPartageCreeOut,
     LienPartageOut,
     PartageAccesRequest,
     PartageBudget,

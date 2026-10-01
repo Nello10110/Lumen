@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Detenteur, LienPartage, User
-from ..schemas import LienPartageCreate, LienPartageOut
+from ..schemas import LienPartageCreate, LienPartageCreeOut, LienPartageOut
 from ..services import auth_service, partage_service
 
 router = APIRouter(prefix="/api/partage", tags=["partage"])
@@ -19,7 +19,6 @@ router = APIRouter(prefix="/api/partage", tags=["partage"])
 def _serialiser(lien: LienPartage) -> LienPartageOut:
     return LienPartageOut(
         id=lien.id,
-        token=lien.token,
         nom=lien.nom,
         detenteur_id=lien.detenteur_id,
         inclure_patrimoine_net=lien.inclure_patrimoine_net,
@@ -39,15 +38,15 @@ def list_liens(db: Session = Depends(get_db), current_user: User = Depends(get_c
     return [_serialiser(lien) for lien in partage_service.lister_liens(db, auth_service.id_foyer(current_user))]
 
 
-@router.post("", response_model=LienPartageOut)
+@router.post("", response_model=LienPartageCreeOut)
 def create_lien(payload: LienPartageCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     foyer_id = auth_service.id_foyer(current_user)
     if payload.detenteur_id is not None:
         detenteur = db.get(Detenteur, payload.detenteur_id)
         if detenteur is None or detenteur.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Détenteur introuvable")
-    lien = partage_service.creer_lien(db, foyer_id, **payload.model_dump())
-    return _serialiser(lien)
+    lien, jeton = partage_service.creer_lien(db, foyer_id, **payload.model_dump())
+    return LienPartageCreeOut(**_serialiser(lien).model_dump(), token=jeton)
 
 
 @router.delete("/{lien_id}")
