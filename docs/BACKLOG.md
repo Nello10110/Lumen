@@ -51,9 +51,8 @@ au § 4.2.
 centime (§ BI.1). Base **SQLite** par défaut — un fichier, une installation par foyer ; **Postgres**
 possible pour une future version hébergée, avec la séparation des foyers imposée par la base elle-même
 (sécurité au niveau des lignes, § BI.4-BI.5) — déployable par un profil du compose, sauvegarde
-comprise (§ BK.1, vérifié en CI), mais pas encore capable de gérer
-plusieurs foyers (§ BK.2 : le foyer est un objet à part entière depuis le lot BK.2a, les suivants
-restent à faire). Frontend React + TypeScript + Vite. Déploiement par un
+comprise (§ BK.1, vérifié en CI), et capable de gérer plusieurs foyers
+(§ BK.2, `traité (02/10/2026)`, vérifié par la CI Postgres). Frontend React + TypeScript + Vite. Déploiement par un
 `compose.yaml` unique et des images publiées sur GHCR à chaque livraison.
 
 **Qualité.** 1 709 tests backend (SQLite ; la même suite tourne sous Postgres en CI, rôle ordinaire,
@@ -85,7 +84,7 @@ file et reçoit son détail au § 5.
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
-| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — une installation ne sait toujours créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) réalisé en deux étapes le 01/10/2026 (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes), **à vérifier par la CI Postgres** |
+| **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -103,8 +102,8 @@ la séparation des foyers protège donc, pour l'instant, un cas qui ne peut pas 
   Postgres ; lot BK.2b (invitations) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2c (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI
   Postgres ; lot BK.2d (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI
-  Postgres ; lot BK.2e (durcissement) réalisé en deux étapes le 01/10/2026, à vérifier par la CI Postgres**
-  (§ BK.2, point 9).
+  Postgres ; lot BK.2e (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres. Le chantier BK.2
+  entier est `traité (02/10/2026)`** (§ BK.2, point 9).
 
 Et, au-delà de ces deux points :
 
@@ -7078,13 +7077,13 @@ profil en SQLite). Ce premier passage a aussi révélé deux défauts, corrigés
 
 Indépendant de BK.2, qui reste ouvert : une installation ne gère toujours qu'un foyer.
 
-#### BK.2 — `majeur` · `L` · `en cours` · `P3` — Gestion des foyers sur une installation partagée
+#### BK.2 — `majeur` · `L` · `traité (02/10/2026)` · `P3` — Gestion des foyers sur une installation partagée
 
-**État au 01/10/2026 : conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
+**État au 02/10/2026 : chantier `traité (02/10/2026)` ; conception validée par l'utilisateur ; lot BK.2a `traité (30/09/2026)`** (objet foyer, invisible —
 détail en fin de section, « Lot BK.2a — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2b** `traité (30/09/2026)`
 (invitations, « Lot BK.2b — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2c** `traité (30/09/2026)`
 (cycle de vie côté foyer, « Lot BK.2c — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2d** `traité (01/10/2026)`
-(opérateur et naissance des foyers, « Lot BK.2d — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2e** (§ 9, durcissement) réalisé en deux étapes le 01/10/2026 — le renommage `user_id` → `foyer_id` (« Lot BK.2e — étape 1 réalisée ») puis les jetons hachés et la séparation par la base des comptes (« Lot BK.2e — étape 2 réalisée ») —, **à vérifier par la CI Postgres**.
+(opérateur et naissance des foyers, « Lot BK.2d — réalisé »), **vérifié par la CI Postgres** ; lot **BK.2e** `traité (02/10/2026)` (§ 9, durcissement, réalisé en deux étapes le 01/10/2026 — le renommage `user_id` → `foyer_id`, « Lot BK.2e — étape 1 réalisée », puis les jetons hachés et la séparation par la base des comptes, « Lot BK.2e — étape 2 réalisée »), **vérifié par la CI Postgres**.
 
 **Le constat.** La base sait séparer plusieurs foyers ; l'application, elle, n'en crée qu'un :
 
@@ -7470,10 +7469,10 @@ précédente, puis montée par la nouvelle.
 | **BK.2b** — Invitations et appartenance multiple | Invitations vers un foyer existant (nouveau compte ou compte existant), sélecteur, bascule, écran « aucun foyer », « Quitter ce foyer », étape d'assistant « Inviter » | `invitations`, `invitations_perimetres` + politiques | Jeton ; bascule mal vérifiée | Unicité sous concurrence, rejeu, expiration, IDOR de bascule ; E2E invitation puis bascule |
 | **BK.2c** — Cycle de vie côté foyer | Transfert de propriété, retrait d'un membre, suppression d'un foyer par son propriétaire, suppression de son compte | Aucune | Suppression incomplète ou trop large | Test générique par `Base.metadata` ; E2E suppression du foyer puis reconnexion des comptes conservés, sans foyer |
 | **BK.2d** — Opérateur et naissance des foyers | Compte opérateur (bandeau, commande), console, création de foyer par lien propriétaire, suspension, suppression, nouveau propriétaire, modes `fermé` / `invitation`, SSO qui crée son foyer, **correction de la faille de liaison SSO par nom d'utilisateur** (`resoudre_ou_provisionner_utilisateur`, lignes 273-278 : liaison retirée, remplacée par « Lier mon compte SSO » depuis Réglages), réglages d'installation déplacés | `users.est_operateur` déjà là ; état `app.operateur` dans les politiques | Opérateur qui voit un patrimoine ; SSO | Test générique des routes avec jeton d'opérateur ; RLS : zéro ligne de patrimoine sous périmètre opérateur ; E2E console |
-| **BK.2e** — Durcissement (**réalisé en deux étapes le 01/10/2026**) | RLS sur `users`, `auth_tokens`, `access_log_entries` (état « authentification ») ; jetons de session et de partage hachés ; renommage `user_id` → `foyer_id` (option C) | Politiques ; hachage des jetons existants (sessions conservées) ; renommage | Connexion cassée sous Postgres | Suite Postgres ; test d'intrusion : lister `users` d'un autre foyer, filtre retiré |
+| **BK.2e** — Durcissement (`traité (02/10/2026)`, vérifié par la CI Postgres ; réalisé en deux étapes le 01/10/2026) | RLS sur `users`, `auth_tokens`, `access_log_entries` (état « authentification ») ; jetons de session et de partage hachés ; renommage `user_id` → `foyer_id` (option C) | Politiques ; hachage des jetons existants (sessions conservées) ; renommage | Connexion cassée sous Postgres | Suite Postgres ; test d'intrusion : lister `users` d'un autre foyer, filtre retiré |
 
-BK.2d étant traité, l'installation de l'utilisateur peut désormais accueillir une autre famille ; BK.2e est
-recommandé avant, obligatoire avant toute version publique.
+BK.2d et BK.2e étant traités, l'installation de l'utilisateur peut accueillir une autre famille, le
+durcissement en place.
 
 ##### 10. Décisions
 
@@ -7852,7 +7851,9 @@ Partie interface du lot « Opérateur et naissance des foyers » (§ 9) : la con
 
 **Limites.** Les politiques Postgres du lot serveur ont été vérifiées par la CI (`backend-postgres`, `e2e-postgres`, qui a rejoué le nouveau projet). « Lier mon compte SSO » est dans Réglages pour le propriétaire et, pour un membre ou un invité (qui n'ont pas Réglages), dans le menu du compte et la feuille « Plus » (« Connexion SSO… », fenêtre partageant la logique de la carte : `useLiaisonSso`). Pas de test automatisé du parcours complet chez un vrai fournisseur SSO (le retour est testé par un double du rappel).
 
-##### Lot BK.2e — étape 1 réalisée : `user_id` devient `foyer_id` (01/10/2026)
+##### Lot BK.2e — étape 1 réalisée : `user_id` devient `foyer_id` (01/10/2026), lot `traité (02/10/2026)`
+
+**Vérification (02/10/2026).** CI verte sur la pull request n° 11 : les huit jobs, dont `backend-postgres` (test d'intrusion : un foyer ne liste ni les comptes, ni les sessions, ni le journal d'un autre, par requête directe), `e2e-postgres` (93 tests), `deploiement-postgres` (sauvegarde `pg_dump` sous le nouvel état) et `montee-version` sous SQLite et sous Postgres (quatre nouvelles migrations ; les sessions ouvertes avant la montée restent valides malgré le hachage des jetons). Un test E2E (`invitations.spec.ts`, ligne ~97) s'était montré intermittent en local, dans la suite complète, mais est passé du premier coup en CI sous les deux moteurs : à surveiller. Le lot clôt le chantier BK.2 (gestion des foyers).
 
 Première étape du durcissement : le renommage mécanique de l'option C (§ 2), isolé des autres
 changements du lot pour rester relisible. Depuis BK.2a, le `user_id` des tables de patrimoine désignait le
@@ -7890,12 +7891,12 @@ foyer ; le nom ne ment plus.
 - **Suite du lot BK.2e** : jetons de session et de partage hachés, RLS sur `users`, `auth_tokens`,
   `access_log_entries` — étape 2, ci-dessous.
 
-##### Lot BK.2e — étape 2 réalisée : jetons hachés et séparation par la base des comptes (01/10/2026)
+##### Lot BK.2e — étape 2 réalisée : jetons hachés et séparation par la base des comptes (01/10/2026), lot `traité (02/10/2026)`
 
 Seconde et dernière étape du durcissement, en trois commits : les jetons hachés, la séparation par la base des
 comptes, des sessions et du journal d'accès, et le durcissement du job `montee-version`. Réalisé, vérifié en
-local sous SQLite et sous un Postgres 16 jetable avec le rôle applicatif ordinaire ; **à vérifier par la CI
-Postgres** avant de passer le lot à `traité`.
+local sous SQLite et sous un Postgres 16 jetable avec le rôle applicatif ordinaire, puis **vérifié par la CI
+Postgres** (voir « Vérification (02/10/2026) » en tête du lot).
 
 **1. Jetons de session et de partage hachés.**
 
@@ -7991,8 +7992,9 @@ reset by peer »), avant tout code de la branche.
 
 **Vérification** : suite pytest complète sous SQLite : 1885 réussis, 60 ignorés, 1 échec préexistant (`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`) ; sous un Postgres 16 jetable, avec le rôle applicatif ordinaire et le client PostgreSQL (sauvegardes comprises) : 1940 réussis, 5 ignorés, le même échec préexistant. Nouveaux tests : migration des jetons (3), jetons en clair introuvables dans la base (routes d'authentification et de partage), test d'intrusion et état d'authentification (`test_separation_foyers.py`, 11 tests), routes réelles sous RLS (`test_authentification_postgres.py`, 7 tests), archive `pg_dump` complète en comptes (1 test, et les tests d'aller-retour étendus). Montée, descente et remontée de la migration vérifiées sur Postgres 16 (schéma, politiques et déclencheur identiques après la descente). Frontend : `tsc -b --force`, `oxlint`, Vitest (1080) et Playwright sous SQLite (93) propres ; sous Postgres, 92 sur 93, `invitations.spec.ts:97` échouant par intermittence dans la suite complète (le test passe seul, 4 fois sur 4 ; mêmes symptômes une fois sous SQLite, non attribués au lot) — la CI rejoue les échecs une fois.
 
-**Reste** : la CI (`backend-postgres`, `e2e-postgres`, `deploiement-postgres`, `montee-version`) sur la pull
-request ; ensuite, passer le lot BK.2e à `traité`.
+**Incident de méthode (sans conséquence sur les données).** Pendant le lot, une commande exploratoire lancée sans base isolée a migré la base de développement locale de l'utilisateur jusqu'à la révision `a9d3c7e1b5f2` (renommage seul, données intactes).
+
+**Reste** : rien pour ce lot, qui clôt le chantier BK.2 ; le test `invitations.spec.ts` (ligne ~97) reste à surveiller.
 
 ### BL. Application multilingue (cadrée le 23/09/2026)
 
