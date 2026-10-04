@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
+import AjoutBienImmobilierModale from '../AjoutBienImmobilierModale'
 import AjoutHoldingForm from '../AjoutHoldingForm'
 import ImportTransactionsSection from '../ImportTransactionsSection'
 import { SkeletonTexte } from '../Skeleton'
@@ -19,6 +20,7 @@ import { t } from '../../i18n'
  * pas seulement à son ouverture. */
 export default function EtapeDemarragePortefeuille() {
   const [nombrePositions, setNombrePositions] = useState<number | null>(null)
+  const [bienOuvert, setBienOuvert] = useState(false)
 
   function recharger() {
     api
@@ -45,7 +47,19 @@ export default function EtapeDemarragePortefeuille() {
         )}
       </p>
 
-      <AjoutHoldingForm onCreated={() => setNombrePositions((n) => (n ?? 0) + 1)} />
+      <AjoutHoldingForm onCreated={() => setNombrePositions((n) => (n ?? 0) + 1)} onImmobilier={() => setBienOuvert(true)} />
+
+      {/* Un bien immobilier a son formulaire à sections (§ BN.1, lot 2). Ici, pas de fiche vers
+          laquelle aller : l'assistant continue, le compteur de positions suffit à confirmer. */}
+      {bienOuvert && (
+        <AjoutBienImmobilierModale
+          onClose={() => setBienOuvert(false)}
+          onCree={() => {
+            setBienOuvert(false)
+            setNombrePositions((n) => (n ?? 0) + 1)
+          }}
+        />
+      )}
 
       <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
         <div className="h-px flex-1 bg-bordure" />

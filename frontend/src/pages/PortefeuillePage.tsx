@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Compte, Etablissement, Holding } from '../api/types'
+import AjoutBienImmobilierModale from '../components/AjoutBienImmobilierModale'
 import AjoutHoldingForm from '../components/AjoutHoldingForm'
 import Card from '../components/Card'
 import { PrimaryButton, SecondaryButton, SegmentedControl } from '../components/Controls'
@@ -94,6 +95,10 @@ export default function PortefeuillePage() {
   // Feuille d'ajout (refonte, étape 4) : le formulaire ne vit plus en carte
   // permanente en haut de l'écran.
   const [ajoutOuvert, setAjoutOuvert] = useState(false)
+  // Un bien immobilier a son propre formulaire (§ BN.1, lot 2), ouvert depuis la feuille
+  // d'ajout générique quand on y choisit « Immobilier ».
+  const [bienOuvert, setBienOuvert] = useState(false)
+  const navigate = useNavigate()
   // Incrémenté à chaque emprunt créé via la feuille « Ajouter une ligne » (mode « Un
   // emprunt », 09/09/2026) : `LoansCard` charge sa propre liste et n'a sinon aucun
   // moyen de savoir qu'une nouvelle ligne vient d'apparaître.
@@ -437,10 +442,26 @@ export default function PortefeuillePage() {
                 comptes={comptes}
                 etablissements={etablissements}
                 onComptesModifies={chargerComptes}
+                onImmobilier={() => {
+                  setAjoutOuvert(false)
+                  setBienOuvert(true)
+                }}
               />
             </>
           )}
         </Modale>
+      )}
+
+      {bienOuvert && (
+        <AjoutBienImmobilierModale
+          onClose={() => setBienOuvert(false)}
+          onCree={(bien) => {
+            setBienOuvert(false)
+            load()
+            // On arrive sur la fiche du bien : c'est là que l'on vérifie ce qu'on vient de saisir.
+            navigate(`/patrimoine/${bien.id}`, { state: { depuisPatrimoine: true } })
+          }}
+        />
       )}
 
       {/* Desktop (≥ 768 px, backlog 2.K.4) : contrôles inline, comportement inchangé. */}

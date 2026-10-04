@@ -94,6 +94,7 @@ export default function AjoutHoldingForm({
   sansCarte = false,
   autoriserEmprunt = false,
   onLoanCreated,
+  onImmobilier,
 }: {
   onCreated?: (holding: Holding) => void
   /** Liste des comptes fournie par l'appelant. Absente, le composant la charge
@@ -120,6 +121,11 @@ export default function AjoutHoldingForm({
    * besoin d'agir différemment (ex. `PortefeuillePage` recharge `LoansCard` plutôt
    * que sa liste de positions). */
   onLoanCreated?: (loan: Loan) => void
+  /** Un bien immobilier ne se saisit pas ici (§ BN.1, lot 2) : il a son formulaire à
+   * sections, qui crée le bien, son prêt et ses parts d'un seul coup. Choisir « Immobilier »
+   * dans Type d'actif — ou « Un bien immobilier » en tête de formulaire — appelle ce
+   * callback, et l'appelant remplace cette feuille par la sienne. */
+  onImmobilier: () => void
 }) {
   const [modeAjout, setModeAjout] = useState<'actif' | 'emprunt'>('actif')
 
@@ -154,6 +160,10 @@ export default function AjoutHoldingForm({
   // pour un type différent sans que l'utilisateur l'ait revue (le champ était alors
   // masqué, donc hors de sa vue).
   function handleTypeChange(type: string) {
+    if (type === 'REAL_ESTATE') {
+      onImmobilier()
+      return
+    }
     const patrimoine = TYPES_PATRIMOINE.has(type)
     const sansEtablissement = TYPES_ACTIF_SANS_ETABLISSEMENT.has(type)
     setForm((f) => ({
@@ -325,10 +335,11 @@ export default function AjoutHoldingForm({
           <SegmentedControl
             options={[
               { valeur: 'actif', libelle: t('ajoutHoldingForm.unActif') },
+              { valeur: 'immobilier', libelle: t('ajoutHoldingForm.unBienImmobilier') },
               { valeur: 'emprunt', libelle: t('ajoutHoldingForm.unEmprunt') },
             ]}
             valeur={modeAjout}
-            onChange={setModeAjout}
+            onChange={(mode) => (mode === 'immobilier' ? onImmobilier() : setModeAjout(mode))}
             ariaLabel={t('ajoutHoldingForm.quAjoutezVous')}
           />
         </div>
