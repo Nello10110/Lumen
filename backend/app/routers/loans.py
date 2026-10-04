@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Etablissement, Holding, Loan, QuotiteHolding, QuotiteLoan, User
-from ..schemas import LoanCreate, LoanOut, LoanUpdate, QuotitesUpdate
+from ..schemas import LoanCreate, LoanOut, LoanUpdate, QuotiteEntree, QuotitesEmpruntOut, QuotitesUpdate
 from ..services import auth_service, detenteurs_service, historique_cache, loan_service
 
 router = APIRouter(prefix="/api/loans", tags=["loans"])
@@ -16,7 +16,9 @@ router = APIRouter(prefix="/api/loans", tags=["loans"])
 _peut_ecrire = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
 
 
-def _vers_loan_out(loan: Loan) -> LoanOut:
+def vers_loan_out(loan: Loan) -> LoanOut:
+    """`LoanOut` avec son capital restant dû calculé — partagé avec la création d'un
+    bien immobilier (`routers/portfolio.py`), qui renvoie aussi son prêt."""
     out = LoanOut.model_validate(loan)
     out.capital_restant_du = round(loan_service.compute_capital_restant_du(loan), 2)
     return out
@@ -48,7 +50,7 @@ def list_loans(db: Session = Depends(get_db), current_user: User = Depends(get_c
         ids_visibles = loans_directs | loans_herites
         requete = requete.filter(Loan.id.in_(ids_visibles or [-1]))
     loans = requete.order_by(Loan.libelle).all()
-    return [_vers_loan_out(loan) for loan in loans]
+    return [vers_loan_out(loan) for loan in loans]
 
 
 @router.post("", response_model=LoanOut)
@@ -63,7 +65,7 @@ def create_loan(payload: LoanCreate, db: Session = Depends(get_db), current_user
     db.commit()
     db.refresh(loan)
     historique_cache.invalider_historiques_patrimoine(db)
-    return _vers_loan_out(loan)
+    return vers_loan_out(loan)
 
 
 @router.patch("/{loan_id}", response_model=LoanOut)
@@ -96,7 +98,7 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(loan)
     historique_cache.invalider_historiques_patrimoine(db)
-    return _vers_loan_out(loan)
+    return vers_loan_out(loan)
 
 
 @router.delete("/{loan_id}")
@@ -113,6 +115,21 @@ def delete_loan(loan_id: int, db: Session = Depends(get_db), current_user: User 
     db.commit()
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}
+
+
+@router.get("/{loan_id}/quotites", response_model=QuotitesEmpruntOut)
+def get_loan_quotites(loan_id: int, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    """Répartition effective de cet emprunt entre détenteurs : la sienne si elle existe,
+    sinon celle du bien qu'il finance (`heritee=True`) — cf.
+    `detenteurs_service.quotites_effectives_emprunt`. Sert à pré-remplir le formulaire de
+    saisie d'un bien quand on y rattache un emprunt déjà saisi."""
+    loan = db.get(Loan, loan_id)
+    if loan is None or loan.foyer_id != auth_service.id_foyer(current_user):
+        raise HTTPException(status_code=404, detail="Emprunt introuvable")
+    quotites, heritee = detenteurs_service.quotites_effectives_emprunt(db, loan)
+    return QuotitesEmpruntOut(
+        quotites=[QuotiteEntree(detenteur_id=d, quotite_pct=float(pct)) for d, pct in quotites], heritee=heritee
+    )
 
 
 @router.put("/{loan_id}/quotites")

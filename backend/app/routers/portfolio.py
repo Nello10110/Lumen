@@ -27,6 +27,8 @@ from ..models import (
     User,
 )
 from ..schemas import (
+    BienImmobilierCreate,
+    BienImmobilierCree,
     ColumnMapping,
     HoldingCreate,
     HoldingDetail,
@@ -44,6 +46,7 @@ from ..schemas import (
 from ..services import (
     analysis_service,
     auth_service,
+    bien_immobilier_service,
     comptes_service,
     csv_import,
     detenteurs_service,
@@ -55,6 +58,7 @@ from ..services import (
     performance_service,
     upload_limits,
 )
+from .loans import vers_loan_out
 
 _peut_ecrire = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
 
@@ -572,6 +576,24 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     elif holding.date_acquisition is not None:
         historique_cache.invalider_historiques_patrimoine(db)
     return holding
+
+
+@router.post("/biens-immobiliers", response_model=BienImmobilierCree, status_code=201)
+def create_bien_immobilier(payload: BienImmobilierCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    """Crée un bien immobilier d'un seul tenant (backlog § BN.1, lot 2) : ligne du
+    patrimoine, valorisation initiale, fiche locative, prêt neuf ou existant à rattacher,
+    répartition entre membres — tout ou rien, cf. `bien_immobilier_service`. Le client
+    n'envoie pas de ticker : le serveur le dérive du nom."""
+    try:
+        holding, pret = bien_immobilier_service.creer_bien_immobilier(db, auth_service.id_foyer(current_user), payload)
+    except bien_immobilier_service.ElementIntrouvableError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    historique_cache.invalider_historiques_patrimoine(db)
+    ligne = HoldingOut.model_validate(holding)
+    ligne.valeur = analysis_service.value_holdings([holding])[0].valeur
+    return BienImmobilierCree(holding=ligne, pret=vers_loan_out(pret) if pret is not None else None)
 
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingOut)

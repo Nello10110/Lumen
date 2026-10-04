@@ -1,0 +1,658 @@
+{
+  "version": 1,
+  "indicateurs": [
+    {
+      "nom": "sans loyer ni surface",
+      "entree": {
+        "prix_achat": 250000,
+        "frais_notaire": null,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 250000,
+        "surface_m2": null,
+        "loyer_mensuel": null,
+        "charges_mensuelles": null,
+        "frais_annuels": null,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": null,
+        "rentabilite_brute_pct": null,
+        "rentabilite_nette_pct": null,
+        "prix_m2": null,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 250000.0
+      }
+    },
+    {
+      "nom": "sans loyer, avec surface et frais de notaire",
+      "entree": {
+        "prix_achat": 180000,
+        "frais_notaire": 14400,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 195000,
+        "surface_m2": 62,
+        "loyer_mensuel": null,
+        "charges_mensuelles": null,
+        "frais_annuels": null,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": null,
+        "rentabilite_brute_pct": null,
+        "rentabilite_nette_pct": null,
+        "prix_m2": 3145.16,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 194400.0
+      }
+    },
+    {
+      "nom": "loyer sans prêt",
+      "entree": {
+        "prix_achat": 200000,
+        "frais_notaire": 16000,
+        "frais_travaux": 12000,
+        "frais_acquisition_autres": 0,
+        "valeur": 215000,
+        "surface_m2": 48.5,
+        "loyer_mensuel": 850,
+        "charges_mensuelles": 120,
+        "frais_annuels": 1450,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": 609.17,
+        "rentabilite_brute_pct": 4.47,
+        "rentabilite_nette_pct": 3.21,
+        "prix_m2": 4432.99,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 228000.0
+      }
+    },
+    {
+      "nom": "loyer avec prêt",
+      "entree": {
+        "prix_achat": 320000,
+        "frais_notaire": 25600,
+        "frais_travaux": null,
+        "frais_acquisition_autres": 1500,
+        "valeur": 340000,
+        "surface_m2": 71.3,
+        "loyer_mensuel": 1250,
+        "charges_mensuelles": 180,
+        "frais_annuels": 2100,
+        "mensualite_pret": 1480.55
+      },
+      "attendu": {
+        "cashflow_mensuel": -585.55,
+        "rentabilite_brute_pct": 4.32,
+        "rentabilite_nette_pct": 3.09,
+        "prix_m2": 4768.58,
+        "emprunt_mensualite": 1480.55,
+        "prix_acquisition_total": 347100.0
+      }
+    },
+    {
+      "nom": "frais d'acquisition partiels (travaux seuls)",
+      "entree": {
+        "prix_achat": 150000,
+        "frais_notaire": null,
+        "frais_travaux": 22000,
+        "frais_acquisition_autres": null,
+        "valeur": 150000,
+        "surface_m2": 35,
+        "loyer_mensuel": 640,
+        "charges_mensuelles": null,
+        "frais_annuels": null,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": 640.0,
+        "rentabilite_brute_pct": 4.47,
+        "rentabilite_nette_pct": 4.47,
+        "prix_m2": 4285.71,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 172000.0
+      }
+    },
+    {
+      "nom": "loyer sans surface",
+      "entree": {
+        "prix_achat": 237000,
+        "frais_notaire": 18960,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 241000,
+        "surface_m2": null,
+        "loyer_mensuel": 977,
+        "charges_mensuelles": 63.4,
+        "frais_annuels": 811,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": 846.02,
+        "rentabilite_brute_pct": 4.58,
+        "rentabilite_nette_pct": 3.97,
+        "prix_m2": null,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 255960.0
+      }
+    },
+    {
+      "nom": "arrondis demi-supérieur sur rentabilités",
+      "entree": {
+        "prix_achat": 173450,
+        "frais_notaire": 13876,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 181000,
+        "surface_m2": 39.7,
+        "loyer_mensuel": 733,
+        "charges_mensuelles": 41.7,
+        "frais_annuels": 529,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": 647.22,
+        "rentabilite_brute_pct": 4.7,
+        "rentabilite_nette_pct": 4.15,
+        "prix_m2": 4559.19,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 187326.0
+      }
+    },
+    {
+      "nom": "prix au m² à égalité exacte (x,125 arrondi vers le haut)",
+      "entree": {
+        "prix_achat": 1800,
+        "frais_notaire": null,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 2000.25,
+        "surface_m2": 2,
+        "loyer_mensuel": null,
+        "charges_mensuelles": null,
+        "frais_annuels": null,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": null,
+        "rentabilite_brute_pct": null,
+        "rentabilite_nette_pct": null,
+        "prix_m2": 1000.13,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 1800.0
+      }
+    },
+    {
+      "nom": "loyer nul",
+      "entree": {
+        "prix_achat": 210000,
+        "frais_notaire": null,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 210000,
+        "surface_m2": 44,
+        "loyer_mensuel": 0,
+        "charges_mensuelles": 90,
+        "frais_annuels": 600,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": -140.0,
+        "rentabilite_brute_pct": 0.0,
+        "rentabilite_nette_pct": -0.8,
+        "prix_m2": 4772.73,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 210000.0
+      }
+    },
+    {
+      "nom": "cashflow négatif",
+      "entree": {
+        "prix_achat": 280000,
+        "frais_notaire": 22400,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 285000,
+        "surface_m2": 52,
+        "loyer_mensuel": 700,
+        "charges_mensuelles": 85,
+        "frais_annuels": 950,
+        "mensualite_pret": 1100
+      },
+      "attendu": {
+        "cashflow_mensuel": -564.17,
+        "rentabilite_brute_pct": 2.78,
+        "rentabilite_nette_pct": 2.13,
+        "prix_m2": 5480.77,
+        "emprunt_mensualite": 1100.0,
+        "prix_acquisition_total": 302400.0
+      }
+    },
+    {
+      "nom": "valeur inférieure au prix",
+      "entree": {
+        "prix_achat": 200000,
+        "frais_notaire": null,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 120000,
+        "surface_m2": 40,
+        "loyer_mensuel": 900,
+        "charges_mensuelles": null,
+        "frais_annuels": null,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": 900.0,
+        "rentabilite_brute_pct": 5.4,
+        "rentabilite_nette_pct": 5.4,
+        "prix_m2": 3000.0,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 200000.0
+      }
+    },
+    {
+      "nom": "valeur supérieure au prix, prêt, frais annuels seuls",
+      "entree": {
+        "prix_achat": 95000,
+        "frais_notaire": null,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 150000,
+        "surface_m2": 27.5,
+        "loyer_mensuel": 480,
+        "charges_mensuelles": null,
+        "frais_annuels": 1260,
+        "mensualite_pret": 512.37
+      },
+      "attendu": {
+        "cashflow_mensuel": -137.37,
+        "rentabilite_brute_pct": 6.06,
+        "rentabilite_nette_pct": 4.74,
+        "prix_m2": 5454.55,
+        "emprunt_mensualite": 512.37,
+        "prix_acquisition_total": 95000.0
+      }
+    },
+    {
+      "nom": "charges sans frais annuels",
+      "entree": {
+        "prix_achat": 310000,
+        "frais_notaire": 24800,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 310000,
+        "surface_m2": null,
+        "loyer_mensuel": 1500,
+        "charges_mensuelles": 210,
+        "frais_annuels": null,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": 1290.0,
+        "rentabilite_brute_pct": 5.38,
+        "rentabilite_nette_pct": 4.62,
+        "prix_m2": null,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": 334800.0
+      }
+    },
+    {
+      "nom": "prix d'achat nul (aucun prix d'acquisition)",
+      "entree": {
+        "prix_achat": 0,
+        "frais_notaire": 5000,
+        "frais_travaux": null,
+        "frais_acquisition_autres": null,
+        "valeur": 90000,
+        "surface_m2": 30,
+        "loyer_mensuel": 500,
+        "charges_mensuelles": 50,
+        "frais_annuels": null,
+        "mensualite_pret": null
+      },
+      "attendu": {
+        "cashflow_mensuel": 450.0,
+        "rentabilite_brute_pct": null,
+        "rentabilite_nette_pct": null,
+        "prix_m2": 3000.0,
+        "emprunt_mensualite": null,
+        "prix_acquisition_total": null
+      }
+    }
+  ],
+  "capital_restant_du": [
+    {
+      "nom": "taux nul, 24 mensualités écoulées",
+      "pret": {
+        "capital_initial": 120000,
+        "taux_annuel_pct": 0,
+        "mensualite": 1000,
+        "date_debut": "2022-03-15",
+        "duree_mois": 120
+      },
+      "a_la_date": "2024-03-20",
+      "attendu": 96000.0
+    },
+    {
+      "nom": "taux positif, prêt de 20 ans en cours",
+      "pret": {
+        "capital_initial": 250000,
+        "taux_annuel_pct": 3.45,
+        "mensualite": 1443.48,
+        "date_debut": "2021-06-10",
+        "duree_mois": 240
+      },
+      "a_la_date": "2026-10-04",
+      "attendu": 200024.24
+    },
+    {
+      "nom": "taux positif, prêt de 15 ans en cours",
+      "pret": {
+        "capital_initial": 180000,
+        "taux_annuel_pct": 1.85,
+        "mensualite": 1145.92,
+        "date_debut": "2019-01-31",
+        "duree_mois": 180
+      },
+      "a_la_date": "2026-10-04",
+      "attendu": 94232.75
+    },
+    {
+      "nom": "avant le début du prêt",
+      "pret": {
+        "capital_initial": 200000,
+        "taux_annuel_pct": 2.9,
+        "mensualite": 1100,
+        "date_debut": "2027-01-01",
+        "duree_mois": 240
+      },
+      "a_la_date": "2026-10-04",
+      "attendu": 200000.0
+    },
+    {
+      "nom": "le jour du début du prêt",
+      "pret": {
+        "capital_initial": 200000,
+        "taux_annuel_pct": 2.9,
+        "mensualite": 1100,
+        "date_debut": "2026-10-04",
+        "duree_mois": 240
+      },
+      "a_la_date": "2026-10-04",
+      "attendu": 200000.0
+    },
+    {
+      "nom": "après la fin du prêt",
+      "pret": {
+        "capital_initial": 40000,
+        "taux_annuel_pct": 1.5,
+        "mensualite": 700,
+        "date_debut": "2010-01-05",
+        "duree_mois": 60
+      },
+      "a_la_date": "2026-01-01",
+      "attendu": 0.0
+    },
+    {
+      "nom": "à l'échéance exacte (dernière mensualité)",
+      "pret": {
+        "capital_initial": 40000,
+        "taux_annuel_pct": 0,
+        "mensualite": 1000,
+        "date_debut": "2022-01-10",
+        "duree_mois": 40
+      },
+      "a_la_date": "2025-05-10",
+      "attendu": 0.0
+    },
+    {
+      "nom": "un jour avant l'anniversaire mensuel",
+      "pret": {
+        "capital_initial": 150000,
+        "taux_annuel_pct": 2.2,
+        "mensualite": 700,
+        "date_debut": "2023-01-15",
+        "duree_mois": 240
+      },
+      "a_la_date": "2024-02-14",
+      "attendu": 144848.26
+    },
+    {
+      "nom": "le jour de l'anniversaire mensuel",
+      "pret": {
+        "capital_initial": 150000,
+        "taux_annuel_pct": 2.2,
+        "mensualite": 700,
+        "date_debut": "2023-01-15",
+        "duree_mois": 240
+      },
+      "a_la_date": "2024-02-15",
+      "attendu": 144413.81
+    },
+    {
+      "nom": "un jour après l'anniversaire mensuel",
+      "pret": {
+        "capital_initial": 150000,
+        "taux_annuel_pct": 2.2,
+        "mensualite": 700,
+        "date_debut": "2023-01-15",
+        "duree_mois": 240
+      },
+      "a_la_date": "2024-02-16",
+      "attendu": 144413.81
+    },
+    {
+      "nom": "début le 31, mois plus court",
+      "pret": {
+        "capital_initial": 90000,
+        "taux_annuel_pct": 1.1,
+        "mensualite": 800,
+        "date_debut": "2023-01-31",
+        "duree_mois": 120
+      },
+      "a_la_date": "2023-02-28",
+      "attendu": 90000.0
+    },
+    {
+      "nom": "mensualité excessive, solde borné à zéro",
+      "pret": {
+        "capital_initial": 10000,
+        "taux_annuel_pct": 0,
+        "mensualite": 2000,
+        "date_debut": "2024-01-01",
+        "duree_mois": 100
+      },
+      "a_la_date": "2024-12-01",
+      "attendu": 0.0
+    }
+  ],
+  "parts": [
+    {
+      "nom": "50/50 avec prêt",
+      "valeur": 300000,
+      "capital_restant_du_total": 180000.55,
+      "quotites": [
+        {
+          "detenteur_id": 1,
+          "quotite_pct": 50
+        },
+        {
+          "detenteur_id": 2,
+          "quotite_pct": 50
+        }
+      ],
+      "attendu": {
+        "1": {
+          "part_detenue": 150000.0,
+          "part_nette": 59999.73
+        },
+        "2": {
+          "part_detenue": 150000.0,
+          "part_nette": 59999.73
+        }
+      }
+    },
+    {
+      "nom": "60/40 avec prêt",
+      "valeur": 250000,
+      "capital_restant_du_total": 120000,
+      "quotites": [
+        {
+          "detenteur_id": 1,
+          "quotite_pct": 60
+        },
+        {
+          "detenteur_id": 2,
+          "quotite_pct": 40
+        }
+      ],
+      "attendu": {
+        "1": {
+          "part_detenue": 150000.0,
+          "part_nette": 78000.0
+        },
+        "2": {
+          "part_detenue": 100000.0,
+          "part_nette": 52000.0
+        }
+      }
+    },
+    {
+      "nom": "trois parts 33,33 / 33,33 / 33,34",
+      "valeur": 100000,
+      "capital_restant_du_total": 90000,
+      "quotites": [
+        {
+          "detenteur_id": 1,
+          "quotite_pct": 33.33
+        },
+        {
+          "detenteur_id": 2,
+          "quotite_pct": 33.33
+        },
+        {
+          "detenteur_id": 3,
+          "quotite_pct": 33.34
+        }
+      ],
+      "attendu": {
+        "1": {
+          "part_detenue": 33330.0,
+          "part_nette": 3333.0
+        },
+        "2": {
+          "part_detenue": 33330.0,
+          "part_nette": 3333.0
+        },
+        "3": {
+          "part_detenue": 33340.0,
+          "part_nette": 3334.0
+        }
+      }
+    },
+    {
+      "nom": "trois parts avec montants à arrondir",
+      "valeur": 123456.78,
+      "capital_restant_du_total": 98765.43,
+      "quotites": [
+        {
+          "detenteur_id": 1,
+          "quotite_pct": 33.33
+        },
+        {
+          "detenteur_id": 2,
+          "quotite_pct": 33.33
+        },
+        {
+          "detenteur_id": 3,
+          "quotite_pct": 33.34
+        }
+      ],
+      "attendu": {
+        "1": {
+          "part_detenue": 41148.14,
+          "part_nette": 8229.63
+        },
+        "2": {
+          "part_detenue": 41148.14,
+          "part_nette": 8229.63
+        },
+        "3": {
+          "part_detenue": 41160.49,
+          "part_nette": 8232.1
+        }
+      }
+    },
+    {
+      "nom": "un seul membre à 100 %",
+      "valeur": 180000,
+      "capital_restant_du_total": 100000,
+      "quotites": [
+        {
+          "detenteur_id": 1,
+          "quotite_pct": 100
+        }
+      ],
+      "attendu": {
+        "1": {
+          "part_detenue": 180000.0,
+          "part_nette": 80000.0
+        }
+      }
+    },
+    {
+      "nom": "sans prêt",
+      "valeur": 220000,
+      "capital_restant_du_total": null,
+      "quotites": [
+        {
+          "detenteur_id": 1,
+          "quotite_pct": 70
+        },
+        {
+          "detenteur_id": 2,
+          "quotite_pct": 30
+        }
+      ],
+      "attendu": {
+        "1": {
+          "part_detenue": 154000.0,
+          "part_nette": 154000.0
+        },
+        "2": {
+          "part_detenue": 66000.0,
+          "part_nette": 66000.0
+        }
+      }
+    },
+    {
+      "nom": "dette supérieure à la valeur",
+      "valeur": 100000,
+      "capital_restant_du_total": 150000,
+      "quotites": [
+        {
+          "detenteur_id": 1,
+          "quotite_pct": 50
+        },
+        {
+          "detenteur_id": 2,
+          "quotite_pct": 50
+        }
+      ],
+      "attendu": {
+        "1": {
+          "part_detenue": 50000.0,
+          "part_nette": -25000.0
+        },
+        "2": {
+          "part_detenue": 50000.0,
+          "part_nette": -25000.0
+        }
+      }
+    }
+  ]
+}

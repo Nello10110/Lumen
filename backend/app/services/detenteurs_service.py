@@ -175,6 +175,26 @@ def compute_pourcentage_emprunt(db: Session, holding: Holding, emprunt: Loan) ->
     return compute_pourcentages(db, holding)
 
 
+def quotites_effectives_emprunt(db: Session, emprunt: Loan) -> tuple[list[tuple[int, Decimal]], bool]:
+    """`(quotites, heritee)` d'un emprunt, par détenteur : ses `QuotiteLoan` propres si
+    elles existent (`heritee=False`), sinon celles du bien qu'il finance (`QuotiteHolding`,
+    `heritee=True`, même règle de repli que `compute_pourcentage_emprunt`), sinon rien
+    (`[]`, `heritee=False` : 100 % foyer implicite)."""
+    propres = db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == emprunt.id).order_by(QuotiteLoan.detenteur_id).all()
+    if propres:
+        return [(q.detenteur_id, q.quotite_pct) for q in propres], False
+    if emprunt.holding_id is not None:
+        du_bien = (
+            db.query(QuotiteHolding)
+            .filter(QuotiteHolding.holding_id == emprunt.holding_id)
+            .order_by(QuotiteHolding.detenteur_id)
+            .all()
+        )
+        if du_bien:
+            return [(q.detenteur_id, q.quotite_pct) for q in du_bien], True
+    return [], False
+
+
 def _assembler_parts(
     quotites_actif: list[tuple[int, float]],
     valeur: float,
