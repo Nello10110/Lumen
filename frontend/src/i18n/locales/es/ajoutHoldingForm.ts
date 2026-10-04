@@ -4,6 +4,7 @@ import type { Structure } from '../../types'
 /** Espagnol — espace « ajoutHoldingForm » (backlog § BL.2), traduit depuis le français. */
 const ajoutHoldingForm: Structure<typeof fr> = {
   unActif: "Un activo",
+  unBienImmobilier: "Un inmueble",
   unEmprunt: "Un préstamo",
   quAjoutezVous: "¿Qué va a añadir?",
   renseignezTousLesChampsDe: "Complete todos los campos del préstamo.",
@@ -34,7 +35,7 @@ const ajoutHoldingForm: Structure<typeof fr> = {
   renseignezAuMinimumUnTicker: "Indique al menos un ticker y una cantidad.",
   valeurDAcquisition: "Valor de adquisición:",
   texte: "×",
-  immobilierScpiAssuranceViePer: "Inmuebles, SCPI, seguro de vida, PER, cuenta corriente/de ahorro, vehículo: se valoran por el Valor estimado en lugar de cantidad × precio; sustituye el cálculo y se actualiza a mano, periódicamente.",
+  immobilierScpiAssuranceViePer: "SCPI, seguro de vida, PER, cuenta corriente/de ahorro, vehículo: se valoran por el Valor estimado en lugar de cantidad × precio; sustituye el cálculo y se actualiza a mano, periódicamente.",
   valeurProjeteeDans1An: "Valor proyectado a 1 año (orientativo, nunca se aplica automáticamente):",
   ajouterUneLigneManuellement: "Añadir una línea manualmente",
 }

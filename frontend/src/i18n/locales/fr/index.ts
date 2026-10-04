@@ -12,11 +12,13 @@ import analysePage from './analysePage'
 import aucunFoyer from './aucunFoyer'
 import badgesCard from './badgesCard'
 import bandeauOperateur from './bandeauOperateur'
+import bienImmobilier from './bienImmobilier'
 import budgetPage from './budgetPage'
 import catalogueEtablissementPicker from './catalogueEtablissementPicker'
 import categoriesEtReglesSection from './categoriesEtReglesSection'
 import celebrationJalon from './celebrationJalon'
 import champDecomposition from './champDecomposition'
+import champForm from './champForm'
 import chargementCourbeLumen from './chargementCourbeLumen'
 import classificationParametresForm from './classificationParametresForm'
 import client from './client'
@@ -37,6 +39,7 @@ import detenteursCard from './detenteursCard'
 import detenteursSection from './detenteursSection'
 import donnees from './donnees'
 import dropzone from './dropzone'
+import editeurRepartition from './editeurRepartition'
 import epargneApercu from './epargneApercu'
 import etablissementEditModal from './etablissementEditModal'
 import etablissementsCard from './etablissementsCard'
@@ -54,7 +57,6 @@ import holdingDetailModal from './holdingDetailModal'
 import holdingDetailPage from './holdingDetailPage'
 import holdingPriceHistoryChart from './holdingPriceHistoryChart'
 import immobilierApercu from './immobilierApercu'
-import immobilierParametresForm from './immobilierParametresForm'
 import importBancaireSection from './importBancaireSection'
 import importBricksSection from './importBricksSection'
 import importLedgerSection from './importLedgerSection'
@@ -100,6 +102,7 @@ import rattrapageComptes from './rattrapageComptes'
 import recurrencesSection from './recurrencesSection'
 import reglagesInstallation from './reglagesInstallation'
 import reglagesPage from './reglagesPage'
+import repartitionMembres from './repartitionMembres'
 import repartitionSection from './repartitionSection'
 import resultatImport from './resultatImport'
 import revenusPassifsCard from './revenusPassifsCard'
@@ -109,6 +112,7 @@ import sauvegardeDonneesCard from './sauvegardeDonneesCard'
 import scorePatrimonialCard from './scorePatrimonialCard'
 import sectionInvitations from './sectionInvitations'
 import sectionLiensFoyer from './sectionLiensFoyer'
+import sectionRepliable from './sectionRepliable'
 import selecteurCompte from './selecteurCompte'
 import selecteurEtablissement from './selecteurEtablissement'
 import selecteurFoyer from './selecteurFoyer'
@@ -136,11 +140,13 @@ const espaces = {
   aucunFoyer,
   badgesCard,
   bandeauOperateur,
+  bienImmobilier,
   budgetPage,
   catalogueEtablissementPicker,
   categoriesEtReglesSection,
   celebrationJalon,
   champDecomposition,
+  champForm,
   chargementCourbeLumen,
   classificationParametresForm,
   client,
@@ -161,6 +167,7 @@ const espaces = {
   detenteursSection,
   donnees,
   dropzone,
+  editeurRepartition,
   epargneApercu,
   etablissementEditModal,
   etablissementsCard,
@@ -178,7 +185,6 @@ const espaces = {
   holdingDetailPage,
   holdingPriceHistoryChart,
   immobilierApercu,
-  immobilierParametresForm,
   importBancaireSection,
   importBricksSection,
   importLedgerSection,
@@ -224,6 +230,7 @@ const espaces = {
   recurrencesSection,
   reglagesInstallation,
   reglagesPage,
+  repartitionMembres,
   repartitionSection,
   resultatImport,
   revenusPassifsCard,
@@ -233,6 +240,7 @@ const espaces = {
   scorePatrimonialCard,
   sectionInvitations,
   sectionLiensFoyer,
+  sectionRepliable,
   selecteurCompte,
   selecteurEtablissement,
   selecteurFoyer,

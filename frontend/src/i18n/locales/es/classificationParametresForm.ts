@@ -9,6 +9,7 @@ const classificationParametresForm: Structure<typeof fr> = {
   zoneGeographique: "Zona geográfica",
   detectionAutomatique: "Detección automática",
   secteur: "Sector",
+  enregistre: "Guardado",
   enregistrement: "Guardando...",
   enregistrerLaClassification: "Guardar la clasificación",
 }
