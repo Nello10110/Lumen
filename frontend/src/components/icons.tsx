@@ -381,3 +381,29 @@ export function IconBadge({ className }: IconProps) {
     </svg>
   )
 }
+
+/** Coche (formulaire d'un bien, § BN.1 lot 2) : une section ou un total VALIDE. Le trait suffit
+ * à le dire sans la couleur seule — un daltonien lit « ✓ », pas « vert ». */
+export function IconCoche({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4.5 10.5 L8.3 14.3 L15.5 6" />
+    </svg>
+  )
+}
+
+export function IconPlus({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M10 4.5 V15.5 M4.5 10 H15.5" />
+    </svg>
+  )
+}
+
+export function IconMoins({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4.5 10 H15.5" />
+    </svg>
+  )
+}
