@@ -34,6 +34,10 @@ vi.mock('../api/client', () => ({
     // même rôle que `listComptes` ci-dessus : stub neutre, surchargé par les tests
     // qui en ont besoin.
     listEtablissements: vi.fn().mockResolvedValue([]),
+    // Formulaire d'ajout d'un bien immobilier (§ BN.1, lot 2), ouvert depuis la feuille d'ajout.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
+    createDetenteur: vi.fn(),
+    createBienImmobilier: vi.fn(),
   },
 }))
 
@@ -231,12 +235,12 @@ describe('PortefeuillePage', () => {
       expect(screen.queryByLabelText('Zone géographique')).not.toBeInTheDocument()
     })
 
-    it("sélectionner « Immobilier » révèle le champ « Zone géographique »", async () => {
+    it("sélectionner une SCPI révèle le champ « Zone géographique »", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'SCPI' } })
 
       expect(screen.getByLabelText('Zone géographique')).toBeInTheDocument()
     })
@@ -244,14 +248,14 @@ describe('PortefeuillePage', () => {
     it('soumettre avec une zone sélectionnée appelle createHolding avec zone_geo', async () => {
       vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
       vi.mocked(api.createHolding).mockResolvedValue(
-        holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'REAL_ESTATE', valeur_estimee: 200000, zone_geo: 'Amérique du Nord' }),
+        holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'SCPI', valeur_estimee: 200000, zone_geo: 'Amérique du Nord' }),
       )
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'MAISON' } })
       fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'SCPI' } })
       fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '200000' } })
       fireEvent.change(screen.getByLabelText('Zone géographique'), { target: { value: 'Amérique du Nord' } })
       fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
@@ -316,12 +320,12 @@ describe('PortefeuillePage', () => {
       await waitFor(() => expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'AAPL', date_acquisition: null })))
     })
 
-    it("sélectionner « Immobilier » révèle le champ « Date d'acquisition »", async () => {
+    it("sélectionner une SCPI révèle le champ « Date d'acquisition »", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'SCPI' } })
 
       expect(screen.getByLabelText("Date d'acquisition")).toBeInTheDocument()
     })
@@ -329,14 +333,14 @@ describe('PortefeuillePage', () => {
     it('soumettre avec une date renseignée appelle createHolding avec date_acquisition', async () => {
       vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
       vi.mocked(api.createHolding).mockResolvedValue(
-        holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'REAL_ESTATE', valeur_estimee: 200000, date_acquisition: '2021-06-15T00:00:00' }),
+        holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'SCPI', valeur_estimee: 200000, date_acquisition: '2021-06-15T00:00:00' }),
       )
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'MAISON' } })
       fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'SCPI' } })
       fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '200000' } })
       fireEvent.change(screen.getByLabelText("Date d'acquisition"), { target: { value: '2021-06-15' } })
       fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
@@ -353,6 +357,35 @@ describe('PortefeuillePage', () => {
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       expect(await screen.findByText('Acquis le 15/06/2021')).toBeInTheDocument()
+    })
+  })
+
+  describe('Ajouter une ligne manuellement — un bien immobilier a son formulaire (§ BN.1, lot 2)', () => {
+    beforeEach(() => {
+      vi.mocked(api.listLoans).mockResolvedValue([])
+      vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    })
+
+    it("choisir « Immobilier » dans Type d'actif remplace la feuille par le formulaire « Ajouter un bien immobilier »", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+
+      expect(await screen.findByRole('heading', { name: 'Ajouter un bien immobilier' })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Ajouter une ligne' })).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Nom du bien')).toHaveFocus()
+    })
+
+    it("l'option « Un bien immobilier » de la feuille y mène aussi", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Un bien immobilier' }))
+
+      expect(await screen.findByRole('heading', { name: 'Ajouter un bien immobilier' })).toBeInTheDocument()
     })
   })
 
@@ -401,13 +434,13 @@ describe('PortefeuillePage', () => {
   })
 
   describe('Ajouter une ligne manuellement — compte masqué pour les biens sans établissement (retour utilisateur, 09/09/2026)', () => {
-    it("le champ « Compte » disparaît pour un bien immobilier — ça n'a pas de sens de le rattacher à un compte", async () => {
+    it("le champ « Compte » disparaît pour un véhicule — ça n'a pas de sens de le rattacher à un compte", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
       expect(screen.getByLabelText('Compte')).toBeInTheDocument()
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
       expect(screen.queryByLabelText('Compte')).not.toBeInTheDocument()
 
       // Revenir à un type financier fait réapparaître le champ.
@@ -426,12 +459,12 @@ describe('PortefeuillePage', () => {
       expect(screen.queryByLabelText('Nom')).not.toBeInTheDocument()
     })
 
-    it('sélectionner « Immobilier » remplace Ticker par Nom, sans champ Identifiant tant que rien n’a échoué', async () => {
+    it('sélectionner « Véhicule » remplace Ticker par Nom, sans champ Identifiant tant que rien n’a échoué', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
 
       expect(screen.queryByLabelText('Ticker')).not.toBeInTheDocument()
       expect(screen.getByLabelText('Nom')).toBeInTheDocument()
@@ -441,12 +474,12 @@ describe('PortefeuillePage', () => {
     it("soumettre avec seulement un Nom calcule l'identifiant automatiquement (majuscules, sans accent)", async () => {
       vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
       vi.mocked(api.createHolding).mockResolvedValue(
-        holding({ id: 9, ticker: 'APPARTEMENT-LYON', nom: 'Appartement Lyon', quantite: 1, type_actif: 'REAL_ESTATE' }),
+        holding({ id: 9, ticker: 'APPARTEMENT-LYON', nom: 'Appartement Lyon', quantite: 1, type_actif: 'VEHICLE' }),
       )
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
       fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Appartement Lyon' } })
       fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
 
@@ -463,7 +496,7 @@ describe('PortefeuillePage', () => {
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
       fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Maison' } })
       fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
 
@@ -486,7 +519,7 @@ describe('PortefeuillePage', () => {
       },
     )
 
-    it.each(['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'VEHICLE', 'OTHER_ASSET'])(
+    it.each(['SCPI', 'LIFE_INSURANCE', 'VEHICLE', 'OTHER_ASSET'])(
       'un actif valorisé à la main (%s) garde sa valeur estimée',
       async (type) => {
         vi.mocked(api.listHoldings).mockResolvedValue([])
@@ -505,7 +538,7 @@ describe('PortefeuillePage', () => {
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
-      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'SCPI' } })
       fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '200000' } })
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'STOCK' } })
       fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'AAPL' } })
