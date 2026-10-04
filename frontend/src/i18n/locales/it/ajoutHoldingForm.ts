@@ -4,6 +4,7 @@ import type { Structure } from '../../types'
 /** Italien — espace « ajoutHoldingForm » (backlog § BL.2), traduit depuis le français. */
 const ajoutHoldingForm: Structure<typeof fr> = {
   unActif: "Un'attività",
+  unBienImmobilier: "Un immobile",
   unEmprunt: "Un prestito",
   quAjoutezVous: "Cosa sta aggiungendo?",
   renseignezTousLesChampsDe: "Compili tutti i campi del prestito.",
@@ -34,7 +35,7 @@ const ajoutHoldingForm: Structure<typeof fr> = {
   renseignezAuMinimumUnTicker: "Indichi almeno un ticker e una quantità.",
   valeurDAcquisition: "Valore di acquisizione:",
   texte: "×",
-  immobilierScpiAssuranceViePer: "Immobili, SCPI, assicurazione vita, PER, conto corrente/di risparmio, veicolo: valutati con il Valore stimato anziché quantità × prezzo; sostituisce il calcolo e si aggiorna a mano, periodicamente.",
+  immobilierScpiAssuranceViePer: "SCPI, assicurazione vita, PER, conto corrente/di risparmio, veicolo: valutati con il Valore stimato anziché quantità × prezzo; sostituisce il calcolo e si aggiorna a mano, periodicamente.",
   valeurProjeteeDans1An: "Valore previsto tra 1 anno (indicativo, mai applicato automaticamente):",
   ajouterUneLigneManuellement: "Aggiungi una riga manualmente",
 }

@@ -7,6 +7,7 @@ const classificationParametresForm = {
   zoneGeographique: "Zone géographique",
   detectionAutomatique: "Détection automatique",
   secteur: "Secteur",
+  enregistre: "Enregistré",
   enregistrement: "Enregistrement...",
   enregistrerLaClassification: "Enregistrer la classification",
 } as const

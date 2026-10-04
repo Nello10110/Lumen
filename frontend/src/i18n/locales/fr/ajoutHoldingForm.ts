@@ -2,6 +2,7 @@
  * `scripts/i18n-extraire.mjs`, puis relu à la main. */
 const ajoutHoldingForm = {
   unActif: "Un actif",
+  unBienImmobilier: "Un bien immobilier",
   unEmprunt: "Un emprunt",
   quAjoutezVous: "Qu'ajoutez-vous ?",
   renseignezTousLesChampsDe: "Renseignez tous les champs de l'emprunt.",
@@ -32,7 +33,7 @@ const ajoutHoldingForm = {
   renseignezAuMinimumUnTicker: "Renseignez au minimum un ticker et une quantité.",
   valeurDAcquisition: "Valeur d'acquisition :",
   texte: "×",
-  immobilierScpiAssuranceViePer: "Immobilier, SCPI, assurance-vie, PER, compte courant/d'épargne, véhicule : valorisés par Valeur estimée plutôt que par quantité × prix — elle remplace le calcul et se met à jour à la main, périodiquement.",
+  immobilierScpiAssuranceViePer: "SCPI, assurance-vie, PER, compte courant/d'épargne, véhicule : valorisés par Valeur estimée plutôt que par quantité × prix — elle remplace le calcul et se met à jour à la main, périodiquement.",
   valeurProjeteeDans1An: "Valeur projetée dans 1 an (indicatif, jamais appliqué automatiquement) :",
   ajouterUneLigneManuellement: "Ajouter une ligne manuellement",
 } as const
