@@ -8627,7 +8627,72 @@ titre coté écrase silencieusement son cours de marché.
 
 ##### Lot 1 — réalisé (04/10/2026), en attente de la CI
 
-À remplir à la fin du lot.
+**Vérification (04/10/2026).** Suite serveur complète : 1 892 tests verts (60 ignorés, propres à Postgres) (un échec préexistant et sans rapport,
+`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`, échoue aussi sur le code d'avant) ;
+interface : 1 117 tests verts (112 fichiers) ; suite Playwright : 96 tests verts (SQLite), dont l'ouverture de session et la console de l'opérateur ; `ruff`, `oxlint` et `tsc` propres. La migration a été
+jouée sous SQLite (test) **et** sous un Postgres embarqué avec le rôle applicatif ordinaire (séparation des foyers
+active) : montée avec données, descente, remontée, puis `alembic check` propre. La fiche d'un bien, l'ajout d'un
+actif et le comparatif « Achat vs location » ont été vus à l'écran, thèmes clair et sombre, et à 390 px. **À
+confirmer par la CI** : les jobs `backend-postgres`, `e2e-postgres` et `montee-version` (base créée par l'image
+publiée, puis montée par celle-ci) ; rien n'est marqué `traité` d'ici là.
+
+**Ce qui change.**
+
+- **Migration `e5a9c2d7b4f1`** (après `d8b3f1a7c5e2`, mode batch SQLite, `DROP COLUMN` Postgres) : retire
+  `holding_immobilier_details.type_location`, `nb_pieces`, `annee_construction`, `dpe`,
+  `simulation_charges_mensuelles` et `holdings.devise`. Données réécrites avant la suppression : pour une
+  résidence principale qui avait des charges de simulateur, `charges_mensuelles := simulation_charges_mensuelles`
+  (c'est ce que le simulateur lisait, son résultat ne bouge pas) ; `holdings.taux_pct` remis à NULL pour les lignes
+  `VEHICLE`. `valeur_estimee` n'est jamais touchée (une valeur déjà présente sur un titre coté reste en base). La
+  descente rend les colonnes **vides** (les valeurs supprimées ne se reconstituent pas).
+- **Champs supprimés de bout en bout** : modèle, schémas, route, import de positions (`devise_col` du mapping,
+  `ImportRelevePositionsSection`), seed E2E, tests, types TypeScript, formulaire, cinq langues (douze clés de
+  `immobilierParametresForm`, `decoteAnnuelle`, `deviseOptionnel`, et deux messages d'erreur du serveur dans le
+  catalogue de traduction). La fiche d'un actif lit toujours la devise dans les données de marché
+  (`holding_detail_service`, `md.devise`) ; `HoldingDetail.devise` reste.
+- **Tolérance** : un client qui enverrait encore un champ retiré n'est pas rejeté (Pydantic l'ignore) ; un export
+  JSON d'avant s'importe toujours (les colonnes inconnues sont ignorées, comme pour `mouvements_bancaires.compte` en
+  § BM.1, sans changer `VERSION`) — mais les charges de simulateur d'un tel fichier ne sont pas reportées.
+- **Un seul jeu de charges** : le simulateur achat/location lit `charges_mensuelles` ;
+  `ImmobilierParametresForm` garde ce champ visible sans loyer, avec l'aide « Utilisées pour le cashflow d'un bien
+  loué et pour le simulateur achat vs location d'une résidence principale » ; le loyer estimé et la taxe d'habitation
+  du simulateur n'apparaissent que si « Résidence principale » est cochée.
+- **Valeur estimée** masquée pour `STOCK`, `FUND`, `CRYPTO`, `BOND`, `PRIVATE_FUND` à l'ajout (et vidée si on change le
+  type après l'avoir saisie) ; à l'édition, une ligne qui en porte déjà une la garde, sinon cette valeur, qui écrase
+  le cours, serait devenue impossible à retirer. Le serveur ne rejette rien.
+- **Date d'acquisition** facultative, avec une aide courte (« Elle permet de calculer le rendement annualisé et de
+  tracer la courbe de cette ligne »), pour ces mêmes types, à l'ajout et à l'édition. Le serveur la lisait déjà
+  (`historical_performance_service`, `performance_service`).
+- **Petits correctifs** : colonne « Ticker » du tableau des actifs masquée, et ticker retiré du titre de la fiche,
+  pour un actif saisi à la main dont l'identifiant n'est que la forme technique du nom (le nom ouvre la fiche) ;
+  onglet « Analyse » d'un bien sans les deux cartes vides ; « Enregistré » après l'enregistrement des paramètres d'un
+  bien (retiré dès que le formulaire change, absent si l'enregistrement échoue).
+- **Documentation** : `SPECIFICATIONS_FONCTIONNELLES.md`, `MANUEL_UTILISATEUR.md`, `MANUEL_EXPLOITATION.md` (la
+  migration **supprime des données** : sauvegarde conseillée), `EXPRESSION_DE_BESOIN.md`.
+
+**Points tranchés en cours de route.**
+
+1. *Identifiant technique* : la règle vaut pour tout actif de `TYPES_PATRIMOINE` **qui a un nom** (immobilier, mais
+   aussi livret, véhicule...), pas seulement l'immobilier : le ticker d'un livret saisi à la main est tout aussi
+   inventé. Sans nom, l'identifiant reste affiché (c'est la seule façon de reconnaître la ligne). Un actif
+   importé d'un relevé sous un type patrimonial et nommé suit la même règle.
+2. *Colonne Ticker* : elle disparaît seulement quand **aucune** ligne affichée n'en a besoin ; à côté de titres cotés,
+   le bien y porte un tiret. Un tri choisi sur cette colonne ne reste pas actif quand elle disparaît.
+3. *Aide de la date d'acquisition* : texte visible sous le champ dans la feuille d'ajout, infobulle (`InfoBulle`, comme
+   les autres aides) dans l'édition en ligne, dont la rangée est alignée sur le bas des champs.
+4. *Changement de type* dans le formulaire d'ajout : la valeur estimée, le taux et le versement mensuel d'un champ
+   devenu invisible sont vidés, pour ne jamais partir avec la ligne.
+5. *Non fait, volontairement* : la carte « Détenteurs » reste dans l'onglet Analyse et aucun assistant n'est créé
+   (lots 2 et 4).
+
+**Tests.** Serveur : 4 (migration : charges fusionnées, colonnes retirées, décote effacée, valeur estimée d'un titre
+coté intacte, montée-descente-remontée), 1 (export d'avant le ménage réimporté), 1 (import de positions avec l'ancien
+`devise_col`), 2 (champs retirés ignorés ; titre coté avec valeur estimée non rejeté). Interface : verrouillage de la
+valeur estimée (ajout : cinq types cotés sans, cinq types saisis à la main avec, valeur vidée au changement de type ;
+édition : conservée si déjà présente), de la date d'acquisition (cinq types, envoyée ou nulle), de la colonne Ticker
+(masquée, tiret, bien sans nom, tri), de la fiche (charges sans loyer, champs retirés absents, champs du simulateur
+conditionnés, « Enregistré », cartes vides, ticker) ; Playwright : valeur estimée par type, nom d'un bien dans le
+tableau et la fiche, « Enregistré ».
 
 ---
 
