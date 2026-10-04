@@ -7,7 +7,7 @@ contenu utile est repris ici (§ 4 et annexe A).
 
 **Mode d'emploi.** Pour savoir où en est le produit : § 1. Pour savoir ce qui reste à faire : § 2 —
 c'est la seule liste à tenir à jour, tout le reste est de la trace. Le détail de chaque point, avec
-le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BM), dans
+le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BN), dans
 l'ordre où les sujets sont apparus.
 
 **Conventions d'un point** : `#### X.n — sévérité · effort · statut · priorité — titre`.
@@ -85,6 +85,7 @@ file et reçoit son détail au § 5.
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
+| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; lot 1 (ménage des champs et correctifs rapides) réalisé, en attente de la CI | Lots 2 à 4 (§ BN.1) : formulaire unique à sections repliables, membres du foyer, assistant en quatre étapes |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -258,6 +259,7 @@ l'usage réel a fait remonter.
 | BK | Version hébergée : déploiement Postgres (fait, CI à confirmer) et gestion des foyers (ouvert) | 23-29/09 |
 | BL | Application multilingue (FR, EN, ES, DE, IT) — cadrage et lots | 23/09 |
 | BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte ; import fiable (doublons légitimes, libellés de carte, périodicités) ; relevé Caisse d'Épargne reconnu, catégories de la banque, exclusion des totaux | 28-29/09 |
+| BN | Saisie d'un bien immobilier et parts par membre : formulaire unique, membres du foyer, ménage des champs inutiles | 04/10 |
 
 ---
 
@@ -8553,6 +8555,79 @@ ancien export, routes, IDOR, migration montée et descente) et 6 pour le total (
 exclusion, irréguliers écartés, route) ; interface 7 (action, liste des cibles, récapitulatif,
 confirmation puis appel, annulation, refus du serveur, total affiché et absent). L'écran Budget
 n'a pas d'étape dans l'assistant de bienvenue : la fusion n'a de sens qu'après un premier import.
+
+### BN. Saisie d'un bien immobilier et parts par membre — UX (retour utilisateur, 04/10/2026)
+
+#### BN.1 — `majeur` · `L` · `non traité` (lot 1 en attente de la CI) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
+
+**État au 04/10/2026 : conception validée par l'utilisateur ; lot 1 réalisé, en attente de la CI ; lots 2 à 4 non
+commencés.** Le détail du lot 1 est en fin de section (« Lot 1 — réalisé »).
+
+**Le constat.** La carte du kanban « Immobilier + capacité de voir les comptes partagés (50 % de la valeur) »
+est en régression : « La saisie est dans la partie analyse du bien ==> Pas ouf, à revoir ». Un audit du
+04/10/2026 relève les frictions suivantes :
+
+- **saisie éclatée** sur quatre écrans et quatre boutons « Enregistrer » (ajout de l'actif, paramètres du
+  bien, détenteurs, financement par le prêt) — rien n'indique l'ordre, ni ce qui reste à faire ;
+- **répartition par membre cachée** dans l'onglet Analyse du bien, sous deux cartes vides (« Titre unique,
+  pas de décomposition interne ») ;
+- **un nouvel actif sans parts disparaît de la vue d'un membre** alors qu'il compte à 100 % pour le foyer :
+  l'actif existe, mais aucun membre ne le voit dans sa vue tant que personne n'en a reçu une part ;
+- **le filtre « Détenteur » est ignoré** par les pages Comptes et Actifs (il ne porte que sur certains
+  écrans) ;
+- **formulaires de répartition du compte et du prêt vides à l'ouverture** : il faut ressaisir des parts que
+  l'application connaît déjà ;
+- **jargon** : Détenteur, Personnes, Foyer désignent la même chose selon l'écran ;
+- **tableau des parts qui déborde** sur mobile ;
+- **aucun aperçu en direct** : on enregistre pour voir la valeur nette, le cashflow, la part de chacun.
+
+À cela s'ajoute un défaut de fond que l'audit a mis en évidence : plusieurs champs de saisie sont stockés mais
+**jamais relus** par l'application (type de location, nombre de pièces, année de construction, DPE, devise
+d'un actif, décote d'un véhicule, un second jeu de charges propre au simulateur), et la valeur estimée d'un
+titre coté écrase silencieusement son cours de marché.
+
+**Décisions de l'utilisateur (04/10/2026).**
+
+1. **Livraison en deux temps** : d'abord un **formulaire unique à sections repliables** pour ajouter ou
+   éditer un bien (lots 1 à 3) ; l'**assistant en quatre étapes** — Le bien · Financement et revenus · Qui le
+   détient · Résultat — ensuite (lot 4), une fois le formulaire stabilisé.
+2. **Vocabulaire unique « Membres du foyer »** pour désigner les personnes qui possèdent. Le rôle d'un
+   compte de connexion (propriétaire, membre, invité) reste sous « Accès » : ce sont deux notions
+   distinctes qu'il ne faut plus confondre.
+3. **À l'ajout du premier membre**, les lignes qui n'ont aucune part reçoivent un badge « Non réparti » et un
+   bouton « Tout attribuer » ; **aucune donnée n'est modifiée sans clic**.
+4. **À l'import bancaire avec deux membres ou plus**, une seule question « pour quel membre ? » **par
+   fichier**, dont le défaut est le dernier choix.
+5. **Comptes homonymes** : le nom d'un compte reste unique par foyer. Le message d'erreur devient
+   actionnable : ajouter le membre au compte existant, ou renommer (« Livret A — Prénom »).
+6. **Ménage des champs inutiles** :
+   - supprimés de bout en bout (formulaire, API, colonne par migration, export/import, seed, tests, cinq
+     langues, docs) : `type_location`, `nb_pieces`, `annee_construction` et `dpe` de la fiche immobilière ;
+     `Holding.devise` (et le champ de mapping `devise_col` de l'import de positions) ; la **décote annuelle
+     d'un véhicule** ;
+   - **gardés** : les trois frais d'acquisition (notaire, travaux, autres), `surface_m2`,
+     `residence_principale` ;
+   - **un seul jeu de charges** : `simulation_charges_mensuelles` disparaît, le simulateur
+     achat/location lit `charges_mensuelles` (`simulation_loyer_estime` et
+     `simulation_taxe_habitation_annuelle` restent, mais ne s'affichent que pour une résidence
+     principale) ;
+   - **valeur estimée masquée pour les titres cotés** (actions, fonds, crypto, obligations, fonds privés) :
+     elle écrase le cours de marché sans prévenir ; elle reste pour les types saisis à la main ;
+   - **date d'acquisition proposée** pour les titres cotés, crypto et obligations saisis à la main : le
+     serveur la lit déjà (rendement annualisé, courbe), faute de quoi ces lignes n'ont ni l'un ni l'autre.
+
+**Découpage en lots.**
+
+| Lot | Contenu | Migration |
+| --- | --- | --- |
+| **Lot 1 — Ménage des champs et correctifs rapides** | Suppression des champs ci-dessus ; un seul jeu de charges ; valeur estimée masquée pour les titres cotés ; date d'acquisition pour les titres saisis à la main ; colonne « Ticker » et doublon nom + ticker masqués pour un bien ; cartes vides de l'onglet Analyse d'un bien retirées ; message « Enregistré » après l'enregistrement des paramètres d'un bien | Oui : colonnes retirées, charges fusionnées, `taux_pct` des véhicules remis à NULL |
+| **Lot 2 — Formulaire unique à sections repliables** | Ajout et édition d'un bien dans un seul formulaire : Le bien / Financement et revenus / Qui le détient / Aperçu en direct ; carte « Détenteurs » déplacée de l'onglet Analyse vers Paramètres ; formulaires de répartition du compte et du prêt pré-remplis ; tableau des parts responsive ; contrôle de répartition avec total visible et raccourcis | Aucune |
+| **Lot 3 — Membres du foyer** | Vocabulaire unique ; badge « Non réparti » et bouton « Tout attribuer » ; règle par défaut des parts côté serveur ; filtre Membre appliqué à Comptes, Actifs et Prêts ; import bancaire : une question par fichier ; comptes homonymes | À étudier |
+| **Lot 4 — Assistant en quatre étapes** | Le bien · Financement et revenus · Qui le détient · Résultat, bâti sur le formulaire du lot 2 | Aucune |
+
+##### Lot 1 — réalisé (04/10/2026), en attente de la CI
+
+À remplir à la fin du lot.
 
 ---
 
