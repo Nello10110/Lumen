@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
-| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) en cours | Lots 2 à 4 (§ BN.1) : formulaire unique à sections repliables, membres du foyer, assistant en quatre étapes |
+| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) réalisé, en attente de la CI et de l'accord de l'utilisateur sur les captures | Lots 2 à 4 (§ BN.1) : formulaire unique à sections repliables, membres du foyer, assistant en quatre étapes |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -8558,10 +8558,10 @@ n'a pas d'étape dans l'assistant de bienvenue : la fusion n'a de sens qu'après
 
 ### BN. Saisie d'un bien immobilier et parts par membre — UX (retour utilisateur, 04/10/2026)
 
-#### BN.1 — `majeur` · `L` · `en cours` (lot 1 `traité (04/10/2026)`, lot 2 en cours) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
+#### BN.1 — `majeur` · `L` · `en cours` (lot 1 `traité (04/10/2026)`, lot 2 en attente de la CI) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
 
 **État au 04/10/2026 : conception validée par l'utilisateur ; lot 1 `traité (04/10/2026)`, vérifié par la CI ; lot 2
-en cours ; lots 3 et 4 non commencés.** Le détail du lot 1 est en fin de section (« Lot 1 — réalisé »).
+réalisé, en attente de la CI et de l'accord de l'utilisateur sur les captures ; lots 3 et 4 non commencés.** Le détail des lots est en fin de section (« Lot 1 — réalisé », « Lot 2 — réalisé »).
 
 **Le constat.** La carte du kanban « Immobilier + capacité de voir les comptes partagés (50 % de la valeur) »
 est en régression : « La saisie est dans la partie analyse du bien ==> Pas ouf, à revoir ». Un audit du
@@ -8695,6 +8695,81 @@ valeur estimée (ajout : cinq types cotés sans, cinq types saisis à la main av
 (masquée, tiret, bien sans nom, tri), de la fiche (charges sans loyer, champs retirés absents, champs du simulateur
 conditionnés, « Enregistré », cartes vides, ticker) ; Playwright : valeur estimée par type, nom d'un bien dans le
 tableau et la fiche, « Enregistré ».
+
+##### Lot 2 — réalisé (04/10/2026), en attente de la CI
+
+**Vérification (04/10/2026).** Suite serveur complète : 2 009 tests verts (60 ignorés, propres à Postgres) (un échec préexistant et sans rapport, `test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`). Interface : 1 260 tests Vitest verts (117 fichiers) ; Playwright : 99 tests verts (SQLite), dont l'ajout
+d'un bien avec prêt et répartition 50/50 de bout en bout, l'édition des parts depuis Paramètres et la feuille mobile ; `ruff`,
+`oxlint` et `tsc` propres. Le formulaire d'ajout, l'édition dans Paramètres, la répartition d'un compte et celle d'un prêt
+ont été vus à l'écran sur une instance isolée (ports 4192/8022), en 1440 × 900 et 390 × 844, thèmes clair et sombre,
+français et allemand. **À confirmer par la CI** : les jobs `backend-postgres` et `e2e-postgres` (le nouvel endpoint et ses
+tests passent sous le rôle applicatif ordinaire, sans contournement de la séparation des foyers) ; rien n'est marqué
+`traité` d'ici là, ni avant l'accord de l'utilisateur sur les captures.
+
+**Ce qui change.**
+
+- **Formulaire unique « Ajouter un bien immobilier »** (`AjoutBienImmobilierModale`) : trois sections repliables — Le bien,
+  Financement et revenus, Qui le détient — et un aperçu en direct (colonne de droite dès 1 024 px, sinon section et ligne
+  de résumé collée en bas). Une seule action crée tout (endpoint transactionnel) ; on arrive sur la fiche du bien. Le
+  formulaire générique y renvoie pour le type « Immobilier » (et propose « Un bien immobilier » en tête de feuille).
+- **Édition dans l'onglet Paramètres** : mêmes champs et même ordre en quatre sections repliables (Le bien / Financement et
+  revenus / Qui le détient / Classification), la première ouverte, chacune avec son Enregistrer et son « Enregistré » ;
+  l'onglet Analyse est une lecture seule ; la carte « Détenteurs » devient la section « Qui le détient » (les lignes non
+  immobilières la gardent dans Paramètres).
+- **`RepartitionMembres`**, partagé par le formulaire d'ajout, la fiche, le compte et le prêt : champ, curseur et boutons
+  − / + par membre, total toujours visible, raccourcis, correctif en un clic (« Il manque 10 % — l'ajouter à Bob ? »), part
+  détenue et part nette, mention « Le prêt suit la même répartition ». Logique pure dans `utils/repartitionMembres.ts`.
+- **Pré-remplissage** : les formulaires de répartition d'un compte et d'un prêt s'ouvrent sur la répartition actuelle
+  (`GET .../quotites`) ; sans répartition enregistrée, des parts égales sont proposées sans rien enregistrer ; un compte dont
+  les lignes divergent l'annonce.
+- **Mobile et accessibilité** : feuille plein écran sous 768 px (`Modale`, `pleinEcranMobile`), barre du bas collée, cibles
+  tactiles de 44 px, `inputMode="decimal"`, labels reliés à l'aide et aux erreurs par `aria-describedby`, champs en erreur
+  marqués `aria-invalid`, résumé d'erreurs `role="alert"`, focus initial sur le nom, focus restauré à la fermeture,
+  confirmation avant d'abandonner une saisie, animation de repli supprimée par `prefers-reduced-motion`.
+
+**Points tranchés en cours de route.**
+
+1. *Pas de colonne « usage »* (le lot ne comporte aucune migration) : `residence_principale` est stocké ; locatif et autre se
+   déduisent de la présence du loyer, d'où un loyer **obligatoire** (0 admis) pour un bien locatif. Un bien locatif sans
+   loyer deviendrait indiscernable d'un « autre immobilier » à la relecture.
+2. *Une seule fiche immobilière, deux sections* : `PUT .../immobilier` remplace la fiche en entier ; « Le bien » et
+   « Financement et revenus » envoient donc toutes deux l'état courant de ses champs. Le nom, le prix, la date et la valeur
+   estimée (ligne `Holding`) ne partent que s'ils ont changé, pour ne pas fabriquer un point d'historique à chaque
+   enregistrement.
+3. *Correctif de répartition* : l'excédent se retire au membre qui en a le plus, le manque s'ajoute à celui qui en a le moins
+   (le dernier en cas d'égalité) ; aucun correctif à un clic si personne ne peut absorber l'excédent.
+4. *Lecture des répartitions réservée aux rôles qui écrivent* (`GET .../quotites`) : un invité ne lit pas les parts des
+   autres ; un échec de lecture n'est pas une erreur d'écran, le formulaire s'ouvre simplement sans pré-remplissage.
+5. *Prêts d'un bien existant* : la fiche liste les prêts rattachés et permet d'en ajouter ou rattacher un ; modifier ou
+   détacher un prêt reste dans la carte « Prêts » (deux appels côté client pour un prêt neuf, hors transaction).
+6. *Vocabulaire* : les textes nouveaux disent « membres du foyer » ; les anciens libellés (« Détenteurs », « Détenteurs de cet
+   emprunt »...) restent, leur renommage global est le lot 3.
+7. *Écart à la consigne* : l'aperçu ne montre pas de cashflow pour une résidence principale ni pour un « autre immobilier »
+   (le serveur n'en calcule pas sans loyer) ; seuls leurs coût d'acquisition, mensualité et parts nettes s'affichent.
+
+**Tests.** Serveur : endpoint (nominal, chaque usage, valeur par défaut, `Decimal`, suffixe `-2`/`-3`, prêt existant,
+quotités, rollback complet à chaque étape, accès d'un autre foyer en 404, validations, rôle invité), lectures des
+répartitions, vecteurs de parité. Interface : `RepartitionMembres`, `useEditeurQuotites`, formulaire d'ajout (sections,
+aperçu, validation, notaire, répartition, fermeture, mobile), édition (Paramètres), pré-remplissage compte et prêt, parité des
+vecteurs partagés avec le serveur. Playwright : voir ci-dessus.
+
+**Socle serveur (04/10/2026).**
+
+Livré avec le lot 2 (le formulaire unique et son aperçu en direct sont côté interface) :
+
+- `POST /api/portfolio/biens-immobiliers` — création d'un bien, de sa fiche, de sa valorisation initiale, de son
+  prêt (neuf ou existant) et de ses quotités en une seule transaction (`services/bien_immobilier_service.py`),
+  détail du contrat en § 3.11 des spécifications ; messages d'erreur dans les cinq langues ;
+- `GET /api/comptes/{id}/quotites` et `GET /api/loans/{id}/quotites` — répartition à proposer pour pré-remplir
+  les formulaires de répartition du compte et du prêt ;
+- `immobilier_service.calculer_indicateurs_locatifs` (calcul pur, sans accès base) et
+  `frontend/src/utils/vecteursApercuImmobilier.json` : le serveur reste la référence unique des chiffres de
+  l'aperçu en direct, `tests/test_vecteurs_apercu_immobilier.py` vérifie que le fichier et le serveur concordent.
+  **Régénération** : si un calcul serveur change, ce test échoue ; les valeurs attendues du fichier se régénèrent
+  depuis le code serveur (jamais à la main), puis l'interface se remet au même pas.
+- `upsert_detail_immobilier` et `enregistrer_point_historique` gagnent `commit=False` (même patron que
+  `set_quotites_holding`) ; `vers_loan_out` devient public (`routers/loans.py`) pour que la création d'un bien
+  renvoie son prêt comme `GET /api/loans`.
 
 ---
 
