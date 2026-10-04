@@ -580,3 +580,34 @@ summary,
 .lumen-ambiance-baisse {
   background: radial-gradient(1200px 800px at 50% -10%, rgba(120, 130, 145, 0.03), transparent 70%);
 }
+
+/* Formulaires de saisie (§ BN.1, lot 2).
+
+   Champ en erreur : le liseré rouge ne vient pas d'une classe posée par chaque appelant mais de
+   `aria-invalid`, l'attribut que `ChampForm` pose déjà pour les lecteurs d'écran — une seule
+   source pour ce que voit et ce qu'entend l'utilisateur. Hors couche Tailwind (donc plus
+   prioritaire que `border-hairline` des champs), sans toucher `Field.tsx`. */
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--neg);
+}
+
+/* Apparition du contenu d'une section repliable (`SectionRepliable`) : un fondu et un léger
+   glissement, jamais plus de 160 ms. Absent pour qui a demandé moins de mouvement — le
+   contenu paraît alors instantanément, sans rien perdre. */
+@media (prefers-reduced-motion: no-preference) {
+  .section-ouverture {
+    animation: section-ouverture 160ms ease-out;
+  }
+}
+@keyframes section-ouverture {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

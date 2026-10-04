@@ -46,6 +46,19 @@
       "rules": { "react/only-export-components": "off" }
     },
     {
+      // Zone de statut de la répartition (`RepartitionMembres`, § BN.1 lot 2) : le total, puis
+      // un message actionnable avec son bouton — du contenu de bloc, que la balise `<output>`
+      // suggérée par la règle (contenu phrasing seulement) ne peut pas porter.
+      "files": ["src/components/RepartitionMembres.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    },
+    {
+      // Cartes de choix du type de bien (`ChampsBien`) : le `<label>` enveloppe un bouton radio
+      // et deux `<span>` dont le texte vient d'appels de traduction, que la règle ne suit pas.
+      "files": ["src/components/bien/ChampsBien.tsx"],
+      "rules": { "jsx-a11y/label-has-associated-control": "off" }
+    },
+    {
       "files": ["src/components/Skeleton.tsx"],
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
