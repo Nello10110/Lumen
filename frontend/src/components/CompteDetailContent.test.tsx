@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
     updateCompte: vi.fn(),
     listLoans: vi.fn().mockResolvedValue([]),
     listDetenteurs: vi.fn().mockResolvedValue([]),
+    getCompteQuotites: vi.fn(),
     setCompteQuotites: vi.fn(),
     setCompteZoneGeo: vi.fn(),
     setCompteSecteur: vi.fn(),
@@ -299,10 +300,13 @@ describe('CompteDetailContent — emprunts rattachés (backlog X.4)', () => {
 })
 
 describe('CompteDetailContent — répartition entre détenteurs', () => {
+  const ALICE_BOB = [detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })]
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.getCompteQuotites).mockResolvedValue({ quotites: [], uniforme: true })
   })
 
   it("n'affiche pas la carte si le compte n'a aucune ligne", () => {
@@ -319,39 +323,72 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
     expect(screen.queryByText('Répartition entre détenteurs')).not.toBeInTheDocument()
   })
 
-  it('mentionne le nombre de lignes et d\'emprunts concernés par le remplacement', async () => {
+  it("mentionne le nombre de lignes et d'emprunts concernés par le remplacement", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur()])
     vi.mocked(api.listLoans).mockResolvedValue([loan({ holding_id: 1 })])
     renderContent(compte(), [holding({ id: 1 }), holding({ id: 2 })])
 
     await screen.findByText('Répartition entre détenteurs')
-    expect(screen.getByText(/2 lignes, et 1 emprunt rattaché/)).toBeInTheDocument()
+    expect(screen.getAllByText(/2 lignes, et 1 emprunt rattaché/).length).toBeGreaterThan(0)
   })
 
-  it('le bouton Enregistrer est désactivé tant que la somme ne fait pas 100 %', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
-    renderContent(compte(), [holding({ id: 1 })])
-    await screen.findByText('Répartition entre détenteurs')
-
-    fireEvent.change(screen.getByLabelText('Alice'), { target: { value: '60' } })
-
-    // Deux boutons "Enregistrer" sur la page (formulaire Informations, puis
-    // Répartition entre détenteurs) — celui de la répartition vient en second.
-    const [, boutonRepartition] = screen.getAllByRole('button', { name: 'Enregistrer' })
-    expect(boutonRepartition).toBeDisabled()
-    expect(screen.getByText(/Total actuel : 60/)).toBeInTheDocument()
-  })
-
-  it('soumettre une répartition valide appelle setCompteQuotites et affiche la confirmation', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
-    vi.mocked(api.setCompteQuotites).mockResolvedValue({ ok: true })
+  it("s'ouvre sur la répartition ACTUELLE du compte, pas sur un formulaire vide (§ BN.1, lot 2)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.getCompteQuotites).mockResolvedValue({
+      quotites: [
+        { detenteur_id: 1, quotite_pct: 70 },
+        { detenteur_id: 2, quotite_pct: 30 },
+      ],
+      uniforme: true,
+    })
     renderContent(compte({ id: 3 }), [holding({ id: 1 })])
     await screen.findByText('Répartition entre détenteurs')
 
-    fireEvent.change(screen.getByLabelText('Alice'), { target: { value: '70' } })
-    fireEvent.change(screen.getByLabelText('Bob'), { target: { value: '30' } })
-    const [, boutonRepartition] = screen.getAllByRole('button', { name: 'Enregistrer' })
-    fireEvent.click(boutonRepartition)
+    expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(70)
+    expect(screen.getByLabelText('Part de Bob (%)')).toHaveValue(30)
+    expect(api.getCompteQuotites).toHaveBeenCalledWith(3)
+    expect(screen.getByTestId('total-repartition')).toHaveTextContent(/Total : 100\s%/)
+  })
+
+  it('sans répartition enregistrée, propose des parts égales et le dit', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    renderContent(compte(), [holding({ id: 1 })])
+
+    expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(50)
+    expect(screen.getByText(/Aucune répartition n'est enregistrée/)).toBeInTheDocument()
+    expect(api.setCompteQuotites).not.toHaveBeenCalled()
+  })
+
+  it("quand les lignes du compte divergent, ne pré-remplit rien et prévient qu'enregistrer les remplace toutes", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.getCompteQuotites).mockResolvedValue({ quotites: [], uniforme: false })
+    renderContent(compte(), [holding({ id: 1 }), holding({ id: 2 })])
+
+    expect(await screen.findByText(/n'ont pas toutes la même répartition/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Part de Alice (%)')).toHaveValue(null)
+  })
+
+  it('le bouton de répartition est désactivé tant que la somme ne fait pas 100 %, et le message dit quoi faire', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    renderContent(compte(), [holding({ id: 1 })])
+    await screen.findByLabelText('Part de Alice (%)')
+
+    // Parts égales proposées (50 / 50) : Alice à 40 laisse 10 % de côté.
+    fireEvent.change(screen.getByLabelText('Part de Alice (%)'), { target: { value: '40' } })
+
+    expect(screen.getByRole('button', { name: 'Remplacer la répartition du compte' })).toBeDisabled()
+    expect(screen.getByText(/Il manque 10\s%/)).toBeInTheDocument()
+  })
+
+  it('soumettre une répartition valide appelle setCompteQuotites et affiche la confirmation', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.setCompteQuotites).mockResolvedValue({ ok: true })
+    renderContent(compte({ id: 3 }), [holding({ id: 1 })])
+    await screen.findByLabelText('Part de Alice (%)')
+
+    fireEvent.change(screen.getByLabelText('Part de Alice (%)'), { target: { value: '70' } })
+    fireEvent.change(screen.getByLabelText('Part de Bob (%)'), { target: { value: '30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Remplacer la répartition du compte' }))
 
     await vi.waitFor(() =>
       expect(api.setCompteQuotites).toHaveBeenCalledWith(3, [

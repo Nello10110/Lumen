@@ -16,6 +16,10 @@ vi.mock('../api/client', () => ({
     // Établissement du crédit (revue du 03/09/2026) — non testé ici sauf section
     // dédiée plus bas, résolution neutre par défaut.
     listEtablissements: vi.fn().mockResolvedValue([]),
+    // Répartition d'un prêt entre membres (§ BN.1, lot 2) — section dédiée plus bas.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
+    getLoanQuotites: vi.fn(),
+    setLoanQuotites: vi.fn(),
   },
 }))
 
@@ -371,5 +375,75 @@ describe('LoansCard — cartes sur mobile (backlog 2.K.4)', () => {
 
       await vi.waitFor(() => expect(vi.mocked(api.listHoldings)).toHaveBeenCalledTimes(1))
     })
+  })
+})
+
+describe('LoansCard — répartition du prêt entre membres (§ BN.1, lot 2)', () => {
+  const HORODATAGE = '2026-01-01T00:00:00'
+  const ALICE = { id: 1, nom: 'Alice', created_at: HORODATAGE, updated_at: HORODATAGE }
+  const BOB = { id: 2, nom: 'Bob', created_at: HORODATAGE, updated_at: HORODATAGE }
+
+  beforeEach(() => {
+    simulerLargeurEcran(false)
+    vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4 })])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+    vi.mocked(api.setLoanQuotites).mockClear()
+  })
+
+  async function ouvrirDetenteurs() {
+    fireEvent.click(await screen.findByRole('button', { name: 'Détenteurs' }))
+  }
+
+  it("s'ouvre sur la répartition ACTUELLE du prêt, pas sur un formulaire vide", async () => {
+    vi.mocked(api.getLoanQuotites).mockResolvedValue({
+      quotites: [
+        { detenteur_id: 1, quotite_pct: 70 },
+        { detenteur_id: 2, quotite_pct: 30 },
+      ],
+      heritee: false,
+    })
+    render(<LoansCard />)
+    await ouvrirDetenteurs()
+
+    expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(70)
+    expect(screen.getByLabelText('Part de Bob (%)')).toHaveValue(30)
+    expect(api.getLoanQuotites).toHaveBeenCalledWith(4)
+    expect(screen.getByRole('button', { name: 'Remplacer la répartition du prêt' })).toBeEnabled()
+  })
+
+  it("un prêt qui hérite de la répartition de son bien l'affiche, et le dit", async () => {
+    vi.mocked(api.getLoanQuotites).mockResolvedValue({
+      quotites: [
+        { detenteur_id: 1, quotite_pct: 50 },
+        { detenteur_id: 2, quotite_pct: 50 },
+      ],
+      heritee: true,
+    })
+    render(<LoansCard />)
+    await ouvrirDetenteurs()
+
+    expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(50)
+    expect(screen.getByText(/Ce prêt suit la répartition du bien qu'il finance/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Donner sa propre répartition au prêt' })).toBeInTheDocument()
+  })
+
+  it("enregistrer envoie la répartition affichée et confirme", async () => {
+    vi.mocked(api.getLoanQuotites).mockResolvedValue({ quotites: [], heritee: false })
+    vi.mocked(api.setLoanQuotites).mockResolvedValue({ ok: true })
+    render(<LoansCard />)
+    await ouvrirDetenteurs()
+    await screen.findByLabelText('Part de Alice (%)')
+
+    // Rien d'enregistré : parts égales proposées, appliquées seulement au clic.
+    expect(api.setLoanQuotites).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remplacer la répartition du prêt' }))
+
+    await vi.waitFor(() =>
+      expect(api.setLoanQuotites).toHaveBeenCalledWith(4, [
+        { detenteur_id: 1, quotite_pct: 50 },
+        { detenteur_id: 2, quotite_pct: 50 },
+      ]),
+    )
+    expect(await screen.findByText('Répartition enregistrée.')).toBeInTheDocument()
   })
 })

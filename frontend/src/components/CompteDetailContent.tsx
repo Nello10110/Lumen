@@ -9,9 +9,10 @@ import Card from './Card'
 import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import { Field, Input, Select } from './Field'
+import EditeurRepartition from './EditeurRepartition'
 import EtatVide from './EtatVide'
-import LigneEpargne from './LigneEpargne'
 import { SkeletonTexte } from './Skeleton'
+import LigneEpargne from './LigneEpargne'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { t } from '../i18n'
 import { libelleDonnee } from '../i18n/donnees'
@@ -89,49 +90,41 @@ function EmpruntsRattaches({ emprunts, montantsMasques }: { emprunts: Loan[]; mo
   )
 }
 
-/** Répartition entre détenteurs pour TOUT le compte (backlog X.1, cœur de la
- * demande : le dire une fois plutôt que ligne par ligne) — formulaire vierge par
- * défaut (pas de pré-remplissage), volontairement : si les lignes du compte ont déjà
- * des répartitions divergentes (saisies avant l'existence de cet écran), tenter de
- * les réconcilier automatiquement serait fragile ; l'enregistrement REMPLACE la
- * répartition de chaque ligne, ce que le texte ci-dessous explicite. S'applique
- * aussi aux emprunts rattachés (backlog X.4, `comptes_service.set_quotites_compte`),
- * d'où le paramètre `nombreEmprunts` pour l'expliciter dans le texte. */
+/** Répartition entre les membres du foyer pour TOUT le compte (backlog X.1, cœur de la
+ * demande : le dire une fois plutôt que ligne par ligne). S'applique aussi aux emprunts
+ * rattachés (backlog X.4, `comptes_service.set_quotites_compte`), d'où `nombreEmprunts` pour
+ * l'expliciter dans le texte.
+ *
+ * S'ouvre sur la répartition ACTUELLE du compte (§ BN.1, lot 2) : le formulaire vierge d'avant
+ * était un piège, on y écrasait un 50/50 sans le voir. Quand les lignes du compte divergent, il
+ * n'y a rien de juste à afficher : le formulaire le dit, et enregistrer les remplace toutes. */
 function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: number; nombreLignes: number; nombreEmprunts: number }) {
-  const { detenteurs, erreurChargement, rechargerDetenteurs, saisie, setValeur, total, totalValide, saving, error, enregistre, handleSave } =
-    useEditeurQuotites({ enregistrer: (quotites) => api.setCompteQuotites(compteId, quotites) })
+  const editeur = useEditeurQuotites({
+    enregistrer: (quotites) => api.setCompteQuotites(compteId, quotites),
+    chargerValeursInitiales: () => api.getCompteQuotites(compteId).then((r) => ({ quotites: r.quotites, divergente: !r.uniforme })),
+    proposerParDefaut: true,
+  })
 
   if (nombreLignes === 0) return null
-  if (erreurChargement !== null) {
-    return (
-      <Card title={t('compteDetailContent.repartitionEntreDetenteurs')}>
-        <EtatErreur message={t('compteDetailContent.erreurDetenteurs', { erreur: erreurChargement })} onReessayer={rechargerDetenteurs} />
-      </Card>
-    )
-  }
-  if (detenteurs === null) return <SkeletonTexte lignes={1} />
-  if (detenteurs.length === 0) return null
+  // Pas de carte tant que l'on ne sait pas s'il y a des membres à répartir, ni quand il n'y en a
+  // aucun : un titre suivi de rien serait pire qu'une carte absente.
+  if (editeur.erreurChargement === null && editeur.detenteurs === null) return <SkeletonTexte lignes={1} />
+  if (editeur.erreurChargement === null && editeur.detenteurs?.length === 0) return null
+
+  const portee =
+    t('compteDetailContent.nLignes', { n: nombreLignes }) +
+    (nombreEmprunts > 0 ? t('compteDetailContent.etNEmpruntsRattaches', { n: nombreEmprunts }) : '')
 
   return (
     <Card title={t('compteDetailContent.repartitionEntreDetenteurs')}>
-      <p className="mb-4 text-sm text-texte">
-        {t('compteDetailContent.appliqueRepartition', {
-          portee:
-            t('compteDetailContent.nLignes', { n: nombreLignes }) +
-            (nombreEmprunts > 0 ? t('compteDetailContent.etNEmpruntsRattaches', { n: nombreEmprunts }) : ''),
-        })}
-      </p>
-      <div className="flex flex-wrap items-end gap-3">
-        {detenteurs.map((d) => (
-          <Field key={d.id} label={d.nom} className="w-20">
-            <Input type="number" min={0} max={100} step="any" value={saisie[d.id] ?? ''} onChange={(e) => setValeur(d.id, e.target.value)} />
-          </Field>
-        ))}
-        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>{t('compteDetailContent.enregistrer')}</PrimaryButton>
-      </div>
-      {!totalValide && <p className="mt-2 text-sm text-negatif">{t('compteDetailContent.totalActuel')}{' '}{total.toFixed(2)}{' '}{t('compteDetailContent.doitFaire100')}</p>}
-      {enregistre && <p className="mt-2 text-sm text-positif">{t('compteDetailContent.repartitionAppliqueeAToutesLes')}</p>}
-      {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
+      <EditeurRepartition
+        editeur={editeur}
+        introduction={t('compteDetailContent.appliqueRepartition', { portee })}
+        libelleEnregistrer={t('compteDetailContent.remplacerLaRepartition')}
+        portee={t('compteDetailContent.remplaceChaqueLigne', { portee })}
+        confirmation={t('compteDetailContent.repartitionAppliqueeAToutesLes')}
+        idBase={`compte-${compteId}`}
+      />
     </Card>
   )
 }

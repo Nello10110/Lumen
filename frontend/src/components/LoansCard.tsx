@@ -7,6 +7,7 @@ import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { formatDateHeure, formatEuro, formatPourcent } from '../utils/format'
 import Card from './Card'
 import { PrimaryButton, SecondaryButton } from './Controls'
+import EditeurRepartition from './EditeurRepartition'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
@@ -19,39 +20,35 @@ import { t } from '../i18n'
 
 
 /** Répartition d'un emprunt entre détenteurs (backlog 2.L.1/X.1) — câble
- * `PUT /loans/{id}/quotites`, jusqu'ici sans UI (le service existait déjà,
- * `detenteurs_service.set_quotites_loan`, jamais exposé). Volontairement plus
- * simple que `DetenteursSection.tsx` (la fiche d'une position) : pas de « part
- * détenue/nette » affichée ici, l'endpoint emprunt ne renvoie qu'un accusé de
- * réception, contrairement à la fiche détaillée d'un actif. */
+ * `PUT /loans/{id}/quotites`. S'ouvre sur la répartition ACTUELLE (§ BN.1, lot 2) : celle que
+ * le prêt s'est donnée, sinon celle du bien qu'il finance, dont il hérite tant qu'il n'a pas la
+ * sienne. Volontairement plus simple que la fiche d'un actif : pas de « part détenue/nette »
+ * ici, l'endpoint emprunt ne renvoie qu'un accusé de réception. */
 function QuotitesEmprunt({ loanId }: { loanId: number }) {
-  const { detenteurs, erreurChargement, rechargerDetenteurs, saisie, setValeur, total, totalValide, saving, error, enregistre, handleSave } =
-    useEditeurQuotites({ enregistrer: (quotites) => api.setLoanQuotites(loanId, quotites) })
+  const [heritee, setHeritee] = useState(false)
+  const editeur = useEditeurQuotites({
+    enregistrer: (quotites) => api.setLoanQuotites(loanId, quotites),
+    chargerValeursInitiales: () =>
+      api.getLoanQuotites(loanId).then((r) => {
+        setHeritee(r.heritee)
+        return { quotites: r.quotites }
+      }),
+    proposerParDefaut: true,
+  })
 
-  if (erreurChargement !== null) {
-    return (
-      <div className="mt-3 border-t border-bordure pt-3">
-        <EtatErreur message={t('loansCard.erreurDetenteurs', { erreur: erreurChargement })} onReessayer={rechargerDetenteurs} />
-      </div>
-    )
-  }
-  if (detenteurs === null) return <SkeletonTexte lignes={1} />
-  if (detenteurs.length === 0) return null
+  if (editeur.erreurChargement === null && editeur.detenteurs === null) return <SkeletonTexte lignes={1} />
+  if (editeur.erreurChargement === null && editeur.detenteurs?.length === 0) return null
 
   return (
     <div className="mt-3 border-t border-bordure pt-3">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">{t('loansCard.detenteursDeCetEmprunt')}</p>
-      <div className="flex flex-wrap items-end gap-3">
-        {detenteurs.map((d) => (
-          <Field key={d.id} label={d.nom} className="w-20">
-            <Input type="number" min={0} max={100} step="any" value={saisie[d.id] ?? ''} onChange={(e) => setValeur(d.id, e.target.value)} />
-          </Field>
-        ))}
-        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>{t('loansCard.enregistrer')}</PrimaryButton>
-      </div>
-      {!totalValide && <p className="mt-1 text-xs text-negatif">{t('loansCard.totalActuel')}{' '}{total.toFixed(2)}{' '}{t('loansCard.doitFaire100')}</p>}
-      {enregistre && <p className="mt-1 text-xs text-positif">{t('loansCard.repartitionEnregistree')}</p>}
-      {error && <p className="mt-1 text-xs text-negatif">{error}</p>}
+      <EditeurRepartition
+        editeur={editeur}
+        introduction={heritee ? t('loansCard.repartitionHeritee') : undefined}
+        libelleEnregistrer={heritee ? t('loansCard.donnerSaRepartition') : t('loansCard.remplacerLaRepartition')}
+        confirmation={t('loansCard.repartitionEnregistree')}
+        idBase={`pret-${loanId}`}
+      />
     </div>
   )
 }
