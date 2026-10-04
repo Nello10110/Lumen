@@ -30,6 +30,7 @@ const ajoutHoldingForm: Structure<typeof fr> = {
   zoneGeographique: "Area geografica",
   europeParDefaut: "Europa (predefinita)",
   dateDAcquisition: "Data di acquisizione",
+  aideDateDAcquisition: "Facoltativa. Consente di calcolare il rendimento annualizzato e di tracciare la curva di questa riga.",
   renseignezAuMinimumUnTicker: "Indichi almeno un ticker e una quantità.",
   valeurDAcquisition: "Valore di acquisizione:",
   texte: "×",

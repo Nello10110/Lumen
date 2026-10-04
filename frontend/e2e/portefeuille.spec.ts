@@ -14,18 +14,20 @@ test.describe('Portefeuille', () => {
     const positions = positionsTable(page)
 
     // 5 lignes seedées (cf. seed_e2e.py) : E2EAAPL, E2EFUND, E2ENVDA (Actions/ETF),
-    // E2E-APPART (Immobilier), E2E-LIVRETA (Épargne).
+    // « Appartement E2E » (Immobilier, saisi à la main : son nom s'affiche, pas son identifiant
+    // technique E2E-APPART), E2E-LIVRETA (Épargne).
     await expect(positions.getByText('E2EAAPL')).toBeVisible()
     await expect(positions.getByText('E2EFUND')).toBeVisible()
     await expect(positions.getByText('E2ENVDA')).toBeVisible()
-    await expect(positions.getByText('E2E-APPART')).toBeVisible()
+    await expect(positions.getByText('Appartement E2E')).toBeVisible()
+    await expect(positions.getByText('E2E-APPART')).not.toBeVisible()
     await expect(positions.getByText('E2E-LIVRETA')).toBeVisible()
 
     await page.getByRole('button', { name: 'Actions' }).click()
     await expect(positions.getByText('E2EAAPL')).toBeVisible()
     await expect(positions.getByText('E2ENVDA')).toBeVisible()
     await expect(positions.getByText('E2EFUND')).not.toBeVisible()
-    await expect(positions.getByText('E2E-APPART')).not.toBeVisible()
+    await expect(positions.getByText('Appartement E2E')).not.toBeVisible()
 
     await page.getByRole('button', { name: 'Tous' }).click()
     await expect(positions.getByText('E2EFUND')).toBeVisible()
@@ -82,6 +84,35 @@ test.describe('Portefeuille', () => {
     await page.getByRole('button', { name: 'Supprimer', exact: true }).last().click()
     await expect(page.getByRole('heading', { name: 'Supprimer cette ligne ?' })).not.toBeVisible()
     await expect(positions.getByText(ticker)).not.toBeVisible()
+  })
+
+  test("la valeur estimée n'est proposée ni pour un titre coté, ni pour une crypto — seulement pour un bien saisi à la main", async ({ page }) => {
+    await page.getByRole('button', { name: 'Ajouter une ligne' }).click()
+    const formulaire = page.getByRole('dialog')
+
+    for (const type of ['Action', 'ETF / Fonds', 'Crypto', 'Obligation', 'Private Equity']) {
+      await formulaire.getByLabel("Type d'actif").selectOption({ label: type })
+      await expect(formulaire.getByLabel('Valeur estimée')).toHaveCount(0)
+      // La date d'acquisition, elle, est proposée : le rendement annualisé en dépend.
+      await expect(formulaire.getByLabel("Date d'acquisition")).toBeVisible()
+    }
+
+    await formulaire.getByLabel("Type d'actif").selectOption({ label: 'Immobilier' })
+    await expect(formulaire.getByLabel('Valeur estimée')).toBeVisible()
+
+    await formulaire.getByLabel("Type d'actif").selectOption({ label: 'Véhicule' })
+    await expect(formulaire.getByLabel('Valeur estimée')).toBeVisible()
+    await expect(formulaire.getByText(/Décote annuelle/)).toHaveCount(0)
+  })
+
+  test("l'identifiant technique d'un bien n'est pas montré : le nom s'affiche et ouvre la fiche", async ({ page }) => {
+    const positions = positionsTable(page)
+    await page.getByRole('button', { name: 'Immobilier & Épargne' }).click()
+
+    // Le livret du seed n'a pas de nom : la colonne Ticker reste pour lui.
+    await expect(positions.getByText('E2E-LIVRETA')).toBeVisible()
+    await positions.getByRole('button', { name: 'Voir le détail de Appartement E2E' }).click()
+    await expect(page.getByRole('dialog', { name: 'Appartement E2E' })).toBeVisible()
   })
 
   test('ouvre la fiche détaillée en modale au clic sur une ligne', async ({ page }) => {

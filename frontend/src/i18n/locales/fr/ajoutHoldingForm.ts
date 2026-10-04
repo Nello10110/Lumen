@@ -28,6 +28,7 @@ const ajoutHoldingForm = {
   zoneGeographique: "Zone géographique",
   europeParDefaut: "Europe (par défaut)",
   dateDAcquisition: "Date d'acquisition",
+  aideDateDAcquisition: "Facultative. Elle permet de calculer le rendement annualisé et de tracer la courbe de cette ligne.",
   renseignezAuMinimumUnTicker: "Renseignez au minimum un ticker et une quantité.",
   valeurDAcquisition: "Valeur d'acquisition :",
   texte: "×",

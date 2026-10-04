@@ -44,9 +44,12 @@ function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
  * Adressé par `holdingId` (revu le 14/09/2026), pas par ticker — cf. `client.ts`. */
 export function useImmobilierDetail(holdingId: number, chargerHistorique: boolean, immobilierInitial: HoldingDetail['immobilier']) {
   const [immobilier, setImmobilier] = useState(immobilierInitial)
-  const [form, setForm] = useState<FormImmobilier>(() => formulaireDepuis(immobilierInitial))
+  const [form, setFormBrut] = useState<FormImmobilier>(() => formulaireDepuis(immobilierInitial))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // « Enregistré » ne vaut que pour ce qui vient d'être enregistré : toute modification du
+  // formulaire le retire, pour ne jamais confirmer des valeurs que le serveur n'a pas reçues.
+  const [enregistre, setEnregistre] = useState(false)
   const [historique, setHistorique] = useState<ValuationHistoryPoint[]>([])
 
   const rechargerHistorique = () => {
@@ -62,9 +65,15 @@ export function useImmobilierDetail(holdingId: number, chargerHistorique: boolea
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `holdingId` change = remontage du composant parent (route/modale).
   }, [holdingId, chargerHistorique])
 
+  function setForm(f: FormImmobilier) {
+    setFormBrut(f)
+    setEnregistre(false)
+  }
+
   async function handleSave() {
     setSaving(true)
     setError(null)
+    setEnregistre(false)
     try {
       await api.updateHoldingImmobilier(holdingId, {
         loyer_mensuel: form.loyer_mensuel ? Number(form.loyer_mensuel) : null,
@@ -85,6 +94,7 @@ export function useImmobilierDetail(holdingId: number, chargerHistorique: boolea
       // `DetenteursSection` après l'enregistrement d'une quotité.
       const detailFrais = await api.getHoldingDetail(holdingId)
       setImmobilier(detailFrais.immobilier)
+      setEnregistre(true)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -92,5 +102,5 @@ export function useImmobilierDetail(holdingId: number, chargerHistorique: boolea
     }
   }
 
-  return { immobilier, form, setForm, saving, error, handleSave, historique, rechargerHistorique }
+  return { immobilier, form, setForm, saving, error, enregistre, handleSave, historique, rechargerHistorique }
 }

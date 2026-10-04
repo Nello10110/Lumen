@@ -23,6 +23,7 @@ const positionsTable: Structure<typeof fr> = {
   tauxAnnuelEdition: "Annual rate (editing)",
   dateDAcquisition: "Acquisition date",
   dateDAcquisitionEdition: "Acquisition date (editing)",
+  aideDateDAcquisition: "Optional. Used to compute this line’s annualized return and plot its curve.",
   valeurProjeteeDans1An: "Projected value in 1 year (indicative):",
   enregistrer: "Save",
   annuler: "Cancel",

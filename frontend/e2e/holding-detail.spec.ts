@@ -58,10 +58,31 @@ test.describe('Fiche détaillée d\'une position', () => {
   test('E2E-APPART : onglet Paramètres affiche les caractéristiques immobilières', async ({ page }) => {
     const { holdings } = seedData()
     await page.goto(`/patrimoine/${holdings.appartement.id}`)
-    await expect(page.getByRole('heading', { name: holdings.appartement.ticker })).toBeVisible()
+    // Le titre est le nom du bien ; son identifiant technique n'est pas répété à côté.
+    await expect(page.getByRole('heading', { name: holdings.appartement.nom })).toBeVisible()
+    await expect(page.getByText(holdings.appartement.ticker)).toHaveCount(0)
     await expect(page.getByText('Cashflow et rentabilité')).toBeVisible()
 
     await page.getByRole('tab', { name: 'Paramètres' }).click()
     await expect(page.getByLabel('Loyer mensuel (€)')).toHaveValue('1200')
+    await expect(page.getByLabel('Charges mensuelles (€)')).toHaveValue('150')
+    // Champs retirés (§ BN.1) : plus rien à saisir pour eux.
+    for (const retire of ['Type de location', 'Nombre de pièces', 'Année de construction', 'DPE']) {
+      await expect(page.getByLabel(retire)).toHaveCount(0)
+    }
+    // Ce bien n'est pas une résidence principale : pas de champs du simulateur.
+    await expect(page.getByLabel('Loyer mensuel estimé pour un bien équivalent (€)')).toHaveCount(0)
+  })
+
+  test("E2E-APPART : enregistrer les paramètres confirme « Enregistré », l'onglet Analyse n'a pas de cartes vides", async ({ page }) => {
+    const { holdings } = seedData()
+    await page.goto(`/patrimoine/${holdings.appartement.id}`)
+    await page.getByRole('tab', { name: 'Paramètres' }).click()
+
+    await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+    await expect(page.getByText('Enregistré', { exact: true })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Analyse' }).click()
+    await expect(page.getByText(/Titre unique/)).toHaveCount(0)
   })
 })

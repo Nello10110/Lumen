@@ -104,7 +104,7 @@ test.describe('Comptes (backlog X.1)', () => {
     const modale = page.getByRole('dialog')
     await expect(modale.getByRole('heading', { name: comptes.immobilier.nom }).first()).toBeVisible()
     await expect(modale.getByText(montantRegex(attendu.valeur_appartement, 2)).first()).toBeVisible()
-    await expect(modale.getByRole('link', { name: new RegExp(holdings.appartement.ticker) })).toBeVisible()
+    await expect(modale.getByRole('link', { name: new RegExp(holdings.appartement.nom) })).toBeVisible()
 
     // Emprunt rattaché au bien immobilier de ce compte (backlog X.4) — le seed
     // l'attache via `Loan.holding_id`, purement informatif ici mais annonce que la

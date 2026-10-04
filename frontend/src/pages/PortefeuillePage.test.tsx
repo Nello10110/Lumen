@@ -263,12 +263,57 @@ describe('PortefeuillePage', () => {
   })
 
   describe("Ajouter une ligne manuellement — date d'acquisition (retour utilisateur, 26/08/2026)", () => {
-    it("le champ « Date d'acquisition » n'apparaît pas pour un type d'actif financier (ex. action)", async () => {
+    it("le champ « Date d'acquisition » n'apparaît pas tant que le type d'actif n'est pas précisé", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
       expect(screen.queryByLabelText("Date d'acquisition")).not.toBeInTheDocument()
+    })
+
+    it.each(['STOCK', 'FUND', 'CRYPTO', 'BOND', 'PRIVATE_FUND'])(
+      "un titre saisi à la main (%s) propose la « Date d'acquisition », facultative, avec son aide (§ BN.1)",
+      async (type) => {
+        vi.mocked(api.listHoldings).mockResolvedValue([])
+        render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+        await ouvrirFeuilleAjout()
+
+        fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: type } })
+
+        expect(screen.getByLabelText("Date d'acquisition")).toBeInTheDocument()
+        expect(screen.getByText(/Facultative\. Elle permet de calculer le rendement annualisé/)).toBeInTheDocument()
+      },
+    )
+
+    it("la date d'acquisition d'un titre coté part avec la ligne créée, et reste facultative", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(holding({ id: 9, ticker: 'AAPL', type_actif: 'STOCK', date_acquisition: '2022-03-01T00:00:00' }))
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'STOCK' } })
+      fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'AAPL' } })
+      fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '5' } })
+      fireEvent.change(screen.getByLabelText("Date d'acquisition"), { target: { value: '2022-03-01' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() =>
+        expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'AAPL', date_acquisition: '2022-03-01' })),
+      )
+    })
+
+    it("sans date, la ligne est créée avec date_acquisition à null", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(holding({ id: 9, ticker: 'AAPL', type_actif: 'STOCK' }))
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'STOCK' } })
+      fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'AAPL' } })
+      fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '5' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() => expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'AAPL', date_acquisition: null })))
     })
 
     it("sélectionner « Immobilier » révèle le champ « Date d'acquisition »", async () => {
@@ -424,6 +469,100 @@ describe('PortefeuillePage', () => {
 
       await screen.findByText('Une ligne « MAISON » existe déjà.')
       expect(screen.getByLabelText('Identifiant')).toHaveValue('MAISON')
+    })
+  })
+
+  describe('Ajouter une ligne manuellement — valeur estimée réservée aux actifs saisis à la main (§ BN.1)', () => {
+    it.each(['STOCK', 'FUND', 'CRYPTO', 'BOND', 'PRIVATE_FUND'])(
+      'un titre coté (%s) ne propose pas de valeur estimée : elle écraserait son cours de marché',
+      async (type) => {
+        vi.mocked(api.listHoldings).mockResolvedValue([])
+        render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+        await ouvrirFeuilleAjout()
+
+        fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: type } })
+
+        expect(screen.queryByLabelText('Valeur estimée')).not.toBeInTheDocument()
+      },
+    )
+
+    it.each(['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'VEHICLE', 'OTHER_ASSET'])(
+      'un actif valorisé à la main (%s) garde sa valeur estimée',
+      async (type) => {
+        vi.mocked(api.listHoldings).mockResolvedValue([])
+        render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+        await ouvrirFeuilleAjout()
+
+        fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: type } })
+
+        expect(screen.getByLabelText('Valeur estimée')).toBeInTheDocument()
+      },
+    )
+
+    it('une valeur saisie pour un bien ne suit pas la ligne quand on la change en titre coté', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(holding({ id: 9, ticker: 'AAPL', type_actif: 'STOCK' }))
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '200000' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'STOCK' } })
+      fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'AAPL' } })
+      fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '5' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() => expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'AAPL', valeur_estimee: null })))
+    })
+  })
+
+  describe("Tableau des positions — le ticker d'un bien saisi à la main n'est pas montré (§ BN.1)", () => {
+    const maison = holding({ id: 7, ticker: 'MAISON-LYON', nom: 'Maison de Lyon', type_actif: 'REAL_ESTATE', valeur_estimee: 300000 })
+    const action = holding({ id: 8, ticker: 'AAPL', nom: null, type_actif: 'STOCK', origine: 'reconstruit' })
+
+    it("sans autre ligne, la colonne Ticker disparaît et le nom du bien ouvre sa fiche", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([maison])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      const boutonNom = await screen.findByRole('button', { name: 'Voir le détail de Maison de Lyon' })
+      expect(screen.queryByRole('columnheader', { name: /Ticker/ })).not.toBeInTheDocument()
+      expect(screen.queryByText('MAISON-LYON')).not.toBeInTheDocument()
+
+      fireEvent.click(boutonNom)
+      expect(await screen.findByTestId('modale-detail')).toBeInTheDocument()
+    })
+
+    it('à côté de titres cotés, la colonne reste et le bien y porte un tiret plutôt que son identifiant technique', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([maison, action])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      await screen.findByRole('button', { name: 'Voir le détail de Maison de Lyon' })
+      expect(screen.getByRole('columnheader', { name: /Ticker/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Voir le détail de AAPL' })).toBeInTheDocument()
+      expect(screen.queryByText('MAISON-LYON')).not.toBeInTheDocument()
+      const ligneMaison = screen.getByRole('button', { name: 'Voir le détail de Maison de Lyon' }).closest('tr')!
+      expect(within(ligneMaison).getAllByRole('cell')[0]).toHaveTextContent('—')
+    })
+
+    it("un bien sans nom garde son identifiant : c'est la seule façon de le reconnaître", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 7, ticker: 'MAISON-LYON', nom: null, type_actif: 'REAL_ESTATE' })])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      expect(await screen.findByRole('button', { name: 'Voir le détail de MAISON-LYON' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Ticker/ })).toBeInTheDocument()
+    })
+
+    it('un tri choisi sur la colonne Ticker ne reste pas actif quand elle disparaît', async () => {
+      window.sessionStorage.setItem('patrimoine:positions-tri', JSON.stringify({ cle: 'ticker', direction: 'desc' }))
+      const autreMaison = holding({ id: 9, ticker: 'ZZ-GARAGE', nom: 'Garage', type_actif: 'REAL_ESTATE', valeur_estimee: 20000 })
+      vi.mocked(api.listHoldings).mockResolvedValue([maison, autreMaison])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      await screen.findByRole('button', { name: 'Voir le détail de Maison de Lyon' })
+      const colonnesTriables = screen.getAllByRole('columnheader').filter((c) => c.hasAttribute('aria-sort'))
+      expect(colonnesTriables.length).toBeGreaterThan(0)
+      expect(colonnesTriables.every((c) => c.getAttribute('aria-sort') === 'none')).toBe(true)
+      window.sessionStorage.clear()
     })
   })
 
@@ -906,13 +1045,13 @@ describe('PortefeuillePage', () => {
 
     it("le champ « Date d'acquisition (édition) » n'apparaît que pour un actif du patrimoine manuel, et sa modification appelle updateHolding (retour utilisateur, 26/08/2026)", async () => {
       const ligneImmobiliere = [
-        holding({ id: 7, ticker: 'MAISON', type_actif: 'REAL_ESTATE', valeur_estimee: 300000, date_acquisition: '2019-03-01T00:00:00' }),
+        holding({ id: 7, ticker: 'MAISON', nom: 'Maison de famille', type_actif: 'REAL_ESTATE', valeur_estimee: 300000, date_acquisition: '2019-03-01T00:00:00' }),
       ]
       vi.mocked(api.listHoldings).mockResolvedValueOnce(ligneImmobiliere)
       vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 7, ticker: 'MAISON', type_actif: 'REAL_ESTATE', valeur_estimee: 300000 }))
       vi.mocked(api.listHoldings).mockResolvedValueOnce(ligneImmobiliere)
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('MAISON')
+      await screen.findByText('Maison de famille')
 
       fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
       const champDate = screen.getByLabelText("Date d'acquisition (édition)")
@@ -932,7 +1071,7 @@ describe('PortefeuillePage', () => {
       vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 7, ticker: 'MAISON', nom: 'Appartement Lyon', type_actif: 'REAL_ESTATE' }))
       vi.mocked(api.listHoldings).mockResolvedValueOnce(ligneImmobiliere)
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('MAISON')
+      await screen.findByText('Ancien nom')
 
       fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
       const champNom = screen.getByLabelText('Nom (édition)')
@@ -950,6 +1089,53 @@ describe('PortefeuillePage', () => {
 
       fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
       expect(screen.queryByLabelText('Nom (édition)')).not.toBeInTheDocument()
+    })
+
+    it("un titre coté sans valeur estimée n'en propose pas à l'édition, mais propose sa date d'acquisition (§ BN.1)", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
+
+      expect(screen.queryByLabelText('Valeur estimée (édition)')).not.toBeInTheDocument()
+      expect(screen.getByLabelText("Date d'acquisition (édition)")).toBeInTheDocument()
+      expect(screen.getByTitle(/Facultative\. Elle permet de calculer le rendement annualisé/)).toBeInTheDocument()
+    })
+
+    it("un titre coté qui porte déjà une valeur estimée la garde à l'édition : elle écrase son cours, on doit pouvoir la retirer", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 42, ticker: 'AAA', type_actif: 'STOCK', valeur_estimee: 1234 })])
+      vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 42, ticker: 'AAA' }))
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
+      const champ = screen.getByLabelText('Valeur estimée (édition)')
+      expect(champ).toHaveValue(1234)
+
+      fireEvent.change(champ, { target: { value: '' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      await waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(42, expect.objectContaining({ valeur_estimee: null })))
+    })
+
+    it("enregistrer un titre coté sans toucher à sa valeur estimée cachée ne la modifie pas", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 42, ticker: 'AAA', type_actif: 'STOCK' })])
+      vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 42, ticker: 'AAA' }))
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
+      fireEvent.change(screen.getByLabelText('Quantité (édition)'), { target: { value: '12' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      await waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(42, expect.objectContaining({ quantite: 12, valeur_estimee: null })))
+    })
+
+    it("un bien saisi à la main garde sa valeur estimée à l'édition", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 7, ticker: 'MAISON', nom: 'Maison', type_actif: 'REAL_ESTATE' })])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
+
+      expect(screen.getByLabelText('Valeur estimée (édition)')).toBeInTheDocument()
     })
 
     it('une erreur 400 reste affichée sans quitter le mode édition', async () => {

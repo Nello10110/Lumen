@@ -17,12 +17,14 @@ export default function ImmobilierParametresForm({
   setForm,
   saving,
   error,
+  enregistre,
   onSave,
 }: {
   form: FormImmobilier
   setForm: (f: FormImmobilier) => void
   saving: boolean
   error: string | null
+  enregistre: boolean
   onSave: () => void
 }) {
   return (
@@ -101,6 +103,9 @@ export default function ImmobilierParametresForm({
         {saving ? t('immobilierParametresForm.enregistrement') : t('immobilierParametresForm.enregistrer')}
       </PrimaryButton>
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
+      {enregistre && (
+        <output className="mt-2 block text-sm text-positif">{t('immobilierParametresForm.enregistre')}</output>
+      )}
     </Card>
   )
 }

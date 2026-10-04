@@ -23,6 +23,7 @@ const positionsTable: Structure<typeof fr> = {
   tauxAnnuelEdition: "Tasa anual (edición)",
   dateDAcquisition: "Fecha de adquisición",
   dateDAcquisitionEdition: "Fecha de adquisición (edición)",
+  aideDateDAcquisition: "Opcional. Permite calcular la rentabilidad anualizada y trazar la curva de esta línea.",
   valeurProjeteeDans1An: "Valor proyectado a 1 año (orientativo):",
   enregistrer: "Guardar",
   annuler: "Cancelar",

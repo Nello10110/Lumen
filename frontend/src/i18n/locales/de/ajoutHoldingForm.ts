@@ -30,6 +30,7 @@ const ajoutHoldingForm: Structure<typeof fr> = {
   zoneGeographique: "Geografische Zone",
   europeParDefaut: "Europa (Standard)",
   dateDAcquisition: "Erwerbsdatum",
+  aideDateDAcquisition: "Optional. Damit lassen sich die annualisierte Rendite und der Verlauf dieser Position berechnen.",
   renseignezAuMinimumUnTicker: "Geben Sie mindestens einen Ticker und eine Menge an.",
   valeurDAcquisition: "Erwerbswert:",
   texte: "×",

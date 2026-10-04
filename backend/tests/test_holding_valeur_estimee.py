@@ -51,9 +51,8 @@ def test_update_dun_autre_champ_ne_touche_pas_la_date_de_valeur_estimee(client):
 
 
 # --- `taux_pct` (backlog § 2.M.1, taxonomie élargie) ------------------------------
-# Champ purement informatif : positif = intérêt attendu (épargne réglementée/
-# salariale), négatif = décote attendue (véhicule) — jamais appliqué automatiquement
-# à `valeur_estimee`, cf. `models.Holding.taux_pct`.
+# Champ purement informatif : intérêt attendu (épargne réglementée/salariale) —
+# jamais appliqué automatiquement à `valeur_estimee`, cf. `models.Holding.taux_pct`.
 
 
 def test_create_holding_avec_taux_pct_positif_epargne(client):
@@ -74,6 +73,8 @@ def test_create_holding_avec_taux_pct_positif_epargne(client):
 
 
 def test_create_holding_avec_taux_pct_negatif_vehicule(client):
+    # L'interface ne propose plus la décote d'un véhicule (§ BN.1), mais le serveur ne
+    # rejette rien : un client plus ancien, ou un script, garde la même tolérance.
     reponse = client.post(
         "/api/portfolio/holdings",
         json={"ticker": "VOITURE", "quantite": 1, "type_actif": "VEHICLE", "valeur_estimee": 15000, "taux_pct": -15.0},
@@ -81,6 +82,18 @@ def test_create_holding_avec_taux_pct_negatif_vehicule(client):
 
     assert reponse.status_code == 200
     assert reponse.json()["taux_pct"] == -15.0
+
+
+def test_create_holding_titre_cote_avec_valeur_estimee_n_est_pas_rejete(client):
+    # L'interface ne propose plus la valeur estimée d'un titre coté (§ BN.1) : elle
+    # écraserait son cours de marché. Le serveur reste tolérant et la conserve telle quelle.
+    reponse = client.post(
+        "/api/portfolio/holdings",
+        json={"ticker": "AAPL", "quantite": 2, "type_actif": "STOCK", "valeur_estimee": 1234, "compte_nom": "Compte Test"},
+    )
+
+    assert reponse.status_code == 200
+    assert reponse.json()["valeur_estimee"] == 1234
 
 
 def test_create_holding_sans_taux_pct_reste_none(client):
