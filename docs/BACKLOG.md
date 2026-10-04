@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
-| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) réalisé, en attente de la CI et de l'accord de l'utilisateur sur les captures | Lots 2 à 4 (§ BN.1) : formulaire unique à sections repliables, membres du foyer, assistant en quatre étapes |
+| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) `traité (04/10/2026)`, vérifié par la CI (pull request n° 13) ; **lot 3** (membres du foyer) en cours | Lots 3 et 4 (§ BN.1) : membres du foyer, assistant en quatre étapes |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -8558,10 +8558,10 @@ n'a pas d'étape dans l'assistant de bienvenue : la fusion n'a de sens qu'après
 
 ### BN. Saisie d'un bien immobilier et parts par membre — UX (retour utilisateur, 04/10/2026)
 
-#### BN.1 — `majeur` · `L` · `en cours` (lot 1 `traité (04/10/2026)`, lot 2 en attente de la CI) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
+#### BN.1 — `majeur` · `L` · `en cours` (lots 1 et 2 `traité (04/10/2026)`, lot 3 en cours) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
 
-**État au 04/10/2026 : conception validée par l'utilisateur ; lot 1 `traité (04/10/2026)`, vérifié par la CI ; lot 2
-réalisé, en attente de la CI et de l'accord de l'utilisateur sur les captures ; lots 3 et 4 non commencés.** Le détail des lots est en fin de section (« Lot 1 — réalisé », « Lot 2 — réalisé »).
+**État au 04/10/2026 : conception validée par l'utilisateur ; lots 1 et 2 `traité (04/10/2026)`, vérifiés par la CI ;
+lot 3 en cours ; lot 4 non commencé.** Le détail des lots est en fin de section (« Lot 1 — réalisé », « Lot 2 — réalisé »).
 
 **Le constat.** La carte du kanban « Immobilier + capacité de voir les comptes partagés (50 % de la valeur) »
 est en régression : « La saisie est dans la partie analyse du bien ==> Pas ouf, à revoir ». Un audit du
@@ -8696,15 +8696,15 @@ valeur estimée (ajout : cinq types cotés sans, cinq types saisis à la main av
 conditionnés, « Enregistré », cartes vides, ticker) ; Playwright : valeur estimée par type, nom d'un bien dans le
 tableau et la fiche, « Enregistré ».
 
-##### Lot 2 — réalisé (04/10/2026), en attente de la CI
+##### Lot 2 — réalisé (04/10/2026), `traité (04/10/2026)`
 
 **Vérification (04/10/2026).** Suite serveur complète : 2 009 tests verts (60 ignorés, propres à Postgres) (un échec préexistant et sans rapport, `test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`). Interface : 1 260 tests Vitest verts (117 fichiers) ; Playwright : 99 tests verts (SQLite), dont l'ajout
 d'un bien avec prêt et répartition 50/50 de bout en bout, l'édition des parts depuis Paramètres et la feuille mobile ; `ruff`,
 `oxlint` et `tsc` propres. Le formulaire d'ajout, l'édition dans Paramètres, la répartition d'un compte et celle d'un prêt
 ont été vus à l'écran sur une instance isolée (ports 4192/8022), en 1440 × 900 et 390 × 844, thèmes clair et sombre,
-français et allemand. **À confirmer par la CI** : les jobs `backend-postgres` et `e2e-postgres` (le nouvel endpoint et ses
-tests passent sous le rôle applicatif ordinaire, sans contournement de la séparation des foyers) ; rien n'est marqué
-`traité` d'ici là, ni avant l'accord de l'utilisateur sur les captures.
+français et allemand. **Vérifié par la CI** (pull request n° 13, les huit jobs verts), dont `backend-postgres`, `e2e-postgres`,
+`deploiement-postgres` et `montee-version` : le nouvel endpoint et ses tests passent sous le rôle applicatif ordinaire,
+sans contournement de la séparation des foyers. Captures validées par l'utilisateur le 04/10/2026.
 
 **Ce qui change.**
 
