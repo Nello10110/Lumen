@@ -17,8 +17,12 @@ test.describe('Fiche détaillée d\'une position', () => {
     await expect(page.getByRole('tab', { name: 'Aperçu' })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByText('Historique de valorisation')).toBeVisible()
 
+    // La répartition entre membres a quitté l'onglet Analyse (une lecture seule) pour
+    // Paramètres (§ BN.1, lot 2).
     await page.getByRole('tab', { name: 'Analyse' }).click()
-    await expect(page.getByText('Détenteurs')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Détenteurs' })).toHaveCount(0)
+    await page.getByRole('tab', { name: 'Paramètres' }).click()
+    await expect(page.getByRole('heading', { name: 'Détenteurs' })).toBeVisible()
 
     await page.getByRole('tab', { name: 'Aperçu' }).click()
     const valeurAvant = (await page.locator('table').first().locator('tbody tr').count())
@@ -64,14 +68,18 @@ test.describe('Fiche détaillée d\'une position', () => {
     await expect(page.getByText('Cashflow et rentabilité')).toBeVisible()
 
     await page.getByRole('tab', { name: 'Paramètres' }).click()
+    // Quatre sections repliables ; la première (Le bien) est ouverte, un bien loué est typé « locatif ».
+    await expect(page.getByLabel('Nom du bien')).toHaveValue(holdings.appartement.nom)
+    await expect(page.getByLabel(/Investissement locatif/)).toBeChecked()
+    await page.getByRole('button', { name: /^Financement et revenus/ }).click()
     await expect(page.getByLabel('Loyer mensuel (€)')).toHaveValue('1200')
-    await expect(page.getByLabel('Charges mensuelles (€)')).toHaveValue('150')
+    await expect(page.getByLabel(/Charges mensuelles/)).toHaveValue('150')
     // Champs retirés (§ BN.1) : plus rien à saisir pour eux.
     for (const retire of ['Type de location', 'Nombre de pièces', 'Année de construction', 'DPE']) {
       await expect(page.getByLabel(retire)).toHaveCount(0)
     }
-    // Ce bien n'est pas une résidence principale : pas de champs du simulateur.
-    await expect(page.getByLabel('Loyer mensuel estimé pour un bien équivalent (€)')).toHaveCount(0)
+    // Ce bien n'est pas une résidence principale : pas de comparatif achat/location.
+    await expect(page.getByRole('button', { name: /Comparer avec la location/ })).toHaveCount(0)
   })
 
   test("E2E-APPART : enregistrer les paramètres confirme « Enregistré », l'onglet Analyse n'a pas de cartes vides", async ({ page }) => {
@@ -79,7 +87,7 @@ test.describe('Fiche détaillée d\'une position', () => {
     await page.goto(`/patrimoine/${holdings.appartement.id}`)
     await page.getByRole('tab', { name: 'Paramètres' }).click()
 
-    await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+    await page.getByRole('button', { name: 'Enregistrer le bien' }).click()
     await expect(page.getByText('Enregistré', { exact: true })).toBeVisible()
 
     await page.getByRole('tab', { name: 'Analyse' }).click()
