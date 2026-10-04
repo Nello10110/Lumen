@@ -268,8 +268,9 @@ L'avatar ouvre un **menu** (compte, préférences, thème, déconnexion) au lieu
 
 Ajouter, par ordre d'utilité : comptes courants ; comptes d'épargne réglementée (Livret A, LDDS,
 LEP, PEL, CEL — plafond, taux, capitalisation annuelle des intérêts) ; épargne salariale (PEE,
-PERCO, PER entreprise — versements, abondement, blocage) ; véhicules (valeur avec **décote annuelle
-paramétrable**, emprunt rattachable). Puis : métaux précieux (quantité × cours), crowdlending,
+PERCO, PER entreprise — versements, abondement, blocage) ; véhicules (valeur saisie à la main, emprunt
+rattachable ; la décote annuelle paramétrable, un temps proposée, a été retirée le 04/10/2026 faute
+d'être relue, § BN.1). Puis : métaux précieux (quantité × cours), crowdlending,
 titres non cotés, objets de valeur typés.
 
 **Critères d'acceptation**
@@ -278,14 +279,14 @@ titres non cotés, objets de valeur typés.
   financier ».
 - Les intérêts d'un livret sont capitalisés automatiquement à la date anniversaire, et l'opération
   est traçable.
-- La valeur d'un véhicule décroît seule selon la décote paramétrée, sans intervention.
 
 #### EF-10 — Fiche immobilier complète *(M.3)*
 
-Bloc **location** : type (nue, meublée, Pinel, LMNP…), périodicité, loyer mensuel, charges
-mensuelles, frais annuels. **Cashflow mensuel** = loyer − charges − frais/12 − mensualité de
+Bloc **location** : loyer mensuel, charges mensuelles (aussi utilisées par le comparatif achat/location
+d'une résidence principale), frais annuels. Le type de location, le nombre de pièces, l'année de
+construction et le DPE ont été retirés le 04/10/2026, faute d'être relus (§ BN.1). **Cashflow mensuel** = loyer − charges − frais/12 − mensualité de
 l'emprunt rattaché. **Rentabilité brute et nette** affichées côte à côte avec leur formule. Prix au
-m², surface, pièces, année, DPE. **Historique de valorisation** : chaque valeur estimée est datée et
+m², surface. **Historique de valorisation** : chaque valeur estimée est datée et
 conservée, elle alimente la courbe ; l'interface affiche « estimation saisie le … ».
 
 **Critères d'acceptation**

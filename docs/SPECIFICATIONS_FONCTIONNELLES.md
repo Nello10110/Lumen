@@ -275,9 +275,24 @@ du bien (achat de l'appartement, souscription du contrat...) déclarée par l'ut
 de `created_at` (date de saisie de la ligne dans l'application, souvent bien après l'achat réel) et
 de `date_valeur_estimee` (date de la dernière estimation). `None` par défaut, jamais déduite ni
 calculée. Éditable sur l'écran Patrimoine (`/patrimoine`, formulaire d'ajout et édition en ligne du
-tableau), affichée uniquement pour les 9 types valorisés manuellement ci-dessus (même gating que
-`zone_geo`, `TYPES_PATRIMOINE` côté frontend) — sans objet pour une ligne financière reconstruite,
-qui a déjà ses propres dates de transaction.
+tableau), affichée pour les 9 types valorisés manuellement ci-dessus (`TYPES_PATRIMOINE` côté
+frontend) et, depuis le 04/10/2026 (§ BN.1), pour les titres cotés, crypto et obligations saisis à la
+main (`TYPES_COTES` : `STOCK`, `FUND`, `CRYPTO`, `BOND`, `PRIVATE_FUND`), où elle est facultative et
+accompagnée d'une aide : le serveur la lit déjà pour le rendement annualisé et la courbe, sans elle
+ces lignes n'ont ni l'un ni l'autre. Sans objet pour une ligne financière reconstruite, qui a déjà ses
+propres dates de transaction.
+
+**`Holding.valeur_estimee` d'un titre coté** (§ BN.1) : elle remplace le cours de marché dès qu'elle est
+renseignée (`analysis_service.value_holdings`), sans prévenir. Le formulaire d'ajout ne la propose donc
+plus pour `TYPES_COTES` (et la vide si on change le type après l'avoir saisie) ; l'édition en ligne ne
+la montre que si la ligne en porte déjà une, pour pouvoir la retirer. Le serveur ne rejette rien et la
+migration ne touche à aucune valeur existante.
+
+**Tableau des actifs** (`PositionsTable`) : le ticker d'un bien saisi à la main (`TYPES_PATRIMOINE` avec un
+nom) n'est que la forme technique de son nom (`identifiantDepuisNom`). La colonne Ticker disparaît quand aucune
+ligne affichée n'en a besoin, le bouton d'ouverture de la fiche passant sur le nom ; à côté de titres cotés
+elle reste, avec un tiret pour le bien. La fiche d'un actif n'affiche pas non plus le ticker à côté d'un nom
+qui le répète ; l'onglet Analyse d'un bien n'affiche plus les deux cartes de répartition vides.
 
 **Utilisée dans les calculs de rentabilité et les graphiques** (même jour, retour utilisateur) :
 - `performance_service._rendement_pour_ligne` : sans aucun grand livre de transactions pour ces
@@ -292,17 +307,24 @@ qui a déjà ses propres dates de transaction.
   graphique — jamais au tableau juste en dessous, qui reste le reflet exact des points réellement
   saisis.
 
-**`Holding.taux_pct`** (backlog § M.1, épargne réglementée/salariale et véhicule) : un pourcentage annuel purement **informatif**, jamais appliqué automatiquement à `valeur_estimee` — positif pour un taux d'intérêt attendu, négatif pour une décote annuelle attendue. Sert uniquement à calculer, côté client, une « valeur projetée dans 1 an » affichée en repère ; l'utilisateur reporte lui-même ce montant dans `valeur_estimee` s'il souhaite l'adopter — même philosophie que la valorisation immobilière datée (jamais de mutation silencieuse d'une donnée financière).
+**`Holding.taux_pct`** (backlog § M.1, épargne réglementée/salariale) : un pourcentage annuel purement **informatif**, jamais appliqué automatiquement à `valeur_estimee` — le taux d'intérêt attendu. La décote annuelle d'un véhicule n'est plus saisie depuis le 04/10/2026 (§ BN.1) : la migration `e5a9c2d7b4f1` a remis à NULL le taux des lignes `VEHICLE`. Sert uniquement à calculer, côté client, une « valeur projetée dans 1 an » affichée en repère ; l'utilisateur reporte lui-même ce montant dans `valeur_estimee` s'il souhaite l'adopter — même philosophie que la valorisation immobilière datée (jamais de mutation silencieuse d'une donnée financière).
 
 **Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps). Les six autres caractéristiques du prêt restent librement modifiables après création (backlog quickwin § T.1, `PATCH /api/loans/{id}`, déjà supporté par `LoanUpdate`) — en cas d'erreur de saisie ou de renégociation, sans jamais toucher `capital_restant_du_manuel`, qui garde sa sémantique propre de recalage.
 
 **Deux périmètres volontairement distincts.** Le portefeuille FINANCIER (actions, ETF, crypto, obligations, private equity — `analysis_service.holdings_financiers`) reste seul concerné par le look-through géo/sectoriel et la carte Rentabilité boursière (§ 3.2, § 3.4, § 3.5) : y mélanger un bien immobilier n'aurait pas de sens (pas de géographie/secteur boursier, pas de coût de base dans le grand livre de transactions). Le **patrimoine net global** (`GET /api/patrimoine/net`, `services/patrimoine_service.py`) est une vue **additive** : actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER/autre actif, valorisés par la même règle que `value_holdings`) moins passifs totaux (somme des capitaux restants dus), avec une répartition par grande classe d'actif. Il n'écrase ni ne remplace les écrans existants.
 
 **Fiche immobilier complète** (backlog § M.3) : `HoldingImmobilierDetail` (un par `Holding`, table
-séparée — ces champs n'ont de sens que pour `REAL_ESTATE`) porte le bloc location (type, loyer
+séparée — ces champs n'ont de sens que pour `REAL_ESTATE`) porte le bloc location (loyer
 mensuel, charges mensuelles, frais annuels agrégés — taxe foncière + copropriété + assurance +
-gestion, un seul total) et les caractéristiques (surface, pièces, année de construction, DPE),
-administré via `PUT /api/portfolio/holdings/{ticker}/immobilier`. `services/immobilier_service.py`
+gestion, un seul total), les trois frais d'acquisition (notaire, travaux, autres) et la surface,
+administré via `PUT /api/portfolio/holdings/{ticker}/immobilier`. Le type de location, le nombre de
+pièces, l'année de construction et le DPE n'existent plus (migration `e5a9c2d7b4f1`, § BN.1 : stockés,
+jamais relus) ; un client qui les enverrait encore n'est pas rejeté, ils sont ignorés. **Un seul jeu de
+charges** : `charges_mensuelles` alimente à la fois le cashflow et le comparatif achat/location de la
+résidence principale (`SimulateurAchatLocationCard`) — `simulation_charges_mensuelles` a disparu, sa
+valeur ayant été reportée dans `charges_mensuelles` pour les résidences principales ; seuls
+`simulation_loyer_estime` et `simulation_taxe_habitation_annuelle` restent propres au simulateur (ils
+ne s'affichent que si `residence_principale`). `services/immobilier_service.py`
 calcule, côté serveur uniquement (jamais recalculé côté client), `cashflow_mensuel = loyer −
 charges − frais/12 − mensualité de l'emprunt rattaché` (`Loan.holding_id`, 0 si aucun emprunt
 rattaché), `rentabilite_brute_pct = loyer_annuel / prix_revient_moyen × 100`,
@@ -692,7 +714,7 @@ d'unicité — un revenu par conjoint, par exemple), à l'échelle du foyer, pas
 
 `TYPES_EPARGNE` (`models.py`) : sous-ensemble de `TYPES_ACTIF_PATRIMOINE_MANUEL` — `CASH_ACCOUNT` /
 `REGULATED_SAVINGS` / `EMPLOYEE_SAVINGS` / `LIFE_INSURANCE` / `PENSION`. Le Véhicule en reste exclu
-(décote plutôt qu'épargne). Ces lignes avaient leur propre écran (`/epargne`) jusqu'au 03/09/2026 ;
+(ce n'est pas de l'épargne). Ces lignes avaient leur propre écran (`/epargne`) jusqu'au 03/09/2026 ;
 il a fusionné dans l'écran Comptes (demande directe) : une ligne d'épargne étant 1:1 avec son compte,
 elle se gère désormais dans la fiche de ce compte (`LigneEpargne`, dans `CompteDetailContent`). Elles
 restent aussi visibles dans l'écran Actifs (filtre « Immobilier & Épargne »).
@@ -879,7 +901,7 @@ n'est proposée que si `peut_amorcer_operateur` ; placée après « Inviter », 
 | `invitations`, `invitations_perimetres` | Invitations à rejoindre un foyer (§ BK.2b) : rôle proposé (`membre` ou `invite`, figé à la création), libellé, expiration, usage unique (`utilisee_le`/`utilisee_par`), révocation ; le jeton n'y figure que sous forme de SHA-256 (`jeton_hash`) ; `invitations_perimetres` : les détenteurs qu'un invité recevra à l'acceptation. Routes : `/api/invitations` (propriétaire : créer, lister, révoquer ; public : consulter, accepter en créant un compte ; connecté : accepter avec son compte). Un compte peut appartenir à plusieurs foyers : `PUT /api/auth/foyer-courant`, `POST /api/auth/quitter-foyer`, et — sans aucun foyer — `POST /api/auth/foyers` (créer le sien) et `POST /api/auth/compte/supprimer` |
 | `foyer_parametres` | Réglages du foyer clé/valeur (méthode de calcul du coût de revient, taux d'imposition déclaré, année de naissance, jalons célébrés…), exposés par `services/preferences_service.py` |
 | `transactions` | Grand livre importé (source de vérité), dédoublonné par `(transaction_id, foyer_id)` ; `compte_id` = compte d'origine de chaque mouvement (§ 3.1) |
-| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte_id` rattache la ligne à un `Compte` structurel, nullable (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de la taxonomie élargie (immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicule, cf. § 3.11) ; `taux_pct` porte le taux annuel informatif (épargne/véhicule, cf. § 3.11) ; `zone_geo`/`secteur` portent la zone géographique et le secteur déclarés, prioritaires sur la détection automatique (§ AP.1/AP.2 ; pour un actif manuel sans zone, repli sur Europe, cf. § 3.20) ; `versement_mensuel` (§ 3.24). Unique par `(foyer_id, ticker, compte_id)` |
+| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte_id` rattache la ligne à un `Compte` structurel, nullable (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de la taxonomie élargie (immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicule, cf. § 3.11) ; `taux_pct` porte le taux annuel informatif (épargne, cf. § 3.11 ; la devise d'une ligne n'existe plus, § BN.1 — la fiche lit celle des données de marché) ; `zone_geo`/`secteur` portent la zone géographique et le secteur déclarés, prioritaires sur la détection automatique (§ AP.1/AP.2 ; pour un actif manuel sans zone, repli sur Europe, cf. § 3.20) ; `versement_mensuel` (§ 3.24). Unique par `(foyer_id, ticker, compte_id)` |
 | `comptes` | Compte structurel (PEA, CTO, livret, compte immobilier...), rattaché à un `Etablissement` optionnel (cf. § 3.7) — écran dédié `/comptes` |
 | `etablissements` | Établissement financier (banque, courtier...) regroupant plusieurs `comptes` — liste gérée par l'utilisateur (CRUD), cf. § 3.7 ; logo téléversé, saisi par URL ou issu du catalogue |
 | `logos_catalogue` | Cache des logos des établissements connus (`etablissements_connus.py`), partagé par tous les foyers ; les logos embarqués dans l'application (`assets/logos/`) y prennent le pas sur le site officiel (§ BJ.1) |
