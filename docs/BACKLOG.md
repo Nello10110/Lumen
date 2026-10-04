@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
-| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; lot 1 (ménage des champs et correctifs rapides) réalisé, en attente de la CI | Lots 2 à 4 (§ BN.1) : formulaire unique à sections repliables, membres du foyer, assistant en quatre étapes |
+| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) en cours | Lots 2 à 4 (§ BN.1) : formulaire unique à sections repliables, membres du foyer, assistant en quatre étapes |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -8558,10 +8558,10 @@ n'a pas d'étape dans l'assistant de bienvenue : la fusion n'a de sens qu'après
 
 ### BN. Saisie d'un bien immobilier et parts par membre — UX (retour utilisateur, 04/10/2026)
 
-#### BN.1 — `majeur` · `L` · `non traité` (lot 1 en attente de la CI) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
+#### BN.1 — `majeur` · `L` · `en cours` (lot 1 `traité (04/10/2026)`, lot 2 en cours) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
 
-**État au 04/10/2026 : conception validée par l'utilisateur ; lot 1 réalisé, en attente de la CI ; lots 2 à 4 non
-commencés.** Le détail du lot 1 est en fin de section (« Lot 1 — réalisé »).
+**État au 04/10/2026 : conception validée par l'utilisateur ; lot 1 `traité (04/10/2026)`, vérifié par la CI ; lot 2
+en cours ; lots 3 et 4 non commencés.** Le détail du lot 1 est en fin de section (« Lot 1 — réalisé »).
 
 **Le constat.** La carte du kanban « Immobilier + capacité de voir les comptes partagés (50 % de la valeur) »
 est en régression : « La saisie est dans la partie analyse du bien ==> Pas ouf, à revoir ». Un audit du
@@ -8625,16 +8625,18 @@ titre coté écrase silencieusement son cours de marché.
 | **Lot 3 — Membres du foyer** | Vocabulaire unique ; badge « Non réparti » et bouton « Tout attribuer » ; règle par défaut des parts côté serveur ; filtre Membre appliqué à Comptes, Actifs et Prêts ; import bancaire : une question par fichier ; comptes homonymes | À étudier |
 | **Lot 4 — Assistant en quatre étapes** | Le bien · Financement et revenus · Qui le détient · Résultat, bâti sur le formulaire du lot 2 | Aucune |
 
-##### Lot 1 — réalisé (04/10/2026), en attente de la CI
+##### Lot 1 — réalisé (04/10/2026), `traité (04/10/2026)`
 
 **Vérification (04/10/2026).** Suite serveur complète : 1 892 tests verts (60 ignorés, propres à Postgres) (un échec préexistant et sans rapport,
 `test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`, échoue aussi sur le code d'avant) ;
 interface : 1 117 tests verts (112 fichiers) ; suite Playwright : 96 tests verts (SQLite), dont l'ouverture de session et la console de l'opérateur ; `ruff`, `oxlint` et `tsc` propres. La migration a été
 jouée sous SQLite (test) **et** sous un Postgres embarqué avec le rôle applicatif ordinaire (séparation des foyers
 active) : montée avec données, descente, remontée, puis `alembic check` propre. La fiche d'un bien, l'ajout d'un
-actif et le comparatif « Achat vs location » ont été vus à l'écran, thèmes clair et sombre, et à 390 px. **À
-confirmer par la CI** : les jobs `backend-postgres`, `e2e-postgres` et `montee-version` (base créée par l'image
-publiée, puis montée par celle-ci) ; rien n'est marqué `traité` d'ici là.
+actif et le comparatif « Achat vs location » ont été vus à l'écran, thèmes clair et sombre, et à 390 px. **Vérifié
+par la CI** (pull request n° 12, les huit jobs verts après une relance), dont `backend-postgres`, `e2e-postgres` et
+`montee-version`. **Test instable relevé** : `PatrimoineNetCard.test.tsx` (« sans actif ni passif, affiche l'état
+vide… ») a échoué une fois sur un aléa, puis est passé à la relance ; il reste **à stabiliser** (aucun défaut de
+l'application identifié).
 
 **Ce qui change.**
 
