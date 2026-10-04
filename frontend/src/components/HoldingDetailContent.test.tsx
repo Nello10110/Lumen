@@ -189,7 +189,6 @@ describe('HoldingDetailContent — Compte rattaché (écran Comptes, backlog X.1
 
 function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobilier {
   return {
-    type_location: 'nue',
     loyer_mensuel: 1000,
     charges_mensuelles: 100,
     frais_annuels: 2400,
@@ -197,13 +196,9 @@ function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobili
     frais_travaux: null,
     frais_acquisition_autres: null,
     surface_m2: 50,
-    nb_pieces: 3,
-    annee_construction: 1995,
-    dpe: 'D',
     residence_principale: false,
     simulation_loyer_estime: null,
     simulation_taxe_habitation_annuelle: null,
-    simulation_charges_mensuelles: null,
     cashflow_mensuel: 700,
     rentabilite_brute_pct: 6,
     rentabilite_nette_pct: 4.2,
@@ -227,7 +222,6 @@ function holdingApresAction(): Holding {
     prix_revient_moyen: null,
     cout_acquisition_total: null,
     compte: null,
-    devise: null,
     type_actif: 'REAL_ESTATE',
     origine: 'manuel',
     created_at: '2026-01-01T00:00:00',
@@ -309,8 +303,8 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     fireEvent.change(screen.getByLabelText('Surface (m²)'), { target: { value: '50' } })
     fireEvent.change(screen.getByLabelText('Frais de notaire (€)'), { target: { value: '10000' } })
     fireEvent.change(screen.getByLabelText('Travaux (€)'), { target: { value: '5000' } })
-    fireEvent.change(screen.getByLabelText('Loyer mensuel estimé pour un bien équivalent (€)'), { target: { value: '1200' } })
     fireEvent.click(screen.getByLabelText('Résidence principale'))
+    fireEvent.change(screen.getByLabelText('Loyer mensuel estimé pour un bien équivalent (€)'), { target: { value: '1200' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await vi.waitFor(() =>
@@ -498,7 +492,6 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       prix_revient_moyen: null,
       cout_acquisition_total: null,
       compte: null,
-      devise: null,
       type_actif: 'LIFE_INSURANCE',
       origine: 'manuel',
       created_at: '2026-01-01T00:00:00',

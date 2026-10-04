@@ -86,7 +86,6 @@ export interface Holding {
   // Compte structurel résolu (écran Comptes) — objet complet, jamais recalculé côté
   // client. `null` : ligne non rattachée à un compte.
   compte: Compte | null
-  devise: string | null
   type_actif: string | null
   // "manuel" (saisie à la main ou relevé importé) | "reconstruit" (grand livre de
   // transactions) — cf. LOT 3.4, `models.ORIGINE_MANUEL`/`ORIGINE_RECONSTRUIT`.
@@ -105,9 +104,8 @@ export interface Holding {
   // `date_valeur_estimee` n'est jamais saisie par l'utilisateur, posée côté serveur.
   valeur_estimee: number | null
   date_valeur_estimee: string | null
-  // Taux annuel informatif (backlog § 2.M.1) : positif = intérêt attendu (épargne
-  // réglementée/salariale), négatif = décote attendue (véhicule) — jamais appliqué
-  // automatiquement à `valeur_estimee`, cf. `models.Holding.taux_pct` côté backend.
+  // Taux annuel informatif (backlog § 2.M.1) : intérêt attendu d'une épargne
+  // réglementée/salariale — jamais appliqué automatiquement à `valeur_estimee`, cf. `models.Holding.taux_pct` côté backend.
   taux_pct: number | null
   // Zone géographique déclarée pour cette ligne (backlog 2.P.1) — cf.
   // `models.Holding.zone_geo` côté backend.
@@ -143,7 +141,6 @@ export interface HoldingInput {
   // Clé du catalogue d'établissements connus (refonte import, 05/09/2026) — sans
   // objet si `etablissement_id` est fourni ou si `etablissement_nom` est absent.
   etablissement_logo_key?: string | null
-  devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
   taux_pct?: number | null
@@ -167,7 +164,6 @@ export interface HoldingUpdateInput {
   etablissement_id?: number | null
   etablissement_nom?: string | null
   etablissement_logo_key?: string | null
-  devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
   taux_pct?: number | null

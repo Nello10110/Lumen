@@ -75,7 +75,6 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     prix_revient_moyen: null,
     cout_acquisition_total: null,
     compte: null,
-    devise: null,
     type_actif: 'LIFE_INSURANCE',
     origine: 'manuel',
     created_at: '2026-01-01T00:00:00',

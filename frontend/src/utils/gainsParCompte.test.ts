@@ -32,7 +32,6 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     // que `prix_revient_moyen` par défaut — sauf si le test le précise explicitement.
     cout_acquisition_total: overrides.prix_revient_moyen ?? null,
     compte: null,
-    devise: null,
     type_actif: 'STOCK',
     origine: 'reconstruit',
     created_at: '2026-01-01T00:00:00',

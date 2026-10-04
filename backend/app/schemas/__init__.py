@@ -190,7 +190,6 @@ from .portefeuille import (  # noqa: F401
     MESSAGE_CHARGES_NON_NEGATIVES,
     MESSAGE_FRAIS_NON_NEGATIFS,
     MESSAGE_LOYER_NON_NEGATIF,
-    MESSAGE_PIECES_POSITIVES,
     MESSAGE_SURFACE_POSITIVE,
     BricksApercu,
     BricksImportConfirm,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Holding } from '../api/types'
-import { categorieDe, libelleTaux, valeurProjeteeUnAn } from './holdingCategories'
+import { categorieDe, libelleTaux, TYPES_AVEC_TAUX, valeurProjeteeUnAn } from './holdingCategories'
 
 function holding(overrides: Partial<Holding> = {}): Holding {
   return {
@@ -11,7 +11,6 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     prix_revient_moyen: 100,
     cout_acquisition_total: 100,
     compte: null,
-    devise: 'EUR',
     type_actif: 'STOCK',
     origine: 'reconstruit',
     created_at: '2026-01-01T00:00:00',
@@ -36,10 +35,6 @@ describe('valeurProjeteeUnAn (backlog 2.M.1)', () => {
     expect(valeurProjeteeUnAn(10000, 3)).toBeCloseTo(10300)
   })
 
-  it('applique le taux négatif (décote véhicule) à la valeur estimée', () => {
-    expect(valeurProjeteeUnAn(15000, -15)).toBeCloseTo(12750)
-  })
-
   it('renvoie null si la valeur estimée ou le taux est absent', () => {
     expect(valeurProjeteeUnAn(null, 3)).toBeNull()
     expect(valeurProjeteeUnAn(10000, null)).toBeNull()
@@ -47,14 +42,14 @@ describe('valeurProjeteeUnAn (backlog 2.M.1)', () => {
   })
 })
 
-describe('libelleTaux (backlog 2.M.1)', () => {
-  it("affiche « Décote annuelle » pour un véhicule", () => {
-    expect(libelleTaux('VEHICLE')).toBe('Décote annuelle (%)')
+describe('taux annuel (backlog 2.M.1, § BN.1)', () => {
+  it("s'appelle « Taux d'intérêt annuel »", () => {
+    expect(libelleTaux()).toBe("Taux d'intérêt annuel (%)")
   })
 
-  it("affiche « Taux d'intérêt annuel » pour les autres types (épargne)", () => {
-    expect(libelleTaux('REGULATED_SAVINGS')).toBe("Taux d'intérêt annuel (%)")
-    expect(libelleTaux('EMPLOYEE_SAVINGS')).toBe("Taux d'intérêt annuel (%)")
+  it("ne concerne plus que l'épargne : la décote d'un véhicule n'est plus saisie", () => {
+    expect([...TYPES_AVEC_TAUX].sort()).toEqual(['EMPLOYEE_SAVINGS', 'REGULATED_SAVINGS'])
+    expect(TYPES_AVEC_TAUX.has('VEHICLE')).toBe(false)
   })
 })
 

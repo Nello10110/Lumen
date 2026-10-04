@@ -155,6 +155,27 @@ def test_import_confirm_colonnes_valides_acceptees(client):
     assert reponse.status_code == 200
 
 
+def test_import_confirm_ignore_l_ancien_champ_devise_col(client):
+    """`devise_col` (retiré en § BN.1 : la devise d'une ligne n'était jamais relue) est
+    ignoré sans erreur par un client qui l'enverrait encore, même vers une colonne
+    absente du fichier — l'import se déroule comme sans lui."""
+    preview = _uploader_preview(client)
+
+    reponse = client.post(
+        "/api/portfolio/import/confirm",
+        json={
+            "file_token": preview["file_token"],
+            "ticker_col": "ticker",
+            "quantite_col": "quantite",
+            "devise_col": "colonne_qui_nexiste_pas",
+            "replace_existing": False,
+        },
+    )
+
+    assert reponse.status_code == 200
+    assert reponse.json()["imported"] == 3
+
+
 # ---------------------------------------------------------------------------
 # Refonte import (05/09/2026) — établissement obligatoire pour un compte CRÉÉ à la
 # volée depuis la colonne Compte, alignement sur la même règle déjà appliquée à

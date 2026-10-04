@@ -91,7 +91,7 @@ def peupler_foyer(db, foyer_id: int, etiquette: str) -> FoyerPeuple:
     maison = make_holding(db, foyer_id=foyer_id, ticker=f"MAISON-{etiquette}", type_actif="REAL_ESTATE")
     db.add_all(
         [
-            HoldingImmobilierDetail(holding_id=maison.id, type_location="nue"),
+            HoldingImmobilierDetail(holding_id=maison.id, loyer_mensuel=1200),
             HoldingValuationHistory(holding_id=maison.id, valeur=300000, date_valeur=datetime(2026, 1, 1)),
             QuotiteHolding(holding_id=holding.id, detenteur_id=detenteur.id, quotite_pct=100),
         ]

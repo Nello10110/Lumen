@@ -102,7 +102,6 @@ def _colonnes_mappees_absentes(mapping: ColumnMapping, colonnes_fichier: list[st
         "prix de revient": mapping.prix_revient_col,
         "nom": mapping.nom_col,
         "compte": mapping.compte_col,
-        "devise": mapping.devise_col,
     }
     return [f"{libelle} ('{colonne}')" for libelle, colonne in candidates.items() if colonne and colonne not in colonnes_fichier]
 
@@ -195,7 +194,6 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
                     quantite=qty_val,
                     prix_revient_moyen=csv_import.to_float(row.get(mapping.prix_revient_col)) if mapping.prix_revient_col else None,
                     compte_id=_resoudre_compte_import(_cellule_texte(row, mapping.compte_col)),
-                    devise=_cellule_texte(row, mapping.devise_col),
                     origine=ORIGINE_MANUEL,
                 )
             )

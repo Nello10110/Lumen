@@ -72,10 +72,10 @@ export const TYPES_ACTIF_SANS_ETABLISSEMENT = new Set(['REAL_ESTATE', 'VEHICLE',
 // hors du périmètre de ce champ).
 export const TYPES_AVEC_ZONE_GEO = new Set(['REAL_ESTATE', 'SCPI'])
 
-// Types pour lesquels `taux_pct` a un sens (backlog § 2.M.1) : intérêt attendu pour
-// l'épargne, décote attendue pour un véhicule — affiche le libellé et le signe
-// suggéré adaptés au type sélectionné plutôt qu'un champ générique muet.
-export const TYPES_AVEC_TAUX = new Set(['REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS', 'VEHICLE'])
+// Types pour lesquels `taux_pct` a un sens (backlog § 2.M.1) : l'intérêt attendu d'une
+// épargne. La décote d'un véhicule n'est plus saisie depuis le 04/10/2026 (§ BN.1) : un
+// champ informatif que rien ne relisait.
+export const TYPES_AVEC_TAUX = new Set(['REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS'])
 
 // Textes d'aide contextuelle (bulle `InfoBulle`, retour utilisateur 30/08/2026) —
 // centralisés ici pour rester identiques entre le formulaire d'ajout
@@ -88,10 +88,13 @@ export function textePrixRevient(): string {
 export function texteValeurEstimee(): string {
   return t('holdingCategories.aideValeurEstimee')
 }
+export function libelleTaux(): string {
+  return t('holdingCategories.tauxDInteretAnnuel')
+}
 
 // Sous-ensemble de TYPES_PATRIMOINE couvert par l'écran Épargne (backlog 2.S.1) —
-// miroir de `models.TYPES_EPARGNE` côté backend. Le Véhicule en reste exclu (décote
-// plutôt qu'épargne, futur rapprochement avec l'immobilier — décision du 25/08/2026).
+// miroir de `models.TYPES_EPARGNE` côté backend. Le Véhicule en reste exclu (ce n'est
+// pas de l'épargne, futur rapprochement avec l'immobilier — décision du 25/08/2026).
 export const TYPES_EPARGNE = new Set(['CASH_ACCOUNT', 'REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS', 'LIFE_INSURANCE', 'PENSION'])
 
 // Les 6 zones de `backend/app/services/reference_indices.py` (jamais une granularité
@@ -125,10 +128,6 @@ export const SECTEURS = [
   'Immobilier',
   'Autres secteurs',
 ]
-
-export function libelleTaux(typeActif: string): string {
-  return typeActif === 'VEHICLE' ? t('holdingCategories.decoteAnnuelle') : t('holdingCategories.tauxDInteretAnnuel')
-}
 
 // Identifiant technique dérivé du Nom pour une ligne patrimoniale (retour
 // utilisateur du 09/09/2026 : « Ticker n'a pas de sens pour l'immobilier ») —

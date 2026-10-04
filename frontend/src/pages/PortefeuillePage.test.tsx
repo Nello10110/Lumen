@@ -66,7 +66,6 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     prix_revient_moyen: 100,
     cout_acquisition_total: 100,
     compte: null,
-    devise: 'EUR',
     type_actif: 'STOCK',
     origine: 'manuel',
     created_at: '2024-01-01T00:00:00',
@@ -174,15 +173,17 @@ describe('PortefeuillePage', () => {
       expect(screen.getByLabelText(/Taux d'intérêt annuel/)).toBeInTheDocument()
     })
 
-    it("sélectionner « Véhicule » révèle le champ « Décote annuelle », libellé distinct de l'épargne", async () => {
+    it("sélectionner « Véhicule » ne propose ni taux ni décote : rien ne relisait cette saisie (§ BN.1)", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
+      fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '9000' } })
 
-      expect(screen.getByLabelText(/Décote annuelle/)).toBeInTheDocument()
+      expect(screen.queryByLabelText(/Décote annuelle/)).not.toBeInTheDocument()
       expect(screen.queryByLabelText(/Taux d'intérêt annuel/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Valeur projetée dans 1 an/)).not.toBeInTheDocument()
     })
 
     it('affiche la valeur projetée à 1 an (indicatif) une fois valeur estimée et taux renseignés', async () => {

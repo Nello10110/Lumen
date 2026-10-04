@@ -1,7 +1,6 @@
 /** Textes français — espace « holdingCategories » (backlog § BL.2). Généré par
  * `scripts/i18n-extraire.mjs`, puis relu à la main. */
 const holdingCategories = {
-  decoteAnnuelle: "Décote annuelle (%)",
   tauxDInteretAnnuel: "Taux d'intérêt annuel (%)",
   onglet: {
     tous: "Tous", actions: "Actions", etf: "ETF", obligations: "Obligations", privateEquity: "Private Equity",

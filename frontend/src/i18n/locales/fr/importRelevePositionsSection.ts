@@ -16,7 +16,6 @@ const importRelevePositionsSection = {
   confirmerLImport: "Confirmer l'import",
   nomOptionnel: "Nom (optionnel)",
   compteOptionnel: "Compte (optionnel)",
-  deviseOptionnel: "Devise (optionnel)",
 } as const
 
 export default importRelevePositionsSection

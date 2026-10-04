@@ -279,14 +279,14 @@ function PositionCard({
             />
           </Field>
           {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
-            <Field label={libelleTaux(editForm.type_actif)}>
+            <Field label={libelleTaux()}>
               <Input
                 value={editForm.taux_pct}
                 onChange={(e) => setEditForm({ ...editForm, taux_pct: e.target.value })}
                 type="number"
                 step="any"
                 aria-label={t('positionsTable.tauxAnnuelEdition')}
-                placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
+                placeholder="3"
               />
             </Field>
           )}
@@ -847,7 +847,7 @@ export default function PositionsTable({
                     />
                   </Field>
                   {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
-                    <Field label={libelleTaux(editForm.type_actif)} className="w-32">
+                    <Field label={libelleTaux()} className="w-32">
                       <Input
                         value={editForm.taux_pct}
                         onChange={(e) => setEditForm({ ...editForm, taux_pct: e.target.value })}
@@ -855,7 +855,7 @@ export default function PositionsTable({
                         type="number"
                         step="any"
                         aria-label={t('positionsTable.tauxAnnuelEdition')}
-                        placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
+                        placeholder="3"
                       />
                     </Field>
                   )}

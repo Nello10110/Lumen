@@ -68,7 +68,7 @@ TYPE_ACTIF_OTHER_ASSET = "OTHER_ASSET"
 TYPE_ACTIF_CASH_ACCOUNT = "CASH_ACCOUNT"  # compte courant (établissement/détenteur : `compte` existant + quotités L.1)
 TYPE_ACTIF_REGULATED_SAVINGS = "REGULATED_SAVINGS"  # Livret A, LDDS, LEP, PEL, CEL...
 TYPE_ACTIF_EMPLOYEE_SAVINGS = "EMPLOYEE_SAVINGS"  # PEE, PERCO, PER entreprise
-TYPE_ACTIF_VEHICLE = "VEHICLE"  # véhicule, décote annuelle via `taux_pct` (négatif)
+TYPE_ACTIF_VEHICLE = "VEHICLE"  # véhicule, valorisé à la main (`valeur_estimee`)
 TYPES_ACTIF_PATRIMOINE_MANUEL = {
     TYPE_ACTIF_REAL_ESTATE,
     TYPE_ACTIF_SCPI,
@@ -101,7 +101,7 @@ TYPES_ACTIF_SANS_ETABLISSEMENT = {
 # contrats d'épargne au sens large, dont l'utilisateur pilote lui-même la
 # valorisation dans le temps (historique daté) et, optionnellement, un versement
 # mensuel récurrent. Volontairement SANS `REAL_ESTATE`/`SCPI` (fiche immobilier
-# dédiée déjà existante), `OTHER_ASSET` (résiduel) ni `VEHICLE` (décote, pas
+# dédiée déjà existante), `OTHER_ASSET` (résiduel) ni `VEHICLE` (pas
 # épargne — rapprochement futur de l'immobilier, décision actée avec l'utilisateur
 # le 25/08/2026, cf. `docs/BACKLOG.md` § 2.S.1).
 TYPES_EPARGNE = {
@@ -147,7 +147,6 @@ class Holding(Base):
     # valorisé manuellement (immobilier, assurance-vie...) a en pratique SA PROPRE
     # ligne de compte (1:1), sans que le schéma ne l'impose.
     compte_id: Mapped[int | None] = mapped_column(ForeignKey("comptes.id"), nullable=True, index=True)
-    devise: Mapped[str | None] = mapped_column(String, nullable=True)
     # Chaîne libre, pas un enum SQL : la liste des valeurs connues vit dans
     # `patrimoine_service.LABEL_TYPE_ACTIF` (source unique, jamais dupliquée ici en
     # commentaire — cette énumération avait déjà dérivé une fois par le passé).
@@ -164,9 +163,8 @@ class Holding(Base):
     # toute mise à jour possible.
     valeur_estimee: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     date_valeur_estimee: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    # Taux annuel purement informatif (backlog § 2.M.1) : positif = taux d'intérêt
-    # attendu (épargne réglementée/salariale), négatif = décote annuelle attendue
-    # (véhicules). Jamais appliqué automatiquement à `valeur_estimee` — sert
+    # Taux annuel purement informatif (backlog § 2.M.1) : taux d'intérêt attendu
+    # (épargne réglementée/salariale). Jamais appliqué automatiquement à `valeur_estimee` — sert
     # uniquement à calculer une "valeur projetée dans 1 an" affichée côté frontend,
     # que l'utilisateur reporte lui-même dans `valeur_estimee` s'il le souhaite (même
     # philosophie que la valorisation immobilière datée : jamais de mutation
@@ -282,7 +280,7 @@ class Loan(Base):
 
 class HoldingImmobilierDetail(Base):
     """Détail immobilier (backlog § 2.M.3), un par `Holding` — table séparée plutôt
-    que des colonnes de plus sur `Holding` : ces champs (loyer, DPE, surface...)
+    que des colonnes de plus sur `Holding` : ces champs (loyer, charges, surface...)
     n'ont de sens que pour un `type_actif == "REAL_ESTATE"`, en faire des colonnes de
     `Holding` aurait pollué les ~9 autres types sans aucun bénéfice. `holding_id`
     UNIQUE : au plus une fiche immobilière par ligne, créée/mise à jour via
@@ -292,7 +290,6 @@ class HoldingImmobilierDetail(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), unique=True, index=True)
-    type_location: Mapped[str | None] = mapped_column(String, nullable=True)  # nue, meublée, Pinel, LMNP... texte libre
     loyer_mensuel: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     charges_mensuelles: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     # Agrégat volontaire (taxe foncière + copropriété + assurance + gestion) plutôt
@@ -313,17 +310,15 @@ class HoldingImmobilierDetail(Base):
     frais_travaux: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     frais_acquisition_autres: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     # Simulateur achat vs location (retour utilisateur du 10/09/2026, page Analyse) :
-    # loyer d'un bien équivalent, taxe d'habitation et charges de comparaison —
-    # UNIQUEMENT lus par le simulateur (frontend, `SimulateurAchatLocationCard`),
-    # jamais par `calculer_cashflow_et_rentabilite` ni par la plus-value globale
-    # ci-dessus (demande explicite : ne doivent pas peser sur la rentabilité réelle).
+    # loyer d'un bien équivalent et taxe d'habitation — UNIQUEMENT lus par le
+    # simulateur (frontend, `SimulateurAchatLocationCard`), jamais par
+    # `calculer_cashflow_et_rentabilite` ni par la plus-value globale ci-dessus
+    # (demande explicite : ne doivent pas peser sur la rentabilité réelle). Les
+    # charges du simulateur sont `charges_mensuelles` : un seul jeu de charges
+    # depuis le 04/10/2026 (§ BN.1).
     simulation_loyer_estime: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     simulation_taxe_habitation_annuelle: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
-    simulation_charges_mensuelles: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
     surface_m2: Mapped[Decimal | None] = mapped_column(Decimale(ECHELLE_MONTANT), nullable=True)
-    nb_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    annee_construction: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    dpe: Mapped[str | None] = mapped_column(String, nullable=True)  # A à G, texte libre (pas d'enum : tolère "NC" etc.)
     # Résidence principale déclarée (retour utilisateur du 09/09/2026) — purement
     # informatif, aucune contrainte d'unicité imposée (un foyer avec plusieurs
     # détenteurs pourrait légitimement avoir plusieurs résidences principales selon
