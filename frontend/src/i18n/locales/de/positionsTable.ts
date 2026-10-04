@@ -23,6 +23,7 @@ const positionsTable: Structure<typeof fr> = {
   tauxAnnuelEdition: "Jahressatz (Bearbeitung)",
   dateDAcquisition: "Erwerbsdatum",
   dateDAcquisitionEdition: "Erwerbsdatum (Bearbeitung)",
+  aideDateDAcquisition: "Optional. Damit lassen sich die annualisierte Rendite und der Verlauf dieser Position berechnen.",
   valeurProjeteeDans1An: "Voraussichtlicher Wert in 1 Jahr (unverbindlich):",
   enregistrer: "Speichern",
   annuler: "Abbrechen",

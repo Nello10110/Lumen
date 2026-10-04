@@ -13,7 +13,7 @@ export interface SeedData {
   holdings: {
     aapl: { id: number; ticker: string }
     fund: { id: number; ticker: string }
-    appartement: { id: number; ticker: string }
+    appartement: { id: number; ticker: string; nom: string }
     livret: { id: number; ticker: string }
   }
   // Écran Comptes (backlog X.1) : établissement et comptes structurels créés par le

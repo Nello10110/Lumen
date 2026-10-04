@@ -97,7 +97,7 @@ test('les fiches détaillées (position, compte) s\'affichent sans erreur consol
   const erreurs = collecterErreursConsole(page)
 
   await page.goto(`/patrimoine/${appartement!.id}`)
-  await expect(page.getByRole('heading', { name: holdings.appartement.ticker })).toBeVisible()
+  await expect(page.getByRole('heading', { name: holdings.appartement.nom })).toBeVisible()
   // Les trois onglets de la fiche, chacun montant des composants distincts.
   for (const onglet of ['Analyse', 'Paramètres', 'Aperçu']) {
     await page.getByRole('tab', { name: onglet }).click()

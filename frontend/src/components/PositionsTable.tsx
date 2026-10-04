@@ -7,9 +7,11 @@ import {
   textePrixRevient,
   texteValeurEstimee,
   TYPES_ACTIF_SANS_ETABLISSEMENT,
+  TYPES_COTES,
   TYPES_PATRIMOINE,
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
+  identifiantEstTechnique,
   libelleTaux,
   valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
@@ -82,6 +84,28 @@ function comparerValeurs(a: string | number | null, b: string | number | null, d
 // Sentinelle pour l'option "+ Nouveau compte..." des sélecteurs ci-dessous —
 // distincte de toute valeur réelle possible (un id de compte est toujours numérique).
 const NOUVEAU_COMPTE = '__nouveau__'
+
+// Valeur estimée d'un titre coté : elle remplacerait son cours de marché sans prévenir, elle
+// n'est donc plus proposée (§ BN.1). Une ligne qui en porte déjà une la garde dans le
+// formulaire : sans cela, la valeur qui écrase le cours serait devenue inaccessible.
+function valeurEstimeeEditable(typeActif: string, ligne: Holding): boolean {
+  return !TYPES_COTES.has(typeActif) || (ligne.valeur_estimee !== null && ligne.valeur_estimee !== undefined)
+}
+
+// Un bien saisi à la main et un titre coté saisi à la main : le serveur lit la date d'acquisition
+// pour leur rendement annualisé et leur courbe.
+function avecDateAcquisition(typeActif: string): boolean {
+  return TYPES_PATRIMOINE.has(typeActif) || TYPES_COTES.has(typeActif)
+}
+
+// Libellé du champ, avec son aide en infobulle : l'édition en ligne est compacte, un texte d'aide
+// sous le champ le décalerait par rapport à ses voisins alignés sur le bas de la rangée.
+function libelleDateAcquisition() {
+  return (
+    <span className="inline-flex items-center gap-1">{t('positionsTable.dateDAcquisition')}<InfoBulle texte={t('positionsTable.aideDateDAcquisition')} />
+    </span>
+  )
+}
 
 interface EditForm {
   // Nom d'affichage d'un bien patrimonial (retour utilisateur du 09/09/2026) —
@@ -202,11 +226,12 @@ function PositionCard({
   onDelete: (e: React.MouseEvent) => void
 }) {
   const md = h.market_data
+  const technique = identifiantEstTechnique(h)
 
   if (enEdition) {
     return (
       <div className="rounded-card border border-bordure bg-surface p-4">
-        <p className="mb-3 font-medium text-texte">{h.ticker}</p>
+        <p className="mb-3 font-medium text-texte">{technique ? h.nom : h.ticker}</p>
         <div className="space-y-3">
           {TYPES_PATRIMOINE.has(editForm.type_actif) && (
             <Field label={t('positionsTable.nom')}>
@@ -263,21 +288,23 @@ function PositionCard({
               ))}
             </Select>
           </Field>
-          <Field
-            label={
-              <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
-              </span>
-            }
-          >
-            <Input
-              value={editForm.valeur_estimee}
-              onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
-              type="number"
-              step="any"
-              aria-label={t('positionsTable.valeurEstimeeEdition')}
-              placeholder={t('positionsTable.optionnel')}
-            />
-          </Field>
+          {valeurEstimeeEditable(editForm.type_actif, h) && (
+            <Field
+              label={
+                <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
+                </span>
+              }
+            >
+              <Input
+                value={editForm.valeur_estimee}
+                onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
+                type="number"
+                step="any"
+                aria-label={t('positionsTable.valeurEstimeeEdition')}
+                placeholder={t('positionsTable.optionnel')}
+              />
+            </Field>
+          )}
           {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
             <Field label={libelleTaux()}>
               <Input
@@ -290,8 +317,8 @@ function PositionCard({
               />
             </Field>
           )}
-          {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-            <Field label={t('positionsTable.dateDAcquisition')}>
+          {avecDateAcquisition(editForm.type_actif) && (
+            <Field label={libelleDateAcquisition()}>
               <Input
                 value={editForm.date_acquisition}
                 onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
@@ -337,7 +364,7 @@ function PositionCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={t('positionsTable.voirDetail', { ticker: h.ticker })}
+      aria-label={t('positionsTable.voirDetail', { ticker: technique ? (h.nom ?? h.ticker) : h.ticker })}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -350,12 +377,12 @@ function PositionCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium text-texte">
-            {h.ticker}
+            {technique ? h.nom : h.ticker}
             {h.origine === 'manuel' && (
               <Badge title={t('positionsTable.ligneSaisieManuellementNonRecalculee')} className="ml-2">{t('positionsTable.saisieManuelle')}</Badge>
             )}
           </p>
-          <p className="truncate text-sm text-texte-attenue">{md?.nom ?? h.nom ?? '—'}</p>
+          {!technique && <p className="truncate text-sm text-texte-attenue">{md?.nom ?? h.nom ?? '—'}</p>}
           {h.date_acquisition && <p className="text-xs text-texte-attenue">{t('positionsTable.acquisLe')}{' '}{formatDate(h.date_acquisition)}</p>}
         </div>
         <span className="shrink-0 font-medium text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>
@@ -576,13 +603,20 @@ export default function PositionsTable({
     onRequestDelete(h)
   }
 
-  const lignesAffichees = tri
+  // Le ticker d'un bien saisi à la main n'est que la forme technique de son nom : la colonne
+  // disparaît quand plus aucune ligne n'en a un qui parle (§ BN.1), et le tri qu'on y avait
+  // choisi avec elle.
+  const afficherTicker = rows.some((h) => !identifiantEstTechnique(h))
+  const colonnesTriables = afficherTicker ? COLONNES_TRIABLES : COLONNES_TRIABLES.filter((c) => c.cle !== 'ticker')
+  const triEffectif = tri && colonnesTriables.some((c) => c.cle === tri.cle) ? tri : null
+  const lignesAffichees = triEffectif
     ? [...rows].sort((a, b) => {
-        const colonne = COLONNES_TRIABLES.find((c) => c.cle === tri.cle)
+        const colonne = colonnesTriables.find((c) => c.cle === triEffectif.cle)
         if (!colonne) return 0
-        return comparerValeurs(colonne.valeur(a), colonne.valeur(b), tri.direction)
+        return comparerValeurs(colonne.valeur(a), colonne.valeur(b), triEffectif.direction)
       })
     : rows
+  const ligneEnEdition = lignesAffichees.find((h) => h.id === editingId)
   const valeurTotaleAffichee = rows.reduce((somme, h) => somme + (h.valeur ?? 0), 0)
 
   if (estMobile) {
@@ -591,14 +625,14 @@ export default function PositionsTable({
         <div className="flex items-center gap-2">
           <Field label={t('positionsTable.trierPar')} className="flex-1">
             <Select
-              value={tri?.cle ?? ''}
+              value={triEffectif?.cle ?? ''}
               onChange={(e) => {
                 const cle = e.target.value as CleTri
                 setTri((prev) => ({ cle, direction: prev?.cle === cle ? prev.direction : 'asc' }))
               }}
             >
               <option value="" disabled>{t('positionsTable.choisir')}</option>
-              {COLONNES_TRIABLES.map((col) => (
+              {colonnesTriables.map((col) => (
                 <option key={col.cle} value={col.cle}>
                   {col.label}
                 </option>
@@ -607,12 +641,12 @@ export default function PositionsTable({
           </Field>
           <button
             type="button"
-            onClick={() => tri && setTri((prev) => ({ cle: prev!.cle, direction: prev!.direction === 'asc' ? 'desc' : 'asc' }))}
-            disabled={!tri}
-            aria-label={tri?.direction === 'asc' ? t('positionsTable.triCroissant') : t('positionsTable.triDecroissant')}
+            onClick={() => triEffectif && setTri((prev) => ({ cle: prev!.cle, direction: prev!.direction === 'asc' ? 'desc' : 'asc' }))}
+            disabled={!triEffectif}
+            aria-label={triEffectif?.direction === 'asc' ? t('positionsTable.triCroissant') : t('positionsTable.triDecroissant')}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-bordure text-texte disabled:opacity-40"
           >
-            {tri?.direction === 'desc' ? '▼' : '▲'}
+            {triEffectif?.direction === 'desc' ? '▼' : '▲'}
           </button>
         </div>
 
@@ -648,13 +682,13 @@ export default function PositionsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-            {COLONNES_TRIABLES.map((col) => {
-              const triActif = tri?.cle === col.cle
+            {colonnesTriables.map((col) => {
+              const triActif = triEffectif?.cle === col.cle
               return (
                 <th
                   key={col.cle}
                   scope="col"
-                  aria-sort={triActif ? (tri.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={triActif ? (triEffectif.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
                   className="select-none pr-4"
                 >
                   {/* Un vrai <button> plutôt qu'un onClick sur le <th> : le tri
@@ -668,7 +702,7 @@ export default function PositionsTable({
                     className="w-full cursor-pointer py-2 text-left font-medium uppercase hover:text-texte"
                   >
                     {col.label}
-                    {triActif && <span className="ml-1">{tri.direction === 'asc' ? '▲' : '▼'}</span>}
+                    {triActif && <span className="ml-1">{triEffectif.direction === 'asc' ? '▲' : '▼'}</span>}
                   </button>
                 </th>
               )
@@ -684,6 +718,7 @@ export default function PositionsTable({
           {lignesAffichees.map((h) => {
             const md = h.market_data
             const enEdition = editingId === h.id
+            const technique = identifiantEstTechnique(h)
             return (
               // Le clic sur la ligne reste un confort souris ; le contrôle
               // accessible est le bouton posé sur le ticker (voir plus bas). Mettre
@@ -700,32 +735,55 @@ export default function PositionsTable({
                   lignesEnCoursAllumage?.has(h.id) ? 'animate-lumen-balayage-ligne' : ''
                 }`}
               >
-                <td className="py-2 pr-4 font-medium text-texte">
-                  {/* Le ticker porte le contrôle d'ouverture de la fiche : c'est ce
-                      qui rend l'écran principal utilisable au clavier, sans toucher
-                      au rôle `row` de la ligne (revue du 03/09/2026). En édition, la
-                      ligne n'ouvre rien — le bouton disparaît avec elle. */}
-                  {enEdition ? (
-                    h.ticker
-                  ) : (
+                {afficherTicker && (
+                  <td className="py-2 pr-4 font-medium text-texte">
+                    {/* Le ticker porte le contrôle d'ouverture de la fiche : c'est ce
+                        qui rend l'écran principal utilisable au clavier, sans toucher
+                        au rôle `row` de la ligne (revue du 03/09/2026). En édition, la
+                        ligne n'ouvre rien — le bouton disparaît avec elle. Un bien saisi
+                        à la main n'a pas de ticker à montrer : le bouton passe sur son
+                        nom, dans la colonne suivante. */}
+                    {technique ? (
+                      <span className="font-normal text-texte-attenue">—</span>
+                    ) : enEdition ? (
+                      h.ticker
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onSelectHolding(h.id)
+                        }}
+                        aria-label={t('positionsTable.voirDetail', { ticker: h.ticker })}
+                        className="cursor-pointer font-medium hover:underline"
+                      >
+                        {h.ticker}
+                      </button>
+                    )}
+                    {!technique && h.origine === 'manuel' && (
+                      <Badge title={t('positionsTable.ligneSaisieManuellementNonRecalculee')} className="ml-2">{t('positionsTable.saisieManuelle')}</Badge>
+                    )}
+                  </td>
+                )}
+                <td className={`py-2 pr-4 text-texte ${technique ? 'font-medium' : ''}`}>
+                  {technique && !enEdition ? (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         onSelectHolding(h.id)
                       }}
-                      aria-label={t('positionsTable.voirDetail', { ticker: h.ticker })}
+                      aria-label={t('positionsTable.voirDetail', { ticker: md?.nom ?? h.nom ?? h.ticker })}
                       className="cursor-pointer font-medium hover:underline"
                     >
-                      {h.ticker}
+                      {md?.nom ?? h.nom}
                     </button>
+                  ) : (
+                    (md?.nom ?? h.nom ?? '—')
                   )}
-                  {h.origine === 'manuel' && (
+                  {technique && h.origine === 'manuel' && (
                     <Badge title={t('positionsTable.ligneSaisieManuellementNonRecalculee')} className="ml-2">{t('positionsTable.saisieManuelle')}</Badge>
                   )}
-                </td>
-                <td className="py-2 pr-4 text-texte">
-                  {md?.nom ?? h.nom ?? '—'}
                   {h.date_acquisition && <span className="block text-xs text-texte-attenue">{t('positionsTable.acquisLe')}{' '}{formatDate(h.date_acquisition)}</span>}
                 </td>
                 <td className="py-2 pr-4">
@@ -775,9 +833,9 @@ export default function PositionsTable({
               </tr>
             )
           })}
-          {editingId !== null && lignesAffichees.some((h) => h.id === editingId) && (
+          {ligneEnEdition && (
             <tr onClick={(e) => e.stopPropagation()}>
-              <td colSpan={10} className="bg-surface-elevee py-3 pr-4">
+              <td colSpan={colonnesTriables.length + 3} className="bg-surface-elevee py-3 pr-4">
                 <div className="flex flex-wrap items-end gap-3">
                   {TYPES_PATRIMOINE.has(editForm.type_actif) && (
                     <Field label={t('positionsTable.nom')} className="w-48">
@@ -829,23 +887,25 @@ export default function PositionsTable({
                       ))}
                     </Select>
                   </Field>
-                  <Field
-                    label={
-                      <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
-                      </span>
-                    }
-                    className="w-32"
-                  >
-                    <Input
-                      value={editForm.valeur_estimee}
-                      onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
-                      onClick={(e) => e.stopPropagation()}
-                      type="number"
-                      step="any"
-                      aria-label={t('positionsTable.valeurEstimeeEdition')}
-                      placeholder={t('positionsTable.optionnel')}
-                    />
-                  </Field>
+                  {valeurEstimeeEditable(editForm.type_actif, ligneEnEdition) && (
+                    <Field
+                      label={
+                        <span className="inline-flex items-center gap-1">{t('positionsTable.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
+                        </span>
+                      }
+                      className="w-32"
+                    >
+                      <Input
+                        value={editForm.valeur_estimee}
+                        onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                        type="number"
+                        step="any"
+                        aria-label={t('positionsTable.valeurEstimeeEdition')}
+                        placeholder={t('positionsTable.optionnel')}
+                      />
+                    </Field>
+                  )}
                   {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
                     <Field label={libelleTaux()} className="w-32">
                       <Input
@@ -859,8 +919,8 @@ export default function PositionsTable({
                       />
                     </Field>
                   )}
-                  {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-                    <Field label={t('positionsTable.dateDAcquisition')} className="w-36">
+                  {avecDateAcquisition(editForm.type_actif) && (
+                    <Field label={libelleDateAcquisition()} className="w-36">
                       <Input
                         value={editForm.date_acquisition}
                         onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
@@ -891,7 +951,7 @@ export default function PositionsTable({
         </tbody>
         <tfoot>
           <tr className="border-t border-bordure text-sm font-semibold text-texte">
-            <td colSpan={4} className="py-2 pr-4">
+            <td colSpan={colonnesTriables.length - 3} className="py-2 pr-4">
               {t('positionsTable.nPositions', { n: rows.length })}
             </td>
             <td className="py-2 pr-4">{formatEuro(valeurTotaleAffichee, 2, montantsMasques)}</td>

@@ -21,6 +21,7 @@ const positionsTable = {
   tauxAnnuelEdition: "Taux annuel (édition)",
   dateDAcquisition: "Date d'acquisition",
   dateDAcquisitionEdition: "Date d'acquisition (édition)",
+  aideDateDAcquisition: "Facultative. Elle permet de calculer le rendement annualisé et de tracer la courbe de cette ligne.",
   valeurProjeteeDans1An: "Valeur projetée dans 1 an (indicatif) :",
   enregistrer: "Enregistrer",
   annuler: "Annuler",

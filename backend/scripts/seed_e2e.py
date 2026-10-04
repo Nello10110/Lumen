@@ -53,6 +53,7 @@ PRIX_NVDA = 70.0
 
 VALEUR_APPART = 300000.0
 PRIX_REVIENT_APPART = 280000.0
+NOM_APPART = "Appartement E2E"  # le seul nom que l'écran montre pour un bien saisi à la main (§ BN.1)
 CAPITAL_RESTANT_DU_MANUEL = 240000.0
 
 VALEUR_LIVRET = 15000.0
@@ -129,6 +130,7 @@ def _creer_immobilier(client: httpx.Client) -> tuple[int, str, int]:
         "/api/portfolio/holdings",
         json={
             "ticker": "E2E-APPART",
+            "nom": NOM_APPART,
             "quantite": 1,
             "prix_revient_moyen": PRIX_REVIENT_APPART,
             "type_actif": "REAL_ESTATE",
@@ -438,7 +440,7 @@ def main() -> None:
         "holdings": {
             "aapl": {"id": holding_aapl_id, "ticker": ticker_aapl},
             "fund": {"id": holding_fund_id, "ticker": ticker_fund},
-            "appartement": {"id": holding_appart_id, "ticker": ticker_appart},
+            "appartement": {"id": holding_appart_id, "ticker": ticker_appart, "nom": NOM_APPART},
             "livret": {"id": holding_livret_id, "ticker": ticker_livret},
         },
         "etablissement_id": etablissement_id,

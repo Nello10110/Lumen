@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { Holding } from '../api/types'
-import { categorieDe, libelleTaux, TYPES_AVEC_TAUX, valeurProjeteeUnAn } from './holdingCategories'
+import {
+  categorieDe,
+  identifiantEstTechnique,
+  libelleTaux,
+  TYPES_AVEC_TAUX,
+  TYPES_COTES,
+  valeurProjeteeUnAn,
+} from './holdingCategories'
 
 function holding(overrides: Partial<Holding> = {}): Holding {
   return {
@@ -50,6 +57,30 @@ describe('taux annuel (backlog 2.M.1, § BN.1)', () => {
   it("ne concerne plus que l'épargne : la décote d'un véhicule n'est plus saisie", () => {
     expect([...TYPES_AVEC_TAUX].sort()).toEqual(['EMPLOYEE_SAVINGS', 'REGULATED_SAVINGS'])
     expect(TYPES_AVEC_TAUX.has('VEHICLE')).toBe(false)
+  })
+})
+
+describe('TYPES_COTES (§ BN.1)', () => {
+  it("réunit les titres dont le cours vient du marché, jamais un bien saisi à la main", () => {
+    expect([...TYPES_COTES].sort()).toEqual(['BOND', 'CRYPTO', 'FUND', 'PRIVATE_FUND', 'STOCK'])
+    expect(TYPES_COTES.has('REAL_ESTATE')).toBe(false)
+  })
+})
+
+describe('identifiantEstTechnique (§ BN.1)', () => {
+  it('reconnaît un bien saisi à la main, dont seul le nom parle', () => {
+    expect(identifiantEstTechnique({ type_actif: 'REAL_ESTATE', nom: 'Appartement Lyon' })).toBe(true)
+    expect(identifiantEstTechnique({ type_actif: 'REGULATED_SAVINGS', nom: 'Livret A' })).toBe(true)
+  })
+
+  it("garde l'identifiant d'une ligne sans nom : c'est la seule façon de la reconnaître", () => {
+    expect(identifiantEstTechnique({ type_actif: 'REAL_ESTATE', nom: null })).toBe(false)
+    expect(identifiantEstTechnique({ type_actif: 'REAL_ESTATE', nom: '  ' })).toBe(false)
+  })
+
+  it("garde le ticker d'un titre coté, même nommé, et d'une ligne sans type", () => {
+    expect(identifiantEstTechnique({ type_actif: 'STOCK', nom: 'Apple' })).toBe(false)
+    expect(identifiantEstTechnique({ type_actif: null, nom: 'Apple' })).toBe(false)
   })
 })
 

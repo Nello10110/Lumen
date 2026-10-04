@@ -15,7 +15,7 @@ import ImmobilierParametresForm from './ImmobilierParametresForm'
 import PieChartCard from './PieChartCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useImmobilierDetail } from '../hooks/useImmobilierDetail'
-import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
+import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE, identifiantEstTechnique } from '../utils/holdingCategories'
 import { formatEuro, formatPct, formatPourcent, formatQuantite } from '../utils/format'
 import {
   AXE_CATEGORIES,
@@ -99,7 +99,11 @@ export default function HoldingDetailContent({
           <h2 id={titleId} className="text-2xl font-semibold tracking-title text-ink">
             {detail.nom ?? detail.ticker}
           </h2>
-          <span className="text-sm text-ink3">{detail.ticker}</span>
+          {/* Le ticker n'est montré que s'il dit autre chose que le titre : sans nom, le titre
+              EST le ticker ; pour un bien saisi à la main, il n'est que la forme technique du nom. */}
+          {detail.nom !== null && detail.nom !== detail.ticker && !identifiantEstTechnique(detail) && (
+            <span className="text-sm text-ink3">{detail.ticker}</span>
+          )}
           {detail.type_actif && (
             <span className="rounded-chip bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
               {libelleTypeActif(detail.type_actif)}
@@ -240,10 +244,14 @@ export default function HoldingDetailContent({
 
       {onglet === 'analyse' && (
         <div id="fiche-panneau-analyse" role="tabpanel" aria-labelledby="fiche-onglet-analyse" className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <PieChartCard title={t('holdingDetailContent.repartitionGeographique')} items={detail.repartition_geo} />
-            <PieChartCard title={t('holdingDetailContent.repartitionSectorielle')} items={detail.repartition_sector} />
-          </div>
+          {/* Un bien n'a pas de composition interne : ses deux cartes ne diraient que « titre
+              unique, pas de décomposition ». Elles reviennent si une répartition existe. */}
+          {(!estImmobilier || detail.repartition_geo.length > 0 || detail.repartition_sector.length > 0) && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <PieChartCard title={t('holdingDetailContent.repartitionGeographique')} items={detail.repartition_geo} />
+              <PieChartCard title={t('holdingDetailContent.repartitionSectorielle')} items={detail.repartition_sector} />
+            </div>
+          )}
 
           {(detail.repartition_geo_detaillee.length > 0 || detail.repartition_sector_detaillee.length > 0) && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -351,6 +359,7 @@ export default function HoldingDetailContent({
               setForm={immo.setForm}
               saving={immo.saving}
               error={immo.error}
+              enregistre={immo.enregistre}
               onSave={immo.handleSave}
             />
           )}

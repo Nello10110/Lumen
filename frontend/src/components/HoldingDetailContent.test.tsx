@@ -326,6 +326,106 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     await screen.findByText('Cashflow et rentabilité')
   })
 
+  it('les charges mensuelles restent saisissables sans loyer, avec leur aide, et les champs retirés ont disparu (§ BN.1)', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Paramètres')
+    await screen.findByText('Immobilier — caractéristiques et location')
+
+    expect(screen.getByLabelText('Charges mensuelles (€)')).toBeInTheDocument()
+    expect(screen.getByText(/Utilisées pour le cashflow d'un bien loué et pour le simulateur achat vs location/)).toBeInTheDocument()
+    for (const retire of [/Type de location/, /Nombre de pièces/, /Année de construction/, /DPE/, /Charges mensuelles de comparaison/]) {
+      expect(screen.queryByLabelText(retire)).not.toBeInTheDocument()
+    }
+  })
+
+  it("le loyer estimé et la taxe d'habitation du simulateur n'apparaissent que pour une résidence principale (§ BN.1)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(
+      <HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ residence_principale: false }) })} onRecharger={vi.fn()} />,
+    )
+    ouvrirOnglet('Paramètres')
+    await screen.findByText('Immobilier — caractéristiques et location')
+    expect(screen.queryByLabelText('Loyer mensuel estimé pour un bien équivalent (€)')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Taxe d'habitation annuelle (€)")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Résidence principale'))
+
+    expect(screen.getByLabelText('Loyer mensuel estimé pour un bien équivalent (€)')).toBeInTheDocument()
+    expect(screen.getByLabelText("Taxe d'habitation annuelle (€)")).toBeInTheDocument()
+    expect(screen.getByText(/Les charges mensuelles saisies plus haut y sont reprises/)).toBeInTheDocument()
+  })
+
+  it('confirme « Enregistré » après un enregistrement réussi, et le retire dès que le formulaire change (§ BN.1)', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.updateHoldingImmobilier).mockResolvedValue(immobilier())
+    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() }))
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Paramètres')
+    await screen.findByText('Immobilier — caractéristiques et location')
+    expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(await screen.findByText('Enregistré')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '1100' } })
+    expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+  })
+
+  it("ne confirme pas « Enregistré » quand l'enregistrement échoue", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.updateHoldingImmobilier).mockRejectedValue(new Error('Le loyer mensuel ne peut pas être négatif'))
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Paramètres')
+    await screen.findByText('Immobilier — caractéristiques et location')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(await screen.findByText('Le loyer mensuel ne peut pas être négatif')).toBeInTheDocument()
+    expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+  })
+
+  it("l'onglet Analyse d'un bien n'affiche pas les deux cartes vides « Titre unique, pas de décomposition »", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', nom: 'Maison', immobilier: immobilier() })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Analyse')
+
+    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    expect(screen.queryByText('Répartition géographique')).not.toBeInTheDocument()
+    expect(screen.queryByText('Répartition sectorielle')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Titre unique/)).not.toBeInTheDocument()
+  })
+
+  it('un titre unique garde, lui, ses cartes de répartition', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'STOCK' })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Analyse')
+
+    expect(await screen.findByText('Répartition géographique')).toBeInTheDocument()
+    expect(screen.getAllByText(/Titre unique/)).toHaveLength(2)
+  })
+
+  it("le ticker n'est pas répété à côté du nom d'un bien saisi à la main, ni quand il est le titre lui-même", () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    const { unmount } = render(
+      <HoldingDetailContent detail={detail({ ticker: 'APPART-LYON', nom: 'Appartement Lyon', type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />,
+    )
+    expect(screen.getByRole('heading', { name: 'Appartement Lyon' })).toBeInTheDocument()
+    expect(screen.queryByText('APPART-LYON')).not.toBeInTheDocument()
+    unmount()
+
+    render(<HoldingDetailContent detail={detail({ ticker: 'XYZ', nom: null, type_actif: 'STOCK' })} onRecharger={vi.fn()} />)
+    expect(screen.getAllByText('XYZ')).toHaveLength(1)
+  })
+
+  it("garde le ticker d'un titre coté nommé (Apple Inc. · AAPL)", () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: 'Apple Inc.' })).toBeInTheDocument()
+    expect(screen.getByText('AAPL')).toBeInTheDocument()
+  })
+
   it("affiche l'historique de valorisation, la ligne la plus récente en premier", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([

@@ -77,6 +77,20 @@ export const TYPES_AVEC_ZONE_GEO = new Set(['REAL_ESTATE', 'SCPI'])
 // champ informatif que rien ne relisait.
 export const TYPES_AVEC_TAUX = new Set(['REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS'])
 
+// Titres dont le cours vient du marché : une `valeur_estimee` saisie à la main
+// remplacerait ce cours sans prévenir (`analysis_service.value_holdings`), elle n'est donc
+// plus proposée pour eux (§ BN.1). Ils gardent en revanche la date d'acquisition, que le
+// serveur lit pour le rendement annualisé et la courbe d'une ligne saisie à la main.
+export const TYPES_COTES = new Set(['STOCK', 'FUND', 'CRYPTO', 'BOND', 'PRIVATE_FUND'])
+
+/** Un actif saisi à la main dont l'identifiant (ticker) n'est que la forme technique de son
+ * nom (`identifiantDepuisNom`) : immobilier, épargne, véhicule... Seul le nom parle à
+ * l'utilisateur ; le ticker n'est ni affiché ni répété à côté du nom. Exige un nom : sans lui,
+ * l'identifiant reste la seule façon de reconnaître la ligne. */
+export function identifiantEstTechnique(h: { type_actif: string | null; nom: string | null }): boolean {
+  return h.type_actif !== null && TYPES_PATRIMOINE.has(h.type_actif) && Boolean(h.nom?.trim())
+}
+
 // Textes d'aide contextuelle (bulle `InfoBulle`, retour utilisateur 30/08/2026) —
 // centralisés ici pour rester identiques entre le formulaire d'ajout
 // (`PortefeuillePage.tsx`) et l'édition en ligne (`PositionsTable.tsx`, mobile et

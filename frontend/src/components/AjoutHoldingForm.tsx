@@ -8,6 +8,7 @@ import {
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
   TYPES_AVEC_ZONE_GEO,
+  TYPES_COTES,
   TYPES_EPARGNE,
   TYPES_PATRIMOINE,
   ZONES_GEO,
@@ -65,7 +66,9 @@ const FORM_VIDE = {
  * reste du formulaire en dépend : Quantité disparaît (fixée à 1) pour un bien valorisé
  * en bloc, Compte disparaît pour l'immobilier/un véhicule/un autre actif (aucun
  * établissement ne les détient), Zone géographique n'apparaît que pour l'immobilier et
- * une SCPI (une localisation a un sens ; pas pour un véhicule ou un contrat d'épargne).
+ * une SCPI (une localisation a un sens ; pas pour un véhicule ou un contrat d'épargne), et
+ * Valeur estimée disparaît pour un titre coté (`TYPES_COTES`, § BN.1) : elle remplacerait son
+ * cours de marché sans prévenir, alors que sa Date d'acquisition, elle, est proposée.
  * Une seule page qui s'ajuste, jamais d'étapes « Suivant »/« Précédent » : aucun autre
  * formulaire de l'application n'utilise ce patron, et le nombre de champs reste modeste
  * une fois les non-pertinents masqués.
@@ -160,6 +163,12 @@ export default function AjoutHoldingForm({
       compte_id: sansEtablissement ? '' : f.compte_id,
       compte_nom: sansEtablissement ? '' : f.compte_nom,
       zone_geo: TYPES_AVEC_ZONE_GEO.has(type) ? f.zone_geo : '',
+      // Même raison pour les trois champs ci-dessous : masqués pour ce type, leur valeur ne
+      // doit pas partir avec la ligne. La valeur estimée d'un titre coté, surtout, écraserait
+      // son cours de marché sans que personne ne la voie.
+      valeur_estimee: TYPES_COTES.has(type) ? '' : f.valeur_estimee,
+      taux_pct: TYPES_AVEC_TAUX.has(type) ? f.taux_pct : '',
+      versement_mensuel: TYPES_EPARGNE.has(type) ? f.versement_mensuel : '',
     }))
     // Un identifiant révélé par un refus serveur ne veut plus rien dire pour un
     // type différent (l'identifiant calculé changerait de toute façon avec lui) —
@@ -264,6 +273,11 @@ export default function AjoutHoldingForm({
 
   const sansEtablissement = TYPES_ACTIF_SANS_ETABLISSEMENT.has(form.type_actif)
   const avecZoneGeo = TYPES_AVEC_ZONE_GEO.has(form.type_actif)
+  // Un titre coté a son cours de marché : lui poser une valeur estimée le remplacerait sans
+  // prévenir (§ BN.1). Sa date d'acquisition, en revanche, sert au rendement annualisé et à la
+  // courbe d'une ligne saisie à la main, comme celle d'un bien.
+  const estCote = TYPES_COTES.has(form.type_actif)
+  const avecDateAcquisition = estPatrimoine || estCote
 
   // Valeur d'acquisition calculée en direct (maquette de la refonte) : quantité ×
   // prix de revient, affichée dès que les deux nombres sont valides. Sans objet pour
@@ -449,20 +463,22 @@ export default function AjoutHoldingForm({
                 </Field>
               </>
             )}
-            <Field
-              label={
-                <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
-                </span>
-              }
-            >
-              <Input
-                value={form.valeur_estimee}
-                onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
-                type="number"
-                step="any"
-                placeholder={t('ajoutHoldingForm.optionnel')}
-              />
-            </Field>
+            {!estCote && (
+              <Field
+                label={
+                  <span className="inline-flex items-center gap-1">{t('ajoutHoldingForm.valeurEstimee')}<InfoBulle texte={texteValeurEstimee()} />
+                  </span>
+                }
+              >
+                <Input
+                  value={form.valeur_estimee}
+                  onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
+                  type="number"
+                  step="any"
+                  placeholder={t('ajoutHoldingForm.optionnel')}
+                />
+              </Field>
+            )}
             {TYPES_AVEC_TAUX.has(form.type_actif) && (
               <Field label={libelleTaux()}>
                 <Input
@@ -498,14 +514,19 @@ export default function AjoutHoldingForm({
                 </Select>
               </Field>
             )}
-            {estPatrimoine && (
-              <Field label={t('ajoutHoldingForm.dateDAcquisition')}>
-                <Input
-                  value={form.date_acquisition}
-                  onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
-                  type="date"
-                />
-              </Field>
+            {avecDateAcquisition && (
+              <div>
+                {/* Le texte d'aide reste HORS du `<label>`, pour la même raison que celui de
+                    l'Identifiant plus haut : il s'ajouterait sinon au nom accessible du champ. */}
+                <Field label={t('ajoutHoldingForm.dateDAcquisition')}>
+                  <Input
+                    value={form.date_acquisition}
+                    onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
+                    type="date"
+                  />
+                </Field>
+                <p className="mt-1 text-xs text-ink3">{t('ajoutHoldingForm.aideDateDAcquisition')}</p>
+              </div>
             )}
           </div>
           {/* Désactivé tant que la ligne ne tient pas debout (recette du 02/09/2026,
