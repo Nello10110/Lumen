@@ -60,6 +60,8 @@ import type {
   Jalon,
   LogoConnexionSso,
   LignesPatrimoineFiltreesResponse,
+  BienImmobilierCree,
+  BienImmobilierInput,
   Loan,
   LoanInput,
   LoanUpdateInput,
@@ -78,6 +80,8 @@ import type {
   Preferences,
   PreferencesUpdateResponse,
   QuotiteEntree,
+  RepartitionActuelleCompte,
+  RepartitionActuellePret,
   ScorePatrimonial,
   AlerteFraicheurItem,
   ComparaisonInsee,
@@ -411,6 +415,10 @@ export const api = {
   listHoldings: () => request<Holding[]>('/portfolio/holdings'),
   createHolding: (payload: HoldingInput) =>
     request<Holding>('/portfolio/holdings', { method: 'POST', body: JSON.stringify(payload) }),
+  // Un bien, sa fiche, son prêt éventuel et ses quotités en UNE transaction (§ BN.1, lot 2) :
+  // jamais de bien « à moitié créé » si l'une des étapes échoue.
+  createBienImmobilier: (payload: BienImmobilierInput) =>
+    request<BienImmobilierCree>('/portfolio/biens-immobiliers', { method: 'POST', body: JSON.stringify(payload) }),
   updateHolding: (id: number, payload: HoldingUpdateInput) =>
     request<Holding>(`/portfolio/holdings/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteHolding: (id: number) => request<{ ok: boolean }>(`/portfolio/holdings/${id}`, { method: 'DELETE' }),
@@ -537,6 +545,7 @@ export const api = {
     request<Compte>(`/comptes/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteCompte: (id: number) => request<{ ok: boolean }>(`/comptes/${id}`, { method: 'DELETE' }),
   getCompteHoldings: (id: number) => request<Holding[]>(`/comptes/${id}/holdings`),
+  getCompteQuotites: (id: number) => request<RepartitionActuelleCompte>(`/comptes/${id}/quotites`),
   setCompteQuotites: (id: number, quotites: QuotiteEntree[]) =>
     request<{ ok: boolean }>(`/comptes/${id}/quotites`, { method: 'PUT', body: JSON.stringify({ quotites }) }),
   // Zone géographique/secteur par compte (§ AP, retour utilisateur du 17/09/2026) —
@@ -648,6 +657,7 @@ export const api = {
   updateLoan: (id: number, payload: LoanUpdateInput) =>
     request<Loan>(`/loans/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteLoan: (id: number) => request<{ ok: boolean }>(`/loans/${id}`, { method: 'DELETE' }),
+  getLoanQuotites: (id: number) => request<RepartitionActuellePret>(`/loans/${id}/quotites`),
   setLoanQuotites: (id: number, quotites: QuotiteEntree[]) =>
     request<{ ok: boolean }>(`/loans/${id}/quotites`, { method: 'PUT', body: JSON.stringify({ quotites }) }),
 

@@ -1,5 +1,5 @@
-import type { QuotiteDetenteurItem } from './detenteurs'
-import type { Compte, RepartitionItem, RepartitionParClasseItem } from './noyau'
+import type { QuotiteDetenteurItem, QuotiteEntree } from './detenteurs'
+import type { Compte, Holding, RepartitionItem, RepartitionParClasseItem } from './noyau'
 
 // Emprunt (roadmap Phase 1, patrimoine net) — premier passif de l'application.
 // `capital_restant_du` est toujours calculé côté serveur (`loan_service.py`), jamais
@@ -34,6 +34,63 @@ export interface LoanInput {
   duree_mois: number
   capital_restant_du_manuel?: number | null
   etablissement_id?: number | null
+}
+
+// Création d'un bien immobilier en une transaction (`POST /portfolio/biens-immobiliers`,
+// § BN.1 lot 2) : le bien, sa fiche, son prêt éventuel et ses quotités, tout ou rien.
+// `usage` n'est pas une colonne : `residence_principale` du détail s'en déduit, et
+// locatif/autre se distinguent ensuite par la présence d'un loyer.
+export type UsageBien = 'residence_principale' | 'locatif' | 'autre'
+
+export interface PretNouveauInput {
+  libelle: string
+  capital_initial: number
+  taux_annuel_pct: number
+  mensualite: number
+  date_debut: string
+  duree_mois: number
+  etablissement_id?: number | null
+}
+
+export interface BienImmobilierInput {
+  nom: string
+  usage: UsageBien
+  prix_achat: number
+  date_achat?: string | null
+  valeur_estimee?: number | null
+  frais_notaire?: number | null
+  frais_travaux?: number | null
+  frais_acquisition_autres?: number | null
+  surface_m2?: number | null
+  zone_geo?: string | null
+  loyer_mensuel?: number | null
+  charges_mensuelles?: number | null
+  frais_annuels?: number | null
+  simulation_loyer_estime?: number | null
+  simulation_taxe_habitation_annuelle?: number | null
+  compte_id?: number | null
+  pret?: PretNouveauInput | null
+  pret_existant_id?: number | null
+  quotites?: QuotiteEntree[]
+}
+
+export interface BienImmobilierCree {
+  holding: Holding
+  pret: Loan | null
+}
+
+// Répartition actuelle d'un compte (toutes ses lignes) : `uniforme` est faux quand les
+// lignes divergent — il n'y a alors rien à pré-remplir.
+export interface RepartitionActuelleCompte {
+  quotites: QuotiteEntree[]
+  uniforme: boolean
+}
+
+// Répartition actuelle d'un prêt : ses quotités propres, sinon celles du bien qu'il
+// finance (`heritee`).
+export interface RepartitionActuellePret {
+  quotites: QuotiteEntree[]
+  heritee: boolean
 }
 
 export interface LoanUpdateInput {
