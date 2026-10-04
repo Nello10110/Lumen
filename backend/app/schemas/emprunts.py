@@ -146,7 +146,7 @@ class LoanOut(LoanBase):
     # vérité pour un chiffre qui compte (c'est un passif du patrimoine net). Pas une
     # colonne de `models.Loan` : la valeur par défaut ci-dessous n'existe que pour que
     # `model_validate(loan)` réussisse (`from_attributes=True` exige l'attribut) avant
-    # d'être systématiquement écrasée par `routers/loans._vers_loan_out`.
+    # d'être systématiquement écrasée par `routers/loans.vers_loan_out`.
     capital_restant_du: float = 0.0
     holding_id: int | None = None
     etablissement_id: int | None = None

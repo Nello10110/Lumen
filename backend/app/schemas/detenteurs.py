@@ -72,3 +72,22 @@ class QuotiteEntree(BaseModel):
 
 class QuotitesUpdate(BaseModel):
     quotites: list[QuotiteEntree]
+
+
+class QuotitesCompteOut(BaseModel):
+    """Répartition à proposer pour un compte (`GET /api/comptes/{id}/quotites`) — pour
+    pré-remplir le formulaire de saisie d'un bien rattaché à ce compte. `uniforme` est
+    faux quand les lignes du compte ne portent pas toutes la même répartition : il n'y
+    a alors rien à proposer (`quotites` vide)."""
+
+    quotites: list[QuotiteEntree]
+    uniforme: bool
+
+
+class QuotitesEmpruntOut(BaseModel):
+    """Répartition effective d'un emprunt (`GET /api/loans/{id}/quotites`).
+    `heritee` est vrai quand l'emprunt n'a pas de répartition propre et reprend celle du
+    bien qu'il finance (cf. `detenteurs_service.compute_pourcentage_emprunt`)."""
+
+    quotites: list[QuotiteEntree]
+    heritee: bool

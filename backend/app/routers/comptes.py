@@ -17,6 +17,8 @@ from ..schemas import (
     EtablissementOut,
     EtablissementUpdate,
     HoldingOut,
+    QuotiteEntree,
+    QuotitesCompteOut,
     QuotitesUpdate,
     SecteurCompteUpdate,
     ZoneGeoCompteUpdate,
@@ -284,6 +286,22 @@ def get_compte_holdings(compte_id: int, db: Session = Depends(get_db), current_u
         out.valeur = valued.get(h.id)
         resultats.append(out)
     return resultats
+
+
+@router.get("/{compte_id}/quotites", response_model=QuotitesCompteOut)
+def get_compte_quotites(compte_id: int, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    """Répartition commune aux lignes de ce compte, pour pré-remplir le formulaire de saisie
+    d'un bien qu'on y rattache — cf. `comptes_service.quotites_uniformes_compte`. Réservée à
+    ceux qui peuvent écrire : elle n'a de sens que pour saisir, et un invité n'est pas censé
+    voir la répartition de lignes hors de son périmètre."""
+    foyer_id = auth_service.id_foyer(current_user)
+    compte = db.get(Compte, compte_id)
+    if compte is None or compte.foyer_id != foyer_id:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    quotites, uniforme = comptes_service.quotites_uniformes_compte(db, foyer_id, compte)
+    return QuotitesCompteOut(
+        quotites=[QuotiteEntree(detenteur_id=d, quotite_pct=float(pct)) for d, pct in quotites], uniforme=uniforme
+    )
 
 
 @router.put("/{compte_id}/quotites")

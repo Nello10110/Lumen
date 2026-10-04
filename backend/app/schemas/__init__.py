@@ -49,6 +49,11 @@ from .authentification import (  # noqa: F401
     TransfertProprieteRequest,
     UserOut,
 )
+from .biens_immobiliers import (  # noqa: F401
+    BienImmobilierCreate,
+    BienImmobilierCree,
+    PretNouveau,
+)
 from .budget import (  # noqa: F401
     ApercuFusionOut,
     BudgetCibleOut,
@@ -103,6 +108,8 @@ from .detenteurs import (  # noqa: F401
     DetenteurUpdate,
     QuotiteDetenteurItem,
     QuotiteEntree,
+    QuotitesCompteOut,
+    QuotitesEmpruntOut,
     QuotitesUpdate,
 )
 from .donnees import (  # noqa: F401

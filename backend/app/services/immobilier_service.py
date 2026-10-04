@@ -17,6 +17,8 @@ portefeuille (`patrimoine_history_service`, `performance_service`) — d'où le
 helper partagé `frais_acquisition_total` plutôt qu'un calcul dupliqué à chaque
 appelant."""
 
+import re
+import unicodedata
 from datetime import datetime
 from decimal import Decimal
 
@@ -53,20 +55,32 @@ def frais_acquisition_total(detail: HoldingImmobilierDetail | None) -> Decimal:
     return (detail.frais_notaire or ZERO) + (detail.frais_travaux or ZERO) + (detail.frais_acquisition_autres or ZERO)
 
 
-def upsert_detail_immobilier(db: Session, holding_id: int, **champs) -> HoldingImmobilierDetail:
+def upsert_detail_immobilier(db: Session, holding_id: int, *, commit: bool = True, **champs) -> HoldingImmobilierDetail:
+    """`commit=False` : pour un appelant qui écrit d'autres lignes dans la même
+    transaction (`bien_immobilier_service`) et doit pouvoir tout annuler d'un bloc —
+    la fiche est alors seulement vidée vers la base (`flush`), pas validée."""
     detail = detail_immobilier(db, holding_id)
     if detail is None:
         detail = HoldingImmobilierDetail(holding_id=holding_id)
         db.add(detail)
     for cle, valeur in champs.items():
         setattr(detail, cle, valeur)
-    db.commit()
-    db.refresh(detail)
+    if commit:
+        db.commit()
+        db.refresh(detail)
+    else:
+        db.flush()
     return detail
 
 
 def enregistrer_point_historique(
-    db: Session, holding_id: int, valeur: float, date_valeur: datetime, versement: float | None = None
+    db: Session,
+    holding_id: int,
+    valeur: float,
+    date_valeur: datetime,
+    versement: float | None = None,
+    *,
+    commit: bool = True,
 ) -> None:
     """Ajoute un point à l'historique — n'écrase jamais un point existant, même à la
     même date (deux estimations le même jour restent deux lignes distinctes, la plus
@@ -76,9 +90,13 @@ def enregistrer_point_historique(
     (ou baisse) depuis le point précédent que le foyer déclare venir d'un versement
     plutôt que d'une performance du contrat — `None` par défaut (jamais renseigné
     par `create_holding`/`update_holding`, qui stampent une valeur "courante" sans
-    notion de versement ; seule la route dédiée `PUT .../valorisation` le propose)."""
+    notion de versement ; seule la route dédiée `PUT .../valorisation` le propose).
+
+    `commit=False` : même rôle que pour `upsert_detail_immobilier` — le point est ajouté
+    à la transaction de l'appelant, qui valide (ou annule) l'ensemble."""
     db.add(HoldingValuationHistory(holding_id=holding_id, valeur=valeur, date_valeur=date_valeur, versement=versement))
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def modifier_point_historique(
@@ -224,6 +242,65 @@ def _arrondi(valeur: Decimal | None) -> Decimal | None:
     return round(valeur, 2) if valeur is not None else None
 
 
+def calculer_indicateurs_locatifs(
+    *,
+    prix_revient_moyen: Decimal | None,
+    frais_acquisition_total: Decimal,
+    loyer_mensuel: Decimal | None,
+    charges_mensuelles: Decimal | None,
+    frais_annuels: Decimal | None,
+    mensualite_totale: Decimal,
+    a_un_emprunt: bool,
+    surface_m2: Decimal | None,
+    valeur: Decimal,
+) -> dict:
+    """Cœur PUR (sans accès base) de `calculer_cashflow_et_rentabilite` : mêmes règles,
+    mêmes arrondis, mêmes clés. Extrait pour que le serveur reste la référence unique
+    de ces chiffres : l'aperçu en direct du formulaire de saisie d'un bien (frontend,
+    `utils/apercuImmobilier.ts`) reproduit cette fonction, et
+    `frontend/src/utils/vecteursApercuImmobilier.json` — relu par
+    `tests/test_vecteurs_apercu_immobilier.py` — fige ses résultats pour les deux
+    côtés.
+
+    `mensualite_totale` est la somme des mensualités de TOUS les emprunts rattachés
+    (zéro s'il n'y en a pas) et `a_un_emprunt` distingue « aucun emprunt » (`None`
+    en sortie) de « emprunts dont la somme vaut zéro »."""
+    prix_m2 = _arrondi(valeur / surface_m2) if surface_m2 else None
+
+    # Indépendant du loyer (contrairement au cashflow/rentabilités ci-dessous) :
+    # informatif dès que `prix_revient_moyen` est connu, même sans location.
+    prix_acquisition_total = prix_revient_moyen + frais_acquisition_total if prix_revient_moyen else None
+
+    resultat = {
+        "cashflow_mensuel": None,
+        "rentabilite_brute_pct": None,
+        "rentabilite_nette_pct": None,
+        "prix_m2": prix_m2,
+        "emprunt_mensualite": None,
+        "prix_acquisition_total": _arrondi(prix_acquisition_total),
+    }
+    if loyer_mensuel is None:
+        return resultat
+
+    charges = charges_mensuelles or ZERO
+    frais_mensuels = (frais_annuels or ZERO) / 12
+    cashflow_mensuel = loyer_mensuel - charges - frais_mensuels - mensualite_totale
+
+    rentabilite_brute_pct = None
+    rentabilite_nette_pct = None
+    if prix_acquisition_total:
+        loyer_annuel = loyer_mensuel * 12
+        rentabilite_brute_pct = loyer_annuel / prix_acquisition_total * 100
+        charges_annuelles = charges * 12 + (frais_annuels or ZERO)
+        rentabilite_nette_pct = (loyer_annuel - charges_annuelles) / prix_acquisition_total * 100
+
+    resultat["cashflow_mensuel"] = _arrondi(cashflow_mensuel)
+    resultat["rentabilite_brute_pct"] = _arrondi(rentabilite_brute_pct)
+    resultat["rentabilite_nette_pct"] = _arrondi(rentabilite_nette_pct)
+    resultat["emprunt_mensualite"] = _arrondi(mensualite_totale) if a_un_emprunt else None
+    return resultat
+
+
 def calculer_cashflow_et_rentabilite(
     db: Session, holding: Holding, detail: HoldingImmobilierDetail | None, valeur: Decimal
 ) -> dict:
@@ -232,28 +309,18 @@ def calculer_cashflow_et_rentabilite(
     (rien à calculer sans loyer, même si charges/frais existent seuls). `valeur` est
     la valeur déjà résolue par `holding_detail_service.build_holding_detail` (même
     règle partout : `valeur_estimee`, à défaut prix × quantité) — pas re-dérivée ici,
-    pour ne jamais diverger du chiffre déjà affiché sur la fiche."""
-    vide = {
-        "cashflow_mensuel": None,
-        "rentabilite_brute_pct": None,
-        "rentabilite_nette_pct": None,
-        "prix_m2": None,
-        "emprunt_mensualite": None,
-        "prix_acquisition_total": None,
-    }
+    pour ne jamais diverger du chiffre déjà affiché sur la fiche. Le calcul lui-même
+    est dans `calculer_indicateurs_locatifs` ; ce wrapper n'y ajoute que la lecture
+    des emprunts rattachés."""
     if detail is None:
-        return vide
-
-    prix_m2 = valeur / detail.surface_m2 if detail.surface_m2 else None
-    vide["prix_m2"] = _arrondi(prix_m2)
-
-    # Indépendant du loyer (contrairement au cashflow/rentabilités ci-dessous) :
-    # informatif dès que `prix_revient_moyen` est connu, même sans location.
-    prix_acquisition_total = holding.prix_revient_moyen + frais_acquisition_total(detail) if holding.prix_revient_moyen else None
-    vide["prix_acquisition_total"] = _arrondi(prix_acquisition_total)
-
-    if detail.loyer_mensuel is None:
-        return vide
+        return {
+            "cashflow_mensuel": None,
+            "rentabilite_brute_pct": None,
+            "rentabilite_nette_pct": None,
+            "prix_m2": None,
+            "emprunt_mensualite": None,
+            "prix_acquisition_total": None,
+        }
 
     # Somme de TOUS les emprunts rattachés à ce bien, pas seulement le premier
     # trouvé (bug trouvé en audit, 20/09/2026) : un bien financé par deux prêts
@@ -261,25 +328,53 @@ def calculer_cashflow_et_rentabilite(
     # de son cashflow/sa rentabilité nette affichés sur cette fiche — incohérent
     # avec `detenteurs_service.compute_parts`/`patrimoine_service._crd_par_ligne`,
     # qui somment déjà explicitement tous les emprunts rattachés à une même ligne.
-    emprunts = db.query(Loan).filter(Loan.holding_id == holding.id).all()
-    mensualite = sum((e.mensualite for e in emprunts), ZERO)
-    charges = detail.charges_mensuelles or ZERO
-    frais_mensuels = (detail.frais_annuels or ZERO) / 12
-    cashflow_mensuel = detail.loyer_mensuel - charges - frais_mensuels - mensualite
+    # Lus seulement si un loyer existe : sans loyer, ni cashflow ni mensualité
+    # n'apparaissent, la requête serait inutile.
+    emprunts = db.query(Loan).filter(Loan.holding_id == holding.id).all() if detail.loyer_mensuel is not None else []
+    return calculer_indicateurs_locatifs(
+        prix_revient_moyen=holding.prix_revient_moyen,
+        frais_acquisition_total=frais_acquisition_total(detail),
+        loyer_mensuel=detail.loyer_mensuel,
+        charges_mensuelles=detail.charges_mensuelles,
+        frais_annuels=detail.frais_annuels,
+        mensualite_totale=sum((e.mensualite for e in emprunts), ZERO),
+        a_un_emprunt=bool(emprunts),
+        surface_m2=detail.surface_m2,
+        valeur=valeur,
+    )
 
-    rentabilite_brute_pct = None
-    rentabilite_nette_pct = None
-    if prix_acquisition_total:
-        loyer_annuel = detail.loyer_mensuel * 12
-        rentabilite_brute_pct = loyer_annuel / prix_acquisition_total * 100
-        charges_annuelles = charges * 12 + (detail.frais_annuels or ZERO)
-        rentabilite_nette_pct = (loyer_annuel - charges_annuelles) / prix_acquisition_total * 100
 
-    return {
-        "cashflow_mensuel": _arrondi(cashflow_mensuel),
-        "rentabilite_brute_pct": _arrondi(rentabilite_brute_pct),
-        "rentabilite_nette_pct": _arrondi(rentabilite_nette_pct),
-        "prix_m2": vide["prix_m2"],
-        "emprunt_mensualite": _arrondi(mensualite) if emprunts else None,
-        "prix_acquisition_total": vide["prix_acquisition_total"],
-    }
+IDENTIFIANT_PAR_DEFAUT = "BIEN"
+LONGUEUR_MAX_IDENTIFIANT = 24
+
+
+def identifiant_depuis_nom(nom: str) -> str:
+    """Identifiant technique (`Holding.ticker`) d'un bien saisi à la main, dérivé de son
+    nom : sans accents, en majuscules, tout ce qui n'est pas A-Z/0-9 réduit à un
+    tiret, 24 caractères au plus, `BIEN` si rien ne reste. Port de
+    `identifiantDepuisNom` (`frontend/src/utils/holdingCategories.ts`), mais le
+    serveur est désormais seul à le calculer (`bien_immobilier_service`) : le client
+    n'envoie plus de ticker. Seuls les signes diacritiques combinants (catégorie
+    Unicode `Mn`) sont retirés après décomposition ; un signe isolé comme `^` ou `´`
+    devient un tiret, là où la propriété `Diacritic` de JavaScript l'aurait supprimé."""
+    decompose = unicodedata.normalize("NFD", nom)
+    sans_accents = "".join(c for c in decompose if unicodedata.category(c) != "Mn")
+    brut = re.sub(r"[^A-Z0-9]+", "-", sans_accents.upper()).strip("-")[:LONGUEUR_MAX_IDENTIFIANT]
+    return brut or IDENTIFIANT_PAR_DEFAUT
+
+
+def identifiant_libre(db: Session, foyer_id: int, compte_id: int | None, nom: str) -> str:
+    """`identifiant_depuis_nom(nom)`, suffixé `-2`, `-3`... tant que le foyer a déjà une
+    ligne de même ticker sur ce compte (clé d'unicité `uq_holding_foyer_ticker_compte`,
+    cf. `routers/portfolio.create_holding`, qui refuse le doublon au lieu de
+    renuméroter : ici l'utilisateur n'a jamais vu ce ticker, un refus serait
+    incompréhensible)."""
+    base = identifiant_depuis_nom(nom)
+    candidat, numero = base, 1
+    while (
+        db.query(Holding.id).filter(Holding.foyer_id == foyer_id, Holding.ticker == candidat, Holding.compte_id == compte_id).first()
+        is not None
+    ):
+        numero += 1
+        candidat = f"{base}-{numero}"
+    return candidat

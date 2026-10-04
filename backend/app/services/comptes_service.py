@@ -7,6 +7,8 @@ rattaché (via `Loan.holding_id`), décision délibérée pour ne jamais toucher
 mécanisme de calcul existant (`compute_parts`, `patrimoine_service`...), déjà
 entremêlé dans plusieurs services financiers testés."""
 
+from decimal import Decimal
+
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -255,6 +257,28 @@ def set_quotites_compte(db: Session, foyer_id: int, compte: Compte, quotites: li
     except Exception:
         db.rollback()
         raise
+
+
+def quotites_uniformes_compte(db: Session, foyer_id: int, compte: Compte) -> tuple[list[tuple[int, Decimal]], bool]:
+    """Répartition à proposer pour ce compte : `(quotites, uniforme)`. `uniforme` est vrai
+    quand TOUTES ses lignes portent exactement la même répartition (ou aucune : `quotites`
+    est alors vide, y compris pour un compte sans ligne) ; une ligne répartie à côté
+    d'une ligne qui ne l'est pas compte comme une divergence. Divergentes, il n'y a rien
+    à proposer : `([], False)`. Lecture seule, sans effet sur `set_quotites_compte`."""
+    ids = [h_id for (h_id,) in db.query(Holding.id).filter(Holding.compte_id == compte.id, Holding.foyer_id == foyer_id)]
+    par_ligne: dict[int, list[tuple[int, Decimal]]] = {h_id: [] for h_id in ids}
+    if ids:
+        lignes = (
+            db.query(QuotiteHolding.holding_id, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct)
+            .filter(QuotiteHolding.holding_id.in_(ids))
+            .order_by(QuotiteHolding.detenteur_id)
+        )
+        for holding_id, detenteur_id, quotite_pct in lignes:
+            par_ligne[holding_id].append((detenteur_id, quotite_pct))
+    repartitions = {tuple(r) for r in par_ligne.values()}
+    if len(repartitions) > 1:
+        return [], False
+    return (list(repartitions.pop()) if repartitions else []), True
 
 
 def set_zone_geo_compte(db: Session, foyer_id: int, compte: Compte, zone_geo: str | None) -> int:
