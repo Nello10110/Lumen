@@ -3,7 +3,6 @@ import type { Structure } from '../../types'
 
 /** Italien — espace « holdingCategories » (backlog § BL.2), traduit depuis le français. */
 const holdingCategories: Structure<typeof fr> = {
-  decoteAnnuelle: "Deprezzamento annuo (%)",
   tauxDInteretAnnuel: "Tasso d'interesse annuo (%)",
   onglet: { tous: "Tutti", actions: "Azioni", etf: "ETF", obligations: "Obbligazioni", privateEquity: "Private equity", crypto: "Cripto", immobilierEpargne: "Immobili e risparmio", autres: "Altro" },
   type: { nonPrecise: "Non specificato", action: "Azione", etfFonds: "ETF / Fondo", crypto: "Cripto", obligation: "Obbligazione", privateEquity: "Private equity", immobilier: "Immobile", scpi: "SCPI (fondo immobiliare)", assuranceVie: "Assicurazione vita", per: "PER / Risparmio previdenziale", compteCourant: "Conto corrente", epargneReglementee: "Risparmio regolamentato (Livret A, LDDS...)", epargneSalariale: "Risparmio aziendale (PEE, PERCO...)", vehicule: "Veicolo", autreActif: "Altra attività" },

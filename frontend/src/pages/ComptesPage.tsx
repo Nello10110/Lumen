@@ -71,8 +71,8 @@ export default function ComptesPage() {
 
   // Encart « Épargne » (fusion du 03/09/2026) : assurance-vie, PER, épargne
   // réglementée/salariale, compte courant — même périmètre et même calcul que
-  // l'ancienne `EpargnePage.tsx`. Le Véhicule en reste exclu (décote plutôt
-  // qu'épargne), toujours visible dans Portefeuille (onglet « Immobilier & Épargne »).
+  // l'ancienne `EpargnePage.tsx`. Le Véhicule en reste exclu (ce n'est pas
+  // de l'épargne), toujours visible dans Portefeuille (onglet « Immobilier & Épargne »).
   const lignesEpargne = holdings.filter((h) => h.type_actif !== null && TYPES_EPARGNE.has(h.type_actif))
   const valeurEpargneTotale = lignesEpargne.reduce((somme, h) => somme + (h.valeur_estimee ?? 0), 0)
   const versementEpargneTotal = lignesEpargne.reduce((somme, h) => somme + (h.versement_mensuel ?? 0), 0)

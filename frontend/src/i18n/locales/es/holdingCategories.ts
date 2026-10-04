@@ -3,7 +3,6 @@ import type { Structure } from '../../types'
 
 /** Espagnol — espace « holdingCategories » (backlog § BL.2), traduit depuis le français. */
 const holdingCategories: Structure<typeof fr> = {
-  decoteAnnuelle: "Depreciación anual (%)",
   tauxDInteretAnnuel: "Tipo de interés anual (%)",
   onglet: { tous: "Todo", actions: "Acciones", etf: "ETF", obligations: "Bonos", privateEquity: "Capital privado", crypto: "Cripto", immobilierEpargne: "Inmuebles y ahorro", autres: "Otros" },
   type: { nonPrecise: "Sin especificar", action: "Acción", etfFonds: "ETF / Fondo", crypto: "Cripto", obligation: "Bono", privateEquity: "Capital privado", immobilier: "Inmueble", scpi: "SCPI (fondo inmobiliario)", assuranceVie: "Seguro de vida", per: "PER / Ahorro para la jubilación", compteCourant: "Cuenta corriente", epargneReglementee: "Ahorro regulado (Livret A, LDDS...)", epargneSalariale: "Ahorro salarial (PEE, PERCO...)", vehicule: "Vehículo", autreActif: "Otro activo" },

@@ -530,7 +530,6 @@ function holdingDeclaration(overrides: Partial<import('../api/types').Holding> =
     prix_revient_moyen: 100,
     cout_acquisition_total: 100,
     compte: null,
-    devise: 'EUR',
     type_actif: 'STOCK',
     origine: 'manuel',
     created_at: '2026-01-01T00:00:00',

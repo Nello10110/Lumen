@@ -3,7 +3,6 @@ import type { Structure } from '../../types'
 
 /** Allemand — espace « holdingCategories » (backlog § BL.2), traduit depuis le français. */
 const holdingCategories: Structure<typeof fr> = {
-  decoteAnnuelle: "Jährlicher Wertverlust (%)",
   tauxDInteretAnnuel: "Jährlicher Zinssatz (%)",
   onglet: { tous: "Alle", actions: "Aktien", etf: "ETFs", obligations: "Anleihen", privateEquity: "Private Equity", crypto: "Krypto", immobilierEpargne: "Immobilien & Ersparnisse", autres: "Sonstige" },
   type: { nonPrecise: "Nicht angegeben", action: "Aktie", etfFonds: "ETF / Fonds", crypto: "Krypto", obligation: "Anleihe", privateEquity: "Private Equity", immobilier: "Immobilie", scpi: "SCPI (Immobilienfonds)", assuranceVie: "Lebensversicherung", per: "PER / Altersvorsorge", compteCourant: "Girokonto", epargneReglementee: "Reguliertes Sparen (Livret A, LDDS...)", epargneSalariale: "Mitarbeitersparen (PEE, PERCO...)", vehicule: "Fahrzeug", autreActif: "Sonstiger Vermögenswert" },

@@ -269,7 +269,6 @@ export interface HoldingDetail {
 // l'utilisateur, cashflow/rentabilité/prix au m² calculés côté serveur (jamais
 // recalculés côté frontend, même discipline que `Holding.valeur`).
 export interface HoldingImmobilier {
-  type_location: string | null
   loyer_mensuel: number | null
   charges_mensuelles: number | null
   frais_annuels: number | null
@@ -277,17 +276,13 @@ export interface HoldingImmobilier {
   frais_travaux: number | null
   frais_acquisition_autres: number | null
   surface_m2: number | null
-  nb_pieces: number | null
-  annee_construction: number | null
-  dpe: string | null
   residence_principale: boolean
   // Simulateur achat vs location (retour utilisateur du 10/09/2026, page Analyse) —
   // jamais lus par le calcul de cashflow/rentabilité ci-dessous, ni par la
   // plus-value globale du portefeuille : uniquement consommés par
-  // `SimulateurAchatLocationCard`.
+  // `SimulateurAchatLocationCard`, qui lit en plus `charges_mensuelles`.
   simulation_loyer_estime: number | null
   simulation_taxe_habitation_annuelle: number | null
-  simulation_charges_mensuelles: number | null
   cashflow_mensuel: number | null
   rentabilite_brute_pct: number | null
   rentabilite_nette_pct: number | null
@@ -297,7 +292,6 @@ export interface HoldingImmobilier {
 }
 
 export interface HoldingImmobilierInput {
-  type_location?: string | null
   loyer_mensuel?: number | null
   charges_mensuelles?: number | null
   frais_annuels?: number | null
@@ -305,11 +299,7 @@ export interface HoldingImmobilierInput {
   frais_travaux?: number | null
   frais_acquisition_autres?: number | null
   surface_m2?: number | null
-  nb_pieces?: number | null
-  annee_construction?: number | null
-  dpe?: string | null
   residence_principale?: boolean
   simulation_loyer_estime?: number | null
   simulation_taxe_habitation_annuelle?: number | null
-  simulation_charges_mensuelles?: number | null
 }

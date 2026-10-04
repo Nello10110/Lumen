@@ -34,7 +34,6 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     prix_revient_moyen: 200000,
     cout_acquisition_total: 200000,
     compte: null,
-    devise: null,
     type_actif: 'REAL_ESTATE',
     origine: 'manuel',
     created_at: '2020-01-01T00:00:00',
@@ -56,7 +55,6 @@ function holding(overrides: Partial<Holding> = {}): Holding {
 
 function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobilier {
   return {
-    type_location: null,
     loyer_mensuel: null,
     charges_mensuelles: null,
     frais_annuels: null,
@@ -64,13 +62,9 @@ function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobili
     frais_travaux: null,
     frais_acquisition_autres: null,
     surface_m2: null,
-    nb_pieces: null,
-    annee_construction: null,
-    dpe: null,
     residence_principale: true,
     simulation_loyer_estime: null,
     simulation_taxe_habitation_annuelle: null,
-    simulation_charges_mensuelles: null,
     cashflow_mensuel: null,
     rentabilite_brute_pct: null,
     rentabilite_nette_pct: null,
@@ -204,7 +198,7 @@ describe('SimulateurAchatLocationCard', () => {
         immobilier({
           simulation_loyer_estime: 1200,
           simulation_taxe_habitation_annuelle: 1200, // 100 €/mois
-          simulation_charges_mensuelles: 150,
+          charges_mensuelles: 150,
           frais_notaire: 10000,
           frais_travaux: 5000,
         }),
@@ -230,7 +224,7 @@ describe('SimulateurAchatLocationCard', () => {
         1,
         'MAISON',
         'Maison principale',
-        immobilier({ simulation_loyer_estime: 1200, simulation_taxe_habitation_annuelle: 1200, simulation_charges_mensuelles: 150 }),
+        immobilier({ simulation_loyer_estime: 1200, simulation_taxe_habitation_annuelle: 1200, charges_mensuelles: 150 }),
       ),
     )
 

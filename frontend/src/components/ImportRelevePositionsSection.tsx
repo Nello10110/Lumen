@@ -11,10 +11,9 @@ import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { t } from '../i18n'
 
-const OPTIONAL_FIELDS: { key: 'nom_col' | 'compte_col' | 'devise_col'; label: string }[] = [
+const OPTIONAL_FIELDS: { key: 'nom_col' | 'compte_col'; label: string }[] = [
   { key: 'nom_col', get label() { return t('importRelevePositionsSection.nomOptionnel') } },
   { key: 'compte_col', get label() { return t('importRelevePositionsSection.compteOptionnel') } },
-  { key: 'devise_col', get label() { return t('importRelevePositionsSection.deviseOptionnel') } },
 ]
 
 /** Import d'un relevé de positions avec mapping manuel des colonnes, extrait de
@@ -104,7 +103,6 @@ export default function ImportRelevePositionsSection({
         prix_revient_col: prixRevientCol || null,
         nom_col: optionalCols.nom_col || null,
         compte_col: optionalCols.compte_col || null,
-        devise_col: optionalCols.devise_col || null,
         replace_existing: replaceExisting,
         etablissement_id: compteMappe && !nouvelEtablissement && etablissementId ? Number(etablissementId) : null,
         etablissement_nom: compteMappe && nouvelEtablissement ? etablissementNom.trim() || null : null,

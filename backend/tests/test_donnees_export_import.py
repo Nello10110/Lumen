@@ -64,7 +64,7 @@ def _peupler_foyer(client, db) -> dict:
             "date_acquisition": "2021-06-15",
         },
     ).json()
-    client.put(f"/api/portfolio/holdings/{maison['id']}/immobilier", json={"type_location": "nue", "loyer_mensuel": 1200.0})
+    client.put(f"/api/portfolio/holdings/{maison['id']}/immobilier", json={"surface_m2": 65.0, "loyer_mensuel": 1200.0})
     client.put(f"/api/portfolio/holdings/{maison['id']}/valorisation", json={"valeur": 310000.0, "date": "2025-01-15"})
     client.put(
         f"/api/portfolio/holdings/{action['id']}/quotites",
@@ -616,6 +616,28 @@ def test_un_export_davant_lobjet_foyer_se_reimporte(client, db):
     assert db.get(Foyer, ID_FOYER_TEST).nom == "Ancien export"
     assert {p.cle for p in db.query(FoyerParametre).filter(FoyerParametre.foyer_id == ID_FOYER_TEST)} == {"methode_cout"}
     assert client.get("/api/auth/me").json()["onboarding_termine"] is True
+
+
+def test_un_export_davant_le_menage_des_champs_se_reimporte(client, db):
+    """Un fichier produit avant § BN.1 porte encore les colonnes retirées (`devise` d'une
+    ligne, `type_location`, `nb_pieces`, `annee_construction`, `dpe` et
+    `simulation_charges_mensuelles` de la fiche immobilière) : elles sont ignorées, le
+    reste de la ligne est repris tel quel."""
+    from app.models import HoldingImmobilierDetail
+
+    _peupler_foyer(client, db)
+    document = donnees_service.exporter_foyer(db, ID_FOYER_TEST)
+    for ligne in document["donnees"]["holdings"]:
+        ligne["devise"] = "EUR"
+    for ligne in document["donnees"]["holding_immobilier_details"]:
+        ligne.update(type_location="nue", nb_pieces=3, annee_construction=1995, dpe="D", simulation_charges_mensuelles=150.0)
+
+    donnees_service.importer_foyer(db, ID_FOYER_TEST, document)
+
+    maison = db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST, Holding.ticker == "MAISON").one()
+    detail = db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id == maison.id).one()
+    assert (detail.loyer_mensuel, detail.surface_m2) == (1200, 65)
+    assert not hasattr(detail, "dpe")
 
 
 # L'assistant de bienvenue du propriétaire : avant § BK.2a, il vivait parmi les réglages

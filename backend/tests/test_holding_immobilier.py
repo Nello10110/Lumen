@@ -17,14 +17,10 @@ from .conftest import (
 
 def _payload_immobilier(**overrides) -> dict:
     defaults = dict(
-        type_location="nue",
         loyer_mensuel=1000.0,
         charges_mensuelles=100.0,
         frais_annuels=2400.0,  # 200/mois
         surface_m2=50.0,
-        nb_pieces=3,
-        annee_construction=1995,
-        dpe="D",
     )
     defaults.update(overrides)
     return defaults
@@ -42,10 +38,8 @@ def test_creer_le_detail_immobilier_dune_ligne(client, db):
 
     assert reponse.status_code == 200
     corps = reponse.json()
-    assert corps["type_location"] == "nue"
     assert corps["loyer_mensuel"] == 1000.0
     assert corps["surface_m2"] == 50.0
-    assert corps["dpe"] == "D"
 
 
 def test_mettre_a_jour_le_detail_immobilier_remplace_les_valeurs(client, db):
@@ -200,37 +194,42 @@ def test_simulation_taxe_habitation_negative_est_rejetee(client, db):
     assert reponse.status_code == 400
 
 
-def test_simulation_charges_negatives_sont_rejetees(client, db):
-    holding = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
-
-    reponse = client.put(
-        f"/api/portfolio/holdings/{holding.id}/immobilier", json=_payload_immobilier(simulation_charges_mensuelles=-100.0)
-    )
-
-    assert reponse.status_code == 400
-
-
 def test_champs_simulation_sont_enregistres_et_restitues(client, db):
-    """Loyer estimé/taxe d'habitation/charges de comparaison : persistés comme le
-    reste de la fiche, jamais lus par le calcul de cashflow/rentabilité ci-dessus."""
+    """Loyer estimé et taxe d'habitation : persistés comme le reste de la fiche, jamais
+    lus par le calcul de cashflow/rentabilité ci-dessus."""
     holding = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0)
     client.put(
         f"/api/portfolio/holdings/{holding.id}/immobilier",
-        json=_payload_immobilier(
-            simulation_loyer_estime=1200.0, simulation_taxe_habitation_annuelle=900.0, simulation_charges_mensuelles=150.0
-        ),
+        json=_payload_immobilier(simulation_loyer_estime=1200.0, simulation_taxe_habitation_annuelle=900.0),
     )
 
     detail = client.get(f"/api/portfolio/holdings/{holding.id}/detail").json()["immobilier"]
     assert detail["simulation_loyer_estime"] == 1200.0
     assert detail["simulation_taxe_habitation_annuelle"] == 900.0
-    assert detail["simulation_charges_mensuelles"] == 150.0
     # N'influence pas le cashflow ni la rentabilité, calculés uniquement à partir du
     # loyer/charges/frais réels de `_payload_immobilier()` — même résultat que
     # `test_cashflow_et_rentabilite_sans_emprunt`, les champs de simulation n'y
     # changent rien.
     assert detail["cashflow_mensuel"] == 700.0
     assert detail["rentabilite_brute_pct"] == 6.0
+
+
+def test_les_champs_retires_sont_ignores_et_ne_sont_plus_restitues(client, db):
+    """§ BN.1 : un client qui enverrait encore `type_location`, `nb_pieces`, `annee_construction`,
+    `dpe` ou `simulation_charges_mensuelles` n'est pas rejeté, mais rien n'en est conservé."""
+    holding = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    reponse = client.put(
+        f"/api/portfolio/holdings/{holding.id}/immobilier",
+        json=_payload_immobilier(type_location="nue", nb_pieces=3, annee_construction=1995, dpe="D", simulation_charges_mensuelles=150.0),
+    )
+
+    assert reponse.status_code == 200
+    detail = client.get(f"/api/portfolio/holdings/{holding.id}/detail").json()["immobilier"]
+    for champ in ("type_location", "nb_pieces", "annee_construction", "dpe", "simulation_charges_mensuelles"):
+        assert champ not in reponse.json()
+        assert champ not in detail
+    assert detail["charges_mensuelles"] == 100.0
 
 
 def test_frais_acquisition_total_somme_les_trois_postes():

@@ -29,7 +29,6 @@ export interface ColumnMapping {
   prix_revient_col?: string | null
   nom_col?: string | null
   compte_col?: string | null
-  devise_col?: string | null
   replace_existing: boolean
   // Établissement des comptes créés à la volée depuis `compte_col` (refonte
   // import, 05/09/2026, alignement sur l'import du grand livre de transactions) —

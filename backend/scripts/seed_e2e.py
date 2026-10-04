@@ -143,14 +143,10 @@ def _creer_immobilier(client: httpx.Client) -> tuple[int, str, int]:
     detail = client.put(
         f"/api/portfolio/holdings/{h['id']}/immobilier",
         json={
-            "type_location": "nue",
             "loyer_mensuel": 1200.0,
             "charges_mensuelles": 150.0,
             "frais_annuels": 1800.0,
             "surface_m2": 65.0,
-            "nb_pieces": 3,
-            "annee_construction": 2005,
-            "dpe": "D",
         },
     )
     detail.raise_for_status()

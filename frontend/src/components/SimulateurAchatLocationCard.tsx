@@ -40,8 +40,9 @@ interface BienResidencePrincipale {
  * (`HoldingImmobilier.simulation_loyer_estime`, saisi sur la fiche du bien via
  * `ImmobilierParametresForm`) au coût mensuel réel de la propriété — part
  * d'INTÉRÊTS de l'emprunt rattaché (le capital remboursé devient du patrimoine, pas
- * une dépense : arbitrage validé avec l'utilisateur) + charges de comparaison +
- * taxe d'habitation.
+ * une dépense : arbitrage validé avec l'utilisateur) + charges mensuelles du bien
+ * (`HoldingImmobilier.charges_mensuelles`, le même jeu que le cashflow d'un bien loué
+ * depuis § BN.1) + taxe d'habitation.
  *
  * Aucune API dédiée : `Loan.capital_restant_du`/`taux_annuel_pct` sont déjà exposés
  * tels quels (`loan_service.py`, jamais recalculés côté frontend ailleurs dans
@@ -154,7 +155,7 @@ export default function SimulateurAchatLocationCard() {
   const emprunt = loans.find((l) => l.holding_id === bien.id) ?? null
   const tauxMensuel = emprunt ? emprunt.taux_annuel_pct / 100 / 12 : 0
   const interetMensuel = emprunt ? emprunt.capital_restant_du * tauxMensuel : 0
-  const chargesMensuelles = immobilier.simulation_charges_mensuelles ?? 0
+  const chargesMensuelles = immobilier.charges_mensuelles ?? 0
   const taxeHabitationMensuelle = (immobilier.simulation_taxe_habitation_annuelle ?? 0) / 12
   const coutMensuelPossession = interetMensuel + chargesMensuelles + taxeHabitationMensuelle
   const loyerEstime = immobilier.simulation_loyer_estime

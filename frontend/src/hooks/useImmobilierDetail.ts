@@ -3,7 +3,6 @@ import { api } from '../api/client'
 import type { HoldingDetail, ValuationHistoryPoint } from '../api/types'
 
 export interface FormImmobilier {
-  type_location: string
   loyer_mensuel: string
   charges_mensuelles: string
   frais_annuels: string
@@ -11,13 +10,9 @@ export interface FormImmobilier {
   frais_travaux: string
   frais_acquisition_autres: string
   surface_m2: string
-  nb_pieces: string
-  annee_construction: string
-  dpe: string
   residence_principale: boolean
   simulation_loyer_estime: string
   simulation_taxe_habitation_annuelle: string
-  simulation_charges_mensuelles: string
 }
 
 function versChaine(v: number | null | undefined): string {
@@ -26,7 +21,6 @@ function versChaine(v: number | null | undefined): string {
 
 function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
   return {
-    type_location: immo?.type_location ?? '',
     loyer_mensuel: versChaine(immo?.loyer_mensuel),
     charges_mensuelles: versChaine(immo?.charges_mensuelles),
     frais_annuels: versChaine(immo?.frais_annuels),
@@ -34,13 +28,9 @@ function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
     frais_travaux: versChaine(immo?.frais_travaux),
     frais_acquisition_autres: versChaine(immo?.frais_acquisition_autres),
     surface_m2: versChaine(immo?.surface_m2),
-    nb_pieces: versChaine(immo?.nb_pieces),
-    annee_construction: versChaine(immo?.annee_construction),
-    dpe: immo?.dpe ?? '',
     residence_principale: immo?.residence_principale ?? false,
     simulation_loyer_estime: versChaine(immo?.simulation_loyer_estime),
     simulation_taxe_habitation_annuelle: versChaine(immo?.simulation_taxe_habitation_annuelle),
-    simulation_charges_mensuelles: versChaine(immo?.simulation_charges_mensuelles),
   }
 }
 
@@ -77,7 +67,6 @@ export function useImmobilierDetail(holdingId: number, chargerHistorique: boolea
     setError(null)
     try {
       await api.updateHoldingImmobilier(holdingId, {
-        type_location: form.type_location || null,
         loyer_mensuel: form.loyer_mensuel ? Number(form.loyer_mensuel) : null,
         charges_mensuelles: form.charges_mensuelles ? Number(form.charges_mensuelles) : null,
         frais_annuels: form.frais_annuels ? Number(form.frais_annuels) : null,
@@ -85,15 +74,11 @@ export function useImmobilierDetail(holdingId: number, chargerHistorique: boolea
         frais_travaux: form.frais_travaux ? Number(form.frais_travaux) : null,
         frais_acquisition_autres: form.frais_acquisition_autres ? Number(form.frais_acquisition_autres) : null,
         surface_m2: form.surface_m2 ? Number(form.surface_m2) : null,
-        nb_pieces: form.nb_pieces ? Number(form.nb_pieces) : null,
-        annee_construction: form.annee_construction ? Number(form.annee_construction) : null,
-        dpe: form.dpe || null,
         residence_principale: form.residence_principale,
         simulation_loyer_estime: form.simulation_loyer_estime ? Number(form.simulation_loyer_estime) : null,
         simulation_taxe_habitation_annuelle: form.simulation_taxe_habitation_annuelle
           ? Number(form.simulation_taxe_habitation_annuelle)
           : null,
-        simulation_charges_mensuelles: form.simulation_charges_mensuelles ? Number(form.simulation_charges_mensuelles) : null,
       })
       // Cashflow/rentabilité/prix au m² sont calculés côté serveur (jamais recalculés
       // ici) : on relit la fiche complète pour les obtenir à jour, même pattern que

@@ -25,15 +25,14 @@ class HoldingBase(BaseModel):
     nom: str | None = None
     quantite: float
     prix_revient_moyen: float | None = None
-    devise: str | None = None
     type_actif: str | None = None
     # Valorisation manuelle (Phase 1 de `docs/BACKLOG.md` § 4.2, immobilier/SCPI/assurance-vie/
     # PER — cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) : montant ABSOLU en euros, pas
     # un prix par part. `date_valeur_estimee` n'est jamais saisie par le client — posée
     # côté serveur au moment où `valeur_estimee` change (cf. `routers/portfolio.py`).
     valeur_estimee: float | None = None
-    # Taux annuel informatif (backlog § 2.M.1) : positif = intérêt attendu (épargne),
-    # négatif = décote attendue (véhicule) — cf. `models.Holding.taux_pct`.
+    # Taux annuel informatif (backlog § 2.M.1) : intérêt attendu d'une épargne — cf.
+    # `models.Holding.taux_pct`.
     taux_pct: float | None = None
     # Zone géographique déclarée pour cette ligne (backlog 2.P.1) — cf.
     # `models.Holding.zone_geo`.
@@ -150,7 +149,6 @@ class HoldingUpdate(BaseModel):
     etablissement_id: int | None = None
     etablissement_nom: str | None = None
     etablissement_logo_key: str | None = None
-    devise: str | None = None
     type_actif: str | None = None
     valeur_estimee: float | None = None
     taux_pct: float | None = None
@@ -283,7 +281,6 @@ class ColumnMapping(BaseModel):
     prix_revient_col: str | None = None
     nom_col: str | None = None
     compte_col: str | None = None
-    devise_col: str | None = None
     replace_existing: bool = False
     # Établissement des comptes créés à la volée depuis `compte_col` (refonte import,
     # 05/09/2026, alignement sur l'import du grand livre de transactions) — même
@@ -542,7 +539,6 @@ class FundTopHoldingItem(BaseModel):
 
 
 class HoldingImmobilierOut(BaseModel):
-    type_location: str | None = None
     loyer_mensuel: float | None = None
     charges_mensuelles: float | None = None
     frais_annuels: float | None = None
@@ -550,16 +546,12 @@ class HoldingImmobilierOut(BaseModel):
     frais_travaux: float | None = None
     frais_acquisition_autres: float | None = None
     surface_m2: float | None = None
-    nb_pieces: int | None = None
-    annee_construction: int | None = None
-    dpe: str | None = None
     residence_principale: bool = False
     # Simulateur achat vs location (retour utilisateur du 10/09/2026) — jamais lus
     # par `calculer_cashflow_et_rentabilite` ni par la plus-value globale, cf.
     # `models.HoldingImmobilierDetail`.
     simulation_loyer_estime: float | None = None
     simulation_taxe_habitation_annuelle: float | None = None
-    simulation_charges_mensuelles: float | None = None
     # Calculés côté serveur (`holding_detail_service`), jamais recalculés côté
     # frontend — même discipline que `HoldingOut.valeur` (LOT 6.7). `None` tant que
     # `loyer_mensuel` n'est pas renseigné (rien à projeter) — sauf `prix_m2` et
@@ -580,13 +572,10 @@ MESSAGE_FRAIS_TRAVAUX_NON_NEGATIFS = "Les frais de travaux ne peuvent pas être 
 MESSAGE_FRAIS_ACQUISITION_AUTRES_NON_NEGATIFS = "Les autres frais d'acquisition ne peuvent pas être négatifs"
 MESSAGE_LOYER_SIMULATION_NON_NEGATIF = "Le loyer estimé ne peut pas être négatif"
 MESSAGE_TAXE_HABITATION_NON_NEGATIVE = "La taxe d'habitation ne peut pas être négative"
-MESSAGE_CHARGES_SIMULATION_NON_NEGATIVES = "Les charges de comparaison ne peuvent pas être négatives"
 MESSAGE_SURFACE_POSITIVE = "La surface doit être strictement positive"
-MESSAGE_PIECES_POSITIVES = "Le nombre de pièces doit être strictement positif"
 
 
 class HoldingImmobilierUpdate(BaseModel):
-    type_location: str | None = None
     loyer_mensuel: float | None = None
     charges_mensuelles: float | None = None
     frais_annuels: float | None = None
@@ -594,16 +583,12 @@ class HoldingImmobilierUpdate(BaseModel):
     frais_travaux: float | None = None
     frais_acquisition_autres: float | None = None
     surface_m2: float | None = None
-    nb_pieces: int | None = None
-    annee_construction: int | None = None
-    dpe: str | None = None
     residence_principale: bool = False
     # Simulateur achat vs location (retour utilisateur du 10/09/2026) — cf.
     # `models.HoldingImmobilierDetail` pour la portée exacte (comparaison
     # uniquement, jamais la rentabilité).
     simulation_loyer_estime: float | None = None
     simulation_taxe_habitation_annuelle: float | None = None
-    simulation_charges_mensuelles: float | None = None
 
     @field_validator("loyer_mensuel")
     @classmethod
@@ -661,13 +646,6 @@ class HoldingImmobilierUpdate(BaseModel):
             raise ValueError(MESSAGE_TAXE_HABITATION_NON_NEGATIVE)
         return v
 
-    @field_validator("simulation_charges_mensuelles")
-    @classmethod
-    def _valider_simulation_charges(cls, v: float | None) -> float | None:
-        if v is not None and v < 0:
-            raise ValueError(MESSAGE_CHARGES_SIMULATION_NON_NEGATIVES)
-        return v
-
     @field_validator("surface_m2")
     @classmethod
     def _valider_surface(cls, v: float | None) -> float | None:
@@ -675,12 +653,6 @@ class HoldingImmobilierUpdate(BaseModel):
             raise ValueError(MESSAGE_SURFACE_POSITIVE)
         return v
 
-    @field_validator("nb_pieces")
-    @classmethod
-    def _valider_pieces(cls, v: int | None) -> int | None:
-        if v is not None and v <= 0:
-            raise ValueError(MESSAGE_PIECES_POSITIVES)
-        return v
 
 
 class ValuationHistoryPoint(BaseModel):

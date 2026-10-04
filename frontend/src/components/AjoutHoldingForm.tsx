@@ -464,13 +464,13 @@ export default function AjoutHoldingForm({
               />
             </Field>
             {TYPES_AVEC_TAUX.has(form.type_actif) && (
-              <Field label={libelleTaux(form.type_actif)}>
+              <Field label={libelleTaux()}>
                 <Input
                   value={form.taux_pct}
                   onChange={(e) => setForm({ ...form, taux_pct: e.target.value })}
                   type="number"
                   step="any"
-                  placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
+                  placeholder="3"
                 />
               </Field>
             )}

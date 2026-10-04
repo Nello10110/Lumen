@@ -232,7 +232,7 @@ class TestJonctionPatrimoine:
         assert j["versement_mensuel_epargne_declare"] == 350.5
 
     def test_versement_mensuel_epargne_declare_ignore_le_vehicule_et_les_types_non_epargne(self, db):
-        """Le Véhicule reste hors du périmètre Épargne (décote plutôt qu'épargne,
+        """Le Véhicule reste hors du périmètre Épargne (ce n'est pas de l'épargne,
         décision du 25/08/2026, backlog 2.S.1) — une ligne boursière classique n'a de
         toute façon jamais de `versement_mensuel` renseigné côté UI."""
         make_holding(db, ticker="VOITURE", type_actif="VEHICLE", versement_mensuel=100.0)

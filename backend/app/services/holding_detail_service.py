@@ -134,7 +134,6 @@ def build_holding_detail(db: Session, holding_id: int, foyer_id: int) -> dict | 
     if immo is not None:
         calcul = immobilier_service.calculer_cashflow_et_rentabilite(db, holding, immo, valeur)
         immobilier = {
-            "type_location": immo.type_location,
             "loyer_mensuel": immo.loyer_mensuel,
             "charges_mensuelles": immo.charges_mensuelles,
             "frais_annuels": immo.frais_annuels,
@@ -142,13 +141,9 @@ def build_holding_detail(db: Session, holding_id: int, foyer_id: int) -> dict | 
             "frais_travaux": immo.frais_travaux,
             "frais_acquisition_autres": immo.frais_acquisition_autres,
             "surface_m2": immo.surface_m2,
-            "nb_pieces": immo.nb_pieces,
-            "annee_construction": immo.annee_construction,
-            "dpe": immo.dpe,
             "residence_principale": immo.residence_principale,
             "simulation_loyer_estime": immo.simulation_loyer_estime,
             "simulation_taxe_habitation_annuelle": immo.simulation_taxe_habitation_annuelle,
-            "simulation_charges_mensuelles": immo.simulation_charges_mensuelles,
             **calcul,
         }
 

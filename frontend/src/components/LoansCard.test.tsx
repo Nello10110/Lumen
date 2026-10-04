@@ -54,7 +54,6 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     prix_revient_moyen: 200000,
     cout_acquisition_total: 200000,
     compte: null,
-    devise: null,
     type_actif: 'REAL_ESTATE',
     origine: 'manuel',
     created_at: '2020-01-01T00:00:00',

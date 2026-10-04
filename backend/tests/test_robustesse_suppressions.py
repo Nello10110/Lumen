@@ -152,7 +152,7 @@ def test_supprimer_un_actif_ne_laisse_aucune_reference_pendante_dans_les_4_table
     h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", valeur_estimee=300000.0)
     alice = client.post("/api/detenteurs", json={"nom": "Alice"}).json()
     client.put(f"/api/portfolio/holdings/{h.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 100.0}]})
-    client.put(f"/api/portfolio/holdings/{h.id}/immobilier", json={"type_location": "nue", "loyer_mensuel": 1000.0})
+    client.put(f"/api/portfolio/holdings/{h.id}/immobilier", json={"surface_m2": 65.0, "loyer_mensuel": 1000.0})
     client.put(f"/api/portfolio/holdings/{h.id}/valorisation", json={"valeur": 310000.0, "date": "2025-01-01"})
     loan = Loan(
         foyer_id=ID_FOYER_TEST,

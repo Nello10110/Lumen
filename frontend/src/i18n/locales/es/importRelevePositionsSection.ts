@@ -18,7 +18,6 @@ const importRelevePositionsSection: Structure<typeof fr> = {
   confirmerLImport: "Confirmar la importación",
   nomOptionnel: "Nombre (opcional)",
   compteOptionnel: "Cuenta (opcional)",
-  deviseOptionnel: "Divisa (opcional)",
 }
 
 export default importRelevePositionsSection
