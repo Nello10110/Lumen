@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
 import type { HoldingDetail } from '../api/types'
-import Card from './Card'
 import { PrimaryButton } from './Controls'
 import { Field, Select } from './Field'
 import { SECTEURS, ZONES_GEO } from '../utils/holdingCategories'
@@ -26,12 +25,17 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
   const [secteur, setSecteur] = useState(detail.secteur_declare ?? OPTION_AUTO)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // « Enregistré » ne vaut que pour ce qui vient d'être enregistré (§ BN.1, lot 2) : toute
+  // modification des deux listes le retire.
+  const [enregistre, setEnregistre] = useState(false)
 
   async function handleSave() {
     setSaving(true)
     setError(null)
+    setEnregistre(false)
     try {
       await api.updateHolding(detail.id, { zone_geo: zoneGeo || null, secteur: secteur || null })
+      setEnregistre(true)
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('classificationParametresForm.erreurInconnue'))
@@ -41,11 +45,17 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
   }
 
   return (
-    <Card title={t('classificationParametresForm.classificationGeographiqueEtSectorielle')}>
+    <div>
       <p className="mb-4 text-sm text-texte-attenue">{t('classificationParametresForm.corrigeLaZoneOuLe')}</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label={t('classificationParametresForm.zoneGeographique')}>
-          <Select value={zoneGeo} onChange={(e) => setZoneGeo(e.target.value)}>
+          <Select
+            value={zoneGeo}
+            onChange={(e) => {
+              setZoneGeo(e.target.value)
+              setEnregistre(false)
+            }}
+          >
             <option value={OPTION_AUTO}>{t('classificationParametresForm.detectionAutomatique')}</option>
             {ZONES_GEO.map((zone) => (
               <option key={zone} value={zone}>
@@ -55,7 +65,13 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
           </Select>
         </Field>
         <Field label={t('classificationParametresForm.secteur')}>
-          <Select value={secteur} onChange={(e) => setSecteur(e.target.value)}>
+          <Select
+            value={secteur}
+            onChange={(e) => {
+              setSecteur(e.target.value)
+              setEnregistre(false)
+            }}
+          >
             <option value={OPTION_AUTO}>{t('classificationParametresForm.detectionAutomatique')}</option>
             {SECTEURS.map((s) => (
               <option key={s} value={s}>
@@ -69,6 +85,7 @@ export default function ClassificationParametresForm({ detail, onSaved }: { deta
         {saving ? t('classificationParametresForm.enregistrement') : t('classificationParametresForm.enregistrerLaClassification')}
       </PrimaryButton>
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
-    </Card>
+      {enregistre && <output className="mt-2 block text-sm font-medium text-pos">{t('classificationParametresForm.enregistre')}</output>}
+    </div>
   )
 }

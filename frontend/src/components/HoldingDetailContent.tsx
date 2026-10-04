@@ -14,7 +14,7 @@ import ImmobilierApercu from './ImmobilierApercu'
 import ImmobilierParametresForm from './ImmobilierParametresForm'
 import PieChartCard from './PieChartCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { useImmobilierDetail } from '../hooks/useImmobilierDetail'
+import { useHistoriqueValorisation } from '../hooks/useHistoriqueValorisation'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE, identifiantEstTechnique } from '../utils/holdingCategories'
 import { formatEuro, formatPct, formatPourcent, formatQuantite } from '../utils/format'
 import {
@@ -45,9 +45,10 @@ const ONGLETS: { key: Onglet; label: string }[] = [
  * soit sa nature (boursière, immobilière, épargne, véhicule...) — ouvre la même
  * structure à trois onglets. *Aperçu* : valeur, courbe/indicateurs propres à la
  * nature de l'actif, informations émetteur. *Analyse* : exposition géo/sectorielle,
- * détention et part nette. *Paramètres* : édition sectionnée (aujourd'hui, les
- * caractéristiques immobilières — seul formulaire de réglages existant ; les autres
- * natures affichent un état vide explicite plutôt qu'un onglet qui semblerait cassé).
+ * en lecture seule. *Paramètres* : tout ce qui s'édite — pour un bien immobilier, quatre
+ * sections repliables (Le bien, Financement et revenus, Qui le détient, Classification) dans
+ * l'ordre du formulaire d'ajout (§ BN.1, lot 2) ; pour les autres natures, la classification et
+ * la répartition entre les membres du foyer.
  *
  * Les sections propres à chaque nature d'actif (immobilier, épargne, détenteurs...)
  * vivent dans leurs propres composants sous `components/` — cf. backlog audit
@@ -70,7 +71,7 @@ export default function HoldingDetailContent({
   const gainPositif = (detail.rendement_depuis_achat_pct ?? 0) >= 0
   const estImmobilier = detail.type_actif === 'REAL_ESTATE'
   const estEpargne = detail.type_actif !== null && TYPES_EPARGNE.has(detail.type_actif)
-  const immo = useImmobilierDetail(detail.id, estImmobilier || estEpargne, detail.immobilier)
+  const { historique, rechargerHistorique } = useHistoriqueValorisation(detail.id, estImmobilier || estEpargne)
   // Onglet initial lu depuis l'URL (`?onglet=parametres`, retour utilisateur du
   // 10/09/2026) — pour que le simulateur achat/location de la page Analyse
   // (`SimulateurAchatLocationCard`) puisse lier directement vers la fiche d'un bien
@@ -109,7 +110,7 @@ export default function HoldingDetailContent({
               {libelleTypeActif(detail.type_actif)}
             </span>
           )}
-          {estImmobilier && immo.immobilier?.residence_principale && (
+          {estImmobilier && detail.immobilier?.residence_principale && (
             <span className="rounded-chip bg-track px-2 py-0.5 text-xs font-medium text-ink2">{t('holdingDetailContent.residencePrincipale')}</span>
           )}
           {detail.compte && (
@@ -203,14 +204,14 @@ export default function HoldingDetailContent({
           {estImmobilier ? (
             <ImmobilierApercu
               holdingId={detail.id}
-              immobilier={immo.immobilier}
-              historique={immo.historique}
-              onHistoriqueChanged={() => immo.rechargerHistorique()}
+              immobilier={detail.immobilier}
+              historique={historique}
+              onHistoriqueChanged={() => rechargerHistorique()}
               dateAcquisition={detail.date_acquisition}
               prixRevientMoyen={detail.prix_revient_moyen}
             />
           ) : estEpargne ? (
-            <EpargneApercu detail={detail} historique={immo.historique} onValorisationAjoutee={immo.rechargerHistorique} />
+            <EpargneApercu detail={detail} historique={historique} onValorisationAjoutee={rechargerHistorique} />
           ) : (
             <HoldingPriceHistoryChart holdingId={detail.id} />
           )}
@@ -345,23 +346,31 @@ export default function HoldingDetailContent({
               </div>
             </Card>
           )}
-
-          <DetenteursSection holdingId={detail.id} quotitesInitiales={detail.quotites} compte={detail.compte} />
         </div>
       )}
 
       {onglet === 'parametres' && (
         <div id="fiche-panneau-parametres" role="tabpanel" aria-labelledby="fiche-onglet-parametres" className="space-y-6">
-          <ClassificationParametresForm detail={detail} onSaved={onRecharger} />
-          {estImmobilier && (
-            <ImmobilierParametresForm
-              form={immo.form}
-              setForm={immo.setForm}
-              saving={immo.saving}
-              error={immo.error}
-              enregistre={immo.enregistre}
-              onSave={immo.handleSave}
-            />
+          {/* Un bien immobilier a quatre sections repliables, dans l'ordre du formulaire d'ajout
+              (§ BN.1, lot 2) ; les autres lignes gardent leurs paramètres, auxquels s'ajoute
+              « Qui la détient », qui a quitté l'onglet Analyse (une lecture seule). */}
+          {estImmobilier ? (
+            <ImmobilierParametresForm detail={detail} onRecharger={onRecharger} />
+          ) : (
+            <>
+              <Card title={t('classificationParametresForm.classificationGeographiqueEtSectorielle')}>
+                <ClassificationParametresForm detail={detail} onSaved={onRecharger} />
+              </Card>
+              <Card title={t('detenteursSection.detenteurs')}>
+                <DetenteursSection
+                  holdingId={detail.id}
+                  quotitesInitiales={detail.quotites}
+                  compte={detail.compte}
+                  valeur={detail.valeur}
+                  onEnregistre={onRecharger}
+                />
+              </Card>
+            </>
           )}
         </div>
       )}

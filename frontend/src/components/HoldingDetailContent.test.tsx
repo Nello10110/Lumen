@@ -16,12 +16,17 @@ function render(ui: ReactElement) {
   return rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
 }
 
-// Ce fichier verrouille la section "Détenteurs" (backlog 2.L.1), la fiche immobilier
-// (backlog 2.M.3) et la structure à trois onglets (backlog 2.M.4) — le reste du
+// Ce fichier verrouille la répartition entre membres (backlog 2.L.1, déplacée dans l'onglet
+// Paramètres au § BN.1 lot 2), la fiche immobilier (backlog 2.M.3) et la structure à trois
+// onglets (backlog 2.M.4) — le reste du
 // composant (prix, émetteur, look-through...) est hors de son objet.
 vi.mock('../api/client', () => ({
   api: {
     listDetenteurs: vi.fn(),
+    createDetenteur: vi.fn(),
+    listLoans: vi.fn().mockResolvedValue([]),
+    createLoan: vi.fn(),
+    updateLoan: vi.fn(),
     setHoldingQuotites: vi.fn(),
     getHoldingDetail: vi.fn(),
     updateHolding: vi.fn(),
@@ -86,65 +91,62 @@ function ouvrirOnglet(nom: string) {
   fireEvent.click(screen.getByRole('tab', { name: nom }))
 }
 
-describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
-  it("n'affiche aucune section Détenteurs si l'utilisateur n'a déclaré aucun détenteur", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+describe('HoldingDetailContent — répartition entre membres (backlog 2.L.1, § BN.1 lot 2)', () => {
+  it("l'onglet Analyse est une lecture seule : plus aucune carte de répartition à éditer", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
     render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
     ouvrirOnglet('Analyse')
 
-    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
     expect(screen.queryByText('Détenteurs')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Part de Alice (%)')).not.toBeInTheDocument()
+    expect(api.listDetenteurs).not.toHaveBeenCalled()
   })
 
-  it('affiche une ligne éditable par détenteur déclaré, préremplie avec les quotités existantes', async () => {
+  it("sans membre déclaré, l'onglet Paramètres le dit au lieu d'effacer la carte", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Paramètres')
+
+    expect(await screen.findByText(/Aucun membre du foyer n'est encore déclaré/)).toBeInTheDocument()
+  })
+
+  it('affiche une ligne éditable par membre, préremplie avec les quotités existantes', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     render(
       <HoldingDetailContent
         detail={detail({ quotites: [{ detenteur_id: 1, detenteur_nom: 'Alice', quotite_pct: 60, part_detenue: 900, part_nette: 900 }] })}
-      onRecharger={vi.fn()} />,
+        onRecharger={vi.fn()}
+      />,
     )
-    ouvrirOnglet('Analyse')
+    ouvrirOnglet('Paramètres')
 
-    await screen.findByText('Détenteurs')
-    // "900,00 €" apparaît deux fois : part détenue et part nette (identiques, aucun
-    // emprunt rattaché à cette ligne dans ce scénario).
-    expect(screen.getAllByText('900,00 €')).toHaveLength(2)
-    const champAlice = screen.getByDisplayValue('60')
-    expect(champAlice).toBeInTheDocument()
+    expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(60)
+    expect(screen.getByLabelText('Part de Bob (%)')).toBeInTheDocument()
   })
 
   it('le bouton Enregistrer est désactivé tant que la somme des quotités saisies ne fait pas 100 %', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
-    ouvrirOnglet('Analyse')
-    await screen.findByText('Détenteurs')
+    ouvrirOnglet('Paramètres')
+    const champAlice = await screen.findByLabelText('Part de Alice (%)')
 
-    const [champAlice] = screen.getAllByRole('spinbutton')
+    // Parts égales proposées (50 / 50) : Alice à 60 fait 110 %.
     fireEvent.change(champAlice, { target: { value: '60' } })
 
-    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
-    expect(screen.getByText(/Total actuel : 60/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enregistrer la répartition' })).toBeDisabled()
+    expect(screen.getByText(/Il y a 10\s%\sde trop/)).toBeInTheDocument()
   })
 
-  it('enregistrer une répartition valide appelle setHoldingQuotites puis recharge la fiche', async () => {
+  it('enregistrer une répartition valide appelle setHoldingQuotites puis demande de recharger la fiche', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     vi.mocked(api.setHoldingQuotites).mockResolvedValue({ ok: true })
-    vi.mocked(api.getHoldingDetail).mockResolvedValue(
-      detail({
-        quotites: [
-          { detenteur_id: 1, detenteur_nom: 'Alice', quotite_pct: 60, part_detenue: 900, part_nette: 900 },
-          { detenteur_id: 2, detenteur_nom: 'Bob', quotite_pct: 40, part_detenue: 600, part_nette: 600 },
-        ],
-      }),
-    )
-    render(<HoldingDetailContent detail={detail()} onRecharger={vi.fn()} />)
-    ouvrirOnglet('Analyse')
-    await screen.findByText('Détenteurs')
+    const onRecharger = vi.fn()
+    render(<HoldingDetailContent detail={detail()} onRecharger={onRecharger} />)
+    ouvrirOnglet('Paramètres')
 
-    const [champAlice, champBob] = screen.getAllByRole('spinbutton')
-    fireEvent.change(champAlice, { target: { value: '60' } })
-    fireEvent.change(champBob, { target: { value: '40' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    fireEvent.change(await screen.findByLabelText('Part de Alice (%)'), { target: { value: '60' } })
+    fireEvent.change(screen.getByLabelText('Part de Bob (%)'), { target: { value: '40' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la répartition' }))
 
     await vi.waitFor(() =>
       expect(api.setHoldingQuotites).toHaveBeenCalledWith(1, [
@@ -152,7 +154,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
         { detenteur_id: 2, quotite_pct: 40 },
       ]),
     )
-    await vi.waitFor(() => expect(screen.getAllByText('900,00 €')).toHaveLength(2))
+    await vi.waitFor(() => expect(onRecharger).toHaveBeenCalled())
   })
 })
 
@@ -173,14 +175,14 @@ describe('HoldingDetailContent — Compte rattaché (écran Comptes, backlog X.1
     expect(screen.getByRole('link', { name: 'PEA' })).toHaveAttribute('href', '/comptes/42')
   })
 
-  it("la section Détenteurs (onglet Analyse) renvoie aussi vers la fiche du compte, si la ligne en a un", async () => {
+  it("la répartition (onglet Paramètres) renvoie aussi vers la fiche du compte, si la ligne en a un", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
     render(<HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} onRecharger={vi.fn()} />)
-    ouvrirOnglet('Analyse')
-    await screen.findByText('Détenteurs')
+    ouvrirOnglet('Paramètres')
+    await screen.findByLabelText('Part de Alice (%)')
 
     // Deux liens "PEA" : le badge de l'en-tête et celui-ci, dans le texte
-    // d'introduction de la section Détenteurs.
+    // d'introduction de la répartition.
     const liensPEA = screen.getAllByRole('link', { name: 'PEA' })
     expect(liensPEA).toHaveLength(2)
     for (const lien of liensPEA) expect(lien).toHaveAttribute('href', '/comptes/42')
@@ -245,17 +247,23 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     render(<HoldingDetailContent detail={detail({ type_actif: 'STOCK' })} onRecharger={vi.fn()} />)
 
-    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
-    expect(screen.queryByText('Immobilier — caractéristiques et location')).not.toBeInTheDocument()
+    ouvrirOnglet('Paramètres')
+
+    await screen.findByText('Classification géographique et sectorielle')
+    expect(screen.queryByRole('button', { name: /Financement et revenus/ })).not.toBeInTheDocument()
     expect(api.getHoldingValuationHistory).not.toHaveBeenCalled()
   })
 
-  it('affiche le formulaire de caractéristiques pour un bien immobilier, vide si aucun détail saisi', async () => {
+  it("affiche, pour un bien immobilier, quatre sections repliables dans l'ordre du formulaire d'ajout, la première ouverte", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Paramètres')
 
-    await screen.findByText('Immobilier — caractéristiques et location')
+    await screen.findByLabelText('Nom du bien')
+    const sections = ['Le bien', 'Financement et revenus', 'Qui le détient', 'Classification'].map((nom) =>
+      screen.getByRole('button', { name: new RegExp(`^${nom}`) }),
+    )
+    expect(sections.map((b) => b.getAttribute('aria-expanded'))).toEqual(['true', 'false', 'false', 'false'])
     expect(screen.queryByText('Cashflow et rentabilité')).not.toBeInTheDocument()
   })
 
@@ -291,21 +299,24 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     expect(screen.queryByText('Résidence principale')).not.toBeInTheDocument()
   })
 
-  it('enregistrer les caractéristiques appelle updateHoldingImmobilier puis recharge la fiche', async () => {
+  it('enregistrer « Le bien » appelle updateHoldingImmobilier avec les champs de la fiche, puis recharge la fiche', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.updateHoldingImmobilier).mockResolvedValue(immobilier())
-    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() }))
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} onRecharger={vi.fn()} />)
+    vi.mocked(api.updateHolding).mockClear()
+    const onRecharger = vi.fn()
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} onRecharger={onRecharger} />)
     ouvrirOnglet('Paramètres')
-    await screen.findByText('Immobilier — caractéristiques et location')
+    await screen.findByLabelText('Nom du bien')
 
-    fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '1000' } })
-    fireEvent.change(screen.getByLabelText('Surface (m²)'), { target: { value: '50' } })
+    fireEvent.click(screen.getByLabelText(/Investissement locatif/))
+    fireEvent.change(screen.getByLabelText(/Surface/), { target: { value: '50' } })
+    fireEvent.click(screen.getByRole('button', { name: /Frais d'acquisition/ }))
     fireEvent.change(screen.getByLabelText('Frais de notaire (€)'), { target: { value: '10000' } })
     fireEvent.change(screen.getByLabelText('Travaux (€)'), { target: { value: '5000' } })
-    fireEvent.click(screen.getByLabelText('Résidence principale'))
-    fireEvent.change(screen.getByLabelText('Loyer mensuel estimé pour un bien équivalent (€)'), { target: { value: '1200' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    // Le loyer vit dans « Financement et revenus » : un bien locatif en exige un (0 si vacant).
+    fireEvent.click(screen.getByRole('button', { name: /^Financement et revenus/ }))
+    fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '1000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le bien' }))
 
     await vi.waitFor(() =>
       expect(api.updateHoldingImmobilier).toHaveBeenCalledWith(
@@ -315,60 +326,92 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
           surface_m2: 50,
           frais_notaire: 10000,
           frais_travaux: 5000,
-          simulation_loyer_estime: 1200,
-          residence_principale: true,
+          residence_principale: false,
         }),
       ),
     )
-    // Le résultat (cashflow/rentabilités calculés côté serveur) vit dans l'onglet
-    // *Aperçu* (backlog 2.M.4), pas *Paramètres* où vit le formulaire d'édition.
-    ouvrirOnglet('Aperçu')
-    await screen.findByText('Cashflow et rentabilité')
+    // Rien n'a changé côté ligne (nom, prix, valeur, date) : pas de PATCH, donc pas de point
+    // fabriqué dans l'historique des valorisations.
+    expect(api.updateHolding).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(onRecharger).toHaveBeenCalled())
   })
 
-  it('les charges mensuelles restent saisissables sans loyer, avec leur aide, et les champs retirés ont disparu (§ BN.1)', async () => {
+  it('un changement de nom ou de prix part dans updateHolding, et seulement ce qui a changé', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} onRecharger={vi.fn()} />)
+    vi.mocked(api.updateHolding).mockResolvedValue(holdingApresAction())
+    vi.mocked(api.updateHoldingImmobilier).mockResolvedValue(immobilier())
+    render(
+      <HoldingDetailContent
+        detail={detail({ type_actif: 'REAL_ESTATE', nom: 'Ancien nom', prix_revient_moyen: 200000, valeur_estimee: 250000, immobilier: immobilier() })}
+        onRecharger={vi.fn()}
+      />,
+    )
     ouvrirOnglet('Paramètres')
-    await screen.findByText('Immobilier — caractéristiques et location')
 
-    expect(screen.getByLabelText('Charges mensuelles (€)')).toBeInTheDocument()
-    expect(screen.getByText(/Utilisées pour le cashflow d'un bien loué et pour le simulateur achat vs location/)).toBeInTheDocument()
+    fireEvent.change(await screen.findByLabelText('Nom du bien'), { target: { value: 'Appartement Lyon' } })
+    fireEvent.change(screen.getByLabelText("Prix d'achat (€)"), { target: { value: '210000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le bien' }))
+
+    await vi.waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(1, { nom: 'Appartement Lyon', prix_revient_moyen: 210000 }))
+  })
+
+  it("un bien locatif sans loyer n'est pas enregistré : le message est sous le champ, qui prend le focus", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.updateHoldingImmobilier).mockClear()
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ loyer_mensuel: 1000 }) })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Paramètres')
+    fireEvent.click(await screen.findByRole('button', { name: /^Financement et revenus/ }))
+    fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le financement' }))
+
+    expect(await screen.findByText('Indique le loyer mensuel (0 si le bien est vacant).')).toBeInTheDocument()
+    expect(api.updateHoldingImmobilier).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(screen.getByLabelText('Loyer mensuel (€)')).toHaveFocus())
+  })
+
+  it('les charges mensuelles restent saisissables, avec leur aide, et les champs retirés ont disparu (§ BN.1)', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
+    ouvrirOnglet('Paramètres')
+    fireEvent.click(await screen.findByRole('button', { name: /^Financement et revenus/ }))
+
+    expect(screen.getByLabelText(/Charges mensuelles \(€\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Les charges que tu paies chaque mois pour ce bien/)).toBeInTheDocument()
     for (const retire of [/Type de location/, /Nombre de pièces/, /Année de construction/, /DPE/, /Charges mensuelles de comparaison/]) {
       expect(screen.queryByLabelText(retire)).not.toBeInTheDocument()
     }
   })
 
-  it("le loyer estimé et la taxe d'habitation du simulateur n'apparaissent que pour une résidence principale (§ BN.1)", async () => {
+  it("le loyer d'un bien équivalent et la taxe d'habitation du simulateur n'apparaissent que pour une résidence principale (§ BN.1)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     render(
       <HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ residence_principale: false }) })} onRecharger={vi.fn()} />,
     )
     ouvrirOnglet('Paramètres')
-    await screen.findByText('Immobilier — caractéristiques et location')
-    expect(screen.queryByLabelText('Loyer mensuel estimé pour un bien équivalent (€)')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText("Taxe d'habitation annuelle (€)")).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /^Financement et revenus/ }))
+    expect(screen.queryByRole('button', { name: /Comparer avec la location/ })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('Résidence principale'))
+    // « Le bien » est restée ouverte : on y change le type, puis on revient aux revenus.
+    fireEvent.click(screen.getByLabelText(/Résidence principale/))
+    fireEvent.click(screen.getByRole('button', { name: /Comparer avec la location/ }))
 
-    expect(screen.getByLabelText('Loyer mensuel estimé pour un bien équivalent (€)')).toBeInTheDocument()
-    expect(screen.getByLabelText("Taxe d'habitation annuelle (€)")).toBeInTheDocument()
-    expect(screen.getByText(/Les charges mensuelles saisies plus haut y sont reprises/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Loyer d'un bien équivalent/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Taxe d'habitation annuelle/)).toBeInTheDocument()
+    expect(screen.getByText(/n'alimentent que le comparatif « Achat vs location »/)).toBeInTheDocument()
   })
 
   it('confirme « Enregistré » après un enregistrement réussi, et le retire dès que le formulaire change (§ BN.1)', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.updateHoldingImmobilier).mockResolvedValue(immobilier())
-    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() }))
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Paramètres')
-    await screen.findByText('Immobilier — caractéristiques et location')
+    await screen.findByLabelText('Nom du bien')
     expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le bien' }))
 
     expect(await screen.findByText('Enregistré')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '1100' } })
+    fireEvent.change(screen.getByLabelText('Nom du bien'), { target: { value: 'Autre nom' } })
     expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
   })
 
@@ -377,12 +420,55 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     vi.mocked(api.updateHoldingImmobilier).mockRejectedValue(new Error('Le loyer mensuel ne peut pas être négatif'))
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Paramètres')
-    await screen.findByText('Immobilier — caractéristiques et location')
+    await screen.findByLabelText('Nom du bien')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le bien' }))
 
     expect(await screen.findByText('Le loyer mensuel ne peut pas être négatif')).toBeInTheDocument()
     expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+  })
+
+  it("la répartition d'un bien est dans la section « Qui le détient » des Paramètres, avec la part nette après emprunt", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
+    vi.mocked(api.listLoans).mockResolvedValue([
+      {
+        id: 4,
+        libelle: 'Crédit',
+        capital_initial: 100000,
+        taux_annuel_pct: 2,
+        mensualite: 600,
+        date_debut: '2020-01-01T00:00:00',
+        duree_mois: 240,
+        capital_restant_du_manuel: null,
+        derniere_maj_manuelle: null,
+        capital_restant_du: 80000,
+        holding_id: 1,
+        etablissement_id: null,
+        created_at: '2026-01-01T00:00:00',
+        updated_at: '2026-01-01T00:00:00',
+      },
+    ])
+    render(
+      <HoldingDetailContent
+        detail={detail({
+          type_actif: 'REAL_ESTATE',
+          valeur: 300000,
+          immobilier: immobilier(),
+          quotites: [
+            { detenteur_id: 1, detenteur_nom: 'Alice', quotite_pct: 50, part_detenue: 150000, part_nette: 110000 },
+            { detenteur_id: 2, detenteur_nom: 'Bob', quotite_pct: 50, part_detenue: 150000, part_nette: 110000 },
+          ],
+        })}
+        onRecharger={vi.fn()}
+      />,
+    )
+    ouvrirOnglet('Paramètres')
+    fireEvent.click(await screen.findByRole('button', { name: /^Qui le détient/ }))
+
+    expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(50)
+    // 50 % de (300 000 − 80 000 de capital restant dû) = 110 000 chacun.
+    expect(await screen.findAllByText(/Part nette\s:\s110\s000\s€/)).toHaveLength(2)
+    expect(screen.getByText('Le prêt suit la même répartition.')).toBeInTheDocument()
   })
 
   it("l'onglet Analyse d'un bien n'affiche pas les deux cartes vides « Titre unique, pas de décomposition »", async () => {
@@ -390,7 +476,6 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', nom: 'Maison', immobilier: immobilier() })} onRecharger={vi.fn()} />)
     ouvrirOnglet('Analyse')
 
-    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
     expect(screen.queryByText('Répartition géographique')).not.toBeInTheDocument()
     expect(screen.queryByText('Répartition sectorielle')).not.toBeInTheDocument()
     expect(screen.queryByText(/Titre unique/)).not.toBeInTheDocument()
@@ -798,7 +883,7 @@ describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
     )
 
     expect(screen.getByRole('tab', { name: 'Paramètres' })).toHaveAttribute('aria-selected', 'true')
-    expect(await screen.findByText('Immobilier — caractéristiques et location')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Nom du bien')).toBeInTheDocument()
   })
 
   it("ignore un onglet inconnu dans l'URL et retombe sur Aperçu", async () => {
