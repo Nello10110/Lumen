@@ -160,25 +160,69 @@ Appelé « Portefeuille » jusqu'au 16/09/2026 (l'adresse reste `/patrimoine`). 
 - **Modifier une ligne** : le bouton « Modifier » ouvre une édition en ligne (quantité, prix de revient, compte, type d'actif, valeur estimée, date d'acquisition) sans quitter le tableau — la valeur estimée d'un titre coté n'y figure que si la ligne en porte déjà une, pour pouvoir la retirer ; « Enregistrer » valide, « Annuler » abandonne. Une saisie invalide (ex. quantité négative) affiche l'erreur sans perdre le reste de la saisie en cours.
 - **Supprimer une ligne** : le bouton « Supprimer » ouvre une confirmation avant suppression définitive.
 - **Rafraîchir** relance la récupération des cours pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions »), le tableau se met à jour tout seul une fois terminé, et le suivi continue si vous changez d'écran entre-temps. Les lignes qui n'ont structurellement pas de cotation (briques Bricks.co, par exemple) ne sont plus interrogées à chaque fois ; la carte de la tâche, dans Réglages → Automatisations, permet de forcer leur recherche.
-- **Ajouter une ligne** (bouton en haut à droite) ouvre une fenêtre avec une bascule **Un actif / Un emprunt**. En mode *Un emprunt*, les mêmes champs que la carte « Dettes et emprunts » plus bas. En mode *Un actif* : type d'actif, puis ticker et quantité pour un titre coté, ou simplement un **Nom** pour un bien valorisé à la main (immobilier, épargne, véhicule — pas de symbole boursier à inventer) ; prix de revient, compte, valeur estimée — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat. **Valeur estimée n'est pas proposée pour un titre coté** (action, ETF / fonds, crypto, obligation, private equity) : elle écraserait son cours de marché sans prévenir. Dans le tableau, un bien saisi à la main s'affiche sous son nom, sans son identifiant technique (la colonne Ticker disparaît quand aucune ligne n'en a besoin).
-- **Compte** (à l'ajout comme à l'édition) : une liste déroulante propose les comptes déjà créés, avec en dernière option « + Nouveau compte... » pour en créer un à la volée par son nom — aucune étape séparée n'est nécessaire pour commencer à utiliser un compte. Voir l'écran Comptes pour tout regrouper par établissement, définir la répartition entre détenteurs pour un compte entier, ou renommer/rattacher un compte a posteriori.
-- **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée de l'écran Analyse.
+- **Ajouter une ligne** (bouton en haut à droite) ouvre une fenêtre avec une bascule **Un actif / Un bien immobilier / Un emprunt**. *Un bien immobilier* (ou « Immobilier » dans Type d'actif) ouvre le formulaire dédié décrit plus bas (« Ajouter un bien immobilier »). En mode *Un emprunt*, les mêmes champs que la carte « Dettes et emprunts » plus bas. En mode *Un actif* : type d'actif, puis ticker et quantité pour un titre coté, ou simplement un **Nom** pour un bien valorisé à la main (immobilier, épargne, véhicule — pas de symbole boursier à inventer) ; prix de revient, compte, valeur estimée — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat. **Valeur estimée n'est pas proposée pour un titre coté** (action, ETF / fonds, crypto, obligation, private equity) : elle écraserait son cours de marché sans prévenir. Dans le tableau, un bien saisi à la main s'affiche sous son nom, sans son identifiant technique (la colonne Ticker disparaît quand aucune ligne n'en a besoin).
+- **Compte** (à l'ajout comme à l'édition) : une liste déroulante propose les comptes déjà créés, avec en dernière option « + Nouveau compte... » pour en créer un à la volée par son nom — aucune étape séparée n'est nécessaire pour commencer à utiliser un compte. Voir l'écran Comptes pour tout regrouper par établissement, définir la répartition entre détenteurs pour un compte entier (le formulaire s'ouvre sur la répartition actuelle), ou renommer/rattacher un compte a posteriori.
+- **Zone géographique** (SCPI et autres types manuels ci-dessus ; pour un bien immobilier, elle est dans le formulaire dédié) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée de l'écran Analyse.
 - **Date d'acquisition** (immobilier/épargne/tous les types manuels ci-dessus, et titres cotés, crypto ou obligations saisis à la main — facultative ; retour utilisateur du 26/08/2026) : champ apparaissant uniquement pour ces types, modifiable aussi bien à l'ajout que sur une ligne déjà existante (bouton « Modifier » du tableau) — la date à laquelle le bien a réellement été acquis, affichée sous son nom dans le tableau (« Acquis le JJ/MM/AAAA ») une fois renseignée. Prise en compte dans le **rendement annualisé** (calculable désormais même sans historique de transactions, à partir du prix de revient et de cette date) et dans les **graphiques** — la courbe d'évolution de la Synthèse et le graphique de la fiche détaillée démarrent depuis le prix payé à cette date plutôt que depuis la date de saisie de la ligne dans l'application. Une date dans le futur est refusée : c'est un constat passé, pas une projection (le Simulateur est là pour ça).
 - **Taux annuel** (épargne réglementée/salariale) : champ apparaissant uniquement pour ces types — le taux d'intérêt attendu. Un véhicule n'a plus de décote annuelle à saisir (champ retiré le 04/10/2026 : rien ne le relisait). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
 - **Versement mensuel** (compte courant, épargne réglementée/salariale, assurance-vie, PER — backlog § S.1) : champ apparaissant uniquement pour ces types — le montant versé régulièrement sur ce compte, additionné au préremplissage du Simulateur. Le suivi dédié (valorisation datée, historique, ajout rapide) se fait depuis la fiche du compte, écran Comptes.
 
+### Ajouter un bien immobilier
+
+Le bouton **Ajouter une ligne** de l'écran Actifs, puis **Un bien immobilier**, ouvre un formulaire
+unique (une feuille plein écran sur mobile) : tout se saisit au même endroit, et un seul bouton,
+**Ajouter le bien**, crée d'un coup le bien, son prêt éventuel et la part de chacun — si une étape
+échoue, **rien** n'est enregistré (jamais de bien « à moitié créé »). On arrive ensuite sur la fiche du bien.
+
+Le formulaire est découpé en **sections repliables** (la première est ouverte ; refermée, une section
+résume ce qu'elle contient) et un **aperçu en direct** — colonne de droite sur grand écran, section
+« Aperçu » et ligne de résumé collée en bas sur mobile :
+
+1. **Le bien** : type de bien (**Résidence principale**, **Investissement locatif** ou **Autre
+   immobilier**), nom (par exemple « Appartement Lyon 6e » — l'identifiant technique n'est jamais
+   montré ; deux biens de même nom reçoivent un suffixe `-2`, `-3`... automatiquement), prix d'achat,
+   date d'achat, valeur estimée aujourd'hui (le prix d'achat par défaut) et surface. Repliés : les
+   **frais d'acquisition** (notaire, travaux, autres — le bouton **« Estimer le notaire (~7,5 % dans
+   l'ancien) »** ne remplit le champ que sur clic) et la **zone géographique** (Europe par défaut).
+2. **Financement et revenus** : **« J'ai un prêt pour ce bien »** (un nouveau prêt, ou **un prêt déjà
+   saisi** qui ne finance aucun autre bien). Pour un bien locatif : loyer mensuel (obligatoire, 0 si le
+   bien est vacant), charges mensuelles, frais annuels. Pour une résidence principale : charges
+   mensuelles et, repliés, le loyer d'un bien équivalent et la taxe d'habitation (comparatif
+   « Achat vs location »). Un « autre immobilier » n'a pas de revenu à saisir.
+3. **Qui le détient** (dès qu'au moins un membre du foyer est déclaré ; sinon une ligne propose d'en
+   ajouter un sur place, et le bien appartient au foyer entier) : une part par membre, au champ, au
+   curseur ou aux boutons − / +, **pré-remplie** (un membre : 100 % ; plusieurs : parts égales). Le
+   **total** est toujours visible ; quand il n'est pas de 100 %, un message dit quoi faire (« Il
+   manque 10 % — l'ajouter à Bob ? ») avec un bouton. Raccourcis : « À parts égales », « 100 % <nom> ».
+   La **part nette** de chacun, après emprunt, s'affiche à mesure ; le prêt **suit la même répartition**.
+4. **Aperçu** : valeur, coût total d'acquisition, cashflow mensuel et rentabilités brute/nette (bien
+   locatif), prix au m², mensualité, capital restant dû et parts nettes. Ces chiffres suivent la saisie ;
+   le serveur les recalcule à l'enregistrement avec les mêmes formules.
+
+Le bouton principal n'est jamais grisé : au clic sur un formulaire incomplet, il affiche ce qui manque
+**sous chaque champ concerné**, ouvre les sections en cause et met le focus sur le premier champ (un
+résumé des erreurs, lisible par les lecteurs d'écran, les liste). Fermer avec une saisie en cours
+demande confirmation.
+
 ### Fiche immobilier complète
 
 Sur la fiche détaillée d'un bien immobilier (clic sur la ligne dans le tableau), une section dédiée
-remplace le graphique de cours (sans objet, un bien immobilier n'a pas de cotation) :
+remplace le graphique de cours (sans objet, un bien immobilier n'a pas de cotation). Tout ce qui
+s'édite est dans l'onglet **Paramètres**, en **quatre sections repliables** dans l'ordre du formulaire
+d'ajout — **Le bien**, **Financement et revenus**, **Qui le détient**, **Classification** —, la première
+ouverte, chacune avec son bouton **Enregistrer** et son message « Enregistré » (qui disparaît dès qu'on
+modifie un champ). L'onglet **Analyse** redevient une lecture seule.
 
-- **Caractéristiques et location** : loyer mensuel, charges mensuelles, frais annuels (taxe foncière,
-  copropriété, assurance, gestion — un seul total), frais d'acquisition (notaire, travaux, autres) et
-  surface. Les **charges mensuelles** servent deux fois, d'où leur aide à l'écran : au cashflow d'un
-  bien loué, et au comparatif « Achat vs location » d'une résidence principale — elles se saisissent
-  donc même sans loyer. Le type de location, le nombre de pièces, l'année de construction et le DPE
-  ne sont plus demandés (retirés le 04/10/2026 : rien ne les relisait). « Enregistrer » valide et
-  affiche « Enregistré » ; la confirmation disparaît dès qu'on modifie un champ.
+- **Le bien et Financement et revenus** : les mêmes champs que le formulaire d'ajout (nom, type de
+  bien, prix, dates, valeur estimée, frais d'acquisition, surface ; loyer, charges mensuelles, frais
+  annuels ; prêts qui financent le bien, avec la possibilité d'en ajouter ou rattacher un). Les
+  **charges mensuelles** servent deux fois : au cashflow d'un bien loué, et au comparatif « Achat vs
+  location » d'une résidence principale. Le type de location, le nombre de pièces, l'année de
+  construction et le DPE ne sont plus demandés (retirés le 04/10/2026 : rien ne les relisait). Changer
+  la valeur estimée ajoute un point à l'historique des valorisations ; ne pas y toucher n'en ajoute pas.
+- **Qui le détient** : la répartition entre membres du foyer (voir ci-dessus), avec la part détenue et
+  la part nette de chacun. Les autres lignes du patrimoine la trouvent aussi dans leur onglet
+  Paramètres.
 - **Cashflow et rentabilité** (calculés automatiquement dès qu'un loyer est renseigné) : cashflow
   mensuel (loyer − charges − frais/12 − mensualité de l'emprunt rattaché, s'il y en a un), rentabilité
   brute et nette, prix au m² (dès que la surface est renseignée, même sans loyer) — chaque chiffre est
@@ -189,15 +233,15 @@ remplace le graphique de cours (sans objet, un bien immobilier n'a pas de cotati
 
 ### Dettes et emprunts
 
-Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Modifier** permet de corriger les autres caractéristiques (libellé, capital initial, taux, mensualité, date de début, durée) en cas d'erreur de saisie ou de renégociation — jamais le capital restant dû, qui reste sous « Recaler ». **Supprimer** retire définitivement un emprunt, après confirmation. **Détenteurs** ouvre la répartition entre détenteurs déclarés de cet emprunt (même logique que pour un actif) — utile pour un crédit immobilier partagé à parts inégales entre conjoints.
+Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Modifier** permet de corriger les autres caractéristiques (libellé, capital initial, taux, mensualité, date de début, durée) en cas d'erreur de saisie ou de renégociation — jamais le capital restant dû, qui reste sous « Recaler ». **Supprimer** retire définitivement un emprunt, après confirmation. **Détenteurs** ouvre la répartition entre détenteurs déclarés de cet emprunt (même logique que pour un actif) ; le formulaire s'ouvre sur la répartition actuelle — celle que le prêt s'est donnée, sinon celle du bien qu'il finance, dont il hérite tant qu'il n'a pas la sienne — utile pour un crédit immobilier partagé à parts inégales entre conjoints.
 
 ## Fiche détaillée d'une position
 
 Accessible en cliquant sur une ligne de l'écran Actifs, sur une barre de répartition de l'écran Analyse, ou directement par son adresse (`/patrimoine/ID`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...). Un badge à côté du type d'actif indique le compte rattaché, s'il y en a un — clique dessus pour aller directement à sa fiche (écran Comptes) :
 
 - **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés puis l'historique daté de ses valorisations successives — ou, pour un compte Épargne (compte courant, épargne réglementée/salariale, assurance-vie, PER), la valeur actuelle et sa date, le versement mensuel déclaré, le même historique daté, et un ajout rapide d'une valorisation (voir « Lignes d'épargne » dans l'écran Comptes) ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
-- **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique) ; un bien immobilier n'affiche pas non plus ces deux cartes vides. En dessous, la répartition entre détenteurs déclarés (Réglages) et la part nette qui en résulte, si au moins un détenteur a été créé ;
-- **Paramètres** : pour toute ligne, la **zone géographique** et le **secteur** déclarés — une déclaration prime sur la détection automatique, ce qui permet de classer une ligne que l'application ne sait pas situer (une brique Bricks.co) ou de corriger un fonds rangé sur son pays de domiciliation ; pour un bien immobilier, en plus, ses caractéristiques et son bloc location (loyer, charges, frais, surface...) et, uniquement si « Résidence principale » est cochée, le loyer estimé d'un bien équivalent et la taxe d'habitation qu'utilise le comparatif « Achat vs location » de l'écran Analyse (avec les charges mensuelles du bien).
+- **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique) ; un bien immobilier n'affiche pas non plus ces deux cartes vides. L'onglet est en lecture seule : la répartition entre détenteurs s'édite dans l'onglet Paramètres ;
+- **Paramètres** : pour toute ligne, la **zone géographique** et le **secteur** déclarés — une déclaration prime sur la détection automatique, ce qui permet de classer une ligne que l'application ne sait pas situer (une brique Bricks.co) ou de corriger un fonds rangé sur son pays de domiciliation ; la **répartition entre les membres du foyer** (« Détenteurs »), avec la part détenue et la part nette de chacun ; pour un bien immobilier, les quatre sections décrites plus haut (le loyer d'un bien équivalent et la taxe d'habitation du comparatif « Achat vs location » n'apparaissent que pour une résidence principale).
 
 ## Écran Comptes
 
@@ -235,8 +279,9 @@ un CTO avec plusieurs titres), ou n'en contenir qu'une (ex. une assurance-vie, u
   - **Emprunts rattachés** (n'apparaît que si au moins un emprunt est rattaché à l'une des lignes du
     compte, ex. le prêt d'un bien immobilier) : rappel informatif avant la répartition ci-dessous —
     elle s'applique aussi à ces emprunts.
-  - **Répartition entre détenteurs** (dès qu'au moins une ligne est rattachée) : un formulaire, vierge
-    par défaut, pour définir en une seule fois le pourcentage de propriété de chaque détenteur du
+  - **Répartition entre détenteurs** (dès qu'au moins une ligne est rattachée) : un formulaire, **pré-rempli
+    avec la répartition actuelle** du compte (parts égales proposées, sans rien enregistrer, s'il n'y en a
+    pas ; vide, avec un avertissement, si les lignes du compte divergent), pour définir en une seule fois le pourcentage de propriété de chaque détenteur du
     foyer sur **tout le compte** — utile en particulier pour un compte multi-lignes, plutôt que de
     répéter la même répartition ligne par ligne depuis la fiche détaillée de chacune. La somme doit
     faire 100 % ; valider **remplace** la répartition actuellement enregistrée de chaque ligne du
