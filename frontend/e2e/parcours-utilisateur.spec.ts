@@ -200,13 +200,18 @@ test.describe('Ergonomie — le guidage promis est réellement présent à l\'é
     await expect(page.getByTitle(/Un compte est un contenant/)).toBeVisible()
   })
 
-  test('« Part détenue » et « Part nette » sont expliquées sur la fiche d\'un actif', async ({ page }) => {
+  test('« Part détenue » et « Part nette » sont expliquées dans la répartition d\'un actif', async ({ page }) => {
     const { holdings } = seedData()
+    // Un titre sans prêt : la part détenue seule, expliquée.
     await page.goto(`/patrimoine/${holdings.aapl.id}`)
-    await page.getByRole('tab', { name: 'Analyse' }).click()
-    await expect(page.getByText('Détenteurs')).toBeVisible()
+    await page.getByRole('tab', { name: 'Paramètres' }).click()
+    await expect(page.getByRole('heading', { name: 'Détenteurs' })).toBeVisible()
+    await expect(page.getByTitle(/SANS déduire le prêt/).first()).toBeVisible()
 
-    await expect(page.getByTitle(/SANS déduire l'emprunt/)).toBeVisible()
-    await expect(page.getByTitle(/MOINS la part du capital restant dû/)).toBeVisible()
+    // Un bien financé : la part nette apparaît, et son explication.
+    await page.goto(`/patrimoine/${holdings.appartement.id}`)
+    await page.getByRole('tab', { name: 'Paramètres' }).click()
+    await page.getByRole('button', { name: /^Qui le détient/ }).click()
+    await expect(page.getByTitle(/MOINS la part du capital restant dû/).first()).toBeVisible()
   })
 })

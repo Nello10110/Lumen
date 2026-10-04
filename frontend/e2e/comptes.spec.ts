@@ -73,23 +73,17 @@ test.describe('Comptes (backlog X.1)', () => {
     // définie une fois pour les 2 lignes plutôt que ligne par ligne) — le seed a
     // déjà posé 60/40 Alice/Bob au niveau du compte (`_repartir_quotites_compte`).
     await expect(modale.getByRole('heading', { name: 'Répartition entre détenteurs' })).toBeVisible()
-    // `.*remplace la répartition` (pas juste le préfixe commun) : la carte
-    // "Classification géographique et sectorielle" (§ AP.3) affiche désormais un
-    // paragraphe quasi identique ("S'applique à TOUTES les lignes de ce compte...
-    // — remplace la DÉCLARATION..."), ambigu pour un simple préfixe.
-    await expect(modale.getByText(/S'applique à TOUTES les lignes de ce compte.*remplace la répartition/)).toBeVisible()
+    // Le formulaire s'ouvre sur la répartition ACTUELLE du compte (60 / 40), pas vide (§ BN.1, lot 2).
+    await expect(modale.getByLabel('Part de Alice (%)')).toHaveValue('60')
+    await expect(modale.getByLabel('Part de Bob (%)')).toHaveValue('40')
+    await expect(modale.getByText(/la répartition s'applique à TOUTES ses lignes/)).toBeVisible()
 
     // Soumission réelle (pas juste l'affichage) : remplace la répartition 60/40
-    // seedée par 70/30, confirme le message de succès — prouve que "Enregistrer"
-    // appelle bien `PUT /comptes/{id}/quotites` depuis l'IHM. `exact: true` + `.last()` :
-    // la carte "Informations" plus haut dans la modale a elle aussi son propre
-    // bouton "Enregistrer" (celui de la répartition vient après dans le DOM) — et
-    // depuis § AP.3, "Enregistrer la zone"/"Enregistrer le secteur" contiennent
-    // aussi le mot "Enregistrer" (match par sous-chaîne sans `exact`), sans quoi
-    // `.last()` sélectionnerait à tort le bouton de la classification.
-    await modale.getByLabel('Alice').fill('70')
-    await modale.getByLabel('Bob').fill('30')
-    await modale.getByRole('button', { name: 'Enregistrer', exact: true }).last().click()
+    // seedée par 70/30, confirme le message de succès — prouve que le bouton de la
+    // répartition appelle bien `PUT /comptes/{id}/quotites` depuis l'IHM.
+    await modale.getByLabel('Part de Alice (%)').fill('70')
+    await modale.getByLabel('Part de Bob (%)').fill('30')
+    await modale.getByRole('button', { name: 'Remplacer la répartition du compte' }).click()
     await expect(modale.getByText('Répartition appliquée à toutes les lignes du compte.')).toBeVisible()
   })
 
@@ -111,7 +105,8 @@ test.describe('Comptes (backlog X.1)', () => {
     // répartition entre détenteurs ci-dessous s'appliquera aussi à lui.
     await expect(modale.getByRole('heading', { name: 'Emprunts rattachés' })).toBeVisible()
     await expect(modale.getByText('Prêt appartement E2E')).toBeVisible()
-    await expect(modale.getByText(/1 ligne, et 1 emprunt rattaché/)).toBeVisible()
+    // Deux phrases de la carte de répartition citent ce décompte (introduction et portée du bouton).
+    await expect(modale.getByText(/1 ligne, et 1 emprunt rattaché/).first()).toBeVisible()
   })
 
   test('cycle complet via l\'IHM : créer un compte avec établissement, le renommer puis le supprimer', async ({ page }) => {

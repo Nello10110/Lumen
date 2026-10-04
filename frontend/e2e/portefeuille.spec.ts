@@ -97,7 +97,7 @@ test.describe('Portefeuille', () => {
       await expect(formulaire.getByLabel("Date d'acquisition")).toBeVisible()
     }
 
-    await formulaire.getByLabel("Type d'actif").selectOption({ label: 'Immobilier' })
+    await formulaire.getByLabel("Type d'actif").selectOption({ label: 'SCPI' })
     await expect(formulaire.getByLabel('Valeur estimée')).toBeVisible()
 
     await formulaire.getByLabel("Type d'actif").selectOption({ label: 'Véhicule' })
