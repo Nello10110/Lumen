@@ -45,11 +45,21 @@ export default function Modale({
   children,
   panelClassName = 'w-full max-w-lg rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6',
   variant = 'center',
+  pleinEcranMobile = false,
+  focusInitial,
 }: {
   onClose: () => void
   children: (ctx: { titleId: string }) => ReactNode
   panelClassName?: string
   variant?: 'center' | 'bottom'
+  /** Sous 768 px la modale occupe tout l'écran (une feuille, sans marge ni coins arrondis du
+   * côté de l'écran) : un long formulaire n'y gagne rien à flotter dans une fenêtre qui lui
+   * mange une marge de chaque côté. Avec `variant="center"` seulement. L'appelant garde la
+   * main sur le reste de l'apparence via `panelClassName` (`max-md:rounded-none`...). */
+  pleinEcranMobile?: boolean
+  /** Sélecteur CSS du champ qui reçoit le focus à l'ouverture. Par défaut le premier élément
+   * focalisable — souvent le bouton de fermeture, peu utile quand un formulaire s'ouvre. */
+  focusInitial?: string
 }) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -70,7 +80,8 @@ export default function Modale({
 
     const panel = panelRef.current
     if (panel) {
-      const premier = elementsFocusables(panel)[0]
+      const voulu = focusInitial ? panel.querySelector<HTMLElement>(focusInitial) : null
+      const premier = voulu ?? elementsFocusables(panel)[0]
       ;(premier ?? panel).focus()
     }
 
@@ -78,6 +89,8 @@ export default function Modale({
       pileModales.splice(pileModales.indexOf(cle), 1)
       declencheurRef.current?.focus()
     }
+    // Le focus initial ne se calcule qu'à l'ouverture : l'effet ne dépend de rien.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -151,7 +164,9 @@ export default function Modale({
   const conteneurClassName =
     variant === 'bottom'
       ? 'fixed inset-0 z-50 flex items-end justify-center bg-[rgba(10,11,14,0.28)] backdrop-blur-[6px]'
-      : 'fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,11,14,0.28)] p-4 backdrop-blur-[6px]'
+      : pleinEcranMobile
+        ? 'fixed inset-0 z-50 flex items-stretch justify-center bg-[rgba(10,11,14,0.28)] backdrop-blur-[6px] md:items-center md:p-4'
+        : 'fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,11,14,0.28)] p-4 backdrop-blur-[6px]'
 
   return createPortal(
     // Fond cliquable pour fermer (backdrop) : mouse-only par construction, la
@@ -170,7 +185,9 @@ export default function Modale({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         style={glissement > 0 ? { transform: `translateY(${glissement}px)` } : undefined}
-        className={`relative max-h-[85vh] overflow-y-auto ${panelClassName}`}
+        className={`relative overflow-y-auto ${
+          pleinEcranMobile && variant === 'center' ? 'h-dvh max-h-dvh md:h-auto md:max-h-[92vh]' : 'max-h-[85vh]'
+        } ${panelClassName}`}
       >
         {children({ titleId })}
       </div>

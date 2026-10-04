@@ -54,3 +54,7 @@ afterEach(() => {
   // mock Vitest auto-restauré).
   window.matchMedia = matchMediaDesktopParDefaut
 })
+
+// `Element.scrollIntoView` est absent de jsdom (pas de moteur de mise en page) : les formulaires
+// qui amènent un champ en erreur sous les yeux (§ BN.1, lot 2) l'appellent, sans effet en test.
+Element.prototype.scrollIntoView ??= () => {}
