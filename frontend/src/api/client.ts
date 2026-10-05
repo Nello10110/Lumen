@@ -18,6 +18,7 @@ import type {
   CompteAvecSolde,
   CoutGestionConsolide,
   Detenteur,
+  LignesNonReparties,
   Etablissement,
   DividendeMois,
   RapportPeriode,
@@ -412,7 +413,14 @@ export const api = {
   deleteHouseholdMember: (id: number) => request<void>(`/auth/household-members/${id}`, { method: 'DELETE' }),
 
   // Portfolio
-  listHoldings: () => request<Holding[]>('/portfolio/holdings'),
+  // `detenteurId` : la vue d'UN membre du foyer (§ BN.1, lot 3) — chaque ligne vaut sa part.
+  listHoldings: (detenteurId?: number | null) =>
+    request<Holding[]>(`/portfolio/holdings${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
+  // Les actifs et les prêts sans aucune part, et « Tout attribuer » qui leur applique une même
+  // répartition en une transaction (§ BN.1, lot 3).
+  getLignesNonReparties: () => request<LignesNonReparties>('/portfolio/lignes-non-reparties'),
+  repartirToutesLesLignes: (quotites: QuotiteEntree[]) =>
+    request<LignesNonReparties>('/portfolio/repartition-globale', { method: 'POST', body: JSON.stringify({ quotites }) }),
   createHolding: (payload: HoldingInput) =>
     request<Holding>('/portfolio/holdings', { method: 'POST', body: JSON.stringify(payload) }),
   // Un bien, sa fiche, son prêt éventuel et ses quotités en UNE transaction (§ BN.1, lot 2) :
@@ -534,7 +542,8 @@ export const api = {
   // celles des tâches planifiées, sont décrites par `routesInstallation`.
   ...routesInstallation('/settings'),
   listComptes: () => request<Compte[]>('/comptes'),
-  listComptesAvecSolde: () => request<CompteAvecSolde[]>('/comptes/solde'),
+  listComptesAvecSolde: (detenteurId?: number | null) =>
+    request<CompteAvecSolde[]>(`/comptes/solde${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
   // Établissement OBLIGATOIRE à la création (revue du 03/09/2026, demande directe
   // de l'utilisateur : « il n'est pas possible d'avoir des comptes sans
   // établissement ») — `updateCompte` ci-dessous reste, lui, inchangé (un compte
@@ -544,7 +553,8 @@ export const api = {
   updateCompte: (id: number, payload: { nom?: string; etablissement_id?: number | null }) =>
     request<Compte>(`/comptes/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteCompte: (id: number) => request<{ ok: boolean }>(`/comptes/${id}`, { method: 'DELETE' }),
-  getCompteHoldings: (id: number) => request<Holding[]>(`/comptes/${id}/holdings`),
+  getCompteHoldings: (id: number, detenteurId?: number | null) =>
+    request<Holding[]>(`/comptes/${id}/holdings${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
   getCompteQuotites: (id: number) => request<RepartitionActuelleCompte>(`/comptes/${id}/quotites`),
   setCompteQuotites: (id: number, quotites: QuotiteEntree[]) =>
     request<{ ok: boolean }>(`/comptes/${id}/quotites`, { method: 'PUT', body: JSON.stringify({ quotites }) }),
@@ -652,7 +662,7 @@ export const api = {
   getZonesGeographiques: () => request<ZoneGeographiqueInfo[]>('/reference/zones-geographiques'),
 
   // Emprunts (roadmap Phase 1, patrimoine net)
-  listLoans: () => request<Loan[]>('/loans'),
+  listLoans: (detenteurId?: number | null) => request<Loan[]>(`/loans${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
   createLoan: (payload: LoanInput) => request<Loan>('/loans', { method: 'POST', body: JSON.stringify(payload) }),
   updateLoan: (id: number, payload: LoanUpdateInput) =>
     request<Loan>(`/loans/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),

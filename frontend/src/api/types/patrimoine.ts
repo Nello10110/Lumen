@@ -21,6 +21,13 @@ export interface Loan {
   // bien financé (`holding_id`) : le crédit a sa banque, l'immobilier/le véhicule
   // n'appartient à aucun établissement. Optionnel, contrairement à `Compte.etablissement`.
   etablissement_id: number | null
+  // Répartition entre membres du foyer (§ BN.1, lot 3). `repartie` : le prêt a une répartition
+  // effective (la sienne, sinon celle du bien qu'il finance). `quotite_pct` et
+  // `part_capital_restant_du` ne sont renseignés que dans la vue d'UN membre (`?detenteur_id=`) :
+  // sa part du prêt, et le capital qu'elle représente. `capital_restant_du` reste celui du prêt entier.
+  repartie?: boolean
+  quotite_pct?: number | null
+  part_capital_restant_du?: number | null
   created_at: string
   updated_at: string
 }
@@ -34,6 +41,8 @@ export interface LoanInput {
   duree_mois: number
   capital_restant_du_manuel?: number | null
   etablissement_id?: number | null
+  // Absente, le serveur applique la règle par défaut du foyer ; `[]`, « ne pas répartir ».
+  quotites?: QuotiteEntree[]
 }
 
 // Création d'un bien immobilier en une transaction (`POST /portfolio/biens-immobiliers`,

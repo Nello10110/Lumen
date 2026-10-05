@@ -1,3 +1,4 @@
+import type { QuotiteEntree } from './detenteurs'
 import type { Etablissement } from './noyau'
 
 /** Aperçu d'un fichier d'export avant import (backlog X.6) : décompte par table,
@@ -36,6 +37,9 @@ export interface ColumnMapping {
   etablissement_id?: number | null
   etablissement_nom?: string | null
   etablissement_logo_key?: string | null
+  // Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3), jamais de celles qui
+  // existaient déjà. Absente, le serveur applique la règle par défaut du foyer ; `[]`, « ne pas répartir ».
+  quotites?: QuotiteEntree[]
 }
 
 export interface ImportResult {
@@ -98,6 +102,9 @@ export interface TransactionImportConfirmInput {
   // Une entrée par clé que l'utilisateur a renommée — absente = garde le nom par
   // défaut (`TransactionImportApercu.noms_par_defaut`).
   noms_comptes?: Partial<Record<CleCompte, string>>
+  // Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3), jamais de celles qui
+  // existaient déjà. Absente, le serveur applique la règle par défaut du foyer ; `[]`, « ne pas répartir ».
+  quotites?: QuotiteEntree[]
 }
 
 // Import d'un export de wallet matériel Ledger (retour utilisateur du 11/09/2026) —
@@ -127,6 +134,9 @@ export interface LedgerImportConfirmInput {
   etablissement_logo_key?: string | null
   nom_compte?: string
   devises_selectionnees: string[]
+  // Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3), jamais de celles qui
+  // existaient déjà. Absente, le serveur applique la règle par défaut du foyer ; `[]`, « ne pas répartir ».
+  quotites?: QuotiteEntree[]
 }
 
 export interface LedgerImportResult {
@@ -165,6 +175,9 @@ export interface BricksImportConfirmInput {
   etablissement_nom?: string | null
   etablissement_logo_key?: string | null
   nom_compte?: string
+  // Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3), jamais de celles qui
+  // existaient déjà. Absente, le serveur applique la règle par défaut du foyer ; `[]`, « ne pas répartir ».
+  quotites?: QuotiteEntree[]
 }
 
 export interface BricksImportResult {
