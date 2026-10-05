@@ -7,8 +7,10 @@ import { PrimaryButton } from './Controls'
 import Dropzone from './Dropzone'
 import { Field, Input } from './Field'
 import { IconFlecheDroite } from './icons'
+import QuestionMembreImport from './QuestionMembreImport'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { useFichierPilote } from '../hooks/useFichierPilote'
+import { useQuestionImport } from '../hooks/useQuestionImport'
 import { t } from '../i18n'
 
 // Ordre d'affichage des clés de compte à l'écran d'aperçu — même ordre que
@@ -81,8 +83,11 @@ export default function ImportTransactionsSection({
   const etablissementValide =
     etablissementId === NOUVEAU_ETABLISSEMENT ? etablissementNom.trim() !== '' : etablissementId !== ''
 
+  // Une question par fichier, à partir de deux membres du foyer (§ BN.1, lot 3).
+  const questionMembre = useQuestionImport()
+
   async function handleConfirm() {
-    if (!apercu || !etablissementValide) return
+    if (!apercu || !etablissementValide || !questionMembre.valide) return
     setConfirming(true)
     setError(null)
     try {
@@ -93,7 +98,9 @@ export default function ImportTransactionsSection({
         etablissement_nom: nouvelEtablissement ? etablissementNom.trim() || null : null,
         etablissement_logo_key: nouvelEtablissement ? etablissementLogoKey : null,
         noms_comptes: nomsComptes,
+        quotites: questionMembre.quotites,
       })
+      questionMembre.memoriser()
       setResult(res)
       setApercu(null)
       if (txInputRef.current) txInputRef.current.value = ''
@@ -163,7 +170,9 @@ export default function ImportTransactionsSection({
             </div>
           )}
 
-          <PrimaryButton onClick={handleConfirm} disabled={!etablissementValide || confirming}>
+          <QuestionMembreImport question={questionMembre} idBase="import-tr" />
+
+          <PrimaryButton onClick={handleConfirm} disabled={!etablissementValide || !questionMembre.valide || confirming}>
             {confirming ? t('importTransactionsSection.importEnCours') : t('importTransactionsSection.confirmerLImport')}
           </PrimaryButton>
         </div>

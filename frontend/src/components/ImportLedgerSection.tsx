@@ -7,8 +7,10 @@ import { PrimaryButton } from './Controls'
 import Dropzone from './Dropzone'
 import { Field, Input } from './Field'
 import { IconFlecheDroite } from './icons'
+import QuestionMembreImport from './QuestionMembreImport'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { useFichierPilote } from '../hooks/useFichierPilote'
+import { useQuestionImport } from '../hooks/useQuestionImport'
 import { formatEuro } from '../utils/format'
 import { t } from '../i18n'
 
@@ -90,6 +92,9 @@ export default function ImportLedgerSection({
   const etablissementValide = etablissementId === NOUVEAU_ETABLISSEMENT ? etablissementNom.trim() !== '' : etablissementId !== ''
   const confirmationValide = etablissementValide && nomCompte.trim() !== '' && devisesSelectionnees.length > 0
 
+  // Une question par fichier, à partir de deux membres du foyer (§ BN.1, lot 3).
+  const questionMembre = useQuestionImport()
+
   async function handleConfirm() {
     if (!apercu || !confirmationValide) return
     setConfirming(true)
@@ -103,7 +108,9 @@ export default function ImportLedgerSection({
         etablissement_logo_key: nouvelEtablissement ? etablissementLogoKey : null,
         nom_compte: nomCompte.trim(),
         devises_selectionnees: devisesSelectionnees,
+        quotites: questionMembre.quotites,
       })
+      questionMembre.memoriser()
       setResult(res)
       setApercu(null)
       onImported?.()
@@ -181,7 +188,9 @@ export default function ImportLedgerSection({
             </div>
           </fieldset>
 
-          <PrimaryButton onClick={handleConfirm} disabled={!confirmationValide || confirming}>
+          <QuestionMembreImport question={questionMembre} idBase="import-ledger" />
+
+          <PrimaryButton onClick={handleConfirm} disabled={!confirmationValide || !questionMembre.valide || confirming}>
             {confirming ? t('importLedgerSection.importEnCours') : t('importLedgerSection.confirmerLImport')}
           </PrimaryButton>
         </div>
