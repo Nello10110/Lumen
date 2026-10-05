@@ -62,6 +62,9 @@ def _peupler_foyer(client, db) -> dict:
             "type_actif": "REAL_ESTATE",
             "valeur_estimee": 300000.0,
             "date_acquisition": "2021-06-15",
+            # Non répartie à dessein : sans `quotites`, la création répartit par défaut entre les
+            # membres (§ BN.1, lot 3), et ce foyer de test veut une ligne SANS part à côté de AAA.
+            "quotites": [],
         },
     ).json()
     client.put(f"/api/portfolio/holdings/{maison['id']}/immobilier", json={"surface_m2": 65.0, "loyer_mensuel": 1200.0})
