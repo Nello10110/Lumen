@@ -7,7 +7,7 @@ import { PreferencesAffichageProvider } from '../contexts/PreferencesAffichageCo
 import BarreControles from './BarreControles'
 
 // Détenteurs (backlog 2.L.1) : `BarreControles` charge la liste au montage pour son
-// sélecteur "Détenteur", masqué tant qu'aucun n'est déclaré.
+// sélecteur « Membre », masqué tant qu'aucun n'est déclaré.
 vi.mock('../api/client', () => ({
   api: {
     listDetenteurs: vi.fn().mockResolvedValue([]),
@@ -65,20 +65,20 @@ describe('BarreControles (backlog 2.K.3)', () => {
 })
 
 describe('BarreControles — filtre détenteur (backlog 2.L.1)', () => {
-  it("n'affiche aucun sélecteur Détenteur si l'utilisateur n'a déclaré personne", async () => {
+  it("n'affiche aucun sélecteur Membre si l'utilisateur n'a déclaré personne", async () => {
     renderBarre()
     await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
-    expect(screen.queryByText('Détenteur')).not.toBeInTheDocument()
+    expect(screen.queryByText('Membre')).not.toBeInTheDocument()
   })
 
-  it('affiche "Foyer" + chaque détenteur déclaré, "Foyer" sélectionné par défaut', async () => {
+  it('affiche "Tout le foyer" + chaque membre déclaré, "Tout le foyer" sélectionné par défaut', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     renderBarre()
 
-    await screen.findByText('Détenteur')
+    await screen.findByText('Membre')
     const select = screen.getAllByRole('combobox')[0]
     expect(select).toHaveValue('')
-    expect(screen.getByRole('option', { name: 'Foyer' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Tout le foyer' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Alice' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Bob' })).toBeInTheDocument()
   })
@@ -86,7 +86,7 @@ describe('BarreControles — filtre détenteur (backlog 2.L.1)', () => {
   it('choisir un détenteur persiste son id dans localStorage', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ id: 7, nom: 'Alice' })])
     renderBarre()
-    await screen.findByText('Détenteur')
+    await screen.findByText('Membre')
 
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '7' } })
 
@@ -152,5 +152,36 @@ describe('BarreControles — pilule de contexte retirée (07/09/2026)', () => {
 
     fireEvent.click(pilule)
     expect(screen.getByRole('button', { name: 'Afficher les montants' }).className).toContain('bg-accent-soft')
+  })
+})
+
+describe('BarreControles — membre mémorisé supprimé depuis (§ BN.1, lot 3)', () => {
+  it("un membre mémorisé qui n'existe plus est désélectionné : retour à « Tout le foyer » et clé effacée", async () => {
+    localStorage.setItem('patrimoine:detenteur-id', '99')
+    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ id: 1, nom: 'Alice' })])
+    renderBarre()
+
+    await screen.findByText('Membre')
+    await vi.waitFor(() => expect(localStorage.getItem('patrimoine:detenteur-id')).toBeNull())
+    expect(screen.getAllByRole('combobox')[0]).toHaveValue('')
+  })
+
+  it('un membre mémorisé qui existe toujours reste sélectionné', async () => {
+    localStorage.setItem('patrimoine:detenteur-id', '2')
+    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ id: 1, nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
+    renderBarre()
+
+    await screen.findByText('Membre')
+    expect(screen.getAllByRole('combobox')[0]).toHaveValue('2')
+    expect(localStorage.getItem('patrimoine:detenteur-id')).toBe('2')
+  })
+
+  it("si la liste des membres n'est pas lisible, la sélection mémorisée n'est pas touchée", async () => {
+    localStorage.setItem('patrimoine:detenteur-id', '2')
+    vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('403'))
+    renderBarre()
+
+    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    expect(localStorage.getItem('patrimoine:detenteur-id')).toBe('2')
   })
 })

@@ -215,3 +215,33 @@ describe('calculerGainsParCompte', () => {
     expect(resultat).toHaveLength(2)
   })
 })
+
+describe("calculerGainsParCompte — vue d'un membre (§ BN.1, lot 3)", () => {
+  it('proratise le coût comme la valeur : 50 % de 10 titres à 100 € de revient, valeur de sa part 750 € => gain 250 €', () => {
+    const pea = compte({ id: 1, nom: 'PEA' })
+    const resultat = calculerGainsParCompte([
+      // Le serveur a déjà proratisé `valeur` (sa part de 10 x 150 €) ; le coût doit suivre.
+      holding({ ticker: 'AAA', compte: pea, quantite: 10, prix_revient_moyen: 100, valeur: 750, quotite_pct: 50 }),
+    ])
+
+    expect(resultat[0].gain).toBe(250)
+    expect(resultat[0].gainPct).toBe(50)
+  })
+
+  it('sans quotite_pct (vue du foyer), le coût reste entier : même ligne, valeur 1 500 € => gain 500 €', () => {
+    const pea = compte({ id: 1, nom: 'PEA' })
+    const resultat = calculerGainsParCompte([holding({ ticker: 'AAA', compte: pea, quantite: 10, prix_revient_moyen: 100, valeur: 1500 })])
+
+    expect(resultat[0].gain).toBe(500)
+  })
+
+  it("deux lignes d'un même compte à parts différentes : chaque coût est proratisé avec SA part", () => {
+    const pea = compte({ id: 1, nom: 'PEA' })
+    const resultat = calculerGainsParCompte([
+      holding({ id: 1, ticker: 'AAA', compte: pea, quantite: 10, prix_revient_moyen: 100, valeur: 500, quotite_pct: 50 }), // coût 500 => gain 0
+      holding({ id: 2, ticker: 'BBB', compte: pea, quantite: 10, prix_revient_moyen: 100, valeur: 1200, quotite_pct: 100 }), // coût 1000 => gain 200
+    ])
+
+    expect(resultat[0].gain).toBe(200)
+  })
+})

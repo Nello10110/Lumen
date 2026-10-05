@@ -3,12 +3,15 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Etablissement, TransactionImportApercu, TransactionImportResult } from '../api/types'
+import { suiteQuestionImport } from '../test/questionImport'
 import ImportTransactionsSection from './ImportTransactionsSection'
 
 vi.mock('../api/client', () => ({
   api: {
     importTransactionsApercu: vi.fn(),
     importTransactionsConfirm: vi.fn(),
+    // Question « À quel membre ? » d'un import (§ BN.1, lot 3) : sans membre par défaut.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -90,4 +93,20 @@ describe('ImportTransactionsSection — bandeau de résultat', () => {
 
     expect(screen.getByText(/1 transaction importée, 2 mises à jour, 1 déjà présente et inchangée/)).toBeInTheDocument()
   })
+})
+
+suiteQuestionImport('ImportTransactionsSection', {
+  async ouvrir(enveloppe) {
+    vi.mocked(api.importTransactionsApercu).mockResolvedValue(apercu())
+    render(enveloppe(<ImportTransactionsSection />))
+    fireEvent.change(screen.getByTestId('dropzone-input-Historique de transactions'), { target: { files: [fichier('releve.csv')] } })
+    await screen.findByLabelText('Établissement *')
+    fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
+  },
+  confirm: () => vi.mocked(api.importTransactionsConfirm),
+  confirmationReussit: () => vi.mocked(api.importTransactionsConfirm).mockResolvedValue(resultat()),
+  confirmationEchoue: () => vi.mocked(api.importTransactionsConfirm).mockRejectedValue(new Error('Import impossible')),
+  attendreSucces: async () => {
+    await screen.findByText(/transactions? importées?/)
+  },
 })

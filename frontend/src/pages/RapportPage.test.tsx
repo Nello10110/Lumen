@@ -22,6 +22,8 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
     toggleMontantsMasques: vi.fn(),
     periode: { type: 'relative', valeur: 'TOUT' },
     setPeriode: vi.fn(),
+    // Aucun membre sélectionné (§ BN.1, lot 3) : l'avis « foyer entier » ne s'affiche pas.
+    detenteurId: null,
   }),
 }))
 

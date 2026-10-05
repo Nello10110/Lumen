@@ -25,9 +25,22 @@ vi.mock('../api/client', () => ({
 
 // Contrôles transverses (backlog 2.K.3) : `LoansCard` lit `usePreferencesAffichage()`
 // (montants masqués) — non testé ici, stub neutre.
+// `detenteurId` (membre dont on voit la vue, § BN.1 lot 3) est pilotable : `null` = tout le foyer.
+const preferences = vi.hoisted(() => ({ detenteurId: null as number | null }))
 vi.mock('../hooks/usePreferencesAffichage', () => ({
-  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+  usePreferencesAffichage: () => ({
+    lentille: 'net',
+    setLentille: vi.fn(),
+    montantsMasques: false,
+    toggleMontantsMasques: vi.fn(),
+    detenteurId: preferences.detenteurId,
+    setDetenteurId: vi.fn(),
+  }),
 }))
+
+beforeEach(() => {
+  preferences.detenteurId = null
+})
 
 function loan(overrides: Partial<Loan> = {}): Loan {
   return {
@@ -391,7 +404,7 @@ describe('LoansCard — répartition du prêt entre membres (§ BN.1, lot 2)', (
   })
 
   async function ouvrirDetenteurs() {
-    fireEvent.click(await screen.findByRole('button', { name: 'Détenteurs' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Membres du foyer' }))
   }
 
   it("s'ouvre sur la répartition ACTUELLE du prêt, pas sur un formulaire vide", async () => {
@@ -445,5 +458,120 @@ describe('LoansCard — répartition du prêt entre membres (§ BN.1, lot 2)', (
       ]),
     )
     expect(await screen.findByText('Répartition enregistrée.')).toBeInTheDocument()
+  })
+})
+
+describe("LoansCard — répartition globale et vue d'un membre (§ BN.1, lot 3)", () => {
+  const HORODATAGE = '2026-01-01T00:00:00'
+  const ALICE = { id: 1, nom: 'Alice', created_at: HORODATAGE, updated_at: HORODATAGE }
+  const BOB = { id: 2, nom: 'Bob', created_at: HORODATAGE, updated_at: HORODATAGE }
+
+  beforeEach(() => {
+    simulerLargeurEcran(false)
+    vi.mocked(api.listLoans).mockReset()
+    vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+    vi.mocked(api.getLoanQuotites).mockReset()
+    vi.mocked(api.setLoanQuotites).mockReset()
+  })
+
+  describe.each([
+    { nom: 'tableau (desktop)', mobile: false },
+    { nom: 'cartes (mobile)', mobile: true },
+  ])('$nom', ({ mobile }) => {
+    beforeEach(() => simulerLargeurEcran(mobile))
+
+    it("badge « Non réparti » et lien « Répartir » sur un prêt sans répartition effective (repartie: false)", async () => {
+      vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4, repartie: false }), loan({ id: 5, libelle: 'Prêt auto', repartie: true })])
+      render(<LoansCard />)
+
+      await screen.findByText('Prêt auto')
+      expect(await screen.findAllByText('Non réparti')).toHaveLength(1)
+      expect(screen.getByRole('button', { name: 'Répartir « Crédit immobilier » entre les membres du foyer' })).toBeInTheDocument()
+    })
+
+    it("« Répartir » ouvre l'éditeur de répartition du prêt, sur ses parts actuelles", async () => {
+      vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4, repartie: false })])
+      vi.mocked(api.getLoanQuotites).mockResolvedValue({ quotites: [], heritee: false })
+      render(<LoansCard />)
+
+      fireEvent.click(await screen.findByRole('button', { name: /^Répartir « Crédit immobilier »/ }))
+
+      expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(50)
+      expect(api.getLoanQuotites).toHaveBeenCalledWith(4)
+    })
+
+    it("sans membre dans le foyer, aucun badge « Non réparti » n'est affiché", async () => {
+      vi.mocked(api.listDetenteurs).mockResolvedValue([])
+      vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4, repartie: false })])
+      render(<LoansCard />)
+
+      await screen.findByText('Crédit immobilier')
+      await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+      expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
+    })
+
+    it("un prêt dont `repartie` est absent (ancien serveur) n'est jamais signalé non réparti", async () => {
+      vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4 })])
+      render(<LoansCard />)
+
+      await screen.findByText('Crédit immobilier')
+      await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+      expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
+    })
+
+    it("enregistrer la répartition recharge la liste (le badge disparaît) sans masquer l'éditeur ouvert", async () => {
+      vi.mocked(api.listLoans).mockResolvedValueOnce([loan({ id: 4, repartie: false })])
+      vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4, repartie: true })])
+      vi.mocked(api.getLoanQuotites).mockResolvedValue({ quotites: [], heritee: false })
+      vi.mocked(api.setLoanQuotites).mockResolvedValue({ ok: true })
+      render(<LoansCard />)
+      fireEvent.click(await screen.findByRole('button', { name: /^Répartir « Crédit immobilier »/ }))
+      await screen.findByLabelText('Part de Alice (%)')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remplacer la répartition du prêt' }))
+
+      expect(await screen.findByText('Répartition enregistrée.')).toBeInTheDocument()
+      await vi.waitFor(() => expect(screen.queryByText('Non réparti')).not.toBeInTheDocument())
+      expect(api.listLoans).toHaveBeenCalledTimes(2)
+      // L'éditeur n'a pas été remplacé par un squelette de chargement.
+      expect(screen.getByLabelText('Part de Alice (%)')).toBeInTheDocument()
+    })
+
+    it("vue d'un membre : le capital restant dû affiché est SA part, avec la mention « 50 % de 200 000 € », et le total en est la somme", async () => {
+      preferences.detenteurId = 1
+      vi.mocked(api.listLoans).mockResolvedValue([
+        loan({ id: 4, capital_initial: 250000, capital_restant_du: 200000, part_capital_restant_du: 100000, quotite_pct: 50, repartie: true }),
+      ])
+      render(<LoansCard />)
+
+      await screen.findByText('Crédit immobilier')
+      expect(api.listLoans).toHaveBeenCalledWith(1)
+      const normaliser = (x: string | null) => (x ?? '').replace(/[  ]/g, ' ')
+      expect(screen.getByText((_, el) => el?.tagName === 'SPAN' && normaliser(el.textContent) === '50 % de 200 000 €')).toBeInTheDocument()
+      // Sa part (100 000 €) apparaît à la ligne ET dans le total ; la valeur entière (200 000 €) n'est que dans la mention.
+      expect(screen.getAllByText('100 000 €').length).toBeGreaterThan(0)
+      expect(screen.queryByText('200 000 €')).not.toBeInTheDocument()
+    })
+
+    it("hors vue d'un membre : listLoans(null), capital entier et aucune mention de part", async () => {
+      vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4, capital_restant_du: 200000 })])
+      render(<LoansCard />)
+
+      await screen.findByText('Crédit immobilier')
+      expect(api.listLoans).toHaveBeenCalledWith(null)
+      expect(screen.getAllByText('200 000 €').length).toBeGreaterThan(0)
+      expect(screen.queryByText(/ de 200/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('changer de membre sélectionné relit les prêts de CE membre', async () => {
+    vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4 })])
+    const { rerender } = render(<LoansCard />)
+    await screen.findByText('Crédit immobilier')
+
+    preferences.detenteurId = 2
+    rerender(<LoansCard />)
+
+    await vi.waitFor(() => expect(api.listLoans).toHaveBeenCalledWith(2))
   })
 })
