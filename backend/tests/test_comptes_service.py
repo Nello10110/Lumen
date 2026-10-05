@@ -326,7 +326,7 @@ def test_solde_par_compte_repartition_rompue_est_incomplete(db):
     ici simulée en insérant directement la ligne restante à 60 %, exactement ce que
     laisse `delete_detenteur` en supprimant celle d'un second détenteur qui portait
     les 40 % manquants (`set_quotites_holding` seul ne peut jamais produire cet état,
-    `_valider_quotites` le refuserait à l'écriture)."""
+    `valider_quotites` le refuserait à l'écriture)."""
     compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
     alice_id = _creer_detenteur(db, "Alice")
@@ -367,16 +367,27 @@ def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incompl
     assert resultats[0]["repartition_incomplete"] is True
 
 
-def test_solde_par_compte_non_renseignee_absente_avec_un_seul_detenteur(db):
-    """Retour utilisateur du 20/09/2026 : sans au moins deux détenteurs déclarés, il
-    n'y a personne entre qui répartir — jamais d'invitation à le faire."""
+def test_solde_par_compte_non_renseignee_absente_sans_aucun_detenteur(db):
+    """Retour utilisateur du 20/09/2026, étendu au lot 3 de § BN.1 : sans aucun membre déclaré,
+    il n'y a personne à qui attribuer la ligne — jamais d'invitation à le faire."""
+    compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
+    make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+
+    resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
+
+    assert resultats[0]["repartition_non_renseignee"] is False
+
+
+def test_solde_par_compte_non_renseignee_des_le_premier_detenteur(db):
+    """Lot 3 de § BN.1 : « Non réparti » dès le premier membre (avant, seulement à partir de deux)
+    — une ligne sans part est invisible de sa vue et se signale donc dès qu'il existe."""
     compte = comptes_service.create_compte(db, ID_FOYER_TEST, "PEA", None)
     make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
     _creer_detenteur(db, "Alice")
 
     resultats = comptes_service.solde_par_compte(db, ID_FOYER_TEST)
 
-    assert resultats[0]["repartition_non_renseignee"] is False
+    assert resultats[0]["repartition_non_renseignee"] is True
 
 
 def test_solde_par_compte_non_renseignee_avec_deux_detenteurs_et_aucune_quotite(db):

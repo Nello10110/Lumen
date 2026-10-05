@@ -710,7 +710,9 @@ def test_rebuild_holdings_preserve_les_quotites_par_detenteur(db):
     db.add(detenteur)
     db.commit()
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db, ID_FOYER_TEST)
+    # `[]` : première reconstruction SANS part — par défaut, l'unique membre recevrait déjà 100 %
+    # (§ BN.1, lot 3) et la quotité posée à la main ci-dessous doublonnerait.
+    rebuild_holdings(db, ID_FOYER_TEST, [])
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
     db.add(QuotiteHolding(holding_id=ligne.id, detenteur_id=detenteur.id, quotite_pct=100.0))
     db.commit()
@@ -730,7 +732,7 @@ def test_rebuild_holdings_ne_laisse_aucune_quotite_orpheline(db):
     db.add(detenteur)
     db.commit()
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db, ID_FOYER_TEST)
+    rebuild_holdings(db, ID_FOYER_TEST, [])  # sans part au départ : la quotité est posée à la main
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
     db.add(QuotiteHolding(holding_id=ligne.id, detenteur_id=detenteur.id, quotite_pct=100.0))
     db.commit()

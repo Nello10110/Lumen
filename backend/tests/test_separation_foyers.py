@@ -29,6 +29,9 @@ from app.models import (
     HoldingValuationHistory,
     Invitation,
     InvitationPerimetre,
+    Loan,
+    QuotiteHolding,
+    QuotiteLoan,
     User,
 )
 from app.routers import portfolio
@@ -834,3 +837,184 @@ def test_retirer_un_membre_ne_touche_pas_ses_sessions_mais_il_perd_son_foyer_a_s
         assert client.get("/api/portfolio/holdings", headers=en_tete).status_code == 403
     db.expire_all()
     assert db.get(AuthToken, empreinte).foyer_id is None
+
+
+# --- Répartition entre membres (§ BN.1, lot 3) ---------------------------------------------------
+#
+# Les routes « lignes non réparties », « tout attribuer », la vue d'un membre (`?detenteur_id=`) et la
+# création avec répartition par défaut s'exécutent ici avec de VRAIES sessions authentifiées (aucune
+# dépendance substituée) : ce qu'elles lisent et écrivent tient, quand un filtre manque, par la base seule.
+
+
+@pytest.fixture
+def foyers_repartis(deux_foyers):
+    """Alice dans le foyer A, Zoé dans le foyer B ; chaque foyer a ses lignes non réparties (A : une, B :
+    deux) et B un prêt non réparti. Renvoie les identifiants utiles et un en-tête de session par foyer."""
+    db = deux_foyers
+    alice = Detenteur(foyer_id=ID_FOYER_TEST, nom="Alice")
+    zoe = Detenteur(foyer_id=ID_FOYER_B, nom="Zoé")
+    db.add_all([alice, zoe])
+    db.commit()
+    pret_b = Loan(
+        foyer_id=ID_FOYER_B,
+        libelle="Prêt de B",
+        capital_initial=1000,
+        taux_annuel_pct=1,
+        mensualite=100,
+        date_debut=datetime(2024, 1, 1),
+        duree_mois=12,
+    )
+    db.add(pret_b)
+    make_holding(db, foyer_id=ID_FOYER_B, ticker="B-SECOND")
+    db.commit()
+    jetons = {}
+    for foyer, utilisateur in ((ID_FOYER_TEST, ID_UTILISATEUR_TEST), (ID_FOYER_B, ID_UTILISATEUR_B)):
+        _, jeton = auth_service.ouvrir_session(db, db.get(User, utilisateur))
+        jetons[foyer] = {"Authorization": f"Bearer {jeton}"}
+    return {"alice": alice.id, "zoe": zoe.id, "pret_b": pret_b.id, "en_tetes": jetons}
+
+
+def _parts_de_tous_les_foyers(db) -> tuple[set, set]:
+    db.expire_all()
+    return (
+        {(q.holding_id, q.detenteur_id) for q in db.query(QuotiteHolding)},
+        {(q.loan_id, q.detenteur_id) for q in db.query(QuotiteLoan)},
+    )
+
+
+def test_les_lignes_non_reparties_ne_comptent_que_le_foyer_courant(foyers_repartis):
+    en_tetes = foyers_repartis["en_tetes"]
+
+    with TestClient(app) as client:
+        foyer_a = client.get("/api/portfolio/lignes-non-reparties", headers=en_tetes[ID_FOYER_TEST])
+        foyer_b = client.get("/api/portfolio/lignes-non-reparties", headers=en_tetes[ID_FOYER_B])
+
+    assert foyer_a.json() == {"actifs": 1, "prets": 0}
+    assert foyer_b.json() == {"actifs": 2, "prets": 1}
+
+
+def test_tout_attribuer_n_ecrit_que_dans_le_foyer_courant(foyers_repartis, db):
+    en_tetes = foyers_repartis["en_tetes"]
+
+    with TestClient(app) as client:
+        reponse = client.post(
+            "/api/portfolio/repartition-globale",
+            headers=en_tetes[ID_FOYER_TEST],
+            json={"quotites": [{"detenteur_id": foyers_repartis["alice"], "quotite_pct": 100}]},
+        )
+
+    assert reponse.status_code == 200
+    assert reponse.json() == {"actifs": 1, "prets": 0}  # ni les deux lignes ni le prêt du foyer B
+    parts_actifs, parts_prets = _parts_de_tous_les_foyers(db)
+    lignes_a = {h.id for h in db.query(Holding).filter(Holding.foyer_id == ID_FOYER_TEST)}
+    assert {holding_id for holding_id, _ in parts_actifs} == lignes_a
+    assert parts_prets == set()  # le prêt du foyer B n'a reçu aucune part
+
+
+def test_tout_attribuer_vers_un_membre_d_un_autre_foyer_est_introuvable(foyers_repartis, db):
+    en_tetes = foyers_repartis["en_tetes"]
+
+    with TestClient(app) as client:
+        reponse = client.post(
+            "/api/portfolio/repartition-globale",
+            headers=en_tetes[ID_FOYER_TEST],
+            json={"quotites": [{"detenteur_id": foyers_repartis["zoe"], "quotite_pct": 100}]},
+        )
+
+    assert reponse.status_code == 404
+    assert _parts_de_tous_les_foyers(db) == (set(), set())
+
+
+def test_attribuer_dans_un_foyer_ne_change_pas_le_comptage_de_l_autre(foyers_repartis):
+    en_tetes = foyers_repartis["en_tetes"]
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/portfolio/repartition-globale",
+            headers=en_tetes[ID_FOYER_TEST],
+            json={"quotites": [{"detenteur_id": foyers_repartis["alice"], "quotite_pct": 100}]},
+        )
+        foyer_a = client.get("/api/portfolio/lignes-non-reparties", headers=en_tetes[ID_FOYER_TEST]).json()
+        foyer_b = client.get("/api/portfolio/lignes-non-reparties", headers=en_tetes[ID_FOYER_B]).json()
+
+    assert foyer_a == {"actifs": 0, "prets": 0}
+    assert foyer_b == {"actifs": 2, "prets": 1}
+
+
+def test_la_vue_d_un_membre_ne_montre_que_les_lignes_du_foyer_courant(foyers_repartis, db):
+    en_tetes = foyers_repartis["en_tetes"]
+    for ligne in db.query(Holding).all():
+        membre = foyers_repartis["alice"] if ligne.foyer_id == ID_FOYER_TEST else foyers_repartis["zoe"]
+        db.add(QuotiteHolding(holding_id=ligne.id, detenteur_id=membre, quotite_pct=100))
+    db.commit()
+    alice = foyers_repartis["alice"]
+
+    with TestClient(app) as client:
+        lignes = client.get("/api/portfolio/holdings", params={"detenteur_id": alice}, headers=en_tetes[ID_FOYER_TEST])
+        soldes = client.get("/api/comptes/solde", params={"detenteur_id": alice}, headers=en_tetes[ID_FOYER_TEST])
+        prets = client.get("/api/loans", params={"detenteur_id": alice}, headers=en_tetes[ID_FOYER_TEST])
+
+    assert [ligne["ticker"] for ligne in lignes.json()] == ["A-SEUL"]
+    assert soldes.status_code == 200
+    assert prets.json() == []
+
+
+def test_la_vue_d_un_membre_d_un_autre_foyer_est_introuvable(foyers_repartis):
+    en_tetes = foyers_repartis["en_tetes"]
+
+    with TestClient(app) as client:
+        for url in ("/api/portfolio/holdings", "/api/comptes/solde", "/api/loans"):
+            reponse = client.get(url, params={"detenteur_id": foyers_repartis["zoe"]}, headers=en_tetes[ID_FOYER_TEST])
+            assert reponse.status_code == 404, url
+
+
+def test_la_repartition_par_defaut_ne_compte_que_les_membres_du_foyer_courant(foyers_repartis, db):
+    """Un membre dans l'AUTRE foyer ne doit pas faire passer la répartition par défaut à 50/50 : Alice,
+    seule de son foyer, reçoit 100 % — pour une ligne comme pour un prêt."""
+    en_tetes = foyers_repartis["en_tetes"]
+
+    with TestClient(app) as client:
+        ligne = client.post(
+            "/api/portfolio/holdings", headers=en_tetes[ID_FOYER_TEST], json={"ticker": "NOUVELLE", "quantite": 1, "compte_nom": "CTO"}
+        )
+        pret = client.post(
+            "/api/loans",
+            headers=en_tetes[ID_FOYER_TEST],
+            json={
+                "libelle": "Nouveau prêt",
+                "capital_initial": 1000.0,
+                "taux_annuel_pct": 1.0,
+                "mensualite": 100.0,
+                "date_debut": "2024-01-01T00:00:00",
+                "duree_mois": 12,
+            },
+        )
+
+    assert ligne.status_code == 200 and pret.status_code == 200
+    db.expire_all()
+    parts_ligne = {(q.detenteur_id, float(q.quotite_pct)) for q in db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == ligne.json()["id"])}
+    parts_pret = {(q.detenteur_id, float(q.quotite_pct)) for q in db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == pret.json()["id"])}
+    assert parts_ligne == {(foyers_repartis["alice"], 100.0)}
+    assert parts_pret == {(foyers_repartis["alice"], 100.0)}
+
+
+def test_creer_une_ligne_avec_un_membre_d_un_autre_foyer_est_introuvable_sans_rien_ecrire(foyers_repartis, db):
+    en_tetes = foyers_repartis["en_tetes"]
+    avant = db.query(Holding).count()
+
+    with TestClient(app) as client:
+        reponse = client.post(
+            "/api/portfolio/holdings",
+            headers=en_tetes[ID_FOYER_TEST],
+            json={
+                "ticker": "INTRUS",
+                "quantite": 1,
+                "compte_nom": "CTO",
+                "quotites": [{"detenteur_id": foyers_repartis["zoe"], "quotite_pct": 100}],
+            },
+        )
+
+    assert reponse.status_code == 404
+    db.expire_all()
+    assert db.query(Holding).count() == avant
+    assert _parts_de_tous_les_foyers(db) == (set(), set())
