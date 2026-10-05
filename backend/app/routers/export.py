@@ -210,7 +210,7 @@ def export_declaration_patrimoine_pdf(
     if payload.detenteur_id is not None:
         detenteur = db.get(Detenteur, payload.detenteur_id)
         if detenteur is None or detenteur.foyer_id != foyer_id:
-            raise HTTPException(status_code=404, detail="Détenteur introuvable")
+            raise HTTPException(status_code=404, detail="Membre du foyer introuvable")
 
     contenu = declaration_patrimoine_service.generer_pdf_declaration(
         db,

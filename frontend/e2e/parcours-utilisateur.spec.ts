@@ -86,10 +86,10 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
     await ligne.getByRole('button', { name: 'Supprimer' }).click()
   })
 
-  test('créer deux détenteurs du même nom est refusé (ils seraient indiscernables)', async ({ page }) => {
+  test('créer deux membres du foyer du même nom est refusé (ils seraient indiscernables)', async ({ page }) => {
     await page.goto('/reglages')
-    await page.getByRole('tab', { name: 'Détenteurs' }).click()
-    const carte = cardByTitle(page, 'Personnes')
+    await page.getByRole('tab', { name: 'Membres du foyer' }).click()
+    const carte = cardByTitle(page, 'Membres du foyer')
 
     const nom = `Homonyme ${Date.now().toString().slice(-6)}`
     await carte.getByPlaceholder('Alice').fill(nom)
@@ -205,7 +205,7 @@ test.describe('Ergonomie — le guidage promis est réellement présent à l\'é
     // Un titre sans prêt : la part détenue seule, expliquée.
     await page.goto(`/patrimoine/${holdings.aapl.id}`)
     await page.getByRole('tab', { name: 'Paramètres' }).click()
-    await expect(page.getByRole('heading', { name: 'Détenteurs' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Membres du foyer' })).toBeVisible()
     await expect(page.getByTitle(/SANS déduire le prêt/).first()).toBeVisible()
 
     // Un bien financé : la part nette apparaît, et son explication.

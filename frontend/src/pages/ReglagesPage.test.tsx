@@ -46,11 +46,11 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ langageSimple: false, toggleLangageSimple: toggleLangageSimpleMock }),
 }))
 
-// Ce fichier ne verrouille que la section "Personnes" (backlog 2.L.1) — le reste
+// Ce fichier ne verrouille que la section « Membres du foyer » (backlog 2.L.1) — le reste
 // de la page (préférences, tâches planifiées, export) est hors de son objet.
 // Sessions/journal d'accès/comptes du foyer (backlog 2.L.2) : hors de l'objet de ce
 // fichier, stubs neutres (listes vides) pour que les nouvelles cartes de la page ne
-// fassent pas planter les tests existants sur "Personnes".
+// fassent pas planter les tests existants sur « Membres du foyer ».
 vi.mock('../api/client', () => ({
   api: {
     listDetenteurs: vi.fn(),
@@ -128,33 +128,33 @@ function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
   }
 }
 
-describe('ReglagesPage — Personnes (backlog 2.L.1)', () => {
-  it("affiche un message quand aucun détenteur n'est déclaré", async () => {
+describe('ReglagesPage — Membres du foyer (backlog 2.L.1)', () => {
+  it("affiche un message quand aucun membre du foyer n'est déclaré", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     renderReglages()
-    ouvrirOnglet('Détenteurs')
+    ouvrirOnglet('Membres du foyer')
 
-    await screen.findByText('Aucun détenteur déclaré.')
+    await screen.findByText('Aucun membre du foyer déclaré.')
   })
 
-  it('liste les détenteurs déclarés', async () => {
+  it('liste les membres du foyer déclarés', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     renderReglages()
-    ouvrirOnglet('Détenteurs')
+    ouvrirOnglet('Membres du foyer')
 
     await screen.findByText('Alice')
     expect(screen.getByText('Bob')).toBeInTheDocument()
   })
 
-  it('ajouter un détenteur appelle createDetenteur puis recharge la liste', async () => {
-    // Onglet "Détenteurs" isolé de "Comptes & sécurité" (`GestionFoyerCard`) : plus
+  it('ajouter un membre du foyer appelle createDetenteur puis recharge la liste', async () => {
+    // Onglet « Membres du foyer » isolé de "Comptes & sécurité" (`GestionFoyerCard`) : plus
     // qu'un seul consommateur de `listDetenteurs` monté à la fois, donc 2 valeurs
     // enfilées (chargement initial, puis rechargement après "Ajouter").
     vi.mocked(api.listDetenteurs).mockResolvedValueOnce([]).mockResolvedValue([detenteur({ nom: 'Bob' })])
     vi.mocked(api.createDetenteur).mockResolvedValue(detenteur({ nom: 'Bob' }))
     renderReglages()
-    ouvrirOnglet('Détenteurs')
-    await screen.findByText('Aucun détenteur déclaré.')
+    ouvrirOnglet('Membres du foyer')
+    await screen.findByText('Aucun membre du foyer déclaré.')
 
     const formulaire = screen.getByPlaceholderText('Alice').closest('form')!
     fireEvent.change(screen.getByPlaceholderText('Alice'), { target: { value: 'Bob' } })
@@ -166,23 +166,23 @@ describe('ReglagesPage — Personnes (backlog 2.L.1)', () => {
     expect(api.createDetenteur).toHaveBeenCalledWith('Bob')
   })
 
-  it('supprimer un détenteur appelle deleteDetenteur puis recharge la liste', async () => {
+  it('supprimer un membre du foyer appelle deleteDetenteur puis recharge la liste', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValueOnce([detenteur({ nom: 'Alice' })]).mockResolvedValue([])
     vi.mocked(api.deleteDetenteur).mockResolvedValue({ ok: true })
     renderReglages()
-    ouvrirOnglet('Détenteurs')
+    ouvrirOnglet('Membres du foyer')
     await screen.findByText('Alice')
 
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
 
-    await screen.findByText('Aucun détenteur déclaré.')
+    await screen.findByText('Aucun membre du foyer déclaré.')
     expect(api.deleteDetenteur).toHaveBeenCalledWith(1)
   })
 
   it('Réessayer relance listDetenteurs après un échec', async () => {
     vi.mocked(api.listDetenteurs).mockRejectedValueOnce(new Error('panne détenteurs'))
     renderReglages()
-    ouvrirOnglet('Détenteurs')
+    ouvrirOnglet('Membres du foyer')
     await screen.findByText('panne détenteurs')
 
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
@@ -621,14 +621,14 @@ describe('ReglagesPage — Déclaration de patrimoine (backlog 2.Q.2)', () => {
   it("affiche un message d'erreur si la génération échoue, sans fermer la modale", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.downloadDeclarationPatrimoine).mockRejectedValue(new Error('Détenteur introuvable'))
+    vi.mocked(api.downloadDeclarationPatrimoine).mockRejectedValue(new Error('Membre du foyer introuvable'))
     renderReglages()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Déclaration de patrimoine (PDF)' }))
     await screen.findByRole('dialog')
     fireEvent.click(screen.getByRole('button', { name: 'Générer le PDF' }))
 
-    await screen.findByText('Détenteur introuvable')
+    await screen.findByText('Membre du foyer introuvable')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })
@@ -751,7 +751,7 @@ describe('ReglagesPage — opérateur, naissance des foyers et liaison SSO (back
 
     expect(screen.queryByRole('tab', { name: 'Automatisations' })).not.toBeInTheDocument()
     ouvrirOnglet('Comptes & sécurité')
-    expect(await screen.findByRole('heading', { name: 'Membres et invitations' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Accès et invitations' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Logo du bouton de connexion SSO' })).not.toBeInTheDocument()
     expect(api.listJobs).not.toHaveBeenCalled()
     expect(api.getLogoConnexionSso).not.toHaveBeenCalled()
@@ -794,7 +794,7 @@ describe('ReglagesPage — opérateur, naissance des foyers et liaison SSO (back
     rendreAvec({ peut_inviter_a_creer_foyer: false })
     ouvrirOnglet('Comptes & sécurité')
 
-    expect(await screen.findByRole('heading', { name: 'Membres et invitations' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Accès et invitations' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Inviter un proche à créer son foyer' })).not.toBeInTheDocument()
     expect(api.listInvitationsFoyer).not.toHaveBeenCalled()
   })

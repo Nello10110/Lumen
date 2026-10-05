@@ -23,7 +23,7 @@ test('les contrôles annoncent leur cliquabilité au curseur', async ({ page }) 
     ['période 1M', page.getByRole('button', { name: '1M' })],
     ['Mode étagé', page.getByRole('button', { name: /Mode étagé/ })],
     ['Actualiser', page.getByRole('button', { name: /Actualiser/ })],
-    ['sélecteur Détenteur', page.getByRole('combobox').first()],
+    ['sélecteur Membre', page.getByRole('combobox').first()],
   ]
   for (const [nom, locator] of cibles) {
     expect(await curseur(locator), nom).toBe('pointer')

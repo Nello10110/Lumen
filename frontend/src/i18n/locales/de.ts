@@ -45,10 +45,10 @@ const de: Dictionnaire = {
     vueNette: 'Nettoansicht',
     vueBrute: 'Bruttoansicht',
     vueFinanciere: 'Finanzansicht',
-    detenteur: 'Inhaber',
-    foyer: 'Haushalt',
+    detenteur: 'Mitglied',
+    foyer: 'Gesamter Haushalt',
     aideDetenteur:
-      'Filtert den ganzen Bildschirm auf den Anteil einer einzelnen Person des Haushalts, gemäß den von Ihnen erfassten Aufteilungen (Anteile). „Haushalt“ = das gesamte Vermögen, ohne Filter.',
+      'Filtert den ganzen Bildschirm auf den Anteil eines einzelnen Haushaltsmitglieds, gemäß den von Ihnen erfassten Aufteilungen (Anteile). „Gesamter Haushalt“ = das gesamte Vermögen, ohne Filter.',
     afficherMontants: 'Beträge anzeigen',
     masquerMontants: 'Beträge ausblenden',
     raccourciMontants: '(Strg/⌘ + Umschalt + M).',
@@ -100,16 +100,16 @@ const de: Dictionnaire = {
     etapes: {
       bienvenue: 'Willkommen',
       preferences: 'Einstellungen',
-      detenteurs: 'Personen im Haushalt',
+      detenteurs: 'Zusammensetzung des Haushalts',
       comptes: 'Konten',
-      inviter: "Haushaltsmitglieder einladen",
+      inviter: "Angehörige einladen",
       operateur: "Verwaltung der Installation",
       demarrage: 'Portfolio beginnen',
       termine: 'Fertig',
     },
     bienvenue: {
       rejeu:
-        'Zurück zur Ersteinrichtung — jeder folgende Schritt zeigt, was bereits gespeichert ist (Einstellungen, Personen, Portfolio): Nichts beginnt von vorn, du kannst Fehlendes ergänzen oder korrigieren.',
+        'Zurück zur Ersteinrichtung — jeder folgende Schritt zeigt, was bereits gespeichert ist (Einstellungen, Haushaltsmitglieder, Portfolio): Nichts beginnt von vorn, du kannst Fehlendes ergänzen oder korrigieren.',
       accroche: 'Willkommen — bringen wir gemeinsam Licht in deine Finanzen.',
       presentation:
         'Diese App verfolgt dein Vermögen als Ganzes: Wertpapierportfolio, Immobilien, Ersparnisse, Budget. Ein paar Starteinstellungen passen sie an deine Situation an — das dauert zwei Minuten.',
@@ -119,20 +119,20 @@ const de: Dictionnaire = {
     preferences:
       'Wie soll der Einstandspreis deiner Wertpapierpositionen bei einem Teilverkauf berechnet werden? Die Standardwahl passt für die große Mehrheit der Fälle.',
     detenteurs:
-      'Wenn das Vermögen geteilt ist (Partner, Kind...), erfasse hier die betroffenen Personen — nützlich, um später das Eigentum an den Vermögenswerten aufzuteilen. Nicht zutreffend? Dieser Schritt lässt sich ohne Eingabe überspringen.',
+      'Wenn das Vermögen geteilt ist (Partner, Kind...), erfasse hier die betroffenen Haushaltsmitglieder — nützlich, um später das Eigentum an den Vermögenswerten aufzuteilen. Nicht zutreffend? Dieser Schritt lässt sich ohne Eingabe überspringen.',
     comptes: {
       avantEcran:
         'Wenn das Vermögen auf mehrere Banken oder Broker verteilt ist (Girokonto, PEA, Depot, Lebensversicherung, Immobilien...), erfasse sie hier, um alles nach Institut auf dem Bildschirm',
       ecran: 'Konten',
       apresEcran:
-        'zu gruppieren und eine Aufteilung zwischen Personen für ein ganzes Konto auf einmal festzulegen. Nicht zutreffend oder noch nicht bereit? Dieser Schritt lässt sich überspringen — ein Konto wird ohnehin beim Hinzufügen einer Position direkt angelegt (dann wird auch das Institut abgefragt, da ein Konto nicht mehr ohne sein kann).',
+        'zu gruppieren und eine Aufteilung zwischen Haushaltsmitgliedern für ein ganzes Konto auf einmal festzulegen. Nicht zutreffend oder noch nicht bereit? Dieser Schritt lässt sich überspringen — ein Konto wird ohnehin beim Hinzufügen einer Position direkt angelegt (dann wird auch das Institut abgefragt, da ein Konto nicht mehr ohne sein kann).',
       comptesCrees: 'Angelegte Konten',
       aucunCompte: 'Kein Konto erfasst.',
       sansEtablissement: 'Ohne Institut',
       supprimer: 'Löschen',
     },
     inviter:
-      "Die anderen Mitglieder des Haushalts (Partner, Kinder, ein Angehöriger mit reinem Leserecht …) können ein eigenes Konto haben: Lade sie mit einem Link ein, den du ihnen selbst schickst. Dieser Schritt ist optional; du kannst jederzeit unter Einstellungen → Konten & Sicherheit einladen.",
+      "Deine Angehörigen (Partner, Kinder, eine Person mit reinem Leserecht …) können einen eigenen Zugang mit eigenem Konto haben: Lade sie mit einem Link ein, den du ihnen selbst schickst. Dieser Schritt ist optional; du kannst jederzeit unter Einstellungen → Konten & Sicherheit einladen.",
     operateur:
       "Diese Installation kann mehrere Haushalte aufnehmen. Um sie zu verwalten – weitere anlegen, einen sperren, geplante Aufgaben einstellen –, erstelle ein Betreiberkonto: ein von deinem getrenntes Konto, das zu keinem Haushalt gehört und kein Vermögen sieht. Um es zu nutzen, meldest du dich damit statt mit deinem eigenen Konto an.",
     operateurPlusTard:

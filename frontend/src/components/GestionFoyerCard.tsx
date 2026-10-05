@@ -132,7 +132,8 @@ export default function GestionFoyerCard() {
 
   return (
     <Card title={t('gestionFoyerCard.comptesDuFoyer')}>
-      <p className="mb-4 text-sm text-texte-attenue">{t('gestionFoyerCard.unMembrePeutConsulterEt')}</p>
+      <p className="mb-2 text-sm text-texte-attenue">{t('gestionFoyerCard.unMembrePeutConsulterEt')}</p>
+      <p className="mb-4 text-xs text-texte-attenue">{t('gestionFoyerCard.aideMembres')}</p>
 
       {loading ? (
         <SkeletonTexte />

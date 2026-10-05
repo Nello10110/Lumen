@@ -3,7 +3,7 @@ import type { Structure } from '../../types'
 
 /** Anglais — espace « patrimoineVide » (backlog § BL.2), traduit depuis le français. */
 const patrimoineVide: Structure<typeof fr> = {
-  rienNEstEncoreAttribue: "Nothing is assigned to this person yet",
+  rienNEstEncoreAttribue: "Nothing is assigned to this household member yet",
   unActifAppartientAuFoyer: "An asset belongs to the household until it is split. Enter each person’s share from an account: their wealth will appear here.",
   repartirUnCompte: "Split an account",
   voirToutLeFoyer: "See the whole household",

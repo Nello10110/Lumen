@@ -9,7 +9,7 @@ const compteDetailContent: Structure<typeof fr> = {
   enregistrer: "Save",
   empruntsRattaches: "Linked loans",
   restant: "remaining",
-  repartitionEntreDetenteurs: "Split between holders",
+  repartitionEntreDetenteurs: "Split between household members",
   repartitionAppliqueeAToutesLes: "Split applied to every line of the account.",
   erreurInconnue: "Unknown error",
   detectionAutomatique: "Automatic detection",

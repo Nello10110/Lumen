@@ -173,7 +173,7 @@ def test_message_avec_parametres_traduit(client_reel):
     client_reel.post("/api/detenteurs", json={"nom": "Alice"}, headers=en_tetes)
     reponse = client_reel.post("/api/detenteurs", json={"nom": "Alice"}, headers=en_tetes)
     assert reponse.status_code == 400
-    assert reponse.json()["detail"] == "Ein Inhaber namens „Alice“ existiert bereits."
+    assert reponse.json()["detail"] == "Ein Haushaltsmitglied namens „Alice“ existiert bereits."
 
 
 def test_sans_en_tete_ni_connexion_le_francais_reste_la_langue():

@@ -7,7 +7,7 @@ const accueilFoyer: Structure<typeof fr> = {
   titreSansNom: "Willkommen in Ihrem neuen Haushalt",
   votreRole: "Ihre Rolle in diesem Haushalt: {role}.",
   descriptionMembre: "Sie können die Vermögenswerte, Kredite und Transaktionen des Haushalts einsehen und erfassen.",
-  descriptionInvite: "Sie sehen, nur lesend, das Vermögen der Personen, die Ihnen anvertraut wurden.",
+  descriptionInvite: "Sie sehen, nur lesend, das Vermögen der Haushaltsmitglieder, die Ihnen anvertraut wurden.",
   ouvrir: "App öffnen",
 }
 

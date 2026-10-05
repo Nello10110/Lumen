@@ -20,9 +20,9 @@ test.describe('Fiche détaillée d\'une position', () => {
     // La répartition entre membres a quitté l'onglet Analyse (une lecture seule) pour
     // Paramètres (§ BN.1, lot 2).
     await page.getByRole('tab', { name: 'Analyse' }).click()
-    await expect(page.getByRole('heading', { name: 'Détenteurs' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Membres du foyer' })).toHaveCount(0)
     await page.getByRole('tab', { name: 'Paramètres' }).click()
-    await expect(page.getByRole('heading', { name: 'Détenteurs' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Membres du foyer' })).toBeVisible()
 
     await page.getByRole('tab', { name: 'Aperçu' }).click()
     const valeurAvant = (await page.locator('table').first().locator('tbody tr').count())

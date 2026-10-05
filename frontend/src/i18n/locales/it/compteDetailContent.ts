@@ -9,7 +9,7 @@ const compteDetailContent: Structure<typeof fr> = {
   enregistrer: "Salva",
   empruntsRattaches: "Prestiti collegati",
   restant: "residuo",
-  repartitionEntreDetenteurs: "Ripartizione tra titolari",
+  repartitionEntreDetenteurs: "Ripartizione tra membri del nucleo",
   repartitionAppliqueeAToutesLes: "Ripartizione applicata a tutte le righe del conto.",
   erreurInconnue: "Errore sconosciuto",
   detectionAutomatique: "Rilevamento automatico",

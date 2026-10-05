@@ -3,7 +3,7 @@ import type { Structure } from '../../types'
 
 /** Anglais — espace « loansCard » (backlog § BL.2), traduit depuis le français. */
 const loansCard: Structure<typeof fr> = {
-  detenteursDeCetEmprunt: "Holders of this loan",
+  detenteursDeCetEmprunt: "Household members on this loan",
   enregistrer: "Save",
   repartitionEnregistree: "Split saved.",
   repartitionHeritee: "This loan follows the split of the property it finances. Saving it gives the loan its own, independent split.",
@@ -25,7 +25,7 @@ const loansCard: Structure<typeof fr> = {
   modifier: "Edit",
   recaler: "Adjust",
   fermer: "Close",
-  detenteurs: "Holders",
+  detenteurs: "Household members",
   supprimer: "Delete",
   dettesEtEmprunts: "Debts and loans",
   aucunEmpruntEnregistre: "No loan recorded.",

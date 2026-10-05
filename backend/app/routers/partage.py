@@ -44,7 +44,7 @@ def create_lien(payload: LienPartageCreate, db: Session = Depends(get_db), curre
     if payload.detenteur_id is not None:
         detenteur = db.get(Detenteur, payload.detenteur_id)
         if detenteur is None or detenteur.foyer_id != foyer_id:
-            raise HTTPException(status_code=404, detail="Détenteur introuvable")
+            raise HTTPException(status_code=404, detail="Membre du foyer introuvable")
     lien, jeton = partage_service.creer_lien(db, foyer_id, **payload.model_dump())
     return LienPartageCreeOut(**_serialiser(lien).model_dump(), token=jeton)
 

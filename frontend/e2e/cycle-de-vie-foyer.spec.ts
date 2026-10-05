@@ -24,7 +24,7 @@ function navigateurVierge(browser: Browser, baseURL: string | undefined): Promis
 /** Le propriétaire de `page` crée une invitation de membre et renvoie le lien à transmettre. */
 async function inviter(page: Page, libelle: string): Promise<string> {
   await page.goto('/reglages?onglet=securite')
-  await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Accès et invitations' })).toBeVisible()
   // Les listes de la page (membres, invitations, sessions...) arrivent après le titre et
   // décalent le formulaire : un clic parti pendant ce décalage peut ne jamais atteindre le
   // bouton (aucune requête envoyée, observé une fois sur ~25 passages).

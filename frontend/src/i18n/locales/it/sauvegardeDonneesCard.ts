@@ -6,7 +6,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   sauvegardeCompleteDesDonnees: "Backup completo dei dati",
   exporte: "Esporta",
   tout: "tutto",
-  lePatrimoineDuFoyerDans: "il patrimonio del nucleo in un unico file: posizioni, transazioni, immobili, prestiti, conti e istituti, titolari e ripartizioni, risparmio, stipendi, budget e preferenze. Utile per fare un backup prima di un’operazione o per trasferirsi su un’altra installazione.",
+  lePatrimoineDuFoyerDans: "il patrimonio del nucleo in un unico file: posizioni, transazioni, immobili, prestiti, conti e istituti, membri del nucleo e ripartizioni, risparmio, stipendi, budget e preferenze. Utile per fare un backup prima di un’operazione o per trasferirsi su un’altra installazione.",
   lesCoursEtCompositionsDe: "Quotazioni e composizioni dei fondi non sono incluse: si riscaricano da sole. Nemmeno nulla di sensibile (password, token di condivisione, registro degli accessi). Il file contiene invece tutti i Suoi importi: lo conservi come un documento riservato.",
   exporterMesDonneesJson: "Esporta i miei dati (JSON)",
   restaurerDepuisUnFichier: "Ripristina da un file",
@@ -39,7 +39,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   reinitialisationEnCours: "Azzeramento in corso…",
   reinitialiserDefinitivement: "Azzera definitivamente",
   importTermine: { one: "Importazione completata: {n} record ripristinato.", other: "Importazione completata: {n} record ripristinati." },
-  table: { etablissements: "istituti", comptes: "conti", detenteurs: "titolari (persone)", holdings: "righe di patrimonio", holding_immobilier_details: "schede immobiliari", holding_valuation_history: "punti di valutazione", quotites_holdings: "ripartizioni tra titolari", loans: "prestiti", quotites_loans: "ripartizioni dei prestiti", transactions: "transazioni", salaires: "stipendi", categories_budget: "categorie di budget", mouvements_bancaires: "movimenti bancari", regles_categorisation: "regole di classificazione", budget_cibles: "budget obiettivo", user_parametres: "preferenze" },
+  table: { etablissements: "istituti", comptes: "conti", detenteurs: "membri del nucleo", holdings: "righe di patrimonio", holding_immobilier_details: "schede immobiliari", holding_valuation_history: "punti di valutazione", quotites_holdings: "ripartizioni tra membri del nucleo", loans: "prestiti", quotites_loans: "ripartizioni dei prestiti", transactions: "transazioni", salaires: "stipendi", categories_budget: "categorie di budget", mouvements_bancaires: "movimenti bancari", regles_categorisation: "regole di classificazione", budget_cibles: "budget obiettivo", user_parametres: "preferenze" },
 }
 
 export default sauvegardeDonneesCard

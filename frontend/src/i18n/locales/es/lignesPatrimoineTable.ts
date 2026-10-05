@@ -8,7 +8,7 @@ const lignesPatrimoineTable: Structure<typeof fr> = {
   classe: "Clase",
   compte: "Cuenta",
   quantite: "Cantidad",
-  quotePart: "Cuota",
+  quotePart: "Parte",
   valeur: "Valor",
   valeurNette: "Valor neto",
   sansCompte: "Sin cuenta",

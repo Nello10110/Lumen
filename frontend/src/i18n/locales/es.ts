@@ -45,10 +45,10 @@ const es: Dictionnaire = {
     vueNette: 'vista neta',
     vueBrute: 'vista bruta',
     vueFinanciere: 'vista financiera',
-    detenteur: 'Titular',
-    foyer: 'Hogar',
+    detenteur: 'Miembro',
+    foyer: 'Todo el hogar',
     aideDetenteur:
-      'Filtra toda la pantalla por la parte de una sola persona del hogar, según los repartos (cuotas) que haya introducido. «Hogar» = todo el patrimonio, sin filtro.',
+      'Filtra toda la pantalla por la parte de un solo miembro del hogar, según los repartos (partes) que haya introducido. «Todo el hogar» = todo el patrimonio, sin filtro.',
     afficherMontants: 'Mostrar los importes',
     masquerMontants: 'Ocultar los importes',
     raccourciMontants: '(Ctrl/⌘ + Mayús + M).',
@@ -100,16 +100,16 @@ const es: Dictionnaire = {
     etapes: {
       bienvenue: 'Bienvenida',
       preferences: 'Preferencias',
-      detenteurs: 'Titulares del hogar',
+      detenteurs: 'Composición del hogar',
       comptes: 'Cuentas',
-      inviter: "Invitar a los miembros del hogar",
+      inviter: "Invitar a allegados",
       operateur: "Administración de la instalación",
       demarrage: 'Empezar la cartera',
       termine: 'Listo',
     },
     bienvenue: {
       rejeu:
-        'Vuelta a la configuración inicial: cada paso siguiente muestra lo que ya está guardado (preferencias, titulares, cartera). Nada se repite desde cero; puedes completar o corregir lo que falte.',
+        'Vuelta a la configuración inicial: cada paso siguiente muestra lo que ya está guardado (preferencias, miembros del hogar, cartera). Nada se repite desde cero; puedes completar o corregir lo que falte.',
       accroche: 'Bienvenido: arrojemos luz sobre tus finanzas, juntos.',
       presentation:
         'Esta aplicación sigue tu patrimonio en su conjunto: cartera bursátil, inmuebles, ahorro, presupuesto. Unos pocos ajustes iniciales la adaptan a tu situación; son dos minutos.',
@@ -119,20 +119,20 @@ const es: Dictionnaire = {
     preferences:
       '¿Cómo calcular el precio de coste de tus posiciones bursátiles en una venta parcial? La opción por defecto sirve para la gran mayoría de los casos.',
     detenteurs:
-      'Si el patrimonio es compartido (pareja, hijo...), declara aquí a las personas implicadas: será útil para repartir la propiedad de los activos más adelante. ¿No aplica? Este paso puede omitirse sin introducir nada.',
+      'Si el patrimonio es compartido (pareja, hijo...), declara aquí a los miembros del hogar implicados: será útil para repartir la propiedad de los activos más adelante. ¿No aplica? Este paso puede omitirse sin introducir nada.',
     comptes: {
       avantEcran:
         'Si el patrimonio está repartido entre varios bancos o brókeres (cuenta corriente, PEA, cuenta de valores, seguro de vida, inmuebles...), decláralos aquí para agruparlo todo por entidad en la pantalla',
       ecran: 'Cuentas',
       apresEcran:
-        'y definir un reparto entre titulares para una cuenta entera de una sola vez. ¿No aplica, o aún no estás listo? Este paso puede omitirse: de todos modos, una cuenta se crea al vuelo desde el formulario para añadir una posición (también se pedirá la entidad, ya que una cuenta ya no puede carecer de ella).',
+        'y definir un reparto entre miembros del hogar para una cuenta entera de una sola vez. ¿No aplica, o aún no estás listo? Este paso puede omitirse: de todos modos, una cuenta se crea al vuelo desde el formulario para añadir una posición (también se pedirá la entidad, ya que una cuenta ya no puede carecer de ella).',
       comptesCrees: 'Cuentas creadas',
       aucunCompte: 'Ninguna cuenta declarada.',
       sansEtablissement: 'Sin entidad',
       supprimer: 'Eliminar',
     },
     inviter:
-      "Los demás miembros del hogar (pareja, hijos, un familiar en modo consulta…) pueden tener su propia cuenta: invítalos con un enlace que les envías tú mismo. Este paso es opcional; podrás invitar cuando quieras desde Ajustes → Cuentas y seguridad.",
+      "Tus allegados (pareja, hijos, un familiar en modo consulta…) pueden tener su propio acceso, con su propia cuenta: invítalos con un enlace que les envías tú mismo. Este paso es opcional; podrás invitar cuando quieras desde Ajustes → Cuentas y seguridad.",
     operateur:
       "Esta instalación puede acoger varios hogares. Para administrarlos —crear otros, suspender uno, ajustar las tareas programadas—, crea una cuenta de operador: una cuenta distinta de la tuya, que no pertenece a ningún hogar y no ve ningún patrimonio. Para usarla, entrarás con ella en lugar de con tu cuenta.",
     operateurPlusTard:

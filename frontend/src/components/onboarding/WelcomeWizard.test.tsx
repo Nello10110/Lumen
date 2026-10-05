@@ -36,7 +36,7 @@ vi.mock('../../api/client', () => ({
     createCompte: vi.fn(),
     deleteCompte: vi.fn(),
     updateLangueFoyer: vi.fn().mockResolvedValue(undefined),
-    // Étape « Inviter les membres du foyer » (backlog § BK.2b) : `SectionInvitations`,
+    // Étape « Inviter des proches » (backlog § BK.2b) : `SectionInvitations`,
     // embarquée telle quelle, liste les invitations existantes (aucune par défaut).
     listInvitations: vi.fn().mockResolvedValue([]),
     createInvitation: vi.fn(),
@@ -95,7 +95,7 @@ describe('WelcomeWizard', () => {
     expect(screen.getByRole('heading', { name: 'Préférences' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
-    expect(screen.getByRole('heading', { name: 'Détenteurs du foyer' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Composition du foyer' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Précédent' }))
     expect(screen.getByRole('heading', { name: 'Préférences' })).toBeInTheDocument()
@@ -150,15 +150,15 @@ describe('WelcomeWizard', () => {
     expect(api.getPreferences).toHaveBeenCalled()
   })
 
-  it("l'étape Détenteurs réutilise réellement DetenteursCard (état vide affiché)", async () => {
+  it("l'étape Composition du foyer réutilise réellement DetenteursCard (état vide affiché)", async () => {
     renderWizard(utilisateurFactice())
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
 
-    expect(await screen.findByText('Aucun détenteur déclaré.')).toBeInTheDocument()
+    expect(await screen.findByText('Aucun membre du foyer déclaré.')).toBeInTheDocument()
   })
 
-  it("l'étape Détenteurs affiche les détenteurs déjà déclarés (état réel, pas un formulaire vide)", async () => {
+  it("l'étape Composition du foyer affiche les membres du foyer déjà déclarés (état réel, pas un formulaire vide)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([
       { id: 1, nom: 'Alice', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' },
     ])
@@ -181,7 +181,7 @@ describe('WelcomeWizard', () => {
     expect(api.listComptes).toHaveBeenCalled()
   })
 
-  it("l'étape « Inviter les membres du foyer » embarque le formulaire d'invitation et les invitations déjà créées", async () => {
+  it("l'étape « Inviter des proches » embarque le formulaire d'invitation et les invitations déjà créées", async () => {
     vi.mocked(api.listInvitations).mockResolvedValue([
       {
         id: 4,
@@ -199,7 +199,7 @@ describe('WelcomeWizard', () => {
     renderWizard(utilisateurFactice())
     for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
 
-    expect(screen.getByRole('heading', { name: 'Inviter les membres du foyer' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Inviter des proches' })).toBeInTheDocument()
     expect(await screen.findByText('Sophie')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: "Créer l'invitation" })).toBeInTheDocument()
   })

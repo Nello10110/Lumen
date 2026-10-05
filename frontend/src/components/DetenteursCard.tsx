@@ -63,7 +63,8 @@ export default function DetenteursCard() {
 
   return (
     <Card title={t('detenteursCard.personnes')}>
-      <p className="mb-4 text-sm text-texte">{t('detenteursCard.declareesUneFoisReutiliseesPour')}</p>
+      <p className="mb-2 text-sm text-texte">{t('detenteursCard.declareesUneFoisReutiliseesPour')}</p>
+      <p className="mb-4 text-xs text-texte-attenue">{t('detenteursCard.distinctionAcces')}</p>
 
       {loading ? (
         <SkeletonTexte />

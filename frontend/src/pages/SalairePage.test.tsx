@@ -263,7 +263,7 @@ describe('SalairePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '+ Ajouter un salaire' }))
     await screen.findByRole('option', { name: 'Julie' })
-    fireEvent.change(screen.getByLabelText('Personne du foyer (optionnel)'), { target: { value: '7' } })
+    fireEvent.change(screen.getByLabelText('Membre du foyer (optionnel)'), { target: { value: '7' } })
     fireEvent.change(screen.getByPlaceholderText('ex. 2500'), { target: { value: '3000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter ce salaire' }))
 
@@ -278,13 +278,13 @@ describe('SalairePage', () => {
     await screen.findByText(/Aucun salaire enregistré pour cette année/)
     fireEvent.click(screen.getByRole('button', { name: '+ Ajouter un salaire' }))
 
-    fireEvent.click(screen.getByRole('button', { name: '+ Nouvelle personne' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau membre' }))
     fireEvent.change(await screen.findByLabelText('Nom'), { target: { value: 'Marc' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
 
     await waitFor(() => expect(api.createDetenteur).toHaveBeenCalledWith('Marc'))
     expect(screen.queryByLabelText('Nom')).not.toBeInTheDocument() // pop-up refermée
-    expect(screen.getByLabelText('Personne du foyer (optionnel)')).toHaveValue('9')
+    expect(screen.getByLabelText('Membre du foyer (optionnel)')).toHaveValue('9')
   })
 
   it("signale quand une entrée n'a pas de taux d'imposition renseigné", async () => {

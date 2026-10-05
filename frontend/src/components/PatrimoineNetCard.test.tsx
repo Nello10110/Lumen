@@ -10,6 +10,7 @@ import PatrimoineNetCard from './PatrimoineNetCard'
 vi.mock('../api/client', () => ({
   api: {
     getPatrimoineNet: vi.fn(),
+    listDetenteurs: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -140,7 +141,7 @@ describe('PatrimoineNetCard', () => {
       </MemoryRouter>,
     )
 
-    await screen.findByText(/Patrimoine net · Foyer/)
+    await screen.findByText(/Patrimoine net · Tout le foyer/)
     expect(onVide).toHaveBeenLastCalledWith(false)
   })
 
@@ -249,10 +250,10 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(donnees)
     renderCard('net')
 
-    // Sur-titre unique depuis la refonte (« Patrimoine net · Foyer ») : le titre de
+    // Sur-titre unique depuis la refonte (« Patrimoine net · Tout le foyer ») : le titre de
     // carte qui répétait le même libellé a disparu — un seul chiffre héros, annoncé
     // une seule fois.
-    await screen.findByText('Patrimoine net · Foyer')
+    await screen.findByText('Patrimoine net · Tout le foyer')
     expect(screen.getAllByText('180 000 €')).toHaveLength(1)
   })
 
@@ -260,7 +261,7 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(donnees)
     renderCard('brut')
 
-    await screen.findByText('Patrimoine brut · Foyer')
+    await screen.findByText('Patrimoine brut · Tout le foyer')
     // Le chiffre héros seul : les poches sous lui montrent la ventilation
     // (financier / immobilier & épargne / emprunts), pas le total répété.
     expect(screen.getAllByText('300 000 €')).toHaveLength(1)
@@ -270,7 +271,7 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(donnees)
     renderCard('financier')
 
-    await screen.findByText('Patrimoine financier · Foyer')
+    await screen.findByText('Patrimoine financier · Tout le foyer')
     // Le même montant apparaît deux fois en lentille financière : le chiffre héros
     // et la poche « Financier », qui vaut par construction le même total.
     expect(screen.getAllByText('90 000 €')).toHaveLength(2)
@@ -356,6 +357,14 @@ describe('PatrimoineNetCard — filtre détenteur (backlog 2.L.1)', () => {
     renderCard('net', 42)
 
     await vi.waitFor(() => expect(api.getPatrimoineNet).toHaveBeenCalledWith(42))
+  })
+
+  it('titre la carte du nom du membre sélectionné, avec un libellé générique en attendant', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1000, patrimoine_net: 1000 }))
+    vi.mocked(api.listDetenteurs).mockResolvedValue([{ id: 42, nom: 'Alice', created_at: '2026-01-01', updated_at: '2026-01-01' }])
+    renderCard('net', 42)
+
+    await screen.findByText('Patrimoine net · Alice')
   })
 
   it('detenteurId=null (défaut) appelle getPatrimoineNet sans filtre, comme avant L.1', async () => {

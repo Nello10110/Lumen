@@ -3,8 +3,9 @@ import type { Structure } from '../../types'
 
 /** Allemand — espace « gestionFoyerCard » (backlog § BL.2), traduit depuis le français. */
 const gestionFoyerCard: Structure<typeof fr> = {
-  comptesDuFoyer: "Mitglieder und Einladungen",
-  unMembrePeutConsulterEt: "Ein Mitglied kann Vermögenswerte/Kredite/Transaktionen des Haushalts einsehen und erfassen, aber nicht die Lageindikatoren oder die Sicherheit. Ein Gast sieht nur lesend das Nettovermögen und das Portfolio der ihm unten zugewiesenen Inhaber.",
+  comptesDuFoyer: "Zugänge und Einladungen",
+  aideMembres: "Die Konten, die sich anmelden. Die Personen, deren Vermögen Sie verfolgen, finden Sie im Tab Haushaltsmitglieder.",
+  unMembrePeutConsulterEt: "Ein Mitglied kann Vermögenswerte/Kredite/Transaktionen des Haushalts einsehen und erfassen, aber nicht die Lageindikatoren oder die Sicherheit. Ein Gast sieht nur lesend das Nettovermögen und das Portfolio der ihm unten zugewiesenen Haushaltsmitglieder.",
   aucunCompteAAfficher: "Kein Konto anzuzeigen.",
   ajouteUnMembreOuUn: "Füge mit dem Formular unten ein Mitglied oder einen Gast hinzu.",
   enregistrer: "Speichern",
@@ -19,12 +20,12 @@ const gestionFoyerCard: Structure<typeof fr> = {
   role: "Rolle",
   nomDUtilisateur: "Benutzername",
   motDePasse: "Passwort",
-  membreDuFoyer: "Haushaltsmitglied",
+  membreDuFoyer: "Mitglied",
   invite: "Gast",
   ajouter: "Hinzufügen",
-  aucunDetenteurDeclare: "Kein Inhaber erfasst.",
+  aucunDetenteurDeclare: "Kein Haushaltsmitglied erfasst.",
   roleProprietaire: "Eigentümer",
-  roleMembre: "Haushaltsmitglied",
+  roleMembre: "Mitglied",
   roleInvite: "Gast",
   ariaNomUtilisateurEdition: "Benutzername von {nom} (Bearbeitung)",
   ariaModifierNomUtilisateur: "Benutzernamen von {nom} bearbeiten",

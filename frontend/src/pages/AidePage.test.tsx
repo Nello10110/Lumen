@@ -69,7 +69,7 @@ describe('AidePage', () => {
     vi.mocked(api.getZonesGeographiques).mockResolvedValue(ZONES)
     render(<AidePage />)
 
-    expect(screen.getByText('Quotité')).toBeInTheDocument()
+    expect(screen.getByText('Part')).toBeInTheDocument()
     expect(screen.getByText('Capital restant dû')).toBeInTheDocument()
     expect(screen.getByText('Rentabilité brute / nette')).toBeInTheDocument()
     expect(screen.getByText('XIRR (rendement annualisé)')).toBeInTheDocument()

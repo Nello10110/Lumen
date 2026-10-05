@@ -172,7 +172,7 @@ def generer_pdf_declaration(
     if destinataire:
         elements.append(Paragraph(tr("Destinataire : {destinataire}", destinataire=destinataire), styles["Normal"]))
     if detenteur:
-        elements.append(Paragraph(tr("Détenteur : {nom}", nom=detenteur.nom), styles["Normal"]))
+        elements.append(Paragraph(tr("Membre du foyer : {nom}", nom=detenteur.nom), styles["Normal"]))
     elements.append(Spacer(1, 0.6 * cm))
 
     elements.append(Paragraph(tr("Actifs déclarés"), styles["Heading2"]))

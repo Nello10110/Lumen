@@ -40,7 +40,7 @@ router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
 MESSAGE_INVITATION_INTROUVABLE = "Invitation introuvable, expirée ou déjà utilisée."
 MESSAGE_INVITATION_NON_REVOCABLE = "Cette invitation n'est plus en attente."
-MESSAGE_DETENTEUR_INTROUVABLE = "Détenteur introuvable"
+MESSAGE_DETENTEUR_INTROUVABLE = "Membre du foyer introuvable"
 MESSAGE_DEJA_MEMBRE = "Vous appartenez déjà à ce foyer."
 MESSAGE_CREATION_FOYER_PAR_INVITATION_REFUSEE = "Sur cette installation, seul l'opérateur peut créer un foyer."
 

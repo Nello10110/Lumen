@@ -51,7 +51,7 @@ describe('EnTeteMobile (refonte « liquid glass », en-tête < 768 px)', () => {
     renderEnTete('/budget')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Budget' })).toBeInTheDocument()
-    expect(screen.getByText(/Foyer · vue nette/)).toBeInTheDocument()
+    expect(screen.getByText(/Tout le foyer · vue nette/)).toBeInTheDocument()
   })
 
   it("résout aussi une route paramétrée (fiche d'une position)", () => {
@@ -68,12 +68,12 @@ describe('EnTeteMobile (refonte « liquid glass », en-tête < 768 px)', () => {
 
   it("la ligne de contexte ouvre la feuille de réglages et y change la lentille", () => {
     renderEnTete()
-    fireEvent.click(screen.getByText(/Foyer · vue nette/))
+    fireEvent.click(screen.getByText(/Tout le foyer · vue nette/))
 
     fireEvent.click(screen.getByRole('button', { name: 'Brut' }))
 
     expect(localStorage.getItem('patrimoine:lentille')).toBe('brut')
-    expect(screen.getByText(/Foyer · vue brute/)).toBeInTheDocument()
+    expect(screen.getByText(/Tout le foyer · vue brute/)).toBeInTheDocument()
   })
 
   it('la feuille expose le détenteur, et la ligne de contexte reflète le choix', async () => {
@@ -81,7 +81,7 @@ describe('EnTeteMobile (refonte « liquid glass », en-tête < 768 px)', () => {
     renderEnTete()
 
     fireEvent.click(screen.getByRole('button', { name: "Réglages d'affichage" }))
-    const select = await screen.findByLabelText('Détenteur')
+    const select = await screen.findByLabelText('Membre')
     fireEvent.change(select, { target: { value: '7' } })
 
     expect(localStorage.getItem('patrimoine:detenteur-id')).toBe('7')

@@ -3,8 +3,9 @@ import type { Structure } from '../../types'
 
 /** Italien — espace « gestionFoyerCard » (backlog § BL.2), traduit depuis le français. */
 const gestionFoyerCard: Structure<typeof fr> = {
-  comptesDuFoyer: "Membri e inviti",
-  unMembrePeutConsulterEt: "Un membro può consultare e inserire attivi/prestiti/transazioni del nucleo, ma non gli indicatori di situazione né la sicurezza. Un ospite vede solo, in sola lettura, il patrimonio netto e il portafoglio dei titolari che gli sono assegnati qui sotto.",
+  comptesDuFoyer: "Accessi e inviti",
+  aideMembres: "Gli account che si collegano. Le persone di cui si segue il patrimonio sono nella scheda Membri del nucleo.",
+  unMembrePeutConsulterEt: "Un membro può consultare e inserire attivi/prestiti/transazioni del nucleo, ma non gli indicatori di situazione né la sicurezza. Un ospite vede solo, in sola lettura, il patrimonio netto e il portafoglio dei membri del nucleo che gli sono assegnati qui sotto.",
   aucunCompteAAfficher: "Nessun account da mostrare.",
   ajouteUnMembreOuUn: "Aggiungi un membro o un ospite con il modulo qui sotto.",
   enregistrer: "Salva",
@@ -19,12 +20,12 @@ const gestionFoyerCard: Structure<typeof fr> = {
   role: "Ruolo",
   nomDUtilisateur: "Nome utente",
   motDePasse: "Password",
-  membreDuFoyer: "Membro del nucleo",
+  membreDuFoyer: "Membro",
   invite: "Ospite",
   ajouter: "Aggiungi",
-  aucunDetenteurDeclare: "Nessun titolare dichiarato.",
+  aucunDetenteurDeclare: "Nessun membro del nucleo dichiarato.",
   roleProprietaire: "Proprietario",
-  roleMembre: "Membro del nucleo",
+  roleMembre: "Membro",
   roleInvite: "Ospite",
   ariaNomUtilisateurEdition: "Nome utente di {nom} (modifica)",
   ariaModifierNomUtilisateur: "Modifica il nome utente di {nom}",

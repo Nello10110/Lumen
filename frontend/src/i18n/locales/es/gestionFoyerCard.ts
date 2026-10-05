@@ -3,8 +3,9 @@ import type { Structure } from '../../types'
 
 /** Espagnol — espace « gestionFoyerCard » (backlog § BL.2), traduit depuis le français. */
 const gestionFoyerCard: Structure<typeof fr> = {
-  comptesDuFoyer: "Miembros e invitaciones",
-  unMembrePeutConsulterEt: "Un miembro puede consultar e introducir activos/préstamos/transacciones del hogar, pero no los indicadores de situación ni la seguridad. Un invitado solo ve, en modo lectura, el patrimonio neto y la cartera de los titulares que se le asignan abajo.",
+  comptesDuFoyer: "Accesos e invitaciones",
+  aideMembres: "Las cuentas que se conectan. Las personas cuyo patrimonio se sigue están en la pestaña Miembros del hogar.",
+  unMembrePeutConsulterEt: "Un miembro puede consultar e introducir activos/préstamos/transacciones del hogar, pero no los indicadores de situación ni la seguridad. Un invitado solo ve, en modo lectura, el patrimonio neto y la cartera de los miembros del hogar que se le asignan abajo.",
   aucunCompteAAfficher: "Ninguna cuenta que mostrar.",
   ajouteUnMembreOuUn: "Añade un miembro o un invitado con el formulario de abajo.",
   enregistrer: "Guardar",
@@ -19,12 +20,12 @@ const gestionFoyerCard: Structure<typeof fr> = {
   role: "Rol",
   nomDUtilisateur: "Nombre de usuario",
   motDePasse: "Contraseña",
-  membreDuFoyer: "Miembro del hogar",
+  membreDuFoyer: "Miembro",
   invite: "Invitado",
   ajouter: "Añadir",
-  aucunDetenteurDeclare: "Ningún titular declarado.",
+  aucunDetenteurDeclare: "Ningún miembro del hogar declarado.",
   roleProprietaire: "Propietario",
-  roleMembre: "Miembro del hogar",
+  roleMembre: "Miembro",
   roleInvite: "Invitado",
   ariaNomUtilisateurEdition: "Nombre de usuario de {nom} (edición)",
   ariaModifierNomUtilisateur: "Modificar el nombre de usuario de {nom}",

@@ -3,8 +3,9 @@ import type { Structure } from '../../types'
 
 /** Anglais — espace « gestionFoyerCard » (backlog § BL.2), traduit depuis le français. */
 const gestionFoyerCard: Structure<typeof fr> = {
-  comptesDuFoyer: "Members and invitations",
-  unMembrePeutConsulterEt: "A member can view and enter the household’s assets/loans/transactions, but not the situation indicators or security. A guest only sees, read-only, the net worth and portfolio of the holders assigned to them below.",
+  comptesDuFoyer: "Access and invitations",
+  aideMembres: "The accounts that sign in. The people whose wealth you track are in the Household members tab.",
+  unMembrePeutConsulterEt: "A member can view and enter the household’s assets/loans/transactions, but not the situation indicators or security. A guest only sees, read-only, the net worth and portfolio of the household members assigned to them below.",
   aucunCompteAAfficher: "No account to display.",
   ajouteUnMembreOuUn: "Add a member or a guest with the form below.",
   enregistrer: "Save",
@@ -19,12 +20,12 @@ const gestionFoyerCard: Structure<typeof fr> = {
   role: "Role",
   nomDUtilisateur: "Username",
   motDePasse: "Password",
-  membreDuFoyer: "Household member",
+  membreDuFoyer: "Member",
   invite: "Guest",
   ajouter: "Add",
-  aucunDetenteurDeclare: "No holder declared.",
+  aucunDetenteurDeclare: "No household member declared.",
   roleProprietaire: "Owner",
-  roleMembre: "Household member",
+  roleMembre: "Member",
   roleInvite: "Guest",
   ariaNomUtilisateurEdition: "Username of {nom} (editing)",
   ariaModifierNomUtilisateur: "Edit the username of {nom}",

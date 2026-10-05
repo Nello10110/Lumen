@@ -209,7 +209,7 @@ describe('EvolutionFinanciereCard', () => {
     render_()
     await waitFor(() => expect(api.getPatrimoineHistory).toHaveBeenCalledTimes(1))
 
-    fireEvent.change(await screen.findByLabelText('Détenteur'), { target: { value: '5' } })
+    fireEvent.change(await screen.findByLabelText('Membre'), { target: { value: '5' } })
 
     await waitFor(() => expect(api.getPatrimoineHistory).toHaveBeenCalledTimes(2))
     expect(api.getPatrimoineHistory).toHaveBeenLastCalledWith(

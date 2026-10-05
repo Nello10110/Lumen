@@ -1,8 +1,9 @@
 /** Textes français — espace « gestionFoyerCard » (backlog § BL.2). Généré par
  * `scripts/i18n-extraire.mjs`, puis relu à la main. */
 const gestionFoyerCard = {
-  comptesDuFoyer: "Membres et invitations",
-  unMembrePeutConsulterEt: "Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les indicateurs de situation ni la sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des détenteurs qui lui sont assignés ci-dessous.",
+  comptesDuFoyer: "Accès et invitations",
+  aideMembres: "Les comptes qui se connectent. Les personnes dont vous suivez le patrimoine sont dans l'onglet Membres du foyer.",
+  unMembrePeutConsulterEt: "Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les indicateurs de situation ni la sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des membres du foyer qui lui sont assignés ci-dessous.",
   aucunCompteAAfficher: "Aucun compte à afficher.",
   ajouteUnMembreOuUn: "Ajoute un membre ou un invité avec le formulaire ci-dessous.",
   enregistrer: "Enregistrer",
@@ -17,12 +18,12 @@ const gestionFoyerCard = {
   role: "Rôle",
   nomDUtilisateur: "Nom d'utilisateur",
   motDePasse: "Mot de passe",
-  membreDuFoyer: "Membre du foyer",
+  membreDuFoyer: "Membre",
   invite: "Invité",
   ajouter: "Ajouter",
-  aucunDetenteurDeclare: "Aucun détenteur déclaré.",
+  aucunDetenteurDeclare: "Aucun membre du foyer déclaré.",
   roleProprietaire: "Propriétaire",
-  roleMembre: "Membre du foyer",
+  roleMembre: "Membre",
   roleInvite: "Invité",
   ariaNomUtilisateurEdition: "Nom d'utilisateur de {nom} (édition)",
   ariaModifierNomUtilisateur: "Modifier le nom d'utilisateur de {nom}",

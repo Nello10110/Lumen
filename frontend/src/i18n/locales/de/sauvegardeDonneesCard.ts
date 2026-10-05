@@ -6,7 +6,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   sauvegardeCompleteDesDonnees: "Vollständige Datensicherung",
   exporte: "Exportiert",
   tout: "das gesamte",
-  lePatrimoineDuFoyerDans: "Vermögen des Haushalts in eine einzige Datei: Positionen, Transaktionen, Immobilien, Kredite, Konten und Institute, Inhaber und Aufteilungen, Ersparnisse, Gehälter, Budget und Einstellungen. Nützlich als Sicherung vor einem Eingriff oder für den Umzug auf eine andere Installation.",
+  lePatrimoineDuFoyerDans: "Vermögen des Haushalts in eine einzige Datei: Positionen, Transaktionen, Immobilien, Kredite, Konten und Institute, Haushaltsmitglieder und Aufteilungen, Ersparnisse, Gehälter, Budget und Einstellungen. Nützlich als Sicherung vor einem Eingriff oder für den Umzug auf eine andere Installation.",
   lesCoursEtCompositionsDe: "Kurse und Fondszusammensetzungen sind nicht enthalten: Sie werden von selbst neu geladen. Auch nichts Sensibles (Passwörter, Freigabe-Token, Zugriffsprotokoll). Die Datei enthält jedoch alle Ihre Beträge — bewahren Sie sie als vertrauliches Dokument auf.",
   exporterMesDonneesJson: "Meine Daten exportieren (JSON)",
   restaurerDepuisUnFichier: "Aus einer Datei wiederherstellen",
@@ -39,7 +39,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   reinitialisationEnCours: "Wird zurückgesetzt…",
   reinitialiserDefinitivement: "Endgültig zurücksetzen",
   importTermine: { one: "Import abgeschlossen: {n} Datensatz wiederhergestellt.", other: "Import abgeschlossen: {n} Datensätze wiederhergestellt." },
-  table: { etablissements: "Institute", comptes: "Konten", detenteurs: "Inhaber (Personen)", holdings: "Vermögenspositionen", holding_immobilier_details: "Immobilienangaben", holding_valuation_history: "Bewertungspunkte", quotites_holdings: "Aufteilungen zwischen Inhabern", loans: "Kredite", quotites_loans: "Kreditaufteilungen", transactions: "Transaktionen", salaires: "Gehälter", categories_budget: "Budgetkategorien", mouvements_bancaires: "Kontobewegungen", regles_categorisation: "Kategorisierungsregeln", budget_cibles: "Zielbudgets", user_parametres: "Einstellungen" },
+  table: { etablissements: "Institute", comptes: "Konten", detenteurs: "Haushaltsmitglieder", holdings: "Vermögenspositionen", holding_immobilier_details: "Immobilienangaben", holding_valuation_history: "Bewertungspunkte", quotites_holdings: "Aufteilungen zwischen Haushaltsmitgliedern", loans: "Kredite", quotites_loans: "Kreditaufteilungen", transactions: "Transaktionen", salaires: "Gehälter", categories_budget: "Budgetkategorien", mouvements_bancaires: "Kontobewegungen", regles_categorisation: "Kategorisierungsregeln", budget_cibles: "Zielbudgets", user_parametres: "Einstellungen" },
 }
 
 export default sauvegardeDonneesCard

@@ -4,7 +4,7 @@ import type { Structure } from '../../types'
 /** Italien — espace « partageCard » (backlog § BL.2), traduit depuis le français. */
 const partageCard: Structure<typeof fr> = {
   liensDePartage: "Link di condivisione",
-  unLienAnonymeRevocableA: "Un link anonimo, revocabile in qualsiasi momento, che dà a un terzo (banca, notaio, famiglia) una vista in sola lettura limitata alle sezioni scelte qui sotto: mai il dettaglio posizione per posizione, le transazioni o i conti. Il budget non è filtrato per titolare: attiva questa sezione con un titolare selezionato solo se vuoi condividerlo per tutto il nucleo.",
+  unLienAnonymeRevocableA: "Un link anonimo, revocabile in qualsiasi momento, che dà a un terzo (banca, notaio, famiglia) una vista in sola lettura limitata alle sezioni scelte qui sotto: mai il dettaglio posizione per posizione, le transazioni o i conti. Il budget non è filtrato per membro del nucleo: attiva questa sezione con un membro selezionato solo se vuoi condividerlo per tutto il nucleo.",
   aucunLienDePartageCree: "Nessun link di condivisione creato.",
   revoque: "revocato",
   expire: "scaduto",
@@ -12,7 +12,7 @@ const partageCard: Structure<typeof fr> = {
   revoquer: "Revoca",
   nomPourTeReperer: "Nome (per orientarti)",
   pourLaBanque: "Per la banca",
-  detenteurOptionnel: "Titolare (facoltativo)",
+  detenteurOptionnel: "Membro del nucleo (facoltativo)",
   foyerEntier: "Intero nucleo",
   dureeJours: "Durata (giorni)",
   codeDAccesOptionnel: "Codice di accesso (facoltativo)",
