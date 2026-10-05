@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Etablissement, ImportPreview, ImportResult } from '../api/types'
 import { useFichierPilote } from '../hooks/useFichierPilote'
+import { useQuestionImport } from '../hooks/useQuestionImport'
 import Card from './Card'
 import { PrimaryButton } from './Controls'
 import CsvPreviewTable from './CsvPreviewTable'
 import { Field, Select } from './Field'
 import { IconFlecheDroite } from './icons'
+import QuestionMembreImport from './QuestionMembreImport'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { t } from '../i18n'
 
@@ -91,6 +93,9 @@ export default function ImportRelevePositionsSection({
   const nouvelEtablissement = etablissementId === NOUVEAU_ETABLISSEMENT
   const etablissementValide = !compteMappe || (nouvelEtablissement ? etablissementNom.trim() !== '' : etablissementId !== '')
 
+  // Une question par fichier, à partir de deux membres du foyer (§ BN.1, lot 3).
+  const questionMembre = useQuestionImport()
+
   async function handleConfirm() {
     if (!preview || !tickerCol || !quantiteCol || !etablissementValide) return
     setConfirming(true)
@@ -107,7 +112,9 @@ export default function ImportRelevePositionsSection({
         etablissement_id: compteMappe && !nouvelEtablissement && etablissementId ? Number(etablissementId) : null,
         etablissement_nom: compteMappe && nouvelEtablissement ? etablissementNom.trim() || null : null,
         etablissement_logo_key: compteMappe && nouvelEtablissement ? etablissementLogoKey : null,
+        quotites: questionMembre.quotites,
       })
+      questionMembre.memoriser()
       setResult(res)
       setPreview(null)
       onImportedRef.current?.()
@@ -227,7 +234,11 @@ export default function ImportRelevePositionsSection({
           <label className="mt-4 flex items-center gap-2 text-sm text-texte">
             <input type="checkbox" checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} />{t('importRelevePositionsSection.remplacerLesLignesDejaSaisies')}</label>
 
-          <PrimaryButton onClick={handleConfirm} disabled={!canConfirm || confirming} className="mt-4">
+          <div className="mt-4">
+            <QuestionMembreImport question={questionMembre} idBase="import-releve" />
+          </div>
+
+          <PrimaryButton onClick={handleConfirm} disabled={!canConfirm || !questionMembre.valide || confirming} className="mt-4">
             {confirming ? t('importRelevePositionsSection.importEnCours') : t('importRelevePositionsSection.confirmerLImport')}
           </PrimaryButton>
         </>
