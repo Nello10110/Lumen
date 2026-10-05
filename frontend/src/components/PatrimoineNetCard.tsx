@@ -113,6 +113,7 @@ export default function PatrimoineNetCard({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { lentille, montantsMasques, detenteurId, periode } = usePreferencesAffichage()
+  const [membre, setMembre] = useState<{ id: number; nom: string } | null>(null)
 
   // Variation + phrase en langage naturel (backlog 2.K.6) : calculée sur la même
   // série et le même filtrage de Période transverse que `PortfolioHistoryChart`
@@ -145,6 +146,23 @@ export default function PatrimoineNetCard({
   }
 
   useEffect(charger, [detenteurId])
+
+  // Le nom du membre sélectionné titre la carte (« Patrimoine net · Alice ») ; tant qu'il n'est
+  // pas arrivé, ou si la liste échoue, le libellé générique prend le relais.
+  useEffect(() => {
+    if (detenteurId === null) return
+    let annule = false
+    api
+      .listDetenteurs()
+      .then((liste) => {
+        const trouve = liste.find((d) => d.id === detenteurId)
+        if (!annule && trouve) setMembre({ id: trouve.id, nom: trouve.nom })
+      })
+      .catch(() => {})
+    return () => {
+      annule = true
+    }
+  }, [detenteurId])
 
   const vide = patrimoine !== null && patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0
   // La page qui l'accueille retire alors ce qui n'a plus de sens autour (invitation
@@ -210,7 +228,7 @@ export default function PatrimoineNetCard({
           titre de carte, libellé, valeur — et empilait quatre tuiles de même poids.
           Il ne reste que le sur-titre, le chiffre à 54 px et sa variation. */}
       <p className="text-[13px] font-medium text-ink3">
-        {principale.label} · {detenteurId === null ? t('patrimoineNetCard.foyer') : t('patrimoineNetCard.detenteurSelectionne')}
+        {principale.label} · {detenteurId === null ? t('patrimoineNetCard.foyer') : membre?.id === detenteurId ? membre.nom : t('patrimoineNetCard.detenteurSelectionne')}
       </p>
       {/* Chiffre héros TOUJOURS en encre, jamais en vert ou en rouge (maquette de la
           refonte) : un patrimoine n'est ni un gain ni une perte, c'est un état. Le

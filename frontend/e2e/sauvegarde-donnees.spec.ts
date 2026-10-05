@@ -38,7 +38,7 @@ test('exporter télécharge un fichier JSON contenant le patrimoine du foyer', a
   const document = JSON.parse(Buffer.concat(morceaux).toString('utf-8'))
 
   expect(document.format).toBe('patrimoine-export')
-  // Le foyer seedé contient au moins ses lignes, comptes et détenteurs.
+  // Le foyer seedé contient au moins ses lignes, comptes et membres du foyer.
   expect(document.donnees.holdings.length).toBeGreaterThan(0)
   expect(document.donnees.comptes.length).toBeGreaterThan(0)
   expect(document.donnees.detenteurs.length).toBeGreaterThan(0)

@@ -7,7 +7,7 @@ const compteDetailContent = {
   enregistrer: "Enregistrer",
   empruntsRattaches: "Emprunts rattachés",
   restant: "restant",
-  repartitionEntreDetenteurs: "Répartition entre détenteurs",
+  repartitionEntreDetenteurs: "Répartition entre membres du foyer",
   repartitionAppliqueeAToutesLes: "Répartition appliquée à toutes les lignes du compte.",
   erreurInconnue: "Erreur inconnue",
   detectionAutomatique: "Détection automatique",

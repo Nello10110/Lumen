@@ -44,10 +44,10 @@ const en: Dictionnaire = {
     vueNette: 'net view',
     vueBrute: 'gross view',
     vueFinanciere: 'financial view',
-    detenteur: 'Holder',
-    foyer: 'Household',
+    detenteur: 'Member',
+    foyer: 'Whole household',
     aideDetenteur:
-      'Filters the whole screen on the share of a single household member, according to the ownership splits you entered. “Household” = all assets, no filter.',
+      'Filters the whole screen on the share of a single household member, according to the ownership splits you entered. “Whole household” = all assets, no filter.',
     afficherMontants: 'Show amounts',
     masquerMontants: 'Hide amounts',
     raccourciMontants: '(Ctrl/⌘ + Shift + M).',
@@ -99,9 +99,9 @@ const en: Dictionnaire = {
     etapes: {
       bienvenue: 'Welcome',
       preferences: 'Preferences',
-      detenteurs: 'Household members',
+      detenteurs: 'Household composition',
       comptes: 'Accounts',
-      inviter: "Invite household members",
+      inviter: "Invite relatives",
       operateur: "Installation administration",
       demarrage: 'Start the portfolio',
       termine: 'Done',
@@ -118,7 +118,7 @@ const en: Dictionnaire = {
     preferences:
       'How should the cost basis of your stock positions be calculated on a partial sale? The default choice suits the vast majority of cases.',
     detenteurs:
-      'If your wealth is shared (partner, child...), declare the people concerned here — useful to split ownership of assets later. Not relevant? This step can be skipped without entering anything.',
+      'If your wealth is shared (partner, child...), declare the household members concerned here — useful to split ownership of assets later. Not relevant? This step can be skipped without entering anything.',
     comptes: {
       avantEcran:
         'If your wealth is spread across several banks or brokers (current account, PEA, securities account, life insurance, real estate...), declare them here to group everything by institution on the',
@@ -131,7 +131,7 @@ const en: Dictionnaire = {
       supprimer: 'Delete',
     },
     inviter:
-      "The other members of the household (spouse, children, a relative with view-only access…) can have their own account: invite them with a link that you send them yourself. This step is optional; you can invite whenever you like from Settings → Accounts & security.",
+      "Your relatives (spouse, children, someone with view-only access…) can have their own access, with their own account: invite them with a link that you send them yourself. This step is optional; you can invite whenever you like from Settings → Accounts & security.",
     operateur:
       "This installation can host several households. To administer them — create more, suspend one, set the scheduled tasks — create an operator account: a separate account from yours, belonging to no household and seeing no assets. To use it, you will sign in with it instead of your own account.",
     operateurPlusTard:

@@ -1,7 +1,7 @@
 /** Textes français — espace « loansCard » (backlog § BL.2). Généré par
  * `scripts/i18n-extraire.mjs`, puis relu à la main. */
 const loansCard = {
-  detenteursDeCetEmprunt: "Détenteurs de cet emprunt",
+  detenteursDeCetEmprunt: "Membres du foyer de cet emprunt",
   enregistrer: "Enregistrer",
   repartitionEnregistree: "Répartition enregistrée.",
   repartitionHeritee: "Ce prêt suit la répartition du bien qu'il finance. L'enregistrer lui donne la sienne, indépendante.",
@@ -23,7 +23,7 @@ const loansCard = {
   modifier: "Modifier",
   recaler: "Recaler",
   fermer: "Fermer",
-  detenteurs: "Détenteurs",
+  detenteurs: "Membres du foyer",
   supprimer: "Supprimer",
   dettesEtEmprunts: "Dettes et emprunts",
   aucunEmpruntEnregistre: "Aucun emprunt enregistré.",

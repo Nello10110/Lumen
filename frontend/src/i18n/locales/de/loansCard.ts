@@ -3,7 +3,7 @@ import type { Structure } from '../../types'
 
 /** Allemand — espace « loansCard » (backlog § BL.2), traduit depuis le français. */
 const loansCard: Structure<typeof fr> = {
-  detenteursDeCetEmprunt: "Inhaber dieses Kredits",
+  detenteursDeCetEmprunt: "Haushaltsmitglieder dieses Kredits",
   enregistrer: "Speichern",
   repartitionEnregistree: "Aufteilung gespeichert.",
   repartitionHeritee: "Dieser Kredit folgt der Aufteilung der Immobilie, die er finanziert. Wenn du speicherst, erhält er eine eigene, unabhängige Aufteilung.",
@@ -25,7 +25,7 @@ const loansCard: Structure<typeof fr> = {
   modifier: "Bearbeiten",
   recaler: "Anpassen",
   fermer: "Schließen",
-  detenteurs: "Inhaber",
+  detenteurs: "Haushaltsmitglieder",
   supprimer: "Löschen",
   dettesEtEmprunts: "Schulden und Kredite",
   aucunEmpruntEnregistre: "Kein Kredit erfasst.",

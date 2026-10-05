@@ -7,13 +7,13 @@ test.describe('Réglages', () => {
     await expect(page.getByRole('heading', { name: 'Réglages' })).toBeVisible()
   })
 
-  test('onglet Détenteurs liste Alice et Bob', async ({ page }) => {
-    await page.getByRole('tab', { name: 'Détenteurs' }).click()
+  test('onglet Membres du foyer liste Alice et Bob', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Membres du foyer' }).click()
     // "Alice"/"Bob" seuls sont ambigus : ce sont aussi des <option> du sélecteur de
-    // détenteur du formulaire de quotités plus bas sur le même onglet — scopé à la
-    // carte "Personnes" (retrait du suffixe "(Personne)"/"(Société)" le 17/09/2026,
-    // § AU.1 : le type de détenteur n'existe plus).
-    const carte = cardByTitle(page, 'Personnes')
+    // membre du formulaire de parts plus bas sur le même onglet — scopé à la
+    // carte "Membres du foyer" (retrait du suffixe "(Personne)"/"(Société)" le 17/09/2026,
+    // § AU.1 : le type de membre n'existe plus).
+    const carte = cardByTitle(page, 'Membres du foyer')
     await expect(carte.getByText('Alice', { exact: true })).toBeVisible()
     await expect(carte.getByText('Bob', { exact: true })).toBeVisible()
   })
@@ -23,7 +23,7 @@ test.describe('Réglages', () => {
     // dernière connexion, rôle éditable — ce test couvre le cycle complet plutôt que
     // la seule création, désormais qu'il y a plus à vérifier sur la ligne créée.
     await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
-    await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Accès et invitations' })).toBeVisible()
 
     const nomMembre = `e2e_membre_${Date.now().toString().slice(-6)}`
     await page.getByLabel("Nom d'utilisateur").fill(nomMembre)
@@ -132,7 +132,7 @@ test.describe('Réglages', () => {
     await assistant.getByRole('button', { name: 'Suivant' }).click()
     await expect(assistant.getByRole('heading', { name: 'Préférences' })).toBeVisible()
     await assistant.getByRole('button', { name: 'Suivant' }).click()
-    await expect(assistant.getByRole('heading', { name: 'Détenteurs du foyer' })).toBeVisible()
+    await expect(assistant.getByRole('heading', { name: 'Composition du foyer' })).toBeVisible()
     await assistant.getByRole('button', { name: 'Suivant' }).click()
     // Étape "Comptes" (backlog X.3) : établissement seedé (« Banque E2E ») déjà
     // reconnu, même doctrine de rejeu que le reste de l'assistant.
@@ -148,8 +148,8 @@ test.describe('Réglages', () => {
       .filter({ hasText: 'Banque E2E' })
     await expect(ligneEtablissement).toContainText('Banque E2E')
     await assistant.getByRole('button', { name: 'Suivant' }).click()
-    // Étape facultative « Inviter les membres du foyer » (backlog § BK.2b).
-    await expect(assistant.getByRole('heading', { name: 'Inviter les membres du foyer' })).toBeVisible()
+    // Étape facultative « Inviter des proches » (backlog § BK.2b).
+    await expect(assistant.getByRole('heading', { name: 'Inviter des proches' })).toBeVisible()
     await expect(assistant.getByRole('button', { name: "Créer l'invitation" })).toBeVisible()
     await assistant.getByRole('button', { name: 'Suivant' }).click()
     await expect(assistant.getByRole('heading', { name: 'Démarrer le portefeuille' })).toBeVisible()

@@ -6,7 +6,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   sauvegardeCompleteDesDonnees: "Copia de seguridad completa de los datos",
   exporte: "Exporta",
   tout: "todo",
-  lePatrimoineDuFoyerDans: "el patrimonio del hogar en un único archivo: posiciones, transacciones, inmuebles, préstamos, cuentas y entidades, titulares y repartos, ahorro, salarios, presupuesto y preferencias. Útil para hacer una copia antes de una manipulación o para mudarse a otra instalación.",
+  lePatrimoineDuFoyerDans: "el patrimonio del hogar en un único archivo: posiciones, transacciones, inmuebles, préstamos, cuentas y entidades, miembros del hogar y repartos, ahorro, salarios, presupuesto y preferencias. Útil para hacer una copia antes de una manipulación o para mudarse a otra instalación.",
   lesCoursEtCompositionsDe: "Las cotizaciones y composiciones de fondos no se incluyen: se vuelven a descargar solas. Tampoco nada sensible (contraseñas, tokens de compartir, registro de accesos). El archivo contiene en cambio todos sus importes: consérvelo como un documento confidencial.",
   exporterMesDonneesJson: "Exportar mis datos (JSON)",
   restaurerDepuisUnFichier: "Restaurar desde un archivo",
@@ -39,7 +39,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   reinitialisationEnCours: "Restableciendo…",
   reinitialiserDefinitivement: "Restablecer definitivamente",
   importTermine: { one: "Importación terminada: {n} registro restaurado.", other: "Importación terminada: {n} registros restaurados." },
-  table: { etablissements: "entidades", comptes: "cuentas", detenteurs: "titulares (personas)", holdings: "líneas de patrimonio", holding_immobilier_details: "fichas de inmuebles", holding_valuation_history: "puntos de valoración", quotites_holdings: "repartos entre titulares", loans: "préstamos", quotites_loans: "repartos de préstamos", transactions: "transacciones", salaires: "salarios", categories_budget: "categorías de presupuesto", mouvements_bancaires: "movimientos bancarios", regles_categorisation: "reglas de categorización", budget_cibles: "presupuestos objetivo", user_parametres: "preferencias" },
+  table: { etablissements: "entidades", comptes: "cuentas", detenteurs: "miembros del hogar", holdings: "líneas de patrimonio", holding_immobilier_details: "fichas de inmuebles", holding_valuation_history: "puntos de valoración", quotites_holdings: "repartos entre miembros del hogar", loans: "préstamos", quotites_loans: "repartos de préstamos", transactions: "transacciones", salaires: "salarios", categories_budget: "categorías de presupuesto", mouvements_bancaires: "movimientos bancarios", regles_categorisation: "reglas de categorización", budget_cibles: "presupuestos objetivo", user_parametres: "preferencias" },
 }
 
 export default sauvegardeDonneesCard

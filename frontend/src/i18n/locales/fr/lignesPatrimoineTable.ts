@@ -6,7 +6,7 @@ const lignesPatrimoineTable = {
   classe: "Classe",
   compte: "Compte",
   quantite: "Quantité",
-  quotePart: "Quote-part",
+  quotePart: "Part",
   valeur: "Valeur",
   valeurNette: "Valeur nette",
   sansCompte: "Sans compte",

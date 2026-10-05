@@ -152,14 +152,14 @@ describe('SectionInvitations', () => {
   })
 
   it('une création refusée affiche l’erreur sans montrer de lien', async () => {
-    vi.mocked(api.createInvitation).mockRejectedValue(new Error('Détenteur introuvable'))
+    vi.mocked(api.createInvitation).mockRejectedValue(new Error('Membre du foyer introuvable'))
     render(<SectionInvitations />)
     await screen.findByText(AUCUNE)
 
     fireEvent.click(screen.getByRole('button', { name: "Créer l'invitation" }))
 
     const alertes = await screen.findAllByRole('alert')
-    expect(within(alertes[0]).getByText('Détenteur introuvable')).toBeInTheDocument()
+    expect(within(alertes[0]).getByText('Membre du foyer introuvable')).toBeInTheDocument()
     expect(screen.queryByLabelText("Lien d'invitation")).not.toBeInTheDocument()
   })
 })

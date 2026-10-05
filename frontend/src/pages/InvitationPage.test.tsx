@@ -70,7 +70,7 @@ describe('InvitationPage', () => {
   it('affiche le rôle proposé et le libellé de l’invitation', async () => {
     render(<InvitationPage />)
 
-    expect(await screen.findByText(/Rôle proposé : Membre du foyer/)).toBeInTheDocument()
+    expect(await screen.findByText(/Rôle proposé : Membre/)).toBeInTheDocument()
     expect(screen.getByText('Invitation destinée à : Sophie')).toBeInTheDocument()
   })
 
@@ -137,7 +137,7 @@ describe('InvitationPage', () => {
     expect(api.accepterInvitationNouveauCompte).toHaveBeenCalledWith('jeton_de-test123', 'sophie', 'mot-de-passe-1', 'fr')
     expect(getToken()).toBe('session-neuve')
     expect(invitationGardee()).toBeNull()
-    expect(screen.getByText('Votre rôle dans ce foyer : Membre du foyer.')).toBeInTheDocument()
+    expect(screen.getByText('Votre rôle dans ce foyer : Membre.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: "Ouvrir l'application" }))
     expect(rechargerApplication).toHaveBeenCalled()

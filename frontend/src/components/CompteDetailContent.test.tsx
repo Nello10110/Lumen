@@ -312,7 +312,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
   it("n'affiche pas la carte si le compte n'a aucune ligne", () => {
     renderContent(compte(), [])
 
-    expect(screen.queryByText('Répartition entre détenteurs')).not.toBeInTheDocument()
+    expect(screen.queryByText('Répartition entre membres du foyer')).not.toBeInTheDocument()
   })
 
   it("n'affiche pas la carte si aucun détenteur n'est déclaré", async () => {
@@ -320,7 +320,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
     renderContent(compte(), [holding({ id: 1 })])
 
     await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
-    expect(screen.queryByText('Répartition entre détenteurs')).not.toBeInTheDocument()
+    expect(screen.queryByText('Répartition entre membres du foyer')).not.toBeInTheDocument()
   })
 
   it("mentionne le nombre de lignes et d'emprunts concernés par le remplacement", async () => {
@@ -328,7 +328,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
     vi.mocked(api.listLoans).mockResolvedValue([loan({ holding_id: 1 })])
     renderContent(compte(), [holding({ id: 1 }), holding({ id: 2 })])
 
-    await screen.findByText('Répartition entre détenteurs')
+    await screen.findByText('Répartition entre membres du foyer')
     expect(screen.getAllByText(/2 lignes, et 1 emprunt rattaché/).length).toBeGreaterThan(0)
   })
 
@@ -342,7 +342,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
       uniforme: true,
     })
     renderContent(compte({ id: 3 }), [holding({ id: 1 })])
-    await screen.findByText('Répartition entre détenteurs')
+    await screen.findByText('Répartition entre membres du foyer')
 
     expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(70)
     expect(screen.getByLabelText('Part de Bob (%)')).toHaveValue(30)

@@ -3,7 +3,7 @@ import type { Structure } from '../../types'
 
 /** Italien — espace « patrimoineVide » (backlog § BL.2), traduit depuis le français. */
 const patrimoineVide: Structure<typeof fr> = {
-  rienNEstEncoreAttribue: "Non è ancora attribuito nulla a questa persona",
+  rienNEstEncoreAttribue: "Non è ancora attribuito nulla a questo membro del nucleo",
   unActifAppartientAuFoyer: "Un'attività appartiene al nucleo finché non viene ripartita. Indica la quota di ciascuno da un conto: il suo patrimonio apparirà qui.",
   repartirUnCompte: "Ripartisci un conto",
   voirToutLeFoyer: "Vedi tutto il nucleo",

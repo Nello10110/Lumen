@@ -84,7 +84,7 @@ describe('PatrimoineVide — accueil sans rien à chiffrer (23/09/2026)', () => 
     vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('panne simulée'))
     afficher({ detenteurId: 7 })
 
-    expect(await screen.findByRole('heading', { name: "Rien n'est encore attribué à cette personne" })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: "Rien n'est encore attribué à ce membre du foyer" })).toBeInTheDocument()
   })
 
   it("un invité ne se voit proposer aucune action qu'on lui refuserait", () => {

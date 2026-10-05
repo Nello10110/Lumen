@@ -42,12 +42,12 @@ describe('LignesPatrimoineTable', () => {
     expect(screen.getAllByText('180 000 €')).toHaveLength(2)
   })
 
-  it("n'affiche la colonne Quote-part que si un détenteur est filtré", () => {
+  it("n'affiche la colonne Part que si un détenteur est filtré", () => {
     const { rerender } = render(<LignesPatrimoineTable lignes={[ligne({ quotite_pct: 60 })]} lentille="brut" detenteurFiltre={false} />)
-    expect(screen.queryByText('Quote-part')).not.toBeInTheDocument()
+    expect(screen.queryByText('Part')).not.toBeInTheDocument()
 
     rerender(<LignesPatrimoineTable lignes={[ligne({ quotite_pct: 60 })]} lentille="brut" detenteurFiltre={true} />)
-    expect(screen.getByText('Quote-part')).toBeInTheDocument()
+    expect(screen.getByText('Part')).toBeInTheDocument()
     expect(screen.getByText('60,0 %')).toBeInTheDocument()
   })
 

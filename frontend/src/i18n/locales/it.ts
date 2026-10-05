@@ -45,10 +45,10 @@ const it: Dictionnaire = {
     vueNette: 'vista netta',
     vueBrute: 'vista lorda',
     vueFinanciere: 'vista finanziaria',
-    detenteur: 'Titolare',
-    foyer: 'Nucleo',
+    detenteur: 'Membro',
+    foyer: 'Intero nucleo',
     aideDetenteur:
-      "Filtra l'intera schermata sulla quota di una sola persona del nucleo familiare, secondo le ripartizioni (quote) che ha inserito. «Nucleo» = tutto il patrimonio, senza filtro.",
+      "Filtra l'intera schermata sulla quota di un solo membro del nucleo familiare, secondo le ripartizioni (quote) che ha inserito. «Intero nucleo» = tutto il patrimonio, senza filtro.",
     afficherMontants: 'Mostra gli importi',
     masquerMontants: 'Nascondi gli importi',
     raccourciMontants: '(Ctrl/⌘ + Maiusc + M).',
@@ -100,16 +100,16 @@ const it: Dictionnaire = {
     etapes: {
       bienvenue: 'Benvenuto',
       preferences: 'Preferenze',
-      detenteurs: 'Titolari del nucleo',
+      detenteurs: 'Composizione del nucleo',
       comptes: 'Conti',
-      inviter: "Invita i membri del nucleo",
+      inviter: "Invita i tuoi cari",
       operateur: "Amministrazione dell'installazione",
       demarrage: 'Avvia il portafoglio',
       termine: 'Fatto',
     },
     bienvenue: {
       rejeu:
-        'Ritorno alla configurazione iniziale: ogni passo successivo mostra ciò che è già salvato (preferenze, titolari, portafoglio). Nulla riparte da zero, puoi completare o correggere ciò che manca.',
+        'Ritorno alla configurazione iniziale: ogni passo successivo mostra ciò che è già salvato (preferenze, membri del nucleo, portafoglio). Nulla riparte da zero, puoi completare o correggere ciò che manca.',
       accroche: 'Benvenuto: facciamo luce sulle tue finanze, insieme.',
       presentation:
         "Quest'app segue il tuo patrimonio nel suo insieme: portafoglio titoli, immobili, risparmi, budget. Poche impostazioni iniziali la adattano alla tua situazione: bastano due minuti.",
@@ -119,20 +119,20 @@ const it: Dictionnaire = {
     preferences:
       'Come calcolare il prezzo di carico delle tue posizioni in borsa in caso di vendita parziale? La scelta predefinita va bene nella grande maggioranza dei casi.',
     detenteurs:
-      "Se il patrimonio è condiviso (partner, figlio...), indica qui le persone interessate: sarà utile per ripartire la proprietà delle attività più tardi. Non pertinente? Questo passo si salta senza inserire nulla.",
+      "Se il patrimonio è condiviso (partner, figlio...), indica qui i membri del nucleo interessati: sarà utile per ripartire la proprietà delle attività più tardi. Non pertinente? Questo passo si salta senza inserire nulla.",
     comptes: {
       avantEcran:
         "Se il patrimonio è distribuito tra più banche o broker (conto corrente, PEA, conto titoli, assicurazione vita, immobili...), indicali qui per raggruppare tutto per istituto nella schermata",
       ecran: 'Conti',
       apresEcran:
-        "e definire in una volta sola una ripartizione tra titolari per un intero conto. Non pertinente, o non ancora pronto? Questo passo si salta: in ogni caso un conto si crea al volo dal modulo di aggiunta di una posizione (verrà chiesto anche l'istituto, poiché un conto non può più esserne privo).",
+        "e definire in una volta sola una ripartizione tra membri del nucleo per un intero conto. Non pertinente, o non ancora pronto? Questo passo si salta: in ogni caso un conto si crea al volo dal modulo di aggiunta di una posizione (verrà chiesto anche l'istituto, poiché un conto non può più esserne privo).",
       comptesCrees: 'Conti creati',
       aucunCompte: 'Nessun conto indicato.',
       sansEtablissement: 'Senza istituto',
       supprimer: 'Elimina',
     },
     inviter:
-      "Gli altri membri del nucleo (coniuge, figli, un familiare in sola consultazione…) possono avere un proprio account: invitali con un link che invii tu stesso. Questo passo è facoltativo; potrai invitare quando vuoi da Impostazioni → Account e sicurezza.",
+      "I tuoi cari (coniuge, figli, un familiare in sola consultazione…) possono avere un proprio accesso, con un proprio account: invitali con un link che invii tu stesso. Questo passo è facoltativo; potrai invitare quando vuoi da Impostazioni → Account e sicurezza.",
     operateur:
       "Questa installazione può accogliere più nuclei. Per amministrarli — crearne altri, sospenderne uno, regolare le attività pianificate — crea un account operatore: un account distinto dal tuo, che non appartiene a nessun nucleo e non vede nessun patrimonio. Per usarlo, accederai con questo account invece che con il tuo.",
     operateurPlusTard:

@@ -54,10 +54,10 @@ const fr = {
     vueNette: 'vue nette',
     vueBrute: 'vue brute',
     vueFinanciere: 'vue financière',
-    detenteur: 'Détenteur',
-    foyer: 'Foyer',
+    detenteur: 'Membre',
+    foyer: 'Tout le foyer',
     aideDetenteur:
-      "Filtre tout l'écran sur la part d'une seule personne du foyer, selon les répartitions (quotités) que vous avez saisies. « Foyer » = tout le patrimoine, sans filtre.",
+      "Filtre tout l'écran sur la part d'un seul membre du foyer, selon les répartitions (parts) que vous avez saisies. « Tout le foyer » = tout le patrimoine, sans filtre.",
     afficherMontants: 'Afficher les montants',
     masquerMontants: 'Masquer les montants',
     raccourciMontants: '(Ctrl/⌘ + Maj + M).',
@@ -109,16 +109,16 @@ const fr = {
     etapes: {
       bienvenue: 'Bienvenue',
       preferences: 'Préférences',
-      detenteurs: 'Détenteurs du foyer',
+      detenteurs: 'Composition du foyer',
       comptes: 'Comptes',
-      inviter: "Inviter les membres du foyer",
+      inviter: "Inviter des proches",
       operateur: "Administration de l'installation",
       demarrage: 'Démarrer le portefeuille',
       termine: 'Terminé',
     },
     bienvenue: {
       rejeu:
-        "Retour sur le parcours de configuration initiale — chaque étape suivante affiche ce qui est déjà enregistré (préférences, détenteurs, portefeuille) : rien n'est rejoué à vide, tu peux compléter ou corriger ce qui manque.",
+        "Retour sur le parcours de configuration initiale — chaque étape suivante affiche ce qui est déjà enregistré (préférences, membres du foyer, portefeuille) : rien n'est rejoué à vide, tu peux compléter ou corriger ce qui manque.",
       accroche: 'Bienvenue — faisons la lumière sur tes finances, ensemble.',
       presentation:
         "Cette application suit ton patrimoine dans son ensemble : portefeuille boursier, immobilier, épargne, budget. Quelques réglages de départ permettent de l'adapter à ta situation — ça prend deux minutes.",
@@ -128,20 +128,20 @@ const fr = {
     preferences:
       "Comment calculer le prix de revient de tes positions boursières lors d'une vente partielle ? Le choix par défaut convient à la grande majorité des cas.",
     detenteurs:
-      'Si le patrimoine est partagé (conjoint, enfant...), déclare ici les personnes concernées — utile pour répartir la propriété des actifs plus tard. Sans objet ? Cette étape se passe sans rien saisir.',
+      'Si le patrimoine est partagé (conjoint, enfant...), déclare ici les membres du foyer concernés — utile pour répartir la propriété des actifs plus tard. Sans objet ? Cette étape se passe sans rien saisir.',
     comptes: {
       avantEcran:
         'Si le patrimoine est réparti sur plusieurs banques ou courtiers (compte courant, PEA, compte-titres, assurance-vie, immobilier...), déclare-les ici pour tout regrouper par établissement sur l\'écran',
       ecran: 'Comptes',
       apresEcran:
-        "et définir une répartition entre détenteurs pour un compte entier en une fois. Sans objet, ou pas encore prêt ? Cette étape se passe sans rien saisir — un compte se crée de toute façon à la volée depuis le formulaire d'ajout d'une position (l'établissement sera alors demandé aussi, un compte ne pouvant plus en être dépourvu).",
+        "et définir une répartition entre membres du foyer pour un compte entier en une fois. Sans objet, ou pas encore prêt ? Cette étape se passe sans rien saisir — un compte se crée de toute façon à la volée depuis le formulaire d'ajout d'une position (l'établissement sera alors demandé aussi, un compte ne pouvant plus en être dépourvu).",
       comptesCrees: 'Comptes créés',
       aucunCompte: 'Aucun compte déclaré.',
       sansEtablissement: 'Sans établissement',
       supprimer: 'Supprimer',
     },
     inviter:
-      "Les autres membres du foyer (conjoint, enfants, un proche en consultation…) peuvent avoir leur propre compte : invite-les avec un lien, à leur transmettre toi-même. Cette étape est facultative, tu pourras inviter quand tu veux depuis Réglages → Comptes & sécurité.",
+      "Tes proches (conjoint, enfants, une personne en consultation…) peuvent avoir leur propre accès, avec leur propre compte : invite-les avec un lien, à leur transmettre toi-même. Cette étape est facultative, tu pourras inviter quand tu veux depuis Réglages → Comptes & sécurité.",
     operateur:
       "Cette installation peut accueillir plusieurs foyers. Pour les administrer — en créer d'autres, en suspendre un, régler les tâches planifiées —, crée un compte opérateur : un compte distinct du tien, qui n'appartient à aucun foyer et ne voit aucun patrimoine. Pour l'utiliser, tu te connecteras avec lui plutôt qu'avec ton compte.",
     operateurPlusTard:

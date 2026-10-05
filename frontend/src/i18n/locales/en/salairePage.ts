@@ -25,7 +25,7 @@ const salairePage: Structure<typeof fr> = {
   exSalaireDePaul: "e.g. Paul’s salary",
   personneDuFoyerOptionnel: "Household member (optional)",
   nonAssocie: "— Not linked —",
-  nouvellePersonne: "+ New person",
+  nouvellePersonne: "+ New member",
   annee: "Year",
   montant: "Amount",
   ex2500: "e.g. 2500",

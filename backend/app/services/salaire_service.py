@@ -120,11 +120,11 @@ def resume_depuis_ligne(ligne: Salaire) -> dict:
 def _valider_detenteur(db: Session, foyer_id: int, detenteur_id: int | None) -> None:
     """Lève `ValueError` si `detenteur_id` est renseigné mais n'appartient pas au foyer
     (IDOR) — `None` est toujours valide (entrée non associée), même contrat que
-    `detenteurs_service._valider_quotites`."""
+    `detenteurs_service.valider_quotites`."""
     if detenteur_id is None:
         return
     if db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.id == detenteur_id).first() is None:
-        raise ValueError("Détenteur introuvable")
+        raise ValueError("Membre du foyer introuvable")
 
 
 def compute_synthese_annee(db: Session, foyer_id: int, annee: int) -> dict:

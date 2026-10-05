@@ -6,7 +6,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   sauvegardeCompleteDesDonnees: "Full data backup",
   exporte: "Exports",
   tout: "all",
-  lePatrimoineDuFoyerDans: "of the household’s wealth into a single file: positions, transactions, real estate, loans, accounts and institutions, holders and shares, savings, salaries, budget and preferences. Useful to make a backup before an operation, or to move to another installation.",
+  lePatrimoineDuFoyerDans: "of the household’s wealth into a single file: positions, transactions, real estate, loans, accounts and institutions, household members and shares, savings, salaries, budget and preferences. Useful to make a backup before an operation, or to move to another installation.",
   lesCoursEtCompositionsDe: "Prices and fund compositions are not included: they re-download on their own. Nothing sensitive either (passwords, share tokens, access log). The file does however contain all your amounts — keep it as a confidential document.",
   exporterMesDonneesJson: "Export my data (JSON)",
   restaurerDepuisUnFichier: "Restore from a file",
@@ -39,7 +39,7 @@ const sauvegardeDonneesCard: Structure<typeof fr> = {
   reinitialisationEnCours: "Resetting…",
   reinitialiserDefinitivement: "Reset permanently",
   importTermine: { one: "Import complete: {n} record restored.", other: "Import complete: {n} records restored." },
-  table: { etablissements: "institutions", comptes: "accounts", detenteurs: "holders (people)", holdings: "wealth lines", holding_immobilier_details: "real estate records", holding_valuation_history: "valuation points", quotites_holdings: "splits between holders", loans: "loans", quotites_loans: "loan splits", transactions: "transactions", salaires: "salaries", categories_budget: "budget categories", mouvements_bancaires: "bank transactions", regles_categorisation: "categorization rules", budget_cibles: "target budgets", user_parametres: "preferences" },
+  table: { etablissements: "institutions", comptes: "accounts", detenteurs: "household members", holdings: "wealth lines", holding_immobilier_details: "real estate records", holding_valuation_history: "valuation points", quotites_holdings: "splits between household members", loans: "loans", quotites_loans: "loan splits", transactions: "transactions", salaires: "salaries", categories_budget: "budget categories", mouvements_bancaires: "bank transactions", regles_categorisation: "categorization rules", budget_cibles: "target budgets", user_parametres: "preferences" },
 }
 
 export default sauvegardeDonneesCard

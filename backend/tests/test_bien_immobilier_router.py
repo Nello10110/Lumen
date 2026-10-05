@@ -475,7 +475,7 @@ def _chez_le_foyer_b(db) -> dict:
     [
         (lambda b: {"compte_id": b["compte"].id}, "Compte introuvable"),
         (lambda b: {"pret": _pret(etablissement_id=b["etablissement"].id)}, "Établissement introuvable"),
-        (lambda b: {"quotites": [{"detenteur_id": b["detenteur"].id, "quotite_pct": 100}]}, "Détenteur introuvable"),
+        (lambda b: {"quotites": [{"detenteur_id": b["detenteur"].id, "quotite_pct": 100}]}, "Membre du foyer introuvable"),
         (lambda b: {"pret_existant_id": b["pret"].id}, "Emprunt introuvable"),
     ],
     ids=["compte", "etablissement_du_pret", "detenteur", "pret_existant"],
@@ -530,7 +530,7 @@ def test_detenteur_en_double_dans_les_quotites_refuse(client, db):
     )
 
     assert reponse.status_code == 400
-    assert reponse.json()["detail"] == "Un même détenteur ne peut apparaître qu'une seule fois dans la répartition"
+    assert reponse.json()["detail"] == "Un même membre du foyer ne peut apparaître qu'une seule fois dans la répartition"
     _rien_cree(db)
 
 
@@ -571,7 +571,7 @@ def test_tolerance_de_la_somme_des_quotites(client, db):
         ({"pret": _pret(libelle=" ")}, "Le libellé de l'emprunt ne peut pas être vide"),
         ({"pret": _pret(duree_mois=0)}, "La durée doit être strictement positive (en mois)"),
         ({"pret": _pret(taux_annuel_pct=-1)}, "Le taux annuel ne peut pas être négatif"),
-        ({"quotites": [{"detenteur_id": 1, "quotite_pct": 0}]}, "La quotité doit être strictement comprise entre 0 et 100"),
+        ({"quotites": [{"detenteur_id": 1, "quotite_pct": 0}]}, "La part doit être strictement comprise entre 0 et 100"),
     ],
 )
 def test_validation_du_corps(client, db, surcharges, message):

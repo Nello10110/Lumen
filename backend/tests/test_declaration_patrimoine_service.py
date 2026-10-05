@@ -130,7 +130,7 @@ def test_filtre_detenteur_ne_montre_que_ses_quotites(db):
 
     texte_alice = _texte_pdf(_generer(db, detenteur_id=alice.id))
 
-    assert "Détenteur : Alice" in texte_alice
+    assert "Membre du foyer : Alice" in texte_alice
     assert "Bien partagé" in texte_alice
     assert "600 €" in texte_alice  # 60 % de 1000
     assert "Bien non reparti" not in texte_alice  # jamais réparti = invisible en vue individuelle

@@ -3,7 +3,7 @@ import type { Structure } from '../../types'
 
 /** Italien — espace « loansCard » (backlog § BL.2), traduit depuis le français. */
 const loansCard: Structure<typeof fr> = {
-  detenteursDeCetEmprunt: "Titolari di questo prestito",
+  detenteursDeCetEmprunt: "Membri del nucleo di questo prestito",
   enregistrer: "Salva",
   repartitionEnregistree: "Ripartizione salvata.",
   repartitionHeritee: "Questo prestito segue la ripartizione dell’immobile che finanzia. Salvarla gliene dà una propria, indipendente.",
@@ -25,7 +25,7 @@ const loansCard: Structure<typeof fr> = {
   modifier: "Modifica",
   recaler: "Riallinea",
   fermer: "Chiudi",
-  detenteurs: "Titolari",
+  detenteurs: "Membri del nucleo",
   supprimer: "Elimina",
   dettesEtEmprunts: "Debiti e prestiti",
   aucunEmpruntEnregistre: "Nessun prestito registrato.",

@@ -53,7 +53,7 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(modale.getByText(montantRegex(attendu.valeur_livret, 2)).first()).toBeVisible()
   })
 
-  test('cliquer un compte multi-lignes ouvre le détail avec ses lignes et la répartition entre détenteurs', async ({ page }) => {
+  test('cliquer un compte multi-lignes ouvre le détail avec ses lignes et la répartition entre membres du foyer', async ({ page }) => {
     const { comptes, holdings } = seedData()
 
     // `getByRole('button', ...)` plutôt que `getByText` : le nom du compte apparaît
@@ -69,10 +69,10 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(modale.getByText(holdings.aapl.ticker)).toBeVisible()
     await expect(modale.getByText(holdings.fund.ticker)).toBeVisible()
 
-    // Répartition entre détenteurs pour tout le compte (cœur de la demande :
+    // Répartition entre membres du foyer pour tout le compte (cœur de la demande :
     // définie une fois pour les 2 lignes plutôt que ligne par ligne) — le seed a
     // déjà posé 60/40 Alice/Bob au niveau du compte (`_repartir_quotites_compte`).
-    await expect(modale.getByRole('heading', { name: 'Répartition entre détenteurs' })).toBeVisible()
+    await expect(modale.getByRole('heading', { name: 'Répartition entre membres du foyer' })).toBeVisible()
     // Le formulaire s'ouvre sur la répartition ACTUELLE du compte (60 / 40), pas vide (§ BN.1, lot 2).
     await expect(modale.getByLabel('Part de Alice (%)')).toHaveValue('60')
     await expect(modale.getByLabel('Part de Bob (%)')).toHaveValue('40')
@@ -102,7 +102,7 @@ test.describe('Comptes (backlog X.1)', () => {
 
     // Emprunt rattaché au bien immobilier de ce compte (backlog X.4) — le seed
     // l'attache via `Loan.holding_id`, purement informatif ici mais annonce que la
-    // répartition entre détenteurs ci-dessous s'appliquera aussi à lui.
+    // répartition entre membres du foyer ci-dessous s'appliquera aussi à lui.
     await expect(modale.getByRole('heading', { name: 'Emprunts rattachés' })).toBeVisible()
     await expect(modale.getByText('Prêt appartement E2E')).toBeVisible()
     // Deux phrases de la carte de répartition citent ce décompte (introduction et portée du bouton).
@@ -130,7 +130,7 @@ test.describe('Comptes (backlog X.1)', () => {
 
     // Renommage seul : l'établissement est déjà posé, `CompteInfosForm` le garde
     // inchangé. Le compte vient d'être créé sans aucune ligne rattachée : la carte
-    // "Répartition entre détenteurs" ne s'affiche pas encore (`QuotitesCompte`,
+    // "Répartition entre membres du foyer" ne s'affiche pas encore (`QuotitesCompte`,
     // nombreLignes=0), donc "Enregistrer" est ici sans ambiguïté (un seul bouton
     // dans la modale).
     await groupeBanque.getByText(nomCompte).click()

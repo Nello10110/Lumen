@@ -165,9 +165,9 @@ describe('api client — downloadDeclarationPatrimoine (backlog 2.Q.2)', () => {
   })
 
   it('conserve le message métier sur un échec (ex. détenteur introuvable)', async () => {
-    mockFetchOnce({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({ detail: 'Détenteur introuvable' }) })
+    mockFetchOnce({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({ detail: 'Membre du foyer introuvable' }) })
 
-    await expect(api.downloadDeclarationPatrimoine({ detenteur_id: 999 })).rejects.toThrow('Détenteur introuvable')
+    await expect(api.downloadDeclarationPatrimoine({ detenteur_id: 999 })).rejects.toThrow('Membre du foyer introuvable')
   })
 })
 

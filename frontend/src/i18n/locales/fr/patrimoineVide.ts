@@ -1,7 +1,7 @@
 /** Textes français — espace « patrimoineVide » (backlog § BL.2). Généré par
  * `scripts/i18n-extraire.mjs`, puis relu à la main. */
 const patrimoineVide = {
-  rienNEstEncoreAttribue: "Rien n'est encore attribué à cette personne",
+  rienNEstEncoreAttribue: "Rien n'est encore attribué à ce membre du foyer",
   unActifAppartientAuFoyer: "Un actif appartient au foyer tant qu'il n'est pas réparti. Indique la part de chacun depuis un compte : son patrimoine apparaîtra ici.",
   repartirUnCompte: "Répartir un compte",
   voirToutLeFoyer: "Voir tout le foyer",

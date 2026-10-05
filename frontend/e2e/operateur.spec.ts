@@ -106,7 +106,7 @@ test("le propriétaire seedé crée l'opérateur depuis le bandeau ; les réglag
   // Après : l'onglet et la carte du logo SSO ont quitté l'écran, et l'API les refuse (403).
   await expect(page.getByRole('tab', { name: 'Automatisations' })).toHaveCount(0)
   await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
-  await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Accès et invitations' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Logo du bouton de connexion SSO' })).toHaveCount(0)
   const entete = await enTeteDe(page)
   expect((await page.request.get('/api/settings/jobs', { headers: entete })).status()).toBe(403)
@@ -149,7 +149,7 @@ test("l'opérateur se connecte et ne voit que /operateur ; toute autre adresse l
 test("mode « sur invitation » : le propriétaire voit la section de création de foyer, l'opérateur voit et révoque son lien", async ({ page }) => {
   // Mode fermé par défaut : la section n'est pas proposée au propriétaire.
   await page.goto('/reglages?onglet=securite')
-  await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Accès et invitations' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Inviter un proche à créer son foyer' })).toHaveCount(0)
 
   await pageOperateur.getByRole('tab', { name: 'Installation' }).click()
@@ -176,7 +176,7 @@ test("mode « sur invitation » : le propriétaire voit la section de création 
   await pageOperateur.getByRole('radio', { name: 'Fermé' }).click()
   await expect(pageOperateur.getByRole('radio', { name: 'Fermé' })).toBeChecked()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Accès et invitations' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Inviter un proche à créer son foyer' })).toHaveCount(0)
   await pageOperateur.getByRole('tab', { name: 'Foyers' }).click()
 })
