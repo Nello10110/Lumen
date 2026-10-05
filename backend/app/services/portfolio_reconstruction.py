@@ -83,7 +83,7 @@ from ..models import (
     QuotiteHolding,
     Transaction,
 )
-from . import historique_cache, preferences_service
+from . import detenteurs_service, historique_cache, preferences_service
 
 # Seuil sous lequel une quantité est tenue pour nulle. Depuis § BI.1, les quantités
 # sont des `Decimal` : sommes et différences sont désormais EXACTES, et une position
@@ -518,7 +518,7 @@ class ReconstructionResult:
     lignes_manuelles_remplacees: int
 
 
-def _detacher_references(db: Session, ids_holdings: list[int]) -> None:
+def detacher_references(db: Session, ids_holdings: list[int]) -> None:
     """Retire tout ce qui désigne des lignes sur le point d'être supprimées — même
     doctrine que `routers/portfolio.py::_detacher_references_avant_suppression` :
     quotités, historique de valorisation et fiche immobilière disparaissent avec la
@@ -536,10 +536,18 @@ def _detacher_references(db: Session, ids_holdings: list[int]) -> None:
     db.query(Loan).filter(Loan.holding_id.in_(ids_holdings)).update({"holding_id": None}, synchronize_session=False)
 
 
-def rebuild_holdings(db: Session, foyer_id: int) -> ReconstructionResult:
+def rebuild_holdings(
+    db: Session, foyer_id: int, repartition_nouvelles: list[tuple[int, float]] | None = None
+) -> ReconstructionResult:
     """Reconstruit les lignes du portefeuille depuis le grand livre, pour UN SEUL
     utilisateur (`foyer_id`, Milestone 2a) — ne touche jamais aux lignes/transactions
     d'un autre compte.
+
+    Répartition entre membres du foyer (§ BN.1, lot 3) : une ligne qui existait déjà (même ticker,
+    même compte) retrouve SES parts — y compris l'absence de parts, qu'un import ne décide jamais
+    à la place de l'utilisateur ; seule une ligne NOUVELLE reçoit `repartition_nouvelles`
+    (`None` : la règle par défaut du foyer, `[]` : aucune part). Le choix de l'import vaut donc
+    pour les lignes que cet import fait naître, jamais pour le reste du portefeuille.
 
     Compte d'origine (revu le 14/09/2026, retour utilisateur : un même ticker
     fusionnait à tort deux comptes différents) : la vérité vit désormais
@@ -585,6 +593,11 @@ def rebuild_holdings(db: Session, foyer_id: int) -> ReconstructionResult:
     comptes_reconstruits_existants: dict[str, list[int | None]] = {}
     for ticker, compte_id in db.query(Holding.ticker, Holding.compte_id).filter(Holding.foyer_id == foyer_id).all():
         comptes_reconstruits_existants.setdefault(ticker, []).append(compte_id)
+    cles_existantes = {
+        (ticker, compte_id) for ticker, comptes in comptes_reconstruits_existants.items() for compte_id in comptes
+    }
+    if repartition_nouvelles is None:
+        repartition_nouvelles = detenteurs_service.repartition_par_defaut(db, foyer_id)
 
     # Nombre de positions distinctes par ticker dans CE calcul — un ticker scindé
     # en plusieurs comptes (>1) n'a plus de compte "à préserver" au sens singulier.
@@ -636,7 +649,7 @@ def rebuild_holdings(db: Session, foyer_id: int) -> ReconstructionResult:
         cle_par_id = {ligne.id: (ligne.ticker, ligne.compte_id) for ligne in lignes_supprimees}
         for loan_id, holding_id in db.query(Loan.id, Loan.holding_id).filter(Loan.holding_id.in_(ids_supprimes)).all():
             emprunts_par_cle.setdefault(cle_par_id[holding_id], []).append(loan_id)
-        _detacher_references(db, ids_supprimes)
+        detacher_references(db, ids_supprimes)
     db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.origine == ORIGINE_RECONSTRUIT).delete()
 
     count = 0
@@ -662,7 +675,7 @@ def rebuild_holdings(db: Session, foyer_id: int) -> ReconstructionResult:
             emprunts_ligne_manuelle = [
                 loan_id for (loan_id,) in db.query(Loan.id).filter(Loan.holding_id == ligne_manuelle.id).all()
             ]
-            _detacher_references(db, [ligne_manuelle.id])
+            detacher_references(db, [ligne_manuelle.id])
             db.delete(ligne_manuelle)
             # Flush immédiat (pas seulement à la fin de la boucle) : la ligne
             # recréée juste en dessous peut légitimement porter le MÊME
@@ -696,6 +709,8 @@ def rebuild_holdings(db: Session, foyer_id: int) -> ReconstructionResult:
         )
         db.add(nouvelle_ligne)
         quotites_reportees = quotites_par_cle.get((state.symbol, compte_id_final))
+        if (state.symbol, compte_id_final) not in cles_existantes:
+            quotites_reportees = repartition_nouvelles
         emprunts_reportes = emprunts_par_cle.pop((state.symbol, compte_id_final), []) + emprunts_ligne_manuelle
         if quotites_reportees or emprunts_reportes:
             db.flush()  # `nouvelle_ligne.id` n'existe qu'après le flush

@@ -66,7 +66,7 @@ class QuotiteEntree(BaseModel):
     @classmethod
     def _valider_quotite(cls, v: float) -> float:
         if not (0 < v <= 100):
-            raise ValueError("La quotité doit être strictement comprise entre 0 et 100")
+            raise ValueError("La part doit être strictement comprise entre 0 et 100")
         return v
 
 
@@ -91,3 +91,12 @@ class QuotitesEmpruntOut(BaseModel):
 
     quotites: list[QuotiteEntree]
     heritee: bool
+
+
+class LignesNonRepartiesOut(BaseModel):
+    """Ce que « Tout attribuer » concernerait (`GET /api/portfolio/lignes-non-reparties`) :
+    les actifs et les prêts du foyer qui n'ont aucune part. Même forme en réponse de
+    `POST /api/portfolio/repartition-globale`, où ce sont les lignes qui viennent d'en recevoir."""
+
+    actifs: int
+    prets: int

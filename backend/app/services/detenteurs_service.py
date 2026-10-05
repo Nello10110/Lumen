@@ -7,6 +7,7 @@ explicitement saisie — cf. `compute_parts`."""
 
 from decimal import Decimal
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..decimales import ZERO, en_decimal
@@ -26,6 +27,12 @@ from ..models import (
 from . import loan_service
 
 TOLERANCE_SOMME_PCT = 0.01
+
+
+class DetenteurIntrouvableError(LookupError):
+    """Un membre cité par la requête n'existe pas dans le foyer courant — traduit en 404
+    par le routeur. Même message qu'un membre inconnu : on ne révèle jamais qu'il existe
+    dans un autre foyer."""
 
 
 def perimetre_invite(db: Session, user_id_invite: int, foyer_id: int) -> list[int]:
@@ -58,7 +65,7 @@ def _verifier_nom_detenteur_libre(db: Session, foyer_id: int, nom: str, id_exclu
     if id_exclu is not None:
         requete = requete.filter(Detenteur.id != id_exclu)
     if requete.first() is not None:
-        raise ValueError(tr("Un détenteur nommé « {nom} » existe déjà.", nom=nom))
+        raise ValueError(tr("Un membre du foyer nommé « {nom} » existe déjà.", nom=nom))
 
 
 def create_detenteur(db: Session, foyer_id: int, nom: str) -> Detenteur:
@@ -106,7 +113,7 @@ def delete_detenteur(db: Session, detenteur: Detenteur) -> None:
     db.commit()
 
 
-def _valider_quotites(db: Session, foyer_id: int, quotites: list[tuple[int, float]]) -> None:
+def valider_quotites(db: Session, foyer_id: int, quotites: list[tuple[int, float]]) -> None:
     """Lève `ValueError` (message destiné à l'utilisateur) si la répartition proposée
     est invalide : détenteur en double, détenteur d'un autre compte (IDOR), ou somme
     différente de 100 %. Une liste vide est toujours valide (retire toute
@@ -116,15 +123,15 @@ def _valider_quotites(db: Session, foyer_id: int, quotites: list[tuple[int, floa
 
     detenteur_ids = [d_id for d_id, _ in quotites]
     if len(set(detenteur_ids)) != len(detenteur_ids):
-        raise ValueError("Un même détenteur ne peut apparaître qu'une seule fois dans la répartition")
+        raise ValueError("Un même membre du foyer ne peut apparaître qu'une seule fois dans la répartition")
 
     nb_valides = db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.id.in_(detenteur_ids)).count()
     if nb_valides != len(set(detenteur_ids)):
-        raise ValueError("Détenteur introuvable")
+        raise ValueError("Membre du foyer introuvable")
 
     total = sum(pct for _, pct in quotites)
     if abs(total - 100) > TOLERANCE_SOMME_PCT:
-        raise ValueError(tr("La somme des quotités doit être égale à 100 % (actuellement {total} %)", total=f"{total:.2f}"))
+        raise ValueError(tr("La somme des parts doit être égale à 100 % (actuellement {total} %)", total=f"{total:.2f}"))
 
 
 def set_quotites_holding(
@@ -137,7 +144,7 @@ def set_quotites_holding(
     opération utilisateur (`comptes_service.set_quotites_compte`) et doit pouvoir
     tout annuler d'un bloc — sans quoi un échec à mi-parcours laissait le compte à
     moitié réparti, sans aucun moyen de savoir où (revue du 03/09/2026)."""
-    _valider_quotites(db, foyer_id, quotites)
+    valider_quotites(db, foyer_id, quotites)
     db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).delete()
     db.add_all(QuotiteHolding(holding_id=holding.id, detenteur_id=d, quotite_pct=p) for d, p in quotites)
     if commit:
@@ -148,7 +155,7 @@ def set_quotites_loan(
     db: Session, foyer_id: int, loan: Loan, quotites: list[tuple[int, float]], *, commit: bool = True
 ) -> None:
     """Même principe que `set_quotites_holding`, pour un emprunt."""
-    _valider_quotites(db, foyer_id, quotites)
+    valider_quotites(db, foyer_id, quotites)
     db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == loan.id).delete()
     db.add_all(QuotiteLoan(loan_id=loan.id, detenteur_id=d, quotite_pct=p) for d, p in quotites)
     if commit:
@@ -302,3 +309,137 @@ def compute_parts(db: Session, holding: Holding, valeur: Decimal | float) -> dic
             part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, ZERO) + pct / 100 * crd
 
     return _assembler_parts([(q.detenteur_id, q.quotite_pct) for q in quotites_actif], valeur, part_dette_par_detenteur)
+
+
+# ---------------------------------------------------------------------------
+# Répartition par défaut, lignes non réparties, « Tout attribuer » (§ BN.1, lot 3)
+# ---------------------------------------------------------------------------
+
+
+def parts_egales(ids: list[int]) -> list[tuple[int, float]]:
+    """Parts égales, l'arrondi absorbé par le DERNIER membre (3 membres : 33,33 / 33,33 /
+    33,34) pour que la somme fasse exactement 100 — même règle que `partsEgales` côté
+    interface (`utils/repartitionMembres.ts`), calculée en centièmes entiers. Un seul
+    membre : 100 %. Aucun : rien."""
+    n = len(ids)
+    if n == 0:
+        return []
+    base = 10000 // n
+    return [(d, (base if i < n - 1 else 10000 - base * (n - 1)) / 100) for i, d in enumerate(ids)]
+
+
+def repartition_par_defaut(db: Session, foyer_id: int) -> list[tuple[int, float]]:
+    """Répartition d'une ligne NOUVELLE quand le client n'en envoie pas : 100 % pour l'unique
+    membre du foyer, parts égales à partir de deux, rien sans membre. Sans cette règle, une
+    ligne neuve restait « au foyer entier » et disparaissait de la vue de chaque membre
+    (retour du 04/10/2026) : elle comptait pour le foyer, mais aucun membre ne la voyait."""
+    return parts_egales([d.id for d in list_detenteurs(db, foyer_id)])
+
+
+def verifier_detenteurs_du_foyer(db: Session, foyer_id: int, detenteur_ids: list[int]) -> None:
+    """Chaque membre cité doit appartenir au foyer courant, sinon `DetenteurIntrouvableError`
+    (404). Aucune écriture."""
+    ids = set(detenteur_ids)
+    if not ids:
+        return
+    nb_du_foyer = db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.id.in_(ids)).count()
+    if nb_du_foyer != len(ids):
+        raise DetenteurIntrouvableError("Membre du foyer introuvable")
+
+
+def repartition_pour_import(
+    db: Session, foyer_id: int, fournies: list[tuple[int, float]] | None
+) -> list[tuple[int, float]]:
+    """Répartition des lignes NOUVELLES créées par un import (§ BN.1, lot 3), résolue et validée
+    AVANT toute écriture. Ce que le client envoie fait foi (`[]` : ne pas répartir) ; sans rien
+    d'envoyé, la règle par défaut du foyer. Lève `DetenteurIntrouvableError` (membre d'un autre
+    foyer) ou `ValueError` (doublon, somme différente de 100 %)."""
+    if fournies is None:
+        return repartition_par_defaut(db, foyer_id)
+    verifier_detenteurs_du_foyer(db, foyer_id, [d for d, _ in fournies])
+    valider_quotites(db, foyer_id, fournies)
+    return fournies
+
+
+def ids_holdings_non_repartis(db: Session, foyer_id: int) -> list[int]:
+    """Lignes du foyer sans aucune part (état « Non réparti » : la ligne compte pour le foyer
+    entier, mais aucun membre ne la voit)."""
+    avec_parts = db.query(QuotiteHolding.holding_id).scalar_subquery()
+    return [h_id for (h_id,) in db.query(Holding.id).filter(Holding.foyer_id == foyer_id, Holding.id.notin_(avec_parts))]
+
+
+def ids_prets_non_repartis(db: Session, foyer_id: int) -> list[int]:
+    """Prêts du foyer dont la répartition EFFECTIVE est vide : ni parts propres, ni bien
+    financé réparti (un prêt hérite des parts de son bien, cf. `quotites_effectives_emprunt`)."""
+    avec_parts_propres = db.query(QuotiteLoan.loan_id).scalar_subquery()
+    biens_repartis = db.query(QuotiteHolding.holding_id).scalar_subquery()
+    requete = db.query(Loan.id).filter(
+        Loan.foyer_id == foyer_id,
+        Loan.id.notin_(avec_parts_propres),
+        or_(Loan.holding_id.is_(None), Loan.holding_id.notin_(biens_repartis)),
+    )
+    return [l_id for (l_id,) in requete]
+
+
+def attribuer_lignes_non_reparties(db: Session, foyer_id: int, quotites: list[tuple[int, float]]) -> tuple[int, int]:
+    """Applique UNE répartition à toutes les lignes du foyer qui n'en ont aucune — actifs et
+    prêts — en une seule transaction : tout est écrit, ou rien. Renvoie `(actifs, prets)`.
+
+    Les lignes déjà réparties ne sont JAMAIS touchées : ce n'est pas un « tout remplacer ».
+    Un prêt rattaché à un bien non réparti hérite des parts que ce bien reçoit ici (règle de
+    `quotites_effectives_emprunt`) : il est compté, sans parts propres ; seuls les prêts non
+    rattachés en reçoivent. Lève `DetenteurIntrouvableError` (membre d'un autre foyer) ou
+    `ValueError` (liste vide, doublon, somme différente de 100 %)."""
+    if not quotites:
+        raise ValueError(tr("Choisissez au moins un membre du foyer et ses parts."))
+    verifier_detenteurs_du_foyer(db, foyer_id, [d for d, _ in quotites])
+    valider_quotites(db, foyer_id, quotites)
+
+    actifs = ids_holdings_non_repartis(db, foyer_id)
+    prets = ids_prets_non_repartis(db, foyer_id)
+    prets_sans_bien = [
+        l_id for (l_id,) in db.query(Loan.id).filter(Loan.id.in_(prets), Loan.holding_id.is_(None))
+    ] if prets else []
+    try:
+        db.add_all(QuotiteHolding(holding_id=h_id, detenteur_id=d, quotite_pct=p) for h_id in actifs for d, p in quotites)
+        db.add_all(QuotiteLoan(loan_id=l_id, detenteur_id=d, quotite_pct=p) for l_id in prets_sans_bien for d, p in quotites)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return len(actifs), len(prets)
+
+
+def parts_effectives_emprunts(db: Session, emprunts: list[Loan]) -> dict[int, dict[int, Decimal]]:
+    """`{loan_id: {detenteur_id: quotite_pct}}` pour ces prêts, en deux requêtes : les parts
+    propres de chaque prêt, sinon celles du bien qu'il finance. Un prêt sans aucune part
+    est ABSENT du résultat (même contrat que `compute_parts_bulk`)."""
+    if not emprunts:
+        return {}
+    par_pret: dict[int, dict[int, Decimal]] = {}
+    for loan_id, detenteur_id, pct in db.query(QuotiteLoan.loan_id, QuotiteLoan.detenteur_id, QuotiteLoan.quotite_pct).filter(
+        QuotiteLoan.loan_id.in_([e.id for e in emprunts])
+    ):
+        par_pret.setdefault(loan_id, {})[detenteur_id] = pct
+    ids_biens = {e.holding_id for e in emprunts if e.holding_id is not None and e.id not in par_pret}
+    par_bien: dict[int, dict[int, Decimal]] = {}
+    if ids_biens:
+        for holding_id, detenteur_id, pct in db.query(
+            QuotiteHolding.holding_id, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct
+        ).filter(QuotiteHolding.holding_id.in_(ids_biens)):
+            par_bien.setdefault(holding_id, {})[detenteur_id] = pct
+    for e in emprunts:
+        if e.id not in par_pret and e.holding_id in par_bien:
+            par_pret[e.id] = par_bien[e.holding_id]
+    return par_pret
+
+
+def quotites_du_membre_par_holding(db: Session, foyer_id: int, detenteur_id: int) -> dict[int, Decimal]:
+    """`{holding_id: quotite_pct}` des lignes où ce membre a une part strictement positive —
+    une seule requête, pour filtrer une liste au prorata de ses parts."""
+    lignes = (
+        db.query(QuotiteHolding.holding_id, QuotiteHolding.quotite_pct)
+        .join(Holding, Holding.id == QuotiteHolding.holding_id)
+        .filter(Holding.foyer_id == foyer_id, QuotiteHolding.detenteur_id == detenteur_id, QuotiteHolding.quotite_pct > 0)
+    )
+    return dict(lignes.all())

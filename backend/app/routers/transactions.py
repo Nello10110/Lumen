@@ -41,6 +41,7 @@ from ..services import (
     auth_service,
     bricks_import,
     comptes_service,
+    detenteurs_service,
     journal_import_service,
     ledger_import,
     portfolio_reconstruction,
@@ -99,6 +100,20 @@ def _normalise_pour_comparaison(valeur, champ: str):
     if isinstance(type_colonne, Decimale):
         return en_decimal(valeur, type_colonne.echelle)
     return valeur
+
+
+def _repartition_des_nouvelles_lignes(db: Session, foyer_id: int, quotites) -> list[tuple[int, float]]:
+    """Répartition que l'import donne aux lignes qu'il fait naître (§ BN.1, lot 3), résolue AVANT
+    toute écriture : un membre d'un autre foyer (404) ou une somme différente de 100 % (400) refusent
+    l'import entier plutôt que de le laisser à moitié fait."""
+    try:
+        return detenteurs_service.repartition_pour_import(
+            db, foyer_id, None if quotites is None else [(q.detenteur_id, q.quotite_pct) for q in quotites]
+        )
+    except detenteurs_service.DetenteurIntrouvableError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _upsert_transactions(db: Session, foyer_id: int, rows: list[dict]) -> tuple[int, int, int]:
@@ -173,6 +188,7 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
         parsed = transaction_import.get_pending_transactions(payload.file_token)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repartition = _repartition_des_nouvelles_lignes(db, foyer_id, payload.quotites)
 
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
@@ -224,7 +240,7 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     db.commit()
     transaction_import.clear_pending_transactions(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id, repartition)
     journal_import_service.enregistrer(db, foyer_id, SOURCE_IMPORT_TRADE_REPUBLIC, parsed.lignes_lues)
 
     return TransactionImportResult(
@@ -283,6 +299,7 @@ def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), c
 
     if not payload.devises_selectionnees:
         raise HTTPException(status_code=400, detail="Choisissez au moins une devise à importer")
+    repartition = _repartition_des_nouvelles_lignes(db, foyer_id, payload.quotites)
 
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
@@ -310,7 +327,7 @@ def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), c
     db.commit()
     ledger_import.clear_pending_ledger(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id, repartition)
 
     lignes_ignorees = parsed.lignes_ignorees_statut + sum(parsed.lignes_ignorees_type_operation.values())
     journal_import_service.enregistrer(db, foyer_id, SOURCE_IMPORT_LEDGER, parsed.lignes_lues)
@@ -367,6 +384,7 @@ def import_bricks(payload: BricksImportConfirm, db: Session = Depends(get_db), c
         parsed = bricks_import.get_pending_bricks(payload.file_token)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repartition = _repartition_des_nouvelles_lignes(db, foyer_id, payload.quotites)
 
     if payload.etablissement_id is not None:
         etablissement = db.get(Etablissement, payload.etablissement_id)
@@ -390,7 +408,7 @@ def import_bricks(payload: BricksImportConfirm, db: Session = Depends(get_db), c
     db.commit()
     bricks_import.clear_pending_bricks(payload.file_token)
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, foyer_id, repartition)
 
     lignes_ignorees = (
         parsed.lignes_ignorees_statut

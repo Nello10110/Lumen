@@ -4,6 +4,8 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
+from .detenteurs import QuotiteEntree
+
 
 class LoanBase(BaseModel):
     """Emprunt (Phase 1 de `docs/BACKLOG.md` § 4.2, patrimoine net) — cf. `models.Loan`."""
@@ -69,6 +71,9 @@ class LoanCreate(LoanBase):
     # validateur Pydantic) : IDOR contrôlé côté routeur, comme `holding_id` sur
     # `LoanUpdate`.
     etablissement_id: int | None = None
+    # Répartition entre membres du foyer (§ BN.1, lot 3) : `None` (champ absent) = répartition par
+    # défaut du foyer, `[]` = ne pas répartir.
+    quotites: list[QuotiteEntree] | None = None
 
 
 class LoanUpdate(BaseModel):
@@ -150,3 +155,10 @@ class LoanOut(LoanBase):
     capital_restant_du: float = 0.0
     holding_id: int | None = None
     etablissement_id: int | None = None
+    # Répartition entre membres du foyer (§ BN.1, lot 3). `repartie` : le prêt a une répartition
+    # effective (la sienne, sinon celle du bien qu'il finance). `quotite_pct` et
+    # `part_capital_restant_du` ne sont renseignés que dans la vue d'UN membre (`?detenteur_id=`) :
+    # sa part du prêt, et le capital qu'elle représente. `capital_restant_du` reste celui du prêt entier.
+    repartie: bool = True
+    quotite_pct: float | None = None
+    part_capital_restant_du: float | None = None

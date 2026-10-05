@@ -25,7 +25,7 @@ from ..models import (
     Loan,
 )
 from ..schemas import BienImmobilierCreate
-from . import detenteurs_service, immobilier_service, loan_service
+from . import comptes_service, detenteurs_service, immobilier_service, loan_service
 
 
 class ElementIntrouvableError(LookupError):
@@ -78,15 +78,16 @@ def _verifier_appartenance(db: Session, foyer_id: int, payload: BienImmobilierCr
         if pret_existant.holding_id is not None:
             raise ValueError("Cet emprunt finance déjà un autre bien.")
 
-    ids_detenteurs = {q.detenteur_id for q in payload.quotites}
+    quotites = payload.quotites or []
+    ids_detenteurs = {q.detenteur_id for q in quotites}
     if ids_detenteurs:
         nb_du_foyer = db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id, Detenteur.id.in_(ids_detenteurs)).count()
         if nb_du_foyer != len(ids_detenteurs):
-            raise ElementIntrouvableError("Détenteur introuvable")
+            raise ElementIntrouvableError("Membre du foyer introuvable")
 
     # Doublon de détenteur, somme différente de 100 % : refusés ici, avant d'écrire quoi
     # que ce soit. `set_quotites_holding` les revérifie à l'écriture (garde-fou).
-    detenteurs_service._valider_quotites(db, foyer_id, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites])
+    detenteurs_service.valider_quotites(db, foyer_id, [(q.detenteur_id, q.quotite_pct) for q in quotites])
     return pret_existant
 
 
@@ -100,6 +101,14 @@ def creer_bien_immobilier(db: Session, foyer_id: int, payload: BienImmobilierCre
     (`detenteurs_service.compute_pourcentage_emprunt`), de sorte que corriger la
     répartition du bien corrige aussi la part de dette de chacun."""
     pret_existant = _verifier_appartenance(db, foyer_id, payload)
+    # Sans répartition envoyée (`None`), la règle par défaut du foyer : un bien neuf ne disparaît pas
+    # de la vue des membres (§ BN.1, lot 3) ; `[]` reste « ne pas répartir ».
+    repartition = comptes_service.repartition_de_creation(
+        db,
+        foyer_id,
+        payload.compte_id,
+        None if payload.quotites is None else [(q.detenteur_id, q.quotite_pct) for q in payload.quotites],
+    )
     ticker = immobilier_service.identifiant_libre(db, foyer_id, payload.compte_id, payload.nom)
     maintenant = loan_service.maintenant_naif()
     valeur = payload.valeur_estimee if payload.valeur_estimee is not None else payload.prix_achat
@@ -134,9 +143,7 @@ def creer_bien_immobilier(db: Session, foyer_id: int, payload: BienImmobilierCre
         elif pret_existant is not None:
             pret_existant.holding_id = holding.id
 
-        detenteurs_service.set_quotites_holding(
-            db, foyer_id, holding, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites], commit=False
-        )
+        detenteurs_service.set_quotites_holding(db, foyer_id, holding, repartition, commit=False)
         db.commit()
     except Exception:
         db.rollback()

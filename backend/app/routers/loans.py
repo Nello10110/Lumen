@@ -10,6 +10,7 @@ from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Etablissement, Holding, Loan, QuotiteHolding, QuotiteLoan, User
 from ..schemas import LoanCreate, LoanOut, LoanUpdate, QuotiteEntree, QuotitesEmpruntOut, QuotitesUpdate
 from ..services import auth_service, detenteurs_service, historique_cache, loan_service
+from .acces_detenteur import verifier_acces_detenteur
 
 router = APIRouter(prefix="/api/loans", tags=["loans"])
 
@@ -25,7 +26,11 @@ def vers_loan_out(loan: Loan) -> LoanOut:
 
 
 @router.get("", response_model=list[LoanOut])
-def list_loans(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_loans(detenteur_id: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Emprunts du foyer. `detenteur_id` (§ BN.1, lot 3) : la vue d'UN membre — seuls les prêts où
+    il a une part (la sienne, ou celle du bien que le prêt finance), avec `quotite_pct` et
+    `part_capital_restant_du` ; un prêt sans aucune part n'y figure pas."""
+    verifier_acces_detenteur(db, current_user, detenteur_id, vue_foyer_permise=True)
     requete = db.query(Loan).filter(Loan.foyer_id == auth_service.id_foyer(current_user))
     if current_user.role == ROLE_INVITE:
         # Visible pour un invité (2.L.2) : quotité d'emprunt explicite sur son
@@ -50,7 +55,19 @@ def list_loans(db: Session = Depends(get_db), current_user: User = Depends(get_c
         ids_visibles = loans_directs | loans_herites
         requete = requete.filter(Loan.id.in_(ids_visibles or [-1]))
     loans = requete.order_by(Loan.libelle).all()
-    return [vers_loan_out(loan) for loan in loans]
+    parts = detenteurs_service.parts_effectives_emprunts(db, loans)
+    resultats = []
+    for loan in loans:
+        out = vers_loan_out(loan)
+        out.repartie = loan.id in parts
+        if detenteur_id is not None:
+            pct = parts.get(loan.id, {}).get(detenteur_id)
+            if pct is None or pct <= 0:
+                continue
+            out.quotite_pct = float(pct)
+            out.part_capital_restant_du = round(pct / 100 * loan_service.compute_capital_restant_du(loan), 2)
+        resultats.append(out)
+    return resultats
 
 
 @router.post("", response_model=LoanOut)
@@ -60,12 +77,30 @@ def create_loan(payload: LoanCreate, db: Session = Depends(get_db), current_user
         etablissement = db.get(Etablissement, payload.etablissement_id)
         if etablissement is None or etablissement.foyer_id != foyer_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
-    loan = Loan(**payload.model_dump(), foyer_id=foyer_id)
+    # Répartition entre membres (§ BN.1, lot 3), résolue et validée AVANT toute écriture : celle du
+    # client (`[]` : ne pas répartir), sinon la règle par défaut du foyer.
+    try:
+        repartition = (
+            detenteurs_service.repartition_par_defaut(db, foyer_id)
+            if payload.quotites is None
+            else [(q.detenteur_id, q.quotite_pct) for q in payload.quotites]
+        )
+        detenteurs_service.verifier_detenteurs_du_foyer(db, foyer_id, [d for d, _ in repartition])
+        detenteurs_service.valider_quotites(db, foyer_id, repartition)
+    except detenteurs_service.DetenteurIntrouvableError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    loan = Loan(**payload.model_dump(exclude={"quotites"}), foyer_id=foyer_id)
     db.add(loan)
+    db.flush()  # l'identifiant du prêt, pour ses parts — même transaction que le prêt
+    detenteurs_service.set_quotites_loan(db, foyer_id, loan, repartition, commit=False)
     db.commit()
     db.refresh(loan)
     historique_cache.invalider_historiques_patrimoine(db)
-    return vers_loan_out(loan)
+    out = vers_loan_out(loan)
+    out.repartie = len(repartition) > 0
+    return out
 
 
 @router.patch("/{loan_id}", response_model=LoanOut)

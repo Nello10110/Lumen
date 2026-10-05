@@ -131,9 +131,10 @@ class BienImmobilierCreate(BaseModel):
     # Au plus un des deux : un emprunt neuf, ou un emprunt déjà saisi à rattacher.
     pret: PretNouveau | None = None
     pret_existant_id: int | None = None
-    # Répartition du bien entre membres du foyer ; liste vide = pas de répartition
-    # (100 % foyer implicite). Le prêt n'a pas de quotités propres : il suit celles du bien.
-    quotites: list[QuotiteEntree] = []
+    # Répartition du bien entre membres du foyer ; absente (`None`) = la règle par défaut du foyer
+    # (§ BN.1, lot 3) ; liste vide = « ne pas répartir ». Le prêt n'a pas de quotités propres :
+    # il suit celles du bien.
+    quotites: list[QuotiteEntree] | None = None
 
     @field_validator("nom")
     @classmethod
