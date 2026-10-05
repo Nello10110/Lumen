@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { RapportPeriode } from '../api/types'
+import AvisVueFoyer from '../components/AvisVueFoyer'
 import Card from '../components/Card'
 import { SegmentedControl } from '../components/Controls'
 import EtatErreur from '../components/EtatErreur'
@@ -170,6 +171,8 @@ export default function RapportPage() {
           )}
         </div>
       </div>
+
+      <AvisVueFoyer ecran="rapport" />
 
       {periodeInvalide && <EtatErreur message={t('rapportPage.laDateDeFinDoit')} />}
       {!periodeInvalide && loading && <SkeletonTexte lignes={4} />}

@@ -4,7 +4,10 @@ import type { Etablissement, Holding, Loan } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
+import { useMembresFoyer } from '../hooks/useMembresFoyer'
 import { formatDateHeure, formatEuro, formatPourcent } from '../utils/format'
+import { formaterPourcentage } from '../utils/repartitionMembres'
+import BadgeNonReparti from './BadgeNonReparti'
 import Card from './Card'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import EditeurRepartition from './EditeurRepartition'
@@ -24,7 +27,7 @@ import { t } from '../i18n'
  * le prêt s'est donnée, sinon celle du bien qu'il finance, dont il hérite tant qu'il n'a pas la
  * sienne. Volontairement plus simple que la fiche d'un actif : pas de « part détenue/nette »
  * ici, l'endpoint emprunt ne renvoie qu'un accusé de réception. */
-function QuotitesEmprunt({ loanId }: { loanId: number }) {
+function QuotitesEmprunt({ loanId, onEnregistre }: { loanId: number; onEnregistre: () => void }) {
   const [heritee, setHeritee] = useState(false)
   const editeur = useEditeurQuotites({
     enregistrer: (quotites) => api.setLoanQuotites(loanId, quotites),
@@ -34,6 +37,7 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
         return { quotites: r.quotites }
       }),
     proposerParDefaut: true,
+    apresEnregistrement: onEnregistre,
   })
 
   if (editeur.erreurChargement === null && editeur.detenteurs === null) return <SkeletonTexte lignes={1} />
@@ -50,6 +54,21 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
         idBase={`pret-${loanId}`}
       />
     </div>
+  )
+}
+
+/** Capital restant dû affiché d'un prêt : celui du prêt entier, ou — dans la vue d'un membre
+ * (§ BN.1, lot 3) — SA part, que la mention « 50 % de 200 000 € » rattache au prêt entier. */
+function capitalAffiche(loan: Loan): number {
+  return loan.part_capital_restant_du ?? loan.capital_restant_du
+}
+
+function MentionPartPret({ loan, montantsMasques }: { loan: Loan; montantsMasques: boolean }) {
+  if (loan.quotite_pct === null || loan.quotite_pct === undefined) return null
+  return (
+    <span className="block whitespace-nowrap text-xs font-normal text-ink3">
+      {t('repartitionGlobale.prorata', { pct: formaterPourcentage(loan.quotite_pct), valeur: formatEuro(loan.capital_restant_du, 0, montantsMasques) })}
+    </span>
   )
 }
 
@@ -82,6 +101,8 @@ function LoanCardMobile({
   onCancelEdition,
   detenteursOuverts,
   onToggleDetenteurs,
+  onRepartir,
+  onRepartitionEnregistree,
 }: {
   loan: Loan
   holdings: Holding[]
@@ -109,6 +130,10 @@ function LoanCardMobile({
   onCancelEdition: () => void
   detenteursOuverts: boolean
   onToggleDetenteurs: () => void
+  /** Fourni seulement quand le foyer compte au moins un membre : fait apparaître « Non réparti ». */
+  onRepartir?: () => void
+  /** Recharge la liste (sans la masquer) une fois la répartition enregistrée : le badge disparaît. */
+  onRepartitionEnregistree: () => void
 }) {
   const enRecalage = recalageId === loan.id
   const enEdition = editionId === loan.id
@@ -141,6 +166,11 @@ function LoanCardMobile({
   return (
     <div className="rounded-card border border-bordure bg-surface p-4">
       <p className="font-medium text-texte">{loan.libelle}</p>
+      {onRepartir && loan.repartie === false && (
+        <p className="mt-1">
+          <BadgeNonReparti nom={loan.libelle} onRepartir={onRepartir} />
+        </p>
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
         <div>
@@ -158,7 +188,10 @@ function LoanCardMobile({
         <div>
           <span className="flex items-center gap-1 text-xs text-texte-attenue">{t('loansCard.capitalRestantDu')}<InfoBulle texte={t('loansCard.ceQuIlResteA')} />
           </span>
-          <span className="font-medium text-texte">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
+          <span className="font-medium text-texte">
+            {formatEuro(capitalAffiche(loan), 0, montantsMasques)}
+            <MentionPartPret loan={loan} montantsMasques={montantsMasques} />
+          </span>
         </div>
       </div>
       {loan.derniere_maj_manuelle && !enRecalage && (
@@ -212,7 +245,7 @@ function LoanCardMobile({
         </Select>
       </Field>
 
-      {detenteursOuverts && <QuotitesEmprunt loanId={loan.id} />}
+      {detenteursOuverts && <QuotitesEmprunt loanId={loan.id} onEnregistre={onRepartitionEnregistree} />}
 
       {/* `flex-wrap` : cinq boutons en `flex-1` ne peuvent pas se réduire sous la
           largeur de leur texte (`min-width: auto` sur un élément flex). Sans le
@@ -268,8 +301,9 @@ export default function LoansCard({
    * cours au passage (`key` aurait tout réinitialisé). */
   reloadToken?: number
 } = {}) {
-  const { montantsMasques } = usePreferencesAffichage()
+  const { montantsMasques, detenteurId } = usePreferencesAffichage()
   const estMobile = useEstMobile()
+  const membres = useMembresFoyer()
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -305,16 +339,18 @@ export default function LoansCard({
   const etablissements = etablissementsFournis ?? etablissementsCharges
   const [etablissementSaving, setEtablissementSaving] = useState<number | null>(null)
 
-  function load() {
-    setLoading(true)
+  // `silencieux` : recharge sans remplacer la liste par un squelette — la répartition qu'on vient
+  // d'enregistrer est dans un éditeur ouvert sous la ligne, qui ne doit pas disparaître.
+  function load(silencieux = false) {
+    if (!silencieux) setLoading(true)
     api
-      .listLoans()
+      .listLoans(detenteurId)
       .then(setLoans)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
-  useEffect(load, [reloadToken])
+  useEffect(load, [reloadToken, detenteurId])
   useEffect(() => {
     if (holdingsFournis !== undefined) return
     // `null` ≠ `[]` : sur échec, le sélecteur « Actif rattaché » affichait « Aucun »
@@ -439,13 +475,16 @@ export default function LoansCard({
     }
   }
 
-  const totalRestantDu = loans.reduce((somme, l) => somme + l.capital_restant_du, 0)
+  const totalRestantDu = loans.reduce((somme, l) => somme + capitalAffiche(l), 0)
+  // « Non réparti » n'a de sens que s'il y a des membres à qui répartir. Le lien « Répartir » ouvre
+  // l'éditeur de répartition déjà présent sous la ligne du prêt.
+  const avecMembres = membres !== null && membres.length > 0
 
   return (
     <Card title={t('loansCard.dettesEtEmprunts')}>
       {error && (
         <div className="mb-3">
-          <EtatErreur message={error} onReessayer={load} />
+          <EtatErreur message={error} onReessayer={() => load()} />
         </div>
       )}
 
@@ -484,6 +523,8 @@ export default function LoansCard({
               onCancelEdition={cancelEdition}
               detenteursOuverts={detenteursOuvertId === loan.id}
               onToggleDetenteurs={() => setDetenteursOuvertId((id) => (id === loan.id ? null : loan.id))}
+              onRepartir={avecMembres ? () => setDetenteursOuvertId(loan.id) : undefined}
+              onRepartitionEnregistree={() => load(true)}
             />
           ))}
           <p className="pt-1 text-sm font-semibold text-texte">
@@ -514,7 +555,14 @@ export default function LoansCard({
               {loans.map((loan) => (
                 <Fragment key={loan.id}>
                 <tr>
-                  <td className="py-2 pr-4 font-medium text-texte">{loan.libelle}</td>
+                  <td className="py-2 pr-4 font-medium text-texte">
+                    {loan.libelle}
+                    {avecMembres && loan.repartie === false && (
+                      <span className="mt-0.5 block font-normal">
+                        <BadgeNonReparti nom={loan.libelle} onRepartir={() => setDetenteursOuvertId(loan.id)} />
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 pr-4 text-texte">{formatEuro(loan.capital_initial, 0, montantsMasques)}</td>
                   <td className="py-2 pr-4 text-texte">{formatPourcent(loan.taux_annuel_pct, 2)}</td>
                   <td className="py-2 pr-4 text-texte">{formatEuro(loan.mensualite, 0, montantsMasques)}</td>
@@ -538,7 +586,8 @@ export default function LoansCard({
                       </div>
                     ) : (
                       <div>
-                        <span className="font-medium text-texte">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
+                        <span className="font-medium text-texte">{formatEuro(capitalAffiche(loan), 0, montantsMasques)}</span>
+                        <MentionPartPret loan={loan} montantsMasques={montantsMasques} />
                         {loan.derniere_maj_manuelle && (
                           <span className="ml-2 text-xs text-texte-attenue">{t('loansCard.recaleLe')}{' '}{formatDateHeure(loan.derniere_maj_manuelle)}
                           </span>
@@ -620,7 +669,7 @@ export default function LoansCard({
                 {detenteursOuvertId === loan.id && (
                   <tr key={`${loan.id}-detenteurs`}>
                     <td colSpan={8} className="bg-surface-elevee py-3 pr-4">
-                      <QuotitesEmprunt loanId={loan.id} />
+                      <QuotitesEmprunt loanId={loan.id} onEnregistre={() => load(true)} />
                     </td>
                   </tr>
                 )}

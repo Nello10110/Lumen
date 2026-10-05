@@ -1,4 +1,5 @@
 import type { Holding } from '../api/types'
+import { facteurPart } from './prorata'
 
 export interface LigneGainCompte {
   compteId: number
@@ -60,7 +61,8 @@ export function calculerGainsParCompte(holdings: Holding[]): LigneGainCompte[] {
   for (const h of holdings) {
     if (!h.compte || h.cout_acquisition_total === null) continue
     const valeur = h.valeur ?? 0
-    const cout = h.cout_acquisition_total * h.quantite
+    // Dans la vue d'un membre, `valeur` est SA part : le coût se proratise de la même façon.
+    const cout = h.cout_acquisition_total * h.quantite * facteurPart(h)
     const entree = parCompte.get(h.compte.id) ?? {
       nom: h.compte.nom,
       valeur: 0,

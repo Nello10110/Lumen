@@ -12,7 +12,9 @@ import { Label } from './Field'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import ImmobilierApercu from './ImmobilierApercu'
 import ImmobilierParametresForm from './ImmobilierParametresForm'
+import BadgeNonReparti from './BadgeNonReparti'
 import PieChartCard from './PieChartCard'
+import { useMembresFoyer } from '../hooks/useMembresFoyer'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useHistoriqueValorisation } from '../hooks/useHistoriqueValorisation'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE, identifiantEstTechnique } from '../utils/holdingCategories'
@@ -84,6 +86,7 @@ export default function HoldingDetailContent({
   const [searchParams] = useSearchParams()
   const ongletInitial = ONGLETS.some((o) => o.key === searchParams.get('onglet')) ? (searchParams.get('onglet') as Onglet) : 'apercu'
   const [onglet, setOnglet] = useState<Onglet>(ongletInitial)
+  const membres = useMembresFoyer()
   const plusValueLatente =
     detail.cout_acquisition_total !== null && detail.cout_acquisition_total !== undefined
       ? detail.valeur - detail.cout_acquisition_total * detail.quantite
@@ -112,6 +115,11 @@ export default function HoldingDetailContent({
           )}
           {estImmobilier && detail.immobilier?.residence_principale && (
             <span className="rounded-chip bg-track px-2 py-0.5 text-xs font-medium text-ink2">{t('holdingDetailContent.residencePrincipale')}</span>
+          )}
+          {/* Une ligne sans part compte pour le foyer mais n'est dans la vue d'aucun membre (§ BN.1, lot 3) :
+              « Répartir » ouvre l'onglet Paramètres, où se trouve « Qui le détient ». */}
+          {membres !== null && membres.length > 0 && detail.quotites.length === 0 && (
+            <BadgeNonReparti nom={detail.nom ?? detail.ticker} onRepartir={() => setOnglet('parametres')} />
           )}
           {detail.compte && (
             <Link

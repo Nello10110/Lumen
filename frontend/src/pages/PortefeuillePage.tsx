@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import type { Compte, Etablissement, Holding } from '../api/types'
 import AjoutBienImmobilierModale from '../components/AjoutBienImmobilierModale'
 import AjoutHoldingForm from '../components/AjoutHoldingForm'
+import BandeauRepartition from '../components/BandeauRepartition'
 import Card from '../components/Card'
 import { PrimaryButton, SecondaryButton, SegmentedControl } from '../components/Controls'
 import EtatErreur from '../components/EtatErreur'
@@ -13,7 +14,10 @@ import { IconFermer } from '../components/icons'
 import LoansCard from '../components/LoansCard'
 import Modale from '../components/Modale'
 import PositionsTable from '../components/PositionsTable'
+import RepartirModale from '../components/RepartirModale'
 import { SkeletonTexte } from '../components/Skeleton'
+import { useMembresFoyer } from '../hooks/useMembresFoyer'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import {
   CATEGORY_TABS,
@@ -26,6 +30,7 @@ import {
   correspondAuFiltreCompte,
 } from '../utils/holdingCategories'
 import { formatDateHeure, formatPourcent, parseDateApi } from '../utils/format'
+import { facteurPart } from '../utils/prorata'
 import { t } from '../i18n'
 
 // Position de défilement de la page (backlog 2.K.2), restituée au remontage
@@ -92,6 +97,15 @@ function CompteSelect({
 }
 
 export default function PortefeuillePage() {
+  // Membre sélectionné en haut de page (§ BN.1, lot 3) : la liste, son total et les prêts sont alors
+  // ceux de SES parts. `membres` fait apparaître « Non réparti » dès qu'il y en a au moins un.
+  const { detenteurId } = usePreferencesAffichage()
+  const membres = useMembresFoyer()
+  const avecMembres = membres !== null && membres.length > 0
+  // Ligne dont on ouvre la répartition depuis son badge « Non réparti ».
+  const [aRepartir, setARepartir] = useState<Holding | null>(null)
+  // Change quand les données changent : le bandeau recompte les lignes non réparties.
+  const [versionRepartition, setVersionRepartition] = useState(0)
   // Feuille d'ajout (refonte, étape 4) : le formulaire ne vit plus en carte
   // permanente en haut de l'écran.
   const [ajoutOuvert, setAjoutOuvert] = useState(false)
@@ -197,13 +211,13 @@ export default function PortefeuillePage() {
   function load() {
     setLoading(true)
     api
-      .listHoldings()
+      .listHoldings(detenteurId)
       .then(setHoldings)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(load, [detenteurId])
 
   // Backlog § AF.4 (révision du 21/09/2026, rapport utilisateur) : date du
   // dernier rafraîchissement des cours RÉELLEMENT tenté, tous déclencheurs
@@ -352,8 +366,9 @@ export default function PortefeuillePage() {
   const totaux = lignesFiltrees.reduce(
     (acc, h) => {
       if (h.cout_acquisition_total !== null && h.cout_acquisition_total !== undefined) {
+        // Dans la vue d'un membre, `valeur` est sa part : le coût se proratise de la même façon.
         acc.valeurAvecCout += h.valeur ?? 0
-        acc.cout += h.cout_acquisition_total * h.quantite
+        acc.cout += h.cout_acquisition_total * h.quantite * facteurPart(h)
       }
       return acc
     },
@@ -403,6 +418,14 @@ export default function PortefeuillePage() {
 
       {error && <EtatErreur message={error} onReessayer={load} />}
       {erreurRafraichissement && <EtatErreur message={erreurRafraichissement} />}
+
+      <BandeauRepartition
+        rechargement={versionRepartition}
+        onAttribue={() => {
+          load()
+          setLoansReloadToken((n) => n + 1)
+        }}
+      />
 
       {/* Le formulaire d'ajout devient une feuille modale (maquette de la refonte) :
           en carte permanente, il occupait le haut de l'écran en continu alors qu'on
@@ -535,6 +558,7 @@ export default function PortefeuillePage() {
             etablissements={etablissements}
             onComptesModifies={chargerComptes}
             lignesEnCoursAllumage={lignesEnCoursAllumage}
+            onRepartir={avecMembres ? setARepartir : undefined}
           />
         )}
 
@@ -559,7 +583,22 @@ export default function PortefeuillePage() {
         )}
       </Card>
 
-      <LoansCard holdings={holdings} etablissements={etablissements} reloadToken={loansReloadToken} />
+      {/* Dans la vue d'un membre, `holdings` est filtrée : le sélecteur « Actif rattaché » d'un prêt
+          doit rester celui de TOUS les actifs, la carte recharge alors sa propre liste. */}
+      <LoansCard holdings={detenteurId === null ? holdings : undefined} etablissements={etablissements} reloadToken={loansReloadToken} />
+
+      {aRepartir && (
+        <RepartirModale
+          nom={aRepartir.nom ?? aRepartir.ticker}
+          enregistrer={(quotites) => api.setHoldingQuotites(aRepartir.id, quotites)}
+          onClose={() => setARepartir(null)}
+          onEnregistre={() => {
+            setARepartir(null)
+            load()
+            setVersionRepartition((n) => n + 1)
+          }}
+        />
+      )}
 
       {selectedHoldingId !== null && <HoldingDetailModal holdingId={selectedHoldingId} onClose={() => setSelectedHoldingId(null)} />}
 
