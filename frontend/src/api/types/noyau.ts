@@ -1,3 +1,5 @@
+import type { QuotiteEntree } from './detenteurs'
+
 export interface MarketData {
   ticker: string
   nom: string | null
@@ -40,6 +42,9 @@ export interface Compte {
   id: number
   nom: string
   etablissement: Etablissement | null
+  // Membres du foyer qui ont une part sur au moins une ligne du compte — renseigné par la seule
+  // liste `GET /comptes` (§ BN.1, lot 3), pour distinguer deux comptes de même nom d'établissement.
+  membres_ids?: number[]
   created_at: string
   updated_at: string
 }
@@ -64,6 +69,9 @@ export interface CompteAvecSolde {
   // si le foyer a moins de deux détenteurs déclarés, ou pour le bucket « Sans
   // compte » (pas de fiche à ouvrir pour y répondre).
   repartition_non_renseignee: boolean
+  // Membres du foyer qui ont une part sur au moins une ligne du compte (§ BN.1, lot 3) — vide pour
+  // le bucket « Sans compte » ou si rien n'est réparti.
+  membres_ids: number[]
   // Dernière activité utilisateur sur ce compte (demande directe du 16/09/2026) :
   // le plus récent entre le compte lui-même (renommage...) et ses lignes
   // (édition, import) — jamais la fraîcheur d'un cours de marché. `null` pour le
@@ -99,6 +107,14 @@ export interface Holding {
   // revient, `null` si aucun des deux n'est connu) — cf. `analysis_service.value_holdings`
   // côté backend. Le frontend n'a plus à refaire ce calcul (LOT 6.7).
   valeur: number | null
+  // Répartition entre membres du foyer (§ BN.1, lot 3). `repartie` : la ligne a au moins une part
+  // (faux = badge « Non réparti »). `quotite_pct` et `valeur_ligne` ne sont renseignés que dans la
+  // vue d'UN membre (`?detenteur_id=`) : `valeur` est alors SA part, `valeur_ligne` la valeur entière
+  // de la ligne, `quotite_pct` sa part en pourcentage. `quantite` et les prix ne sont jamais
+  // proratisés (ils servent à éditer la ligne).
+  repartie?: boolean
+  quotite_pct?: number | null
+  valeur_ligne?: number | null
   // Valorisation manuelle (immobilier/SCPI/assurance-vie/PER — roadmap Phase 1) :
   // montant ABSOLU en euros, prioritaire sur `prix * quantite` quand renseigné.
   // `date_valeur_estimee` n'est jamais saisie par l'utilisateur, posée côté serveur.
@@ -149,6 +165,9 @@ export interface HoldingInput {
   versement_mensuel?: number | null
   // Format AAAA-MM-JJ, comme `ValorisationInput.date` — cf. `Holding.date_acquisition`.
   date_acquisition?: string | null
+  // Répartition de la ligne entre membres du foyer (§ BN.1, lot 3) : absente, le serveur applique
+  // la règle par défaut du foyer ; `[]`, « ne pas répartir ».
+  quotites?: QuotiteEntree[]
 }
 
 // Champs modifiables via `PATCH /api/portfolio/holdings/{id}` (cf. `HoldingUpdate`

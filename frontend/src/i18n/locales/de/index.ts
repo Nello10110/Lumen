@@ -102,6 +102,7 @@ import rattrapageComptes from './rattrapageComptes'
 import recurrencesSection from './recurrencesSection'
 import reglagesInstallation from './reglagesInstallation'
 import reglagesPage from './reglagesPage'
+import repartitionGlobale from './repartitionGlobale'
 import repartitionMembres from './repartitionMembres'
 import repartitionSection from './repartitionSection'
 import resultatImport from './resultatImport'
@@ -230,6 +231,7 @@ const espaces = {
   recurrencesSection,
   reglagesInstallation,
   reglagesPage,
+  repartitionGlobale,
   repartitionMembres,
   repartitionSection,
   resultatImport,

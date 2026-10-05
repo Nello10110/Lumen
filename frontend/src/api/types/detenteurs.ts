@@ -18,3 +18,11 @@ export interface QuotiteEntree {
   detenteur_id: number
   quotite_pct: number
 }
+
+// Ce que « Tout attribuer » concerne (`GET /portfolio/lignes-non-reparties`), et ce qu'il vient
+// d'attribuer (`POST /portfolio/repartition-globale`) : les actifs et les prêts sans aucune part
+// (§ BN.1, lot 3).
+export interface LignesNonReparties {
+  actifs: number
+  prets: number
+}
