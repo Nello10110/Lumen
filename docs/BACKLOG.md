@@ -85,7 +85,7 @@ file et reçoit son détail au § 5.
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
-| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) `traité (04/10/2026)`, vérifié par la CI (pull request n° 13) ; **lot 3** (membres du foyer) en cours | Lots 3 et 4 (§ BN.1) : membres du foyer, assistant en quatre étapes |
+| **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) `traité (04/10/2026)`, vérifié par la CI (pull request n° 13) ; **lot 3** (membres du foyer) réalisé (05/10/2026), en attente de la CI et de l'accord de l'utilisateur sur les captures | Lot 4 (§ BN.1) : assistant en quatre étapes |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -8558,10 +8558,11 @@ n'a pas d'étape dans l'assistant de bienvenue : la fusion n'a de sens qu'après
 
 ### BN. Saisie d'un bien immobilier et parts par membre — UX (retour utilisateur, 04/10/2026)
 
-#### BN.1 — `majeur` · `L` · `en cours` (lots 1 et 2 `traité (04/10/2026)`, lot 3 en cours) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
+#### BN.1 — `majeur` · `L` · `en cours` (lots 1 et 2 `traité (04/10/2026)`, lot 3 réalisé le 05/10/2026 en attente de la CI et de l'accord de l'utilisateur sur les captures) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
 
-**État au 04/10/2026 : conception validée par l'utilisateur ; lots 1 et 2 `traité (04/10/2026)`, vérifiés par la CI ;
-lot 3 en cours ; lot 4 non commencé.** Le détail des lots est en fin de section (« Lot 1 — réalisé », « Lot 2 — réalisé »).
+**État au 05/10/2026 : conception validée par l'utilisateur ; lots 1 et 2 `traité (04/10/2026)`, vérifiés par la CI ;
+lot 3 réalisé (05/10/2026), en attente de la CI et de l'accord de l'utilisateur sur les captures ; lot 4 non
+commencé.** Le détail des lots est en fin de section (« Lot 1 — réalisé », « Lot 2 — réalisé », « Lot 3 — réalisé »).
 
 **Le constat.** La carte du kanban « Immobilier + capacité de voir les comptes partagés (50 % de la valeur) »
 est en régression : « La saisie est dans la partie analyse du bien ==> Pas ouf, à revoir ». Un audit du
@@ -8622,7 +8623,7 @@ titre coté écrase silencieusement son cours de marché.
 | --- | --- | --- |
 | **Lot 1 — Ménage des champs et correctifs rapides** | Suppression des champs ci-dessus ; un seul jeu de charges ; valeur estimée masquée pour les titres cotés ; date d'acquisition pour les titres saisis à la main ; colonne « Ticker » et doublon nom + ticker masqués pour un bien ; cartes vides de l'onglet Analyse d'un bien retirées ; message « Enregistré » après l'enregistrement des paramètres d'un bien | Oui : colonnes retirées, charges fusionnées, `taux_pct` des véhicules remis à NULL |
 | **Lot 2 — Formulaire unique à sections repliables** | Ajout et édition d'un bien dans un seul formulaire : Le bien / Financement et revenus / Qui le détient / Aperçu en direct ; carte « Détenteurs » déplacée de l'onglet Analyse vers Paramètres ; formulaires de répartition du compte et du prêt pré-remplis ; tableau des parts responsive ; contrôle de répartition avec total visible et raccourcis | Aucune |
-| **Lot 3 — Membres du foyer** | Vocabulaire unique ; badge « Non réparti » et bouton « Tout attribuer » ; règle par défaut des parts côté serveur ; filtre Membre appliqué à Comptes, Actifs et Prêts ; import bancaire : une question par fichier ; comptes homonymes | À étudier |
+| **Lot 3 — Membres du foyer** | Vocabulaire unique ; badge « Non réparti » et bouton « Tout attribuer » ; règle par défaut des parts côté serveur ; filtre Membre appliqué à Comptes, Actifs et Prêts ; import bancaire : une question par fichier ; comptes homonymes | Aucune |
 | **Lot 4 — Assistant en quatre étapes** | Le bien · Financement et revenus · Qui le détient · Résultat, bâti sur le formulaire du lot 2 | Aucune |
 
 ##### Lot 1 — réalisé (04/10/2026), `traité (04/10/2026)`
@@ -8770,6 +8771,134 @@ Livré avec le lot 2 (le formulaire unique et son aperçu en direct sont côté 
 - `upsert_detail_immobilier` et `enregistrer_point_historique` gagnent `commit=False` (même patron que
   `set_quotites_holding`) ; `vers_loan_out` devient public (`routers/loans.py`) pour que la création d'un bien
   renvoie son prêt comme `GET /api/loans`.
+
+##### Lot 3 — réalisé (05/10/2026), en attente de la CI et de l'accord de l'utilisateur sur les captures
+
+**Vérification (05/10/2026).** Suite serveur complète : 2 205 tests verts (68 ignorés, propres à Postgres) (un échec préexistant et sans rapport,
+`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`). Interface : 1 474 tests Vitest verts (128 fichiers) ;
+Playwright : 103 tests verts (SQLite) ; `ruff`, `oxlint` et `tsc` propres. Le bandeau, les badges « Non
+réparti », la fenêtre « Tout attribuer », le bloc « Qui le détient », la question d'import, le panneau « Un compte …
+existe déjà » et la vue d'un membre au prorata ont été vus à l'écran sur une instance isolée (ports 4193/8023), en
+1440 × 900 et 390 × 844, thèmes clair et sombre, français et allemand. **Non encore vérifié par la CI** (dont
+`backend-postgres`, `e2e-postgres` et `montee-version`) ; captures **à valider par l'utilisateur** avant de passer
+le lot à `traité`.
+
+**Ce qui change.** Aucune migration, aucune table, aucune colonne ; aucune donnée existante n'est modifiée sans geste
+de l'utilisateur. Détail du contrat en § 3.29 des spécifications.
+
+1. *Vocabulaire* : « Membres du foyer » (singulier « membre du foyer ») partout ; « Quotité » devient « Part » (« part
+   détenue » et « part nette » inchangées) ; sélecteur du haut : étiquette « Membre », options « Tout le foyer » et
+   prénoms ; onglet des Réglages « Membres du foyer », avec une phrase qui le distingue des accès (les comptes qui se
+   connectent, onglet « Comptes & sécurité », carte « Accès et invitations ») ; le rôle d'un compte (propriétaire,
+   membre, invité) garde son nom, « Membre » seul. Étapes de l'assistant renommées : « Composition du foyer » (les
+   membres du foyer) et « Inviter des proches » (les comptes). Les noms techniques (`/api/detenteurs`, tables
+   `detenteurs`, `quotites_*`) restent ceux d'avant.
+2. *Lignes non réparties* : dès que le foyer compte au moins un membre, toute ligne sans part — actif, prêt, compte
+   qui contient une telle ligne — porte le badge « Non réparti » et le lien « Répartir » (tableau et cartes des
+   actifs ; fiche d'un actif, qui ouvre l'onglet Paramètres ; liste des comptes, qui ouvre la répartition du compte ;
+   prêts, qui ouvrent l'éditeur sous la ligne). Un bandeau discret (pages Actifs et Comptes) dit « N lignes ne sont pas
+   encore réparties… » avec **« Tout attribuer »**, et disparaît quand tout est réparti. La fenêtre annonce d'abord le
+   nombre d'actifs et de prêts concernés (`GET /api/portfolio/lignes-non-reparties` -> `{actifs, prets}`), propose une
+   répartition (100 % pour l'unique membre, parts égales sinon) et n'écrit rien avant « Attribuer » ;
+   `POST /api/portfolio/repartition-globale` (corps `{quotites: [{detenteur_id, quotite_pct}]}` -> `{actifs, prets}`)
+   s'exécute en **une transaction** (tout ou rien), laisse intactes les lignes déjà réparties, fait hériter un prêt
+   rattaché à un bien non réparti des parts de ce bien (compté, sans parts propres) et donne des parts propres à un
+   prêt non rattaché. Erreurs : 400 (liste vide, doublon, somme différente de 100 %), 404 (membre d'un autre foyer),
+   403 (invité) ; rôles propriétaire et membre.
+3. *Répartition par défaut à la création*, côté serveur, quand le client n'envoie pas `quotites` :
+   `POST /api/portfolio/holdings`, `POST /api/loans` (parts propres) et `POST /api/portfolio/biens-immobiliers`
+   (champ désormais optionnel). Aucun membre : aucune part ; un membre : 100 % ; deux ou plus : parts égales, l'arrondi
+   sur le dernier (33,33 / 33,33 / 33,34) ; ligne ajoutée à un compte dont toutes les lignes portent la même
+   répartition : celle du compte ; `quotites: []` : ne pas répartir, explicitement. Validations 400/404 avant toute
+   écriture. Les formulaires d'ajout d'une ligne et d'un prêt gagnent un bloc replié **« Qui le détient »** qui résume
+   ce qui sera enregistré (« Alice 50 % · Bob 50 % »).
+4. *Imports de patrimoine* (Trade Republic, Ledger, Bricks.co, relevé de positions) : à partir de deux membres, UNE
+   question par fichier, « À quel membre appartiennent ces lignes ? » (`QuestionMembreImport`), pré-remplie par le
+   dernier choix du foyer (mémorisé dans le navigateur, clé par identifiant de foyer, jamais partagé entre foyers ;
+   membre supprimé ou total invalide : parts égales) ; un membre : 100 % automatique, sans question ; aucun : rien. Le
+   corps des quatre routes d'import accepte `quotites` (absent : défaut du foyer ; `[]` : aucune ; 404 pour un membre
+   d'un autre foyer et 400 pour une somme invalide, **avant** toute écriture). La répartition ne vaut que pour les
+   lignes **nouvelles** : `rebuild_holdings(db, foyer_id, repartition_nouvelles)` reporte les parts des lignes
+   existantes (même ticker, même compte), y compris l'absence de parts ; avec `replace_existing`, une ligne du relevé
+   qui revient garde ses parts et plus aucune part n'est orpheline (`detacher_references`).
+5. *Filtre par membre au prorata* : `GET /api/portfolio/holdings`, `GET /api/comptes/solde`,
+   `GET /api/comptes/{id}/holdings` et `GET /api/loans` acceptent `?detenteur_id=` (404 si le membre est d'un autre
+   foyer ; 403 pour un invité hors de son périmètre ; la vue « tout le foyer » reste permise à l'invité, filtrée sur
+   son périmètre). Dans la vue d'un membre : seules les lignes où il a une part ; `valeur` est SA part (celle de
+   `compute_parts_bulk` : le total de la page Comptes égale `actifs_totaux` de la Synthèse pour ce membre),
+   `valeur_ligne` la valeur entière, `quotite_pct` sa part ; mention « 50 % de 300 000 € » sous la valeur (tableau et
+   cartes mobiles) ; pour les prêts, `quotite_pct` et `part_capital_restant_du` (`capital_restant_du` reste celui du
+   prêt entier) ; `quantite` et les prix ne sont jamais proratisés (édition sûre) ; gains et versements d'épargne
+   proratisés côté client (`utils/prorata.ts`). Le bandeau dit « Vue de Alice : les valeurs sont au prorata de ses
+   parts. N lignes non réparties ne sont pas comptées. » avec « Tout attribuer ». Le détail d'un compte et la fiche
+   d'un actif montrent la ligne entière. Analyse et Rapport ne suivent pas le membre (foyer entier) et un avis le dit
+   (`AvisVueFoyer`) ; la Synthèse suit déjà le membre pour le patrimoine net. Un membre supprimé ne reste pas
+   sélectionné (`BarreControles`). Réponses enrichies : `repartie` (lignes et prêts), `membres_ids` (comptes) ;
+   `repartition_non_renseignee` est vrai dès un membre (avant : deux).
+6. *Comptes homonymes* : le nom reste unique par foyer (contrainte inchangée, 400 « Un compte nommé « X » existe déjà. »).
+   `AjoutCompteForm` vérifie le nom avant d'écrire — y compris pour une ligne d'épargne créée avec le compte, qui
+   réutilisait silencieusement le compte existant — et l'erreur devient un panneau : « Un compte « Livret A » existe
+   déjà », « Il est détenu par Alice. », choix du membre (le membre sélectionné en haut par défaut), « Ajouter
+   <membre> à ce compte » (ouvre la répartition du compte existant avec ce membre ajouté à parts égales ; absent dans
+   l'assistant de bienvenue) ou « Renommer en « Livret A — <membre> » » (pré-remplit le champ). Les listes de comptes
+   affichent « Compte · Établissement · membres », les membres seulement à partir de deux membres (liste de la page
+   Comptes, sélecteurs de compte des formulaires). Un bien immobilier reste sans compte.
+7. *Sécurité* : tous les identifiants reçus sont vérifiés dans le foyer courant (404 sinon) ; « Tout attribuer » et
+   les imports n'attribuent jamais à un membre d'un autre foyer ; rôles identiques à l'écriture des parts (invités :
+   lecture seule) ; l'absence de contournement de la séparation des foyers sous Postgres reste à confirmer par la CI
+   (`backend-postgres`, `e2e-postgres`).
+8. *Documentation* : `SPECIFICATIONS_FONCTIONNELLES.md` (§ 3.29, § 3.7, § 3.11), `MANUEL_UTILISATEUR.md` (guide « Membres
+   du foyer : répartir, filtrer, importer »), `MANUEL_EXPLOITATION.md` (aucune migration, imports par l'API avec
+   `quotites`).
+
+**Points tranchés en cours de route.**
+
+1. *Défaut hérité du compte* : une ligne ajoutée à un compte dont toutes les lignes portent la même répartition reprend
+   celle du compte — sans quoi un compte partagé 70/30 afficherait des lignes qui divergent. Des lignes qui divergent,
+   ou qui ne sont pas réparties, retombent sur la règle du foyer.
+2. *`[]` = « ne pas répartir »* : une liste vide envoyée par le client est respectée telle quelle, y compris contre la
+   règle du compte ; seule l'absence du champ déclenche le défaut. L'interface l'envoie quand l'utilisateur met toutes
+   les parts à zéro.
+3. *Un compte vide n'a pas de bloc de parts* : un compte ne porte aucune part, elles appartiennent à ses lignes ; une
+   ligne d'épargne créée avec le compte suit la règle ci-dessus. Écart assumé à la consigne « bloc de parts à la
+   création d'un compte ».
+4. *Pas de colonne ni de migration* : « non réparti » est l'absence de ligne de part, jamais un drapeau stocké ; il se
+   calcule (`ids_holdings_non_repartis`, `ids_prets_non_repartis`) et ne peut donc pas diverger des parts.
+5. *La vue d'un membre n'étend pas à Analyse ni à Rapport* : ces écrans consolident le foyer entier (look-through,
+   exposition, rapport) et les proratiser sort du lot ; un avis le dit plutôt que de laisser croire que les chiffres
+   sont ceux du membre.
+6. *Détail d'un compte et fiche d'un actif en valeurs entières* : ce sont les écrans de gestion, où l'on règle les parts et où
+   l'on édite la ligne : ils la montrent telle qu'elle est, la part d'un membre n'y est pas substituée à la valeur.
+7. *Pas de badge « Non réparti » sur un prêt rattaché à un bien réparti* : il hérite des parts du bien, il n'y a rien à
+   attribuer ; « Tout attribuer » le compte quand le bien ne l'est pas, sans lui donner de parts propres.
+8. *Le lien « Répartir » d'un prêt ouvre l'éditeur sous la ligne* (celui du bouton « Membres du foyer »), pas une
+   fenêtre : la carte des prêts avait déjà cet éditeur.
+9. *Le rôle `membre` ne peut pas lister les membres du foyer* (`GET /api/detenteurs` est réservé au propriétaire) : le
+   bandeau, les badges, le bloc « Qui le détient » et la question d'import, qui en dépendent, lui sont invisibles, et
+   ses imports appliquent la règle par défaut du foyer sans question. Limite assumée, **à lever au lot 4 ou par une
+   lecture dédiée** (liste des membres en lecture seule pour les rôles qui écrivent).
+
+**Tests.** Serveur (environ 190 tests ajoutés) : `test_repartition_membres.py` (répartition par défaut des lignes, des
+prêts et des biens : aucun membre, un, deux, trois avec arrondi, ordre des membres, `[]`, parts fournies, compte déjà
+réparti, lignes divergentes ou non réparties, somme et doublon refusés sans rien créer, membre d'un autre foyer,
+invité) ; `test_repartition_globale.py` (nominal, atomicité, prêts hérités ou à parts propres, lignes déjà réparties
+intactes, membre d'un autre foyer, invité) ; `test_filtre_membre.py` (prorata sur lignes, comptes et prêts, égalité
+avec la Synthèse, `membres_ids`, `repartie`, 404/403) ; `test_import_repartition.py` (les quatre imports : lignes
+nouvelles seulement, lignes existantes conservées y compris non réparties, membre d'un autre foyer refusé avant
+écriture, `replace_existing` sans parts orphelines) ; `test_comptes_homonymes.py` ; huit tests de
+`test_separation_foyers.py` pour les nouvelles routes sous Postgres (collectés, **exécutés par la CI seulement**).
+Interface (environ 210 tests ajoutés) : utilitaires (`prorata`, `derniereRepartitionImport`, `lignesNonReparties`),
+`BadgeNonReparti`, `BandeauRepartition`, `ToutAttribuerModale`, `RepartirModale`, `AvisVueFoyer`, tableau des actifs,
+prêts, pages Actifs et Comptes, `AjoutCompteForm` (nom déjà pris), `AjoutHoldingForm` (bloc « Qui le détient »), question
+d'import des quatre sections (suite commune `src/test/questionImport.ts`), vocabulaire des cinq langues. Playwright :
+`frontend/e2e/membres-du-foyer.spec.ts` (badges, « Tout attribuer », vue d'Alice au prorata et total égal à la
+Synthèse, lignes non comptées, question d'import avec confirmation interceptée, nom de compte déjà pris) et les
+parcours existants adaptés au nouveau vocabulaire. L'import de l'e2e ne crée aucune donnée : la confirmation y est
+interceptée pour lire ce que l'interface envoie.
+
+**Limites.** L'import bancaire du Budget (mouvements) n'est pas concerné : un mouvement n'a pas de propriétaire. Les
+écrans Analyse et Rapport portent toujours sur le foyer entier. Le compte de rôle `membre` ne voit pas les blocs de
+répartition (point tranché 9).
 
 ---
 

@@ -38,8 +38,10 @@ d'affichage qui valent pour toute l'application et sont mémorisés d'une visite
 - **Vue** — **Net** (ce que vous possédez moins ce que vous devez), **Brut** (sans déduire les
   emprunts) ou **Financier** (actions, ETF, crypto, obligations seuls). Une infobulle rappelle la
   définition de chacune.
-- **Détenteur** (dès qu'au moins une personne est déclarée, Réglages → Détenteurs) : le foyer entier,
-  ou la seule part d'une personne.
+- **Membre** (dès qu'au moins un membre du foyer est déclaré, Réglages → Membres du foyer) : « Tout le
+  foyer », ou la seule part d'un membre, désigné par son prénom. Sur les écrans Actifs et Comptes et la
+  carte des prêts, les valeurs passent alors **au prorata de ses parts** (voir « Membres du foyer :
+  répartir, filtrer, importer »).
 - **Masquer les montants** (raccourci Ctrl/⌘ + Maj + M) : remplace chaque montant par des points,
   pour une démonstration, une capture d'écran ou une consultation en public ; les pourcentages restent
   visibles.
@@ -107,6 +109,11 @@ L'écran s'ouvre sur une **grille de tuiles**, une par source de données. Chaqu
 Un fichier CSV enregistré depuis Excel sous Windows (encodage « Windows-1252 ») est lu tel quel, accents
 compris : inutile de le convertir.
 
+**À quel membre appartiennent les lignes importées ?** À partir de deux membres du foyer, les quatre
+imports de patrimoine (Trade Republic, Ledger, Bricks.co, relevé de positions) posent une question par
+fichier, pré-remplie avec ton dernier choix ; elle ne concerne que les lignes que l'import crée (voir
+« Membres du foyer : répartir, filtrer, importer »). L'import des mouvements bancaires n'est pas concerné.
+
 ### Trade Republic — historique de transactions
 
 Accepte un export CSV au format reconnu automatiquement (format Trade Republic et compatibles). Aucun mapping à faire. Le portefeuille réel est entièrement **recalculé** à partir de cet historique : l'export doit donc couvrir toute la période depuis l'ouverture du compte. Chaque ligne est rattachée au compte adapté (PEA, Compte-titres, Cryptomonnaie, Obligations) sous l'établissement choisi à l'étape de confirmation.
@@ -161,7 +168,7 @@ Appelé « Portefeuille » jusqu'au 16/09/2026 (l'adresse reste `/patrimoine`). 
 - **Supprimer une ligne** : le bouton « Supprimer » ouvre une confirmation avant suppression définitive.
 - **Rafraîchir** relance la récupération des cours pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions »), le tableau se met à jour tout seul une fois terminé, et le suivi continue si vous changez d'écran entre-temps. Les lignes qui n'ont structurellement pas de cotation (briques Bricks.co, par exemple) ne sont plus interrogées à chaque fois ; la carte de la tâche, dans Réglages → Automatisations, permet de forcer leur recherche.
 - **Ajouter une ligne** (bouton en haut à droite) ouvre une fenêtre avec une bascule **Un actif / Un bien immobilier / Un emprunt**. *Un bien immobilier* (ou « Immobilier » dans Type d'actif) ouvre le formulaire dédié décrit plus bas (« Ajouter un bien immobilier »). En mode *Un emprunt*, les mêmes champs que la carte « Dettes et emprunts » plus bas. En mode *Un actif* : type d'actif, puis ticker et quantité pour un titre coté, ou simplement un **Nom** pour un bien valorisé à la main (immobilier, épargne, véhicule — pas de symbole boursier à inventer) ; prix de revient, compte, valeur estimée — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat. **Valeur estimée n'est pas proposée pour un titre coté** (action, ETF / fonds, crypto, obligation, private equity) : elle écraserait son cours de marché sans prévenir. Dans le tableau, un bien saisi à la main s'affiche sous son nom, sans son identifiant technique (la colonne Ticker disparaît quand aucune ligne n'en a besoin).
-- **Compte** (à l'ajout comme à l'édition) : une liste déroulante propose les comptes déjà créés, avec en dernière option « + Nouveau compte... » pour en créer un à la volée par son nom — aucune étape séparée n'est nécessaire pour commencer à utiliser un compte. Voir l'écran Comptes pour tout regrouper par établissement, définir la répartition entre détenteurs pour un compte entier (le formulaire s'ouvre sur la répartition actuelle), ou renommer/rattacher un compte a posteriori.
+- **Compte** (à l'ajout comme à l'édition) : une liste déroulante propose les comptes déjà créés, avec en dernière option « + Nouveau compte... » pour en créer un à la volée par son nom — aucune étape séparée n'est nécessaire pour commencer à utiliser un compte. Voir l'écran Comptes pour tout regrouper par établissement, définir la répartition entre membres du foyer pour un compte entier (le formulaire s'ouvre sur la répartition actuelle), ou renommer/rattacher un compte a posteriori.
 - **Zone géographique** (SCPI et autres types manuels ci-dessus ; pour un bien immobilier, elle est dans le formulaire dédié) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée de l'écran Analyse.
 - **Date d'acquisition** (immobilier/épargne/tous les types manuels ci-dessus, et titres cotés, crypto ou obligations saisis à la main — facultative ; retour utilisateur du 26/08/2026) : champ apparaissant uniquement pour ces types, modifiable aussi bien à l'ajout que sur une ligne déjà existante (bouton « Modifier » du tableau) — la date à laquelle le bien a réellement été acquis, affichée sous son nom dans le tableau (« Acquis le JJ/MM/AAAA ») une fois renseignée. Prise en compte dans le **rendement annualisé** (calculable désormais même sans historique de transactions, à partir du prix de revient et de cette date) et dans les **graphiques** — la courbe d'évolution de la Synthèse et le graphique de la fiche détaillée démarrent depuis le prix payé à cette date plutôt que depuis la date de saisie de la ligne dans l'application. Une date dans le futur est refusée : c'est un constat passé, pas une projection (le Simulateur est là pour ça).
 - **Taux annuel** (épargne réglementée/salariale) : champ apparaissant uniquement pour ces types — le taux d'intérêt attendu. Un véhicule n'a plus de décote annuelle à saisir (champ retiré le 04/10/2026 : rien ne le relisait). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
@@ -233,15 +240,15 @@ modifie un champ). L'onglet **Analyse** redevient une lecture seule.
 
 ### Dettes et emprunts
 
-Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Modifier** permet de corriger les autres caractéristiques (libellé, capital initial, taux, mensualité, date de début, durée) en cas d'erreur de saisie ou de renégociation — jamais le capital restant dû, qui reste sous « Recaler ». **Supprimer** retire définitivement un emprunt, après confirmation. **Détenteurs** ouvre la répartition entre détenteurs déclarés de cet emprunt (même logique que pour un actif) ; le formulaire s'ouvre sur la répartition actuelle — celle que le prêt s'est donnée, sinon celle du bien qu'il finance, dont il hérite tant qu'il n'a pas la sienne — utile pour un crédit immobilier partagé à parts inégales entre conjoints.
+Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Modifier** permet de corriger les autres caractéristiques (libellé, capital initial, taux, mensualité, date de début, durée) en cas d'erreur de saisie ou de renégociation — jamais le capital restant dû, qui reste sous « Recaler ». **Supprimer** retire définitivement un emprunt, après confirmation. **Membres du foyer** ouvre la répartition de cet emprunt entre les membres du foyer déclarés (même logique que pour un actif) ; le formulaire s'ouvre sur la répartition actuelle — celle que le prêt s'est donnée, sinon celle du bien qu'il finance, dont il hérite tant qu'il n'a pas la sienne — utile pour un crédit immobilier partagé à parts inégales entre conjoints.
 
 ## Fiche détaillée d'une position
 
 Accessible en cliquant sur une ligne de l'écran Actifs, sur une barre de répartition de l'écran Analyse, ou directement par son adresse (`/patrimoine/ID`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...). Un badge à côté du type d'actif indique le compte rattaché, s'il y en a un — clique dessus pour aller directement à sa fiche (écran Comptes) :
 
 - **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés puis l'historique daté de ses valorisations successives — ou, pour un compte Épargne (compte courant, épargne réglementée/salariale, assurance-vie, PER), la valeur actuelle et sa date, le versement mensuel déclaré, le même historique daté, et un ajout rapide d'une valorisation (voir « Lignes d'épargne » dans l'écran Comptes) ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
-- **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique) ; un bien immobilier n'affiche pas non plus ces deux cartes vides. L'onglet est en lecture seule : la répartition entre détenteurs s'édite dans l'onglet Paramètres ;
-- **Paramètres** : pour toute ligne, la **zone géographique** et le **secteur** déclarés — une déclaration prime sur la détection automatique, ce qui permet de classer une ligne que l'application ne sait pas situer (une brique Bricks.co) ou de corriger un fonds rangé sur son pays de domiciliation ; la **répartition entre les membres du foyer** (« Détenteurs »), avec la part détenue et la part nette de chacun ; pour un bien immobilier, les quatre sections décrites plus haut (le loyer d'un bien équivalent et la taxe d'habitation du comparatif « Achat vs location » n'apparaissent que pour une résidence principale).
+- **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique) ; un bien immobilier n'affiche pas non plus ces deux cartes vides. L'onglet est en lecture seule : la répartition entre membres du foyer s'édite dans l'onglet Paramètres ;
+- **Paramètres** : pour toute ligne, la **zone géographique** et le **secteur** déclarés — une déclaration prime sur la détection automatique, ce qui permet de classer une ligne que l'application ne sait pas situer (une brique Bricks.co) ou de corriger un fonds rangé sur son pays de domiciliation ; la **répartition entre les membres du foyer**, avec la part détenue et la part nette de chacun ; pour un bien immobilier, les quatre sections décrites plus haut (le loyer d'un bien équivalent et la taxe d'habitation du comparatif « Achat vs location » n'apparaissent que pour une résidence principale).
 
 ## Écran Comptes
 
@@ -254,9 +261,14 @@ un CTO avec plusieurs titres), ou n'en contenir qu'une (ex. une assurance-vie, u
   établissement rejoint le groupe « Sans établissement ». Le solde de chaque compte est affiché
   **toutes natures d'actif confondues** (financier, immobilier, assurance-vie, épargne...), avec le
   total du foyer en tête d'écran et la date de dernière mise à jour du compte. Deux pictogrammes
-  discrets à côté d'un compte : un triangle si sa répartition entre détenteurs a été commencée puis
-  laissée incomplète (à corriger), une silhouette si elle n'a jamais été renseignée (le compte est
-  alors au foyer entier, c'est une simple invitation).
+  discrets à côté d'un compte : un triangle si sa répartition entre membres du foyer a été commencée puis
+  laissée incomplète (à corriger), et — dès le premier membre déclaré — le badge « Non réparti » si au
+  moins une de ses lignes n'a aucune part (elle compte alors pour le foyer entier, mais aucun membre ne la
+  voit dans sa vue ; c'est une simple invitation, **Répartir** ouvre la répartition du compte). Quand il y a
+  deux membres ou plus, les membres qui ont une part dans le compte s'affichent à côté de son nom
+  (« Compte · membres »). Un bandeau **Tout attribuer** propose de répartir d'un geste toutes les lignes
+  sans part, et le sélecteur **Membre** de la barre de contrôles filtre la liste au prorata des parts de ce
+  membre.
 - **Plus-value par compte** : un graphique en barres, en tête d'écran, montre où se trouve la
   plus-value latente et où elle manque. Un compte sans aucune cotation connue affiche « — » plutôt
   que « +0 € ».
@@ -279,9 +291,9 @@ un CTO avec plusieurs titres), ou n'en contenir qu'une (ex. une assurance-vie, u
   - **Emprunts rattachés** (n'apparaît que si au moins un emprunt est rattaché à l'une des lignes du
     compte, ex. le prêt d'un bien immobilier) : rappel informatif avant la répartition ci-dessous —
     elle s'applique aussi à ces emprunts.
-  - **Répartition entre détenteurs** (dès qu'au moins une ligne est rattachée) : un formulaire, **pré-rempli
+  - **Répartition entre membres du foyer** (dès qu'au moins une ligne est rattachée) : un formulaire, **pré-rempli
     avec la répartition actuelle** du compte (parts égales proposées, sans rien enregistrer, s'il n'y en a
-    pas ; vide, avec un avertissement, si les lignes du compte divergent), pour définir en une seule fois le pourcentage de propriété de chaque détenteur du
+    pas ; vide, avec un avertissement, si les lignes du compte divergent), pour définir en une seule fois la part de propriété (en %) de chaque membre du
     foyer sur **tout le compte** — utile en particulier pour un compte multi-lignes, plutôt que de
     répéter la même répartition ligne par ligne depuis la fiche détaillée de chacune. La somme doit
     faire 100 % ; valider **remplace** la répartition actuellement enregistrée de chaque ligne du
@@ -299,9 +311,11 @@ un CTO avec plusieurs titres), ou n'en contenir qu'une (ex. une assurance-vie, u
   un emprunt rattaché est conservé, détaché de son bien. La fiche l'annonce avant la
   confirmation ; en cas de doute, faites d'abord une sauvegarde (Réglages → Général). Un
   établissement supprimé, lui, ne supprime rien : ses comptes retombent dans « Sans établissement ».
-- **Deux comptes (ou deux établissements, ou deux détenteurs) ne peuvent pas porter le même nom** :
-  la création est refusée avec un message explicite. Sans cela, deux entrées identiques seraient
-  impossibles à distinguer dans les listes déroulantes de répartition.
+- **Deux comptes (ou deux établissements, ou deux membres du foyer) ne peuvent pas porter le même nom** :
+  la création est refusée. Sans cela, deux entrées identiques seraient impossibles à distinguer dans les
+  listes déroulantes de répartition. Pour un compte, le formulaire d'ajout propose une issue plutôt qu'un
+  simple refus : ajouter le membre au compte existant, ou renommer le nouveau (« Livret A — Alice »),
+  voir « Un nom de compte déjà pris ».
 - **« Sans compte »** n'est pas un compte : c'est le regroupement des lignes de patrimoine que vous
   n'avez rattachées à aucun compte. Il ne se renomme ni ne se supprime — il disparaît de lui-même
   quand toutes les lignes sont rangées.
@@ -346,6 +360,115 @@ historique daté.
   tout son historique de valorisation.
 - **Graphique d'évolution** : dès qu'une ligne a au moins deux points d'historique, un petit graphique
   trace leur évolution (en plus du tableau daté).
+
+## Membres du foyer : répartir, filtrer, importer
+
+Les **membres du foyer** sont les personnes dont tu suis le patrimoine (toi, ton conjoint, un enfant...).
+Chaque ligne du patrimoine (un actif, un prêt) a une **part** par membre, dont le total fait 100 % : c'est ce
+qui permet de voir « ma part » d'un compte joint ou d'un bien détenu à deux. Ne les confonds pas avec les
+**accès**, c'est-à-dire les comptes qui se connectent à l'application (Réglages → Comptes & sécurité, carte
+« Accès et invitations ») : on peut suivre le patrimoine d'un enfant qui n'a aucun accès, et donner un accès à
+un proche qui n'est pas dans le foyer. Le **rôle** d'un accès (propriétaire, membre, invité) garde son nom ;
+« Membre » seul, c'est ce rôle, pas une personne suivie.
+
+### Ajouter un deuxième membre
+
+1. Ouvre **Réglages → Membres du foyer**, saisis un prénom, puis **Ajouter**. Deux membres ne peuvent pas
+   porter le même nom. (À la première configuration, c'est l'étape **Composition du foyer** de l'assistant de
+   bienvenue ; l'étape suivante, **Inviter des proches**, concerne les accès.)
+2. Le sélecteur **Membre** apparaît dans la barre de contrôles, en haut de chaque écran.
+3. Les lignes qui n'avaient encore aucune part sont maintenant signalées **« Non réparti »** (voir ci-dessous) :
+   rien n'est modifié tant que tu ne l'as pas demandé.
+
+### Les lignes « Non réparti »
+
+Une ligne sans aucune part compte pour le foyer entier, mais **aucun membre ne la voit dans sa propre vue**.
+Dès qu'il y a au moins un membre, elle porte le badge **« Non réparti »** et un lien **« Répartir »** :
+
+- **écran Actifs** (tableau et cartes sur mobile) : **Répartir** ouvre une fenêtre pour cette ligne, ouverte
+  sur la répartition actuelle ou sur des parts égales proposées ; rien n'est enregistré avant
+  **Enregistrer la répartition** ;
+- **fiche d'un actif** : le badge, à côté du titre, ouvre l'onglet **Paramètres**, section **Qui le détient** ;
+- **écran Comptes** : un compte qui contient au moins une ligne sans part porte le badge ; **Répartir** ouvre la
+  répartition du compte entier ;
+- **carte Dettes et emprunts** : **Répartir** ouvre la répartition du prêt sous sa ligne. Un prêt rattaché à un
+  bien déjà réparti n'a pas de badge : il reprend la répartition du bien.
+
+### Tout attribuer d'un geste
+
+Au-dessus de la liste, sur les écrans **Actifs** et **Comptes**, un bandeau discret dit « 3 lignes ne sont pas
+encore réparties entre les membres du foyer ». Le bouton **Tout attribuer** :
+
+1. ouvre une fenêtre qui annonce d'abord ce qu'elle va toucher (« 2 actifs et 1 prêt ») ;
+2. propose une répartition : 100 % pour l'unique membre, ou des parts égales — modifiable (champ, curseur,
+   boutons − / +, total toujours visible) ;
+3. n'écrit **rien** avant **Attribuer**. Les lignes **déjà réparties ne bougent pas** ; c'est tout ou rien
+   (si quelque chose échoue, rien n'est enregistré). Un prêt rattaché à un bien non réparti reprend les parts
+   que reçoit ce bien.
+
+Le bandeau disparaît quand tout est réparti.
+
+### Voir le patrimoine d'un seul membre
+
+Choisis un prénom dans le sélecteur **Membre** : les écrans **Actifs** et **Comptes** et la carte des prêts ne
+montrent plus que ce qu'il détient, **au prorata de ses parts**.
+
+- Chaque valeur est **sa part**, avec la ligne entière rappelée dessous : « 50 % de 300 000 € ». Le total de la
+  page Comptes est le même que le patrimoine de ce membre sur la Synthèse. Pour un prêt, le capital restant dû
+  affiché est sa part, la mention rappelant le prêt entier (« 50 % de 200 000 € »).
+- Les gains et les versements d'épargne sont eux aussi à sa part. La quantité et les prix, eux, ne sont jamais
+  proratisés : ce sont ceux de la ligne, que tu peux modifier sans risque.
+- Un bandeau le rappelle : « Vue de Alice : les valeurs sont au prorata de ses parts. 2 lignes non réparties ne
+  sont pas comptées. » avec **Tout attribuer**. Une ligne sans part n'apparaît pas dans la vue d'un membre.
+- Le **détail d'un compte** et la **fiche d'un actif** montrent toujours la ligne **entière** : ce sont des écrans
+  de gestion, où tu règles ses parts.
+- Les écrans **Analyse** et **Rapport** ne suivent pas le membre : ils portent sur le foyer entier, et un avis te
+  le dit. (L'onglet Évolution a son propre choix de membre.)
+- Si tu supprimes le membre sélectionné, la vue revient d'elle-même sur « Tout le foyer ».
+
+### Dire qui détient une ligne dès l'ajout
+
+Dans la fenêtre **Ajouter une ligne** (un actif ou un emprunt), un bloc replié **Qui le détient** résume ce qui
+sera enregistré, par exemple « Alice 50 % · Bob 50 % ». Tu ne l'ouvres que pour le changer.
+
+- Sans rien toucher : un seul membre détient 100 % ; à partir de deux, les parts sont **égales** ; sans membre,
+  rien.
+- Une ligne ajoutée à un compte dont toutes les lignes ont la même répartition **reprend celle du compte** (un
+  compte partagé 70/30 donne une ligne 70/30).
+- Si tu mets toutes les parts à zéro, la ligne n'est volontairement pas répartie.
+- **Ajouter un compte vide** n'a pas ce bloc : un compte n'a pas de parts, elles appartiennent à ses lignes. Une
+  ligne d'épargne créée en même temps que le compte suit la règle ci-dessus. Un bien immobilier se répartit dans
+  son propre formulaire (« Ajouter un bien immobilier »).
+
+### Importer pour un membre
+
+À partir de **deux membres**, chaque import de patrimoine — Trade Republic, Ledger, Bricks.co, relevé de
+positions — pose **une seule question par fichier** : « À quel membre appartiennent ces lignes ? ». Elle est
+pré-remplie avec ton dernier choix pour ce foyer (mémorisé dans ton navigateur, jamais partagé avec un autre
+foyer), sinon avec des parts égales ; la confirmation de l'import reste bloquée tant que le total n'est pas de 100 %. Avec un
+seul membre, l'import lui attribue 100 % sans rien demander.
+
+Le choix ne vaut que pour les lignes que l'import **crée** : celles qui existaient déjà (même ticker, même
+compte) gardent leurs parts, y compris l'absence de parts. L'import des **mouvements bancaires** (Budget) n'est
+pas concerné : un mouvement n'a pas de propriétaire.
+
+### Un nom de compte déjà pris
+
+Le nom d'un compte est unique dans le foyer. Si tu en crées un dont le nom existe déjà, un panneau remplace
+l'erreur : « Un compte « Livret A » existe déjà », « Il est détenu par Alice. ». Choisis le membre concerné
+(« Pour quel membre ? », dès deux membres ; celui qui est sélectionné en haut par défaut), puis :
+
+- **Ajouter <membre> à ce compte** ouvre la répartition du compte existant avec ce membre ajouté à parts égales :
+  ajuste, puis enregistre. (Absent dans l'assistant de bienvenue.)
+- **Renommer en « Livret A — <membre> »** remplit le champ du nom ; tu valides ensuite comme d'habitude.
+
+Dans les listes, les comptes s'affichent « Compte · Établissement · membres » dès qu'il y a au moins deux
+membres, pour distinguer deux comptes de même nom d'établissement.
+
+> **Si tu te connectes avec un accès de rôle « Membre »** : la liste des membres du foyer est réservée au
+> propriétaire. Tu ne vois donc ni le bandeau, ni les badges « Non réparti », ni les blocs « Qui le détient »,
+> et ton import n'a pas de question : le foyer applique sa règle par défaut. Demande au propriétaire de répartir
+> les lignes.
 
 ## Écran Analyse
 
@@ -433,7 +556,7 @@ Où en est le foyer, avec la méthode toujours visible.
 
 La même courbe que la Synthèse, mais filtrable : par **classe d'actif**, par **établissement** ou
 par **compte**, sur une **fourchette de dates** précise en plus des boutons rapides. Ses propres
-réglages Brut/Net, détenteur et mode étagé ne modifient pas ceux du reste de l'application ; l'axe
+réglages Brut/Net, membre et mode étagé ne modifient pas ceux du reste de l'application ; l'axe
 vertical est gradué en euros, et les lignes correspondant au filtre sont listées sous le graphique.
 
 ### Onglet Revenus
@@ -502,7 +625,7 @@ Quel que soit le mode : valeur du portefeuille en fin de période, évolution su
 
 ## Écran Salaire
 
-Réservé au propriétaire du compte. **Plusieurs salaires peuvent être ajoutés pour une même année** — un par revenu du foyer (toi, ton/ta conjoint·e, un complément...), chacun nommé librement, rattachable à une personne du foyer (Réglages → Détenteurs, ou « + » pour la créer sur place), et avec son propre taux d'imposition, puisque deux personnes du même foyer peuvent être imposées différemment.
+Réservé au propriétaire du compte. **Plusieurs salaires peuvent être ajoutés pour une même année** — un par revenu du foyer (toi, ton/ta conjoint·e, un complément...), chacun nommé librement, rattachable à un membre du foyer (Réglages → Membres du foyer, ou « + » pour le créer sur place), et avec son propre taux d'imposition, puisque deux personnes du même foyer peuvent être imposées différemment.
 
 Pour chaque salaire : sélectionne l'année en haut de l'écran, clique « + Ajouter un salaire », puis saisis un montant, choisis s'il s'agit d'un brut ou d'un net, mensuel ou annuel, le statut (cadre ou non-cadre), le nombre de versements dans l'année (12, 13 avec un 13e mois, etc.) et, si tu le connais, le taux d'imposition de cette personne. Un aperçu s'affiche instantanément pendant la saisie. C'est une **estimation approximative** — pas un bulletin de paie certifié, les cotisations réelles dépendant de la convention collective et de la situation exacte de chacun. Chaque salaire déjà enregistré peut être modifié ou supprimé depuis sa carte.
 
@@ -516,13 +639,13 @@ En dessous, la carte **Taux d'épargne du foyer** répond à « quelle part de n
   feuille avec les autres écrans (Budget, Rapport, Salaire, Import, Réglages, Aide), le thème et la
   déconnexion. La feuille se ferme de trois façons : le bouton, un appui n'importe où sur le fond, ou
   un **glissement vers le bas**.
-- **En-tête** : le titre de l'écran, la ligne de contexte (« Foyer · vue nette ») — **touchez-la pour
-  changer de vue ou de détenteur** —, un bouton pour masquer les montants et votre avatar, qui ouvre
+- **En-tête** : le titre de l'écran, la ligne de contexte (« Tout le foyer · vue nette ») — **touchez-la pour
+  changer de vue ou de membre** —, un bouton pour masquer les montants et votre avatar, qui ouvre
   les mêmes réglages d'affichage.
 
 ## Écran Réglages
 
-Six onglets : **Général**, **Détenteurs**, **Comptes & sécurité**, **Partage**, **Automatisations**
+Six onglets : **Général**, **Membres du foyer**, **Comptes & sécurité**, **Partage**, **Automatisations**
 et **Badges**. L'onglet ouvert est porté par l'adresse (`/reglages?onglet=...`) : un lien peut y
 conduire directement, et le retour du navigateur restitue l'onglet précédent.
 
@@ -544,7 +667,7 @@ Deux choses changent selon l'état de l'installation (cf. « Console de l'opéra
 À la création du tout premier compte (propriétaire) d'une instance neuve, un assistant de
 configuration initiale s'affiche à la place de l'application : bienvenue — avec, en tête de cette
 toute première page, le **choix de la langue** du foyer —, méthode de calcul du
-coût de revient, détenteurs du foyer, établissements et comptes, **inviter les membres du foyer**
+coût de revient, **composition du foyer** (les membres du foyer), établissements et comptes, **inviter des proches**
 (facultatif, cf. « Onglet Comptes & sécurité »), **administration de l'installation** (facultatif : uniquement
 quand un compte opérateur peut encore être créé, donc en pratique pour le premier compte d'une installation
 neuve — l'étape propose de créer l'opérateur tout de suite, ou plus tard depuis Réglages), puis les deux façons
@@ -585,7 +708,7 @@ Trois boutons téléchargent chacun un fichier CSV (positions, transactions, syn
 Réservée au propriétaire du foyer. À ne pas confondre avec les exports ci-dessus : ceux-là produisent des **documents à lire** (Excel,
 PDF), celui-ci produit un **fichier de sauvegarde ré-importable**. Un seul fichier JSON contenant tout
 le patrimoine du foyer — positions, transactions, immobilier, emprunts, comptes et établissements,
-détenteurs et répartitions, épargne, salaires, budget et préférences.
+membres du foyer et répartitions, épargne, salaires, budget et préférences.
 
 Deux usages : se faire une sauvegarde avant une manipulation risquée, ou déménager vers une autre
 installation de l'application.
@@ -626,29 +749,34 @@ subsister dans les sauvegardes chiffrées du serveur jusqu'à leur rotation.
 Contrairement au relevé PDF ci-dessus (figé, tout le patrimoine), la déclaration est **paramétrable** — pensée pour un dossier de prêt, une donation, une succession. Le bouton ouvre une fenêtre de sélection :
 
 - **Destinataire** (optionnel) : un texte libre affiché en en-tête du document (« Banque XYZ »).
-- **Détenteur** (optionnel) : par défaut, le foyer entier. Restreindre à une personne ne montre que ses quotités — un actif jamais réparti entre détenteurs n'apparaît dans aucune déclaration individuelle, seulement dans celle du foyer entier.
+- **Membre du foyer** (optionnel) : par défaut, le foyer entier. Restreindre à un membre ne montre que ses parts — un actif jamais réparti entre membres du foyer n'apparaît dans aucune déclaration individuelle, seulement dans celle du foyer entier.
 - **Profil emprunteur** (case à cocher) : ajoute une section avec revenus nets et dépenses mensuels moyens, taux d'endettement, reste à vivre, et le taux d'imposition renseigné dans « Déclaration de patrimoine » ci-dessus (onglet Général).
 - **Actifs à inclure** / **Emprunts à inclure** : deux listes à cocher, tout coché par défaut — décocher une ligne l'exclut du document (et donc du total, qui ne compte jamais que ce qui est effectivement affiché).
 
 Chaque ligne du document précise sa méthode de valorisation (cours de marché daté, valeur estimée déclarée, ou prix de revient si aucune cotation n'est disponible) — jamais un chiffre sans dire d'où il vient. Le document généré est paginé et horodaté.
 
-### Onglet Détenteurs
+### Onglet Membres du foyer
 
-Les personnes du foyer, déclarées une fois ici puis réutilisées partout : répartition de la propriété
-des actifs et des emprunts (fiche d'une ligne, ou d'un compte entier), sélecteur de détenteur de la
-barre de contrôles, salaires, déclaration de patrimoine, liens de partage. Deux détenteurs ne
-peuvent pas porter le même nom.
+Les personnes dont vous suivez le patrimoine, déclarées une fois ici puis réutilisées partout :
+répartition de la propriété des actifs et des emprunts (fiche d'une ligne, ou d'un compte entier),
+sélecteur de membre de la barre de contrôles, salaires, déclaration de patrimoine, liens de partage.
+Deux membres du foyer ne peuvent pas porter le même nom. À ne pas confondre avec les **accès** (les
+comptes qui se connectent), gérés dans l'onglet Comptes & sécurité, carte « Accès et invitations » : une
+phrase en tête de l'onglet le rappelle. Dès qu'un membre est déclaré, les lignes sans part sont signalées
+« Non réparti » et se répartissent d'un geste (« Tout attribuer ») — voir « Membres du foyer : répartir,
+filtrer, importer ».
 
 ### Onglet Comptes & sécurité
 
 Section visible uniquement par le propriétaire du compte.
 
-- **Membres et invitations** : la carte liste les comptes du foyer (avec leur rôle, leur mode de
-  connexion, leur dernière connexion) et permet d'ajouter du monde de deux façons.
+- **Accès et invitations** : la carte liste les comptes du foyer (avec leur rôle, leur mode de
+  connexion, leur dernière connexion) et permet d'ajouter du monde de deux façons. Ce sont les comptes
+  qui se connectent ; les personnes dont vous suivez le patrimoine sont dans l'onglet Membres du foyer.
   Un **membre** peut consulter et saisir des actifs, emprunts et transactions comme le propriétaire, mais
   pas voir les indicateurs de situation ni modifier la sécurité. Un **invité** ne voit, en lecture seule,
-  que le patrimoine net et le portefeuille des personnes qui lui sont explicitement assignées (aucun accès
-  par défaut tant qu'aucun détenteur n'est coché). Il n'existe pas d'inscription libre : on entre dans un
+  que le patrimoine net et le portefeuille des membres du foyer qui lui sont explicitement assignés (aucun accès
+  par défaut tant qu'aucun membre du foyer n'est coché). Il n'existe pas d'inscription libre : on entre dans un
   foyer par invitation, ou parce que le propriétaire crée le compte.
   - **Inviter quelqu'un** (voir la section « Inviter, rejoindre un foyer » plus bas).
   - **Créer directement un compte** (nom d'utilisateur, mot de passe, rôle) : pour quelqu'un sans
@@ -688,8 +816,8 @@ Section visible uniquement par le propriétaire du compte.
 
 #### Inviter, rejoindre un foyer
 
-**Inviter (propriétaire).** Dans *Membres et invitations* : choisir le **rôle** (membre ou invité), pour
-un invité les **détenteurs** qu'il pourra consulter, la **durée de validité du lien** (1, 7 ou 30 jours ;
+**Inviter (propriétaire).** Dans *Accès et invitations* : choisir le **rôle** (membre ou invité), pour
+un invité les **membres du foyer** qu'il pourra consulter, la **durée de validité du lien** (1, 7 ou 30 jours ;
 7 par défaut) et, si l'on veut, un **libellé** (« Sophie, ma sœur ») pour s'y retrouver. « Créer
 l'invitation » produit un **lien**. **Il n'est affiché qu'une seule fois** : le serveur n'en garde
 qu'une empreinte et ne peut pas le redonner — copiez-le tout de suite (« Copier le lien ») et
@@ -731,7 +859,7 @@ connecté.
 **Quitter un foyer.** Un membre ou un invité peut quitter son foyer depuis le **menu du compte** (en bas
 de la barre latérale, ou « Plus » sur mobile) : « Quitter ce foyer », avec confirmation. Les données restent
 au foyer ; pour y revenir, il faudra une nouvelle invitation. Le propriétaire, lui, ne peut pas quitter son
-foyer : il transfère d'abord la propriété à un membre (voir *Membres et invitations*), ou supprime le foyer. Si
+foyer : il transfère d'abord la propriété à un membre (voir *Accès et invitations*), ou supprime le foyer. Si
 c'est **votre dernier foyer**, la confirmation le dit : votre compte n'est pas supprimé, mais vous
 n'aurez plus accès à aucune donnée tant que vous n'aurez pas rejoint ou créé un foyer.
 
@@ -781,7 +909,7 @@ Section visible uniquement par le propriétaire du compte — un membre du foyer
 Un lien de partage donne à un tiers (une banque pour un prêt, un notaire, un membre de la famille) une page en lecture seule, accessible sans aucun compte ni mot de passe sur l'application — juste l'URL. Pour créer un lien :
 
 - **Nom** : un repère pour s'y retrouver soi-même dans la liste (« Pour la banque », par exemple) — jamais affiché tel quel comme titre de la page publique, seulement dans cette liste de gestion.
-- **Détenteur** : par défaut, le foyer entier. Restreindre à une personne ne filtre que le patrimoine net — budget et exposition consolidée restent affichés pour tout le foyer si activés en même temps qu'un détenteur, un avertissement le rappelle dans le formulaire.
+- **Membre du foyer** : par défaut, le foyer entier. Restreindre à un membre ne filtre que le patrimoine net — budget et exposition consolidée restent affichés pour tout le foyer si activés en même temps qu'un membre du foyer, un avertissement le rappelle dans le formulaire.
 - **Durée** : entre 1 et 365 jours ; passé ce délai, le lien cesse de fonctionner de lui-même, sans action à faire.
 - **Code d'accès** : optionnel. S'il est renseigné, le visiteur doit le saisir avant de voir quoi que ce soit ; 5 codes incorrects verrouillent temporairement la consultation de ce lien précis pendant 15 minutes.
 - **Sections à inclure** : Patrimoine net, Exposition consolidée, Rentabilité, Budget — chacune indépendante des autres. Ce que l'application montre reste volontairement limité à des chiffres globaux : jamais la liste des positions ligne par ligne, jamais les transactions, jamais les libellés de compte.
@@ -915,4 +1043,4 @@ Pense-bête pour un débutant, sans lien avec les données personnelles du porte
 - **Les 11 secteurs d'activité** : une carte par secteur avec quelques exemples d'entreprises connues, pour se repérer.
 - **Comprendre les chiffres de l'application** : questions/réponses dépliables sur les notions les moins évidentes (look-through des fonds, différence entre « Non catégorisé » et « Autres zones/secteurs », coût moyen pondéré vs FIFO, rendement annualisé (XIRR), score de diversification, répartition géographique parfois « estimée »).
 - **D'où viennent les données ?** : explique l'origine des cours et compositions — Yahoo Finance (actions, une partie de la composition des fonds), justETF (cours de référence, composition détaillée et description des ETF), CoinGecko (cryptomonnaies, depuis le 15/09/2026 ; sans la clé d'API gratuite que l'exploitant configure, les lignes crypto affichent « Cotation indisponible ») — et rappelle que l'application ne fait qu'aller chercher les cours dont elle a besoin : aucune donnée du patrimoine n'est envoyée à ces sources.
-- **Petit glossaire** : les termes courants expliqués par des analogies (ETF, ISIN, PEA/CTO, TER, drawdown, volatilité, plus-value latente/réalisée, quotité, capital restant dû...). Certains libellés de l'application (quotité, capital restant dû...) portent aussi une infobulle d'explication.
+- **Petit glossaire** : les termes courants expliqués par des analogies (ETF, ISIN, PEA/CTO, TER, drawdown, volatilité, plus-value latente/réalisée, part, capital restant dû...). Certains libellés de l'application (part, capital restant dû...) portent aussi une infobulle d'explication.
