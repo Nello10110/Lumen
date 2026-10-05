@@ -855,6 +855,9 @@ def foyers_repartis(deux_foyers):
     zoe = Detenteur(foyer_id=ID_FOYER_B, nom="Zoé")
     db.add_all([alice, zoe])
     db.commit()
+    # Les identifiants sont lus ICI : une fois la session d'un compte ouverte, le périmètre de la session
+    # change, et relire un attribut expiré par le `commit` ne retrouverait plus la ligne d'un autre foyer.
+    id_alice, id_zoe = alice.id, zoe.id
     pret_b = Loan(
         foyer_id=ID_FOYER_B,
         libelle="Prêt de B",
@@ -867,11 +870,15 @@ def foyers_repartis(deux_foyers):
     db.add(pret_b)
     make_holding(db, foyer_id=ID_FOYER_B, ticker="B-SECOND")
     db.commit()
+    id_pret_b = pret_b.id
     jetons = {}
     for foyer, utilisateur in ((ID_FOYER_TEST, ID_UTILISATEUR_TEST), (ID_FOYER_B, ID_UTILISATEUR_B)):
         _, jeton = auth_service.ouvrir_session(db, db.get(User, utilisateur))
         jetons[foyer] = {"Authorization": f"Bearer {jeton}"}
-    return {"alice": alice.id, "zoe": zoe.id, "pret_b": pret_b.id, "en_tetes": jetons}
+    # Ouvrir une session restreint la session de TEST au foyer de ce compte (sous Postgres) : le banc voit de
+    # nouveau tous les foyers, comme à l'ouverture de la fixture, pour lire et écrire les données des deux.
+    database.tous_les_foyers(db)
+    return {"alice": id_alice, "zoe": id_zoe, "pret_b": id_pret_b, "en_tetes": jetons}
 
 
 def _parts_de_tous_les_foyers(db) -> tuple[set, set]:
