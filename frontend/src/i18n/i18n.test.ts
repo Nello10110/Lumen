@@ -103,3 +103,28 @@ describe('dictionnaires — cohérence avec le français de référence', () => 
     })
   }
 })
+
+describe('vocabulaire du dictionnaire — « membre du foyer » (§ BN.1, lot 3)', () => {
+  const MOTS_PROSCRITS = /d[ée]tenteur|quotit[ée]|holder|inhaber/i
+
+  function valeurs(noeud: unknown, chemin: string, sortie: { chemin: string; texte: string }[]) {
+    if (typeof noeud === 'string') sortie.push({ chemin, texte: noeud })
+    else if (noeud && typeof noeud === 'object') {
+      for (const [cle, enfant] of Object.entries(noeud)) valeurs(enfant, chemin ? `${chemin}.${cle}` : cle, sortie)
+    }
+  }
+
+  it.each([
+    ['fr', fr],
+    ['en', en],
+    ['es', es],
+    ['de', de],
+    ['it', it_],
+  ])("aucun texte affiché en %s ne contient « détenteur », « quotité », « Holder » ni « Inhaber »", (_langue, dictionnaire) => {
+    const textes: { chemin: string; texte: string }[] = []
+    valeurs(dictionnaire, '', textes)
+
+    expect(textes.length).toBeGreaterThan(100)
+    expect(textes.filter((v) => MOTS_PROSCRITS.test(v.texte)).map((v) => `${v.chemin} : ${v.texte}`)).toEqual([])
+  })
+})

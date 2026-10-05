@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { BudgetImportPreview, BudgetImportResult, Compte, DernierImport, Etablissement, ImportPreview } from '../api/types'
+import { suiteQuestionImport } from '../test/questionImport'
 import ImportPage from './ImportPage'
 
 // Refonte de l'écran Import du 22/09/2026 : la page n'est plus une pile de cartes
@@ -31,6 +32,8 @@ vi.mock('../api/client', () => ({
     importBricksApercu: vi.fn(),
     importBricksConfirm: vi.fn(),
     getDerniersImports: vi.fn(),
+    // Question « À quel membre ? » d'un import (§ BN.1, lot 3) : sans membre par défaut.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -532,4 +535,22 @@ describe('ImportPage — rafraîchissement des pastilles après un import', () =
 
     await screen.findByText(/22\/09\/2026 · 3 lignes/)
   })
+})
+
+// Relevé de positions : la section est montée par la page, on la mène jusqu'au bouton de confirmation.
+suiteQuestionImport('ImportPage — relevé de positions', {
+  async ouvrir(enveloppe) {
+    vi.mocked(api.importPreview).mockResolvedValue(previewPositions())
+    render(enveloppe(<ImportPage />))
+    deposer('Relevé de positions', fichier('releve.csv'))
+    await screen.findByRole('columnheader', { name: 'Ticker' })
+    fireEvent.change(screen.getByLabelText('Colonne Ticker *'), { target: { value: 'Ticker' } })
+    fireEvent.change(screen.getByLabelText('Colonne Quantité *'), { target: { value: 'Quantité' } })
+  },
+  confirm: () => vi.mocked(api.importConfirm),
+  confirmationReussit: () => vi.mocked(api.importConfirm).mockResolvedValue({ imported: 1, skipped: 0, errors: [] }),
+  confirmationEchoue: () => vi.mocked(api.importConfirm).mockRejectedValue(new Error('Import impossible')),
+  attendreSucces: async () => {
+    await screen.findByText(/1 ligne importée/)
+  },
 })

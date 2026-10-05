@@ -3,12 +3,15 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Etablissement, LedgerImportApercu, LedgerImportConfirmInput, LedgerImportResult } from '../api/types'
+import { suiteQuestionImport } from '../test/questionImport'
 import ImportLedgerSection from './ImportLedgerSection'
 
 vi.mock('../api/client', () => ({
   api: {
     importLedgerApercu: vi.fn(),
     importLedgerConfirm: vi.fn(),
+    // Question « À quel membre ? » d'un import (§ BN.1, lot 3) : sans membre par défaut.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -122,4 +125,20 @@ describe('ImportLedgerSection', () => {
     expect(await screen.findByText(/2 opérations importées, 1 mise à jour/)).toBeInTheDocument()
     expect(screen.getByText(/1 compte créé/)).toBeInTheDocument()
   })
+})
+
+suiteQuestionImport('ImportLedgerSection', {
+  async ouvrir(enveloppe) {
+    vi.mocked(api.importLedgerApercu).mockResolvedValue(apercu())
+    render(enveloppe(<ImportLedgerSection />))
+    fireEvent.change(screen.getByTestId('dropzone-input-Wallet crypto Ledger'), { target: { files: [fichier('ledger.csv')] } })
+    await screen.findByLabelText('Établissement *')
+    fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
+  },
+  confirm: () => vi.mocked(api.importLedgerConfirm),
+  confirmationReussit: () => vi.mocked(api.importLedgerConfirm).mockResolvedValue(resultat()),
+  confirmationEchoue: () => vi.mocked(api.importLedgerConfirm).mockRejectedValue(new Error('Import impossible')),
+  attendreSucces: async () => {
+    await screen.findByText(/opérations? importées?/)
+  },
 })

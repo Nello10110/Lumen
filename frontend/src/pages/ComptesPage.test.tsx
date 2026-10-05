@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Compte, CompteAvecSolde, Etablissement, Holding } from '../api/types'
+import type { Compte, CompteAvecSolde, Detenteur, Etablissement, Holding } from '../api/types'
 import ComptesPage from './ComptesPage'
 
 vi.mock('../api/client', () => ({
@@ -23,13 +23,29 @@ vi.mock('../api/client', () => ({
     // (`createHolding`, quand un type est choisi).
     listHoldings: vi.fn().mockResolvedValue([]),
     createHolding: vi.fn(),
+    // Membres du foyer et répartition (§ BN.1, lot 3) : neutres par défaut (`beforeEach`), surchargés
+    // par les tests de la vue d'un membre et du badge « Non réparti ».
+    listDetenteurs: vi.fn(),
+    getLignesNonReparties: vi.fn(),
+    getCompteQuotites: vi.fn(),
+    setCompteQuotites: vi.fn(),
+    listComptes: vi.fn(),
   },
 }))
 
 // Contrôles transverses (backlog 2.K.3) : `ComptesPage` lit
 // `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+// `detenteurId` (membre dont on voit la vue, § BN.1 lot 3) est pilotable : `null` = tout le foyer.
+const preferences = vi.hoisted(() => ({ detenteurId: null as number | null }))
 vi.mock('../hooks/usePreferencesAffichage', () => ({
-  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+  usePreferencesAffichage: () => ({
+    lentille: 'net',
+    setLentille: vi.fn(),
+    montantsMasques: false,
+    toggleMontantsMasques: vi.fn(),
+    detenteurId: preferences.detenteurId,
+    setDetenteurId: vi.fn(),
+  }),
 }))
 
 // La fiche détaillée (modale) n'est pas l'objet de ce fichier : mise de côté pour ne
@@ -38,6 +54,10 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
 vi.mock('../components/CompteDetailModal', () => ({
   default: ({ compteId }: { compteId: number }) => <div data-testid="modale-detail">{compteId}</div>,
 }))
+
+function membre(id: number, nom: string): Detenteur {
+  return { id, nom, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' }
+}
 
 function etablissement(overrides: Partial<Etablissement> = {}): Etablissement {
   return { id: 1, nom: 'Banque Test', logo_key: null, a_un_logo: false, logo_source: null, logo_maj_le: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
@@ -61,6 +81,7 @@ function ligne(overrides: Partial<CompteAvecSolde> = {}): CompteAvecSolde {
     nombre_lignes: 2,
     repartition_incomplete: false,
     repartition_non_renseignee: false,
+    membres_ids: [],
     derniere_maj: null,
     ...overrides,
   }
@@ -97,8 +118,12 @@ function holding(overrides: Partial<Holding> = {}): Holding {
 describe('ComptesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    preferences.detenteurId = null
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listHoldings).mockResolvedValue([])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
+    vi.mocked(api.listComptes).mockResolvedValue([])
   })
 
   it("affiche un état vide quand aucun compte n'est déclaré", async () => {
@@ -138,9 +163,11 @@ describe('ComptesPage', () => {
     expect(screen.getByRole('img', { name: /répartition.*incomplète/i })).toBeInTheDocument()
   })
 
-  // Retour utilisateur du 20/09/2026 : inviter à renseigner une répartition jamais
-  // commencée — icône distincte du triangle ci-dessus (état valide, pas une erreur).
-  it('affiche une icône neutre sur un compte dont la répartition entre détenteurs est non renseignée', async () => {
+  // Retour utilisateur du 20/09/2026 : inviter à renseigner une répartition jamais commencée — état
+  // valide, pas une erreur. Depuis le lot 3 (§ BN.1), l'icône neutre a laissé place au badge
+  // « Non réparti » (avec son lien « Répartir »), qui n'a de sens que si le foyer a des membres.
+  it('signale par un badge « Non réparti » le seul compte dont la répartition est non renseignée', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice')])
     vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
       ligne({ compte: compte({ id: 1, nom: 'PEA' }), repartition_non_renseignee: true }),
       ligne({ compte: compte({ id: 2, nom: 'Livret A' }), repartition_non_renseignee: false }),
@@ -148,7 +175,18 @@ describe('ComptesPage', () => {
     render(<ComptesPage />)
 
     await screen.findByText('PEA')
-    expect(screen.getByRole('img', { name: /répartition.*non renseignée/i })).toBeInTheDocument()
+    expect(await screen.findAllByText('Non réparti')).toHaveLength(1)
+  })
+
+  it("n'affiche aucun badge « Non réparti » tant que le foyer n'a aucun membre", async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 1, nom: 'PEA' }), repartition_non_renseignee: true }),
+    ])
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
   })
 
   // Demande directe du 16/09/2026 : dernière activité utilisateur affichée par
@@ -294,5 +332,168 @@ describe('ComptesPage', () => {
       await vi.waitFor(() => expect(api.createCompte).toHaveBeenCalledWith('CTO', 7))
       expect(api.createHolding).not.toHaveBeenCalled()
     })
+  })
+})
+
+// Répartition entre les membres du foyer (§ BN.1, lot 3) : vue d'un membre, noms à côté des comptes,
+// badge « Non réparti » qui ouvre la répartition du compte, totaux d'épargne au prorata.
+describe('ComptesPage — membres du foyer (§ BN.1, lot 3)', () => {
+  /** Les formats français séparent milliers et unité par des espaces insécables : on les normalise. */
+  const normaliser = (texte: string | null) => (texte ?? '').replace(/[  ]/g, ' ')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    preferences.detenteurId = null
+    vi.mocked(api.listEtablissements).mockResolvedValue([])
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
+    vi.mocked(api.listComptes).mockResolvedValue([])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: compte({ id: 1, nom: 'PEA' }) })])
+  })
+
+  it('sans membre sélectionné, soldes et actifs sont demandés pour tout le foyer (null)', async () => {
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    expect(api.listComptesAvecSolde).toHaveBeenCalledWith(null)
+    expect(api.listHoldings).toHaveBeenCalledWith(null)
+    expect(screen.queryByText(/Vue de/)).not.toBeInTheDocument()
+  })
+
+  it('avec un membre sélectionné, soldes et actifs sont demandés pour LUI (1) et le bandeau dit « Vue de Alice »', async () => {
+    preferences.detenteurId = 1
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    expect(api.listComptesAvecSolde).toHaveBeenCalledWith(1)
+    expect(api.listHoldings).toHaveBeenCalledWith(1)
+    expect(await screen.findByText(/Vue de Alice : les valeurs sont au prorata de ses parts\./)).toBeInTheDocument()
+  })
+
+  it("le total en tête est la somme des soldes renvoyés (déjà au prorata côté serveur dans la vue d'un membre)", async () => {
+    preferences.detenteurId = 1
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 1, nom: 'PEA' }), solde: 1500 }),
+      ligne({ compte: compte({ id: 2, nom: 'Livret A' }), solde: 500 }),
+    ])
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    expect(screen.getAllByText((_, el) => el?.tagName === 'SPAN' && normaliser(el.textContent) === '2 000 €')).not.toHaveLength(0)
+  })
+
+  it('à partir de deux membres, les noms des membres du compte se lisent à côté du compte', async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 1, nom: 'PEA' }), membres_ids: [1, 2] }),
+      ligne({ compte: compte({ id: 2, nom: 'Livret A' }), membres_ids: [2] }),
+    ])
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    expect(await screen.findByText('· Alice, Bob')).toBeInTheDocument()
+    expect(screen.getByText('· Bob')).toBeInTheDocument()
+  })
+
+  it('avec un seul membre dans le foyer, les noms ne sont pas répétés à côté des comptes', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice')])
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: compte({ id: 1, nom: 'PEA' }), membres_ids: [1] })])
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    expect(screen.queryByText('· Alice')).not.toBeInTheDocument()
+  })
+
+  it("le badge « Non réparti » ouvre la répartition du compte, qui s'enregistre via setCompteQuotites puis recharge", async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 3, nom: 'PEA' }), repartition_non_renseignee: true }),
+    ])
+    vi.mocked(api.getCompteQuotites).mockResolvedValue({ quotites: [], uniforme: true } as never)
+    vi.mocked(api.setCompteQuotites).mockResolvedValue({ ok: true } as never)
+    render(<ComptesPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Répartir « PEA » entre les membres du foyer' }))
+
+    expect(await screen.findByRole('heading', { name: 'Répartir « PEA »' })).toBeInTheDocument()
+    expect(api.getCompteQuotites).toHaveBeenCalledWith(3)
+    expect(api.setCompteQuotites).not.toHaveBeenCalled()
+    const nbChargements = vi.mocked(api.listComptesAvecSolde).mock.calls.length
+    fireEvent.change(await screen.findByLabelText('Part de Alice (%)'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Part de Bob (%)'), { target: { value: '70' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la répartition' }))
+
+    await waitFor(() =>
+      expect(api.setCompteQuotites).toHaveBeenCalledWith(3, [
+        { detenteur_id: 1, quotite_pct: 30 },
+        { detenteur_id: 2, quotite_pct: 70 },
+      ]),
+    )
+    await waitFor(() => expect(vi.mocked(api.listComptesAvecSolde).mock.calls.length).toBeGreaterThan(nbChargements))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Répartir « PEA »' })).not.toBeInTheDocument())
+  })
+
+  it("cliquer « Répartir » n'ouvre pas la fiche du compte", async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 3, nom: 'PEA' }), repartition_non_renseignee: true }),
+    ])
+    vi.mocked(api.getCompteQuotites).mockResolvedValue({ quotites: [], uniforme: true } as never)
+    render(<ComptesPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Répartir « PEA »/ }))
+
+    await screen.findByRole('heading', { name: 'Répartir « PEA »' })
+    expect(screen.queryByTestId('modale-detail')).not.toBeInTheDocument()
+  })
+
+  it("les totaux d'épargne (valeur et versement mensuel) sont proratisés par la part du membre", async () => {
+    preferences.detenteurId = 1
+    vi.mocked(api.listHoldings).mockResolvedValue([
+      holding({ id: 1, valeur_estimee: 10000, versement_mensuel: 200, quotite_pct: 50, valeur_ligne: 10000 }),
+    ])
+    render(<ComptesPage />)
+
+    // 50 % de 10 000 € = 5 000 € ; 50 % de 200 € = 100 € par mois.
+    await screen.findByText('Valeur épargne totale')
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && normaliser(el.textContent) === '5 000,00 €')).toBeInTheDocument()
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && normaliser(el.textContent) === '100,00 €')).toBeInTheDocument()
+  })
+
+  it("hors vue d'un membre, les totaux d'épargne restent entiers (aucune quotite_pct)", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, valeur_estimee: 10000, versement_mensuel: 200 })])
+    render(<ComptesPage />)
+
+    await screen.findByText('Valeur épargne totale')
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && normaliser(el.textContent) === '10 000,00 €')).toBeInTheDocument()
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && normaliser(el.textContent) === '200,00 €')).toBeInTheDocument()
+  })
+
+  it('nom de compte déjà pris : « Ajouter Bob à ce compte » ferme la feuille et ouvre la répartition du compte existant, Bob à parts égales', async () => {
+    const banque = etablissement({ id: 7, nom: 'Boursorama' })
+    const existant = compte({ id: 9, nom: 'PEA', membres_ids: [1] })
+    vi.mocked(api.listEtablissements).mockResolvedValue([banque])
+    vi.mocked(api.listComptes).mockResolvedValue([existant])
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: existant, membres_ids: [1] })])
+    vi.mocked(api.getCompteQuotites).mockResolvedValue({ quotites: [{ detenteur_id: 1, quotite_pct: 100 }], uniforme: true } as never)
+    render(<ComptesPage />)
+    await screen.findByText('PEA')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un compte' }))
+    // Le temps que le formulaire ait lu les membres du foyer (un utilisateur ne saisit pas en quelques millisecondes).
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    fireEvent.change(screen.getByPlaceholderText('PEA, Livret A...'), { target: { value: 'PEA' } })
+    fireEvent.change(screen.getByLabelText('Établissement'), { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau compte' }))
+    // Aucun membre sélectionné : Bob est le premier qui n'est pas déjà sur le compte.
+    fireEvent.click(await screen.findByRole('button', { name: 'Ajouter Bob à ce compte' }))
+
+    expect(await screen.findByRole('heading', { name: 'Répartir « PEA »' })).toBeInTheDocument()
+    expect(screen.getByText('Bob est ajouté à ce compte : ajustez les parts puis enregistrez.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Part de Alice (%)')).toHaveValue(50))
+    expect(screen.getByLabelText('Part de Bob (%)')).toHaveValue(50)
+    expect(api.createCompte).not.toHaveBeenCalled()
+    expect(api.setCompteQuotites).not.toHaveBeenCalled()
   })
 })

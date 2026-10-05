@@ -3,12 +3,15 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { BricksApercu, BricksImportResult, Etablissement } from '../api/types'
+import { suiteQuestionImport } from '../test/questionImport'
 import ImportBricksSection from './ImportBricksSection'
 
 vi.mock('../api/client', () => ({
   api: {
     importBricksApercu: vi.fn(),
     importBricksConfirm: vi.fn(),
+    // Question « À quel membre ? » d'un import (§ BN.1, lot 3) : sans membre par défaut.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -111,4 +114,20 @@ describe('ImportBricksSection', () => {
     expect(await screen.findByText(/180 opérations importées/)).toBeInTheDocument()
     expect(screen.getByText(/42 positions recalculées.*1 compte créé/)).toBeInTheDocument()
   })
+})
+
+suiteQuestionImport('ImportBricksSection', {
+  async ouvrir(enveloppe) {
+    vi.mocked(api.importBricksApercu).mockResolvedValue(apercu())
+    render(enveloppe(<ImportBricksSection />))
+    fireEvent.change(screen.getByTestId('dropzone-input-Crowdfunding immobilier Bricks.co'), { target: { files: [fichier('bricks.xlsx')] } })
+    await screen.findByLabelText('Établissement *')
+    fireEvent.change(screen.getByLabelText('Établissement *'), { target: { value: '1' } })
+  },
+  confirm: () => vi.mocked(api.importBricksConfirm),
+  confirmationReussit: () => vi.mocked(api.importBricksConfirm).mockResolvedValue(resultat()),
+  confirmationEchoue: () => vi.mocked(api.importBricksConfirm).mockRejectedValue(new Error('Import impossible')),
+  attendreSucces: async () => {
+    await screen.findByText(/opérations? importées?/)
+  },
 })

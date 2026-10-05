@@ -30,7 +30,7 @@ let pageInvite: Page
 /** Le propriétaire crée une invitation de membre et renvoie le lien à transmettre. */
 async function inviter(page: Page, libelle: string): Promise<string> {
   await page.goto('/reglages?onglet=securite')
-  await expect(page.getByRole('heading', { name: 'Membres et invitations' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Accès et invitations' })).toBeVisible()
   await page.getByLabel('Pour qui ? (facultatif)').fill(libelle)
   await page.getByRole('button', { name: "Créer l'invitation" }).click()
   const champ = page.getByLabel("Lien d'invitation")
@@ -70,7 +70,7 @@ test('le propriétaire invite : un navigateur vierge ouvre le lien, crée son co
 
   // Court accueil, pas l'assistant de bienvenue.
   await expect(pageInvite.getByRole('heading', { name: /^Bienvenue dans / })).toBeVisible()
-  await expect(pageInvite.getByText('Votre rôle dans ce foyer : Membre du foyer.')).toBeVisible()
+  await expect(pageInvite.getByText('Votre rôle dans ce foyer : Membre.')).toBeVisible()
   await expect(pageInvite.getByText('Configuration initiale')).toHaveCount(0)
   await pageInvite.getByRole('button', { name: "Ouvrir l'application" }).click()
 
@@ -127,7 +127,7 @@ test("une invitation d'un autre foyer acceptée par un compte existant : le sél
   await expect(selecteur).toBeVisible()
   await expect(selecteur.locator('option')).toHaveCount(2)
   await expect(selecteur.locator('option', { hasText: `${NOM_FOYER_INVITE} · Propriétaire` })).toHaveCount(1)
-  await expect(selecteur.locator('option', { hasText: /· Membre du foyer$/ })).toHaveCount(1)
+  await expect(selecteur.locator('option', { hasText: /· Membre$/ })).toHaveCount(1)
   await pageInvite.goto('/patrimoine')
   await expect(positionsTable(pageInvite).getByText(seedData().holdings.aapl.ticker)).toBeVisible()
 
@@ -143,9 +143,12 @@ test("une invitation d'un autre foyer acceptée par un compte existant : le sél
   // Retour au foyer seedé, dont les données reviennent.
   const valeurFoyerSeed = await pageInvite
     .getByRole('combobox', { name: 'Foyer courant' })
-    .locator('option', { hasText: /· Membre du foyer$/ })
+    .locator('option', { hasText: /· Membre$/ })
     .getAttribute('value')
   await pageInvite.getByRole('combobox', { name: 'Foyer courant' }).selectOption(valeurFoyerSeed)
+  // La bascule recharge l'application une fois le foyer courant changé côté serveur : on attend qu'elle ait
+  // eu lieu avant de naviguer, sans quoi `goto` peut devancer la requête et afficher encore l'autre foyer.
+  await expect(pageInvite.getByRole('combobox', { name: 'Foyer courant' }).locator('option:checked')).toHaveText(/· Membre$/)
   await pageInvite.goto('/patrimoine')
   await expect(positionsTable(pageInvite).getByText(seedData().holdings.aapl.ticker)).toBeVisible()
 

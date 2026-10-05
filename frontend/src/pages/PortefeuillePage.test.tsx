@@ -36,6 +36,11 @@ vi.mock('../api/client', () => ({
     listEtablissements: vi.fn().mockResolvedValue([]),
     // Formulaire d'ajout d'un bien immobilier (§ BN.1, lot 2), ouvert depuis la feuille d'ajout.
     listDetenteurs: vi.fn().mockResolvedValue([]),
+    // Bandeau « lignes non réparties » (§ BN.1, lot 3) : neutre par défaut, surchargé par les tests de répartition.
+    getLignesNonReparties: vi.fn().mockResolvedValue({ actifs: 0, prets: 0 }),
+    repartirToutesLesLignes: vi.fn(),
+    setHoldingQuotites: vi.fn(),
+    getHoldingQuotites: vi.fn(),
     createDetenteur: vi.fn(),
     createBienImmobilier: vi.fn(),
   },
@@ -53,8 +58,17 @@ vi.mock('../components/LoansCard', () => ({ default: () => <div /> }))
 
 // Contrôles transverses (backlog 2.K.3) : `PositionsTable` (rendue par cette page)
 // lit `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+// `detenteurId` (membre dont on voit la vue, § BN.1 lot 3) est pilotable : `null` = tout le foyer.
+const preferences = vi.hoisted(() => ({ detenteurId: null as number | null }))
 vi.mock('../hooks/usePreferencesAffichage', () => ({
-  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+  usePreferencesAffichage: () => ({
+    lentille: 'net',
+    setLentille: vi.fn(),
+    montantsMasques: false,
+    toggleMontantsMasques: vi.fn(),
+    detenteurId: preferences.detenteurId,
+    setDetenteurId: vi.fn(),
+  }),
 }))
 
 // `valeur` est calculée côté backend (LOT 6.7) : par défaut, on reproduit ici la
@@ -145,6 +159,9 @@ async function ouvrirFeuilleAjout() {
 describe('PortefeuillePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    preferences.detenteurId = null
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
     vi.mocked(api.getRefreshStatus).mockResolvedValue({
       en_cours: false,
       positions_traitees: 0,
@@ -1441,5 +1458,137 @@ describe("`?ajout=1` — arrivée depuis l'accueil vide (23/09/2026)", () => {
 
     await screen.findByRole('button', { name: 'Ajouter une ligne' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+// Répartition entre les membres du foyer (§ BN.1, lot 3) : vue d'un membre, bandeau, badge « Non réparti ».
+describe('PortefeuillePage — membres du foyer (§ BN.1, lot 3)', () => {
+  function membre(id: number, nom: string) {
+    return { id, nom, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    preferences.detenteurId = null
+    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
+    vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    vi.mocked(api.getRefreshStatus).mockResolvedValue({
+      en_cours: false,
+      positions_traitees: 0,
+      positions_total: 0,
+      demarre_le: null,
+      termine_le: null,
+      statut: null,
+      message: null,
+    })
+    vi.mocked(api.getDerniereActualisationMarketData).mockResolvedValue({ derniere_actualisation: null })
+  })
+
+  it("avec un membre sélectionné, la liste est demandée pour LUI (listHoldings(1)) et le bandeau dit « Vue de Alice »", async () => {
+    preferences.detenteurId = 1
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'AAA' })])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+    expect(await screen.findByText(/Vue de Alice : les valeurs sont au prorata de ses parts\./)).toBeInTheDocument()
+    expect(api.listHoldings).toHaveBeenCalledWith(1)
+    expect(api.listHoldings).not.toHaveBeenCalledWith(null)
+  })
+
+  it('sans membre sélectionné, la liste est demandée pour tout le foyer (listHoldings(null)) et aucune « Vue de »', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'AAA' })])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+    await screen.findByText('AAA')
+    expect(api.listHoldings).toHaveBeenCalledWith(null)
+    expect(screen.queryByText(/Vue de/)).not.toBeInTheDocument()
+  })
+
+  it('le total de performance proratise le coût : part de 50 % valant 750 € pour un coût entier de 1 000 € => +50,0 %, pas -25 %', async () => {
+    preferences.detenteurId = 1
+    vi.mocked(api.listHoldings).mockResolvedValue([
+      holding({ id: 1, ticker: 'AAA', quantite: 10, prix_revient_moyen: 100, cout_acquisition_total: 100, valeur: 750, quotite_pct: 50, valeur_ligne: 1500 }),
+    ])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+    expect(await screen.findByText('+50,0 %')).toBeInTheDocument()
+    expect(screen.queryByText('-25,0 %')).not.toBeInTheDocument()
+  })
+
+  it('hors vue d\'un membre, le coût reste entier : même ligne à 1 500 € pour 1 000 € de coût => +50,0 %', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([
+      holding({ id: 1, ticker: 'AAA', quantite: 10, prix_revient_moyen: 100, cout_acquisition_total: 100, valeur: 1500 }),
+    ])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+    expect(await screen.findByText('+50,0 %')).toBeInTheDocument()
+  })
+
+  it('le bandeau de la page propose « Tout attribuer » quand des lignes ne sont pas réparties', async () => {
+    vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 2, prets: 0 })
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'AAA', repartie: false })])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+    expect(await screen.findByText('2 lignes ne sont pas encore réparties entre les membres du foyer.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tout attribuer' })).toBeInTheDocument()
+  })
+
+  it('« Tout attribuer » recharge la liste des actifs une fois les parts attribuées', async () => {
+    vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 1, prets: 0 })
+    vi.mocked(api.repartirToutesLesLignes).mockResolvedValue({ actifs: 1, prets: 0 })
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'AAA', repartie: false })])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Tout attribuer' }))
+    await screen.findByTestId('apercu-lignes')
+    expect(api.listHoldings).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attribuer' }))
+
+    await screen.findByText(/C'est fait/)
+    await waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))
+  })
+
+  it("badge « Non réparti » sur la ligne non répartie quand le foyer a des membres, et lui seul", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([
+      holding({ id: 1, ticker: 'AAA', repartie: false }),
+      holding({ id: 2, ticker: 'BBB', repartie: true }),
+    ])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+    await screen.findByText('AAA')
+    expect(await screen.findAllByText('Non réparti')).toHaveLength(1)
+  })
+
+  it("sans membre dans le foyer, aucun badge « Non réparti » n'est affiché", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'AAA', repartie: false })])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+    await screen.findByText('AAA')
+    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
+  })
+
+  it('« Répartir » ouvre la répartition de la ligne et « Enregistrer » envoie les parts (setHoldingQuotites), puis recharge la liste', async () => {
+    vi.mocked(api.setHoldingQuotites).mockResolvedValue(undefined as never)
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 7, ticker: 'AAA', nom: 'Titre A', repartie: false })])
+    render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+    fireEvent.click(await screen.findByRole('button', { name: /Répartir « AAA »/ }))
+    expect(await screen.findByRole('heading', { name: 'Répartir « Titre A »' })).toBeInTheDocument()
+    // Rien n'est écrit tant qu'on n'a pas enregistré.
+    expect(api.setHoldingQuotites).not.toHaveBeenCalled()
+    fireEvent.change(await screen.findByLabelText('Part de Alice (%)'), { target: { value: '40' } })
+    fireEvent.change(screen.getByLabelText('Part de Bob (%)'), { target: { value: '60' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la répartition' }))
+
+    await waitFor(() =>
+      expect(api.setHoldingQuotites).toHaveBeenCalledWith(7, [
+        { detenteur_id: 1, quotite_pct: 40 },
+        { detenteur_id: 2, quotite_pct: 60 },
+      ]),
+    )
+    await waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Répartir/ })).not.toBeInTheDocument())
   })
 })

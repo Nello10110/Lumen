@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { fireEvent, render as rtlRender, screen, within } from '@testing-library/react'
+import { act, fireEvent, render as rtlRender, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -99,7 +99,9 @@ describe('HoldingDetailContent — répartition entre membres (backlog 2.L.1, §
 
     expect(screen.queryByText('Détenteurs')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Part de Alice (%)')).not.toBeInTheDocument()
-    expect(api.listDetenteurs).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Enregistrer la répartition' })).not.toBeInTheDocument()
+    // Depuis le lot 3, l'en-tête lit les membres pour le badge « Non réparti » : ce n'est plus un signe d'éditeur.
+    expect(api.setHoldingQuotites).not.toHaveBeenCalled()
   })
 
   it("sans membre déclaré, l'onglet Paramètres le dit au lieu d'effacer la carte", async () => {
@@ -902,5 +904,55 @@ describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
     render(<HoldingDetailContent detail={detail({ type_actif: 'REGULATED_SAVINGS' })} onRecharger={vi.fn()} />)
 
     expect(await screen.findByText('Épargne réglementée (Livret A, LDDS...)')).toBeInTheDocument()
+  })
+})
+
+describe('HoldingDetailContent — badge « Non réparti » (§ BN.1, lot 3)', () => {
+  const ALICE_ET_BOB = [detenteur({ id: 1, nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })]
+
+  it('une ligne sans aucune part, dans un foyer qui a des membres, porte le badge « Non réparti »', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_ET_BOB)
+    render(<HoldingDetailContent detail={detail({ quotites: [] })} onRecharger={vi.fn()} />)
+
+    expect(await screen.findByText('Non réparti')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Répartir « Apple Inc. » entre les membres du foyer' })).toBeInTheDocument()
+  })
+
+  it('une ligne qui a des parts ne porte pas le badge', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_ET_BOB)
+    render(
+      <HoldingDetailContent
+        detail={detail({ quotites: [{ detenteur_id: 1, detenteur_nom: 'Alice', quotite_pct: 100, part_detenue: 1500, part_nette: 1500 }] })}
+        onRecharger={vi.fn()}
+      />,
+    )
+
+    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
+  })
+
+  it("sans membre dans le foyer, pas de badge même pour une ligne sans part (il n'y a personne à qui répartir)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ quotites: [] })} onRecharger={vi.fn()} />)
+
+    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
+  })
+
+  it('« Répartir » bascule sur l\'onglet Paramètres, où se trouve la répartition de la ligne', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_ET_BOB)
+    render(<HoldingDetailContent detail={detail({ quotites: [] })} onRecharger={vi.fn()} />)
+    expect(screen.getByRole('tab', { name: 'Aperçu' })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Répartir « Apple Inc\. »/ }))
+
+    expect(screen.getByRole('tab', { name: 'Paramètres' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByLabelText('Part de Alice (%)')).toBeInTheDocument()
   })
 })
