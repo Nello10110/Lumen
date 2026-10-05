@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Compte, Etablissement, Holding } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
+import { useMembresFoyer } from '../hooks/useMembresFoyer'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import {
   textePrixRevient,
@@ -16,11 +17,25 @@ import {
   valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
 import { formatDate, formatEuro, formatPct, formatQuantite } from '../utils/format'
+import { libelleCompteComplet } from '../utils/prorata'
+import { formaterPourcentage } from '../utils/repartitionMembres'
+import BadgeNonReparti from './BadgeNonReparti'
 import InfoBulle from './InfoBulle'
 import { Badge, Field, Input, Select } from './Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 import { localeCourante, t } from '../i18n'
 import { libelleDonnee } from '../i18n/donnees'
+
+/** « 50 % de 300 000 € » sous la valeur d'une ligne, dans la vue d'un membre (§ BN.1, lot 3) :
+ * la valeur affichée est SA part, la mention dit de quoi. Rien hors de cette vue. */
+function MentionProrata({ h, montantsMasques }: { h: Holding; montantsMasques: boolean }) {
+  if (h.quotite_pct === null || h.quotite_pct === undefined || h.valeur_ligne === null || h.valeur_ligne === undefined) return null
+  return (
+    <span className="block whitespace-nowrap text-xs font-normal text-ink3">
+      {t('repartitionGlobale.prorata', { pct: formaterPourcentage(h.quotite_pct), valeur: formatEuro(h.valeur_ligne, 0, montantsMasques) })}
+    </span>
+  )
+}
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
@@ -145,6 +160,7 @@ function CompteEditSelect({
   setEditForm: (f: EditForm) => void
   ariaLabel: string
 }) {
+  const membres = useMembresFoyer() ?? []
   return (
     <>
       <Select
@@ -156,7 +172,7 @@ function CompteEditSelect({
         {TYPES_ACTIF_SANS_ETABLISSEMENT.has(editForm.type_actif) && <option value="">{t('positionsTable.aucun')}</option>}
         {comptes.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.nom}
+            {libelleCompteComplet(c, membres)}
           </option>
         ))}
         <option value={NOUVEAU_COMPTE}>{t('positionsTable.nouveauCompte')}</option>
@@ -209,6 +225,7 @@ function PositionCard({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  onRepartir,
 }: {
   h: Holding
   enEdition: boolean
@@ -224,6 +241,7 @@ function PositionCard({
   onCancelEdit: (e: React.MouseEvent) => void
   onSaveEdit: (e: React.MouseEvent) => void
   onDelete: (e: React.MouseEvent) => void
+  onRepartir?: (h: Holding) => void
 }) {
   const md = h.market_data
   const technique = identifiantEstTechnique(h)
@@ -384,8 +402,16 @@ function PositionCard({
           </p>
           {!technique && <p className="truncate text-sm text-texte-attenue">{md?.nom ?? h.nom ?? '—'}</p>}
           {h.date_acquisition && <p className="text-xs text-texte-attenue">{t('positionsTable.acquisLe')}{' '}{formatDate(h.date_acquisition)}</p>}
+          {onRepartir && h.repartie === false && (
+            <p className="mt-1">
+              <BadgeNonReparti nom={technique ? (h.nom ?? h.ticker) : h.ticker} onRepartir={() => onRepartir(h)} />
+            </p>
+          )}
         </div>
-        <span className="shrink-0 font-medium text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>
+        <span className="shrink-0 text-right font-medium text-texte">
+          {formatEuro(h.valeur, 2, montantsMasques)}
+          <MentionProrata h={h} montantsMasques={montantsMasques} />
+        </span>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -461,6 +487,9 @@ interface PositionsTableProps {
    * progression réelle du rafraîchissement (`positions_traitees`, pas un ordre
    * décoratif). Absent hors rafraîchissement. */
   lignesEnCoursAllumage?: Set<number>
+  /** Ouvre la répartition d'une ligne (§ BN.1, lot 3). Fourni seulement quand le foyer compte au moins
+   * un membre : c'est lui qui fait apparaître le badge « Non réparti » et son lien « Répartir ». */
+  onRepartir?: (h: Holding) => void
 }
 
 export default function PositionsTable({
@@ -472,6 +501,7 @@ export default function PositionsTable({
   etablissements: etablissementsFournis,
   onComptesModifies,
   lignesEnCoursAllumage,
+  onRepartir,
 }: PositionsTableProps) {
   const { montantsMasques } = usePreferencesAffichage()
   // Table ou cartes (backlog 2.K.4) : rendu conditionnel en JS, pas en CSS pur —
@@ -667,6 +697,7 @@ export default function PositionsTable({
             onCancelEdit={cancelEdit}
             onSaveEdit={(e) => saveEdit(e, h.id)}
             onDelete={(e) => handleDelete(e, h)}
+            onRepartir={onRepartir}
           />
         ))}
 
@@ -785,6 +816,11 @@ export default function PositionsTable({
                     <Badge title={t('positionsTable.ligneSaisieManuellementNonRecalculee')} className="ml-2">{t('positionsTable.saisieManuelle')}</Badge>
                   )}
                   {h.date_acquisition && <span className="block text-xs text-texte-attenue">{t('positionsTable.acquisLe')}{' '}{formatDate(h.date_acquisition)}</span>}
+                  {onRepartir && h.repartie === false && (
+                    <span className="mt-0.5 block">
+                      <BadgeNonReparti nom={technique ? (h.nom ?? h.ticker) : h.ticker} onRepartir={() => onRepartir(h)} />
+                    </span>
+                  )}
                 </td>
                 <td className="py-2 pr-4">
                   {enEdition ? (
@@ -802,7 +838,10 @@ export default function PositionsTable({
                   )}
                 </td>
                 <td className="py-2 pr-4">{formatEuro(md?.prix_actuel ?? null, 2, montantsMasques)}</td>
-                <td className="py-2 pr-4">{formatEuro(h.valeur, 2, montantsMasques)}</td>
+                <td className="py-2 pr-4">
+                  {formatEuro(h.valeur, 2, montantsMasques)}
+                  <MentionProrata h={h} montantsMasques={montantsMasques} />
+                </td>
                 <td className="py-2 pr-4">
                   <RendementCell value={h.rendement_depuis_achat_pct} />
                 </td>

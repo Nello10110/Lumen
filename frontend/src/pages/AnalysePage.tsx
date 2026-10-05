@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { AnalysisResponse, CoutGestionConsolide, IndicateursSituation, PerformanceSummary } from '../api/types'
+import AvisVueFoyer from '../components/AvisVueFoyer'
 import AllocationChartCard from '../components/AllocationChartCard'
 import CompositionModal from '../components/CompositionModal'
 import { SecondaryButton, SegmentedControl } from '../components/Controls'
@@ -183,6 +184,8 @@ export default function AnalysePage() {
           {loading ? t('analysePage.actualisation') : t('analysePage.actualiser')}
         </SecondaryButton>
       </div>
+
+      <AvisVueFoyer ecran="analyse" />
 
       <SegmentedControl
         options={ONGLETS.map(({ key, label, Icone }) => ({

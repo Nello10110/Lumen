@@ -1,23 +1,29 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { CompteAvecSolde, Etablissement, Holding } from '../api/types'
+import type { Compte, CompteAvecSolde, Etablissement, Holding } from '../api/types'
 import AjoutCompteForm from '../components/AjoutCompteForm'
+import BadgeNonReparti from '../components/BadgeNonReparti'
+import BandeauRepartition from '../components/BandeauRepartition'
 import Card from '../components/Card'
 import CompteDetailModal from '../components/CompteDetailModal'
 import { PrimaryButton, SecondaryButton } from '../components/Controls'
 import EtablissementEditModal from '../components/EtablissementEditModal'
 import EtablissementLogo from '../components/EtablissementLogo'
-import { IconAvertissement, IconChevron, IconCrayon, IconPersonne } from '../components/icons'
+import { IconAvertissement, IconChevron, IconCrayon } from '../components/icons'
 import EtablissementsCard from '../components/EtablissementsCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { IconFermer } from '../components/icons'
 import Modale from '../components/Modale'
 import PlusValueParCompteCard from '../components/PlusValueParCompteCard'
+import RepartirModale from '../components/RepartirModale'
 import { SkeletonTexte } from '../components/Skeleton'
+import { useMembresFoyer } from '../hooks/useMembresFoyer'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatDate, formatEuro } from '../utils/format'
+import { nomsDesMembres, facteurPart } from '../utils/prorata'
+import { partsEgales, quotitesDepuis } from '../utils/repartitionMembres'
 import { t } from '../i18n'
 
 // Clé de regroupement INTERNE (jamais affichée telle quelle : le titre de la carte la traduit).
@@ -33,7 +39,15 @@ const SANS_ETABLISSEMENT = 'Sans établissement'
  * (`CompteDetailContent`/`LigneEpargne`), une ligne d'épargne étant 1:1 avec son
  * compte par convention. */
 export default function ComptesPage() {
-  const { montantsMasques } = usePreferencesAffichage()
+  // Membre sélectionné en haut de page (§ BN.1, lot 3) : les soldes, le total et les graphiques sont
+  // alors ceux de SES parts, au prorata — le total égale celui de la Synthèse pour ce membre.
+  const { montantsMasques, detenteurId } = usePreferencesAffichage()
+  const membres = useMembresFoyer()
+  const avecMembres = membres !== null && membres.length > 0
+  // Compte dont on ouvre la répartition (badge « Non réparti », ou « Ajouter <membre> à ce compte »
+  // après un nom déjà pris) ; `ajouterMembreId` : le membre à y ajouter, proposé à parts égales.
+  const [aRepartir, setARepartir] = useState<{ compte: Compte; ajouterMembreId: number | null } | null>(null)
+  const [versionRepartition, setVersionRepartition] = useState(0)
   const [lignes, setLignes] = useState<CompteAvecSolde[] | null>(null)
   const [etablissements, setEtablissements] = useState<Etablissement[]>([])
   // Uniquement pour l'encart « Épargne » ci-dessous (valeur totale/versement
@@ -55,14 +69,14 @@ export default function ComptesPage() {
   function charger() {
     setError(null)
     api
-      .listComptesAvecSolde()
+      .listComptesAvecSolde(detenteurId)
       .then(setLignes)
       .catch((err) => setError(err.message))
     api.listEtablissements().then(setEtablissements).catch(() => setEtablissements([]))
-    api.listHoldings().then(setHoldings).catch(() => setHoldings([]))
+    api.listHoldings(detenteurId).then(setHoldings).catch(() => setHoldings([]))
   }
 
-  useEffect(charger, [])
+  useEffect(charger, [detenteurId])
 
   if (error) return <EtatErreur message={error} onReessayer={charger} />
   if (!lignes) return <SkeletonTexte lignes={5} />
@@ -74,8 +88,8 @@ export default function ComptesPage() {
   // l'ancienne `EpargnePage.tsx`. Le Véhicule en reste exclu (ce n'est pas
   // de l'épargne), toujours visible dans Portefeuille (onglet « Immobilier & Épargne »).
   const lignesEpargne = holdings.filter((h) => h.type_actif !== null && TYPES_EPARGNE.has(h.type_actif))
-  const valeurEpargneTotale = lignesEpargne.reduce((somme, h) => somme + (h.valeur_estimee ?? 0), 0)
-  const versementEpargneTotal = lignesEpargne.reduce((somme, h) => somme + (h.versement_mensuel ?? 0), 0)
+  const valeurEpargneTotale = lignesEpargne.reduce((somme, h) => somme + (h.valeur_estimee ?? 0) * facteurPart(h), 0)
+  const versementEpargneTotal = lignesEpargne.reduce((somme, h) => somme + (h.versement_mensuel ?? 0) * facteurPart(h), 0)
 
   // Regroupement par établissement (côté client, comme `comptesDisponibles` pour
   // Portefeuille) — un groupe « Sans établissement » pour les comptes non rattachés
@@ -113,6 +127,8 @@ export default function ComptesPage() {
           title={t('comptesPage.unCompteEstUnContenant')}
         >{t('comptesPage.quEstCeQuUn')}</span>
       </p>
+
+      <BandeauRepartition rechargement={versionRepartition} onAttribue={charger} />
 
       <PlusValueParCompteCard holdings={holdings} montantsMasques={montantsMasques} />
 
@@ -194,6 +210,14 @@ export default function ComptesPage() {
                           // supprimer (recette du 02/09/2026).
                           <span title={t('comptesPage.ceNEstPasUn')}>{t('comptesPage.sansCompte')}</span>
                         )}
+                        {/* « Compte · Établissement · membres » : l'établissement est l'en-tête du groupe,
+                            les membres qui y ont une part se lisent à côté du nom — c'est ce qui distingue
+                            deux comptes de même nom d'établissement (§ BN.1, lot 3). */}
+                        {membres !== null && membres.length >= 2 && ligne.membres_ids.length > 0 && (
+                          <span className="ml-2 text-xs font-medium text-ink3" title={t('repartitionGlobale.membresDuCompte', { membres: nomsDesMembres(ligne.membres_ids, membres) })}>
+                            {'· '}{nomsDesMembres(ligne.membres_ids, membres)}
+                          </span>
+                        )}
                         <span className="ml-2 text-xs text-texte-attenue">
                           {t('comptesPage.nLignes', { n: ligne.nombre_lignes })}
                           {/* Dernière activité utilisateur sur ce compte (demande
@@ -223,14 +247,12 @@ export default function ComptesPage() {
                             renseigner une répartition jamais commencée, un état
                             valide (100 % foyer implicite), pas une alerte. Icône et
                             couleur neutres pour ne jamais se lire comme un problème. */}
-                        {ligne.repartition_non_renseignee && (
-                          <span
-                            className="ml-1.5 inline-flex shrink-0"
-                            role="img"
-                            aria-label={t('comptesPage.repartitionEntreDetenteursNonRenseignee')}
-                            title={t('comptesPage.repartitionEntreDetenteursNonRenseignee')}
-                          >
-                            <IconPersonne className="h-4 w-4 text-ink4" />
+                        {ligne.repartition_non_renseignee && ligne.compte && avecMembres && (
+                          <span className="ml-2" title={t('repartitionGlobale.nonRepartiCompte')}>
+                            <BadgeNonReparti
+                              nom={ligne.compte.nom}
+                              onRepartir={() => setARepartir({ compte: ligne.compte as Compte, ajouterMembreId: null })}
+                            />
                           </span>
                         )}
                       </span>
@@ -289,9 +311,14 @@ export default function ComptesPage() {
               {feuille === 'compte' ? (
                 <AjoutCompteForm
                   etablissements={etablissements}
+                  membreParDefaut={detenteurId}
                   onCreated={() => {
                     charger()
                     setFeuille(null)
+                  }}
+                  onAjouterMembre={(compte, membreId) => {
+                    setFeuille(null)
+                    setARepartir({ compte, ajouterMembreId: membreId })
                   }}
                 />
               ) : (
@@ -300,6 +327,33 @@ export default function ComptesPage() {
             </>
           )}
         </Modale>
+      )}
+
+      {aRepartir && (
+        <RepartirModale
+          nom={aRepartir.compte.nom}
+          enregistrer={(quotites) => api.setCompteQuotites(aRepartir.compte.id, quotites)}
+          chargerValeursInitiales={() =>
+            api.getCompteQuotites(aRepartir.compte.id).then((r) => {
+              const { ajouterMembreId } = aRepartir
+              if (ajouterMembreId === null) return { quotites: r.quotites, divergente: !r.uniforme }
+              // Un membre de plus sur ce compte : les membres actuels et lui, à parts égales, à ajuster.
+              const ids = [...new Set([...r.quotites.map((q) => q.detenteur_id), ajouterMembreId])]
+              return { quotites: quotitesDepuis(partsEgales(ids), ids) }
+            })
+          }
+          introduction={
+            aRepartir.ajouterMembreId !== null && membres
+              ? t('repartitionGlobale.homonyme.ajouteIntro', { nom: membres.find((m) => m.id === aRepartir.ajouterMembreId)?.nom ?? '' })
+              : undefined
+          }
+          onClose={() => setARepartir(null)}
+          onEnregistre={() => {
+            setARepartir(null)
+            charger()
+            setVersionRepartition((n) => n + 1)
+          }}
+        />
       )}
 
       {etablissementEnEdition && (

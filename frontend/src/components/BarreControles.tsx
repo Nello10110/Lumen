@@ -83,7 +83,17 @@ export default function BarreControles() {
   const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
 
   useEffect(() => {
-    api.listDetenteurs().then(setDetenteurs).catch(() => setDetenteurs([]))
+    api
+      .listDetenteurs()
+      .then((liste) => {
+        setDetenteurs(liste)
+        // Un membre supprimé depuis ne doit pas rester sélectionné : les écrans filtrés (Actifs, Comptes,
+        // prêts) le réclameraient au serveur et ne recevraient qu'une erreur (§ BN.1, lot 3).
+        if (detenteurId !== null && !liste.some((d) => d.id === detenteurId)) setDetenteurId(null)
+      })
+      .catch(() => setDetenteurs([]))
+    // Au montage seulement : la liste ne change pas pendant la session de cette barre.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
