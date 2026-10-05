@@ -41,6 +41,7 @@ function renderCard(
   historiquePortefeuille?: { points: PortfolioHistoryPoint[] | null; loading: boolean },
   periode: Periode = PERIODE_DEFAUT,
   historiquePatrimoine?: { points: PatrimoineHistoryPoint[] | null; loading: boolean },
+  onVide?: (vide: boolean) => void,
 ) {
   // `MemoryRouter` depuis la refonte (étape 4) : les trois poches sous le chiffre
   // héros sont des liens vers l'écran où leur part se détaille.
@@ -60,7 +61,7 @@ function renderCard(
         toggleLangageSimple: vi.fn(),
       }}
     >
-      <PatrimoineNetCard historiquePortefeuille={historiquePortefeuille} historiquePatrimoine={historiquePatrimoine} />
+      <PatrimoineNetCard historiquePortefeuille={historiquePortefeuille} historiquePatrimoine={historiquePatrimoine} onVide={onVide} />
     </PreferencesAffichageContext.Provider>
     </MemoryRouter>,
   )
@@ -115,6 +116,31 @@ describe('PatrimoineNetCard', () => {
 
     expect(await screen.findByRole('heading', { name: 'Ton patrimoine commence ici' })).toBeInTheDocument()
     expect(onVide).toHaveBeenLastCalledWith(true)
+  })
+
+  it("prévient la page AVANT que l'état vide soit affiché (jamais un affichage où la page le croit encore non vide)", async () => {
+    // Cause d'un échec intermittent en CI : l'appel `onVide(true)` partait dans un effet
+    // passif, exécuté APRÈS le rendu — selon l'ordre des tâches, le dernier appel
+    // observé valait encore `false` (celui du montage) alors que l'état vide était à
+    // l'écran. Pour l'utilisateur, c'est un affichage où l'invitation à importer
+    // doublonne avec l'état vide. On observe donc le DOM lui-même : à l'instant où le
+    // titre apparaît, la page doit déjà avoir été prévenue.
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine())
+    const onVide = vi.fn()
+    let dernierAppelQuandAffiche: boolean | undefined
+    const observateur = new MutationObserver(() => {
+      if (dernierAppelQuandAffiche === undefined && screen.queryByRole('heading', { name: 'Ton patrimoine commence ici' })) {
+        dernierAppelQuandAffiche = onVide.mock.lastCall?.[0]
+      }
+    })
+    observateur.observe(document.body, { childList: true, subtree: true })
+    try {
+      renderCard('net', null, undefined, PERIODE_DEFAUT, undefined, onVide)
+      await screen.findByRole('heading', { name: 'Ton patrimoine commence ici' })
+    } finally {
+      observateur.disconnect()
+    }
+    expect(dernierAppelQuandAffiche).toBe(true)
   })
 
   it('signale un patrimoine non vide à la page', async () => {
