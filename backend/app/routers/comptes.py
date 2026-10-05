@@ -10,6 +10,7 @@ from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Compte, Etabli
 from ..schemas import (
     CompteAvecSoldeOut,
     CompteCreate,
+    CompteListeOut,
     CompteOut,
     CompteUpdate,
     EtablissementCreate,
@@ -33,6 +34,7 @@ from ..services import (
     logo_service,
     upload_limits,
 )
+from .acces_detenteur import verifier_acces_detenteur
 
 router = APIRouter(prefix="/api/comptes", tags=["comptes"])
 
@@ -207,9 +209,20 @@ def supprimer_logo(etablissement_id: int, db: Session = Depends(get_db), current
 # --- Comptes --------------------------------------------------------------------
 
 
-@router.get("", response_model=list[CompteOut])
+@router.get("", response_model=list[CompteListeOut])
 def list_comptes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return comptes_service.list_comptes(db, auth_service.id_foyer(current_user))
+    foyer_id = auth_service.id_foyer(current_user)
+    membres = comptes_service.membres_par_compte(db, foyer_id)
+    # Un invité ne voit que son périmètre : les autres membres d'un compte partagé lui restent cachés.
+    perimetre = (
+        set(detenteurs_service.perimetre_invite(db, current_user.id, foyer_id)) if current_user.role == ROLE_INVITE else None
+    )
+    return [
+        CompteListeOut.model_validate(compte).model_copy(
+            update={"membres_ids": [d for d in membres.get(compte.id, []) if perimetre is None or d in perimetre]}
+        )
+        for compte in comptes_service.list_comptes(db, foyer_id)
+    ]
 
 
 @router.post("", response_model=CompteOut)
@@ -252,9 +265,17 @@ def delete_compte(compte_id: int, db: Session = Depends(get_db), current_user: U
 
 
 @router.get("/solde", response_model=list[CompteAvecSoldeOut])
-def get_soldes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_soldes(detenteur_id: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Solde de chaque compte. `detenteur_id` (§ BN.1, lot 3) : la vue d'UN membre, au prorata de ses
+    parts — cf. `comptes_service.solde_par_compte`."""
+    verifier_acces_detenteur(db, current_user, detenteur_id, vue_foyer_permise=True)
+    foyer_id = auth_service.id_foyer(current_user)
     holdings_visibles_ids = _holdings_visibles_ids_invite(db, current_user)
-    resultats = comptes_service.solde_par_compte(db, auth_service.id_foyer(current_user), holdings_visibles_ids)
+    resultats = comptes_service.solde_par_compte(db, foyer_id, holdings_visibles_ids, detenteur_id)
+    # Un invité ne voit que son périmètre : les autres membres d'un compte partagé lui restent cachés.
+    perimetre = (
+        set(detenteurs_service.perimetre_invite(db, current_user.id, foyer_id)) if current_user.role == ROLE_INVITE else None
+    )
     return [
         CompteAvecSoldeOut(
             compte=CompteOut.model_validate(r["compte"]) if r["compte"] is not None else None,
@@ -262,6 +283,7 @@ def get_soldes(db: Session = Depends(get_db), current_user: User = Depends(get_c
             nombre_lignes=r["nombre_lignes"],
             repartition_incomplete=r["repartition_incomplete"],
             repartition_non_renseignee=r["repartition_non_renseignee"],
+            membres_ids=[d for d in r["membres_ids"] if perimetre is None or d in perimetre],
             derniere_maj=r["derniere_maj"],
         )
         for r in resultats
@@ -269,7 +291,12 @@ def get_soldes(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 
 @router.get("/{compte_id}/holdings", response_model=list[HoldingOut])
-def get_compte_holdings(compte_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_compte_holdings(
+    compte_id: int, detenteur_id: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """Lignes d'un compte. `detenteur_id` (§ BN.1, lot 3) : la vue d'UN membre, au prorata de ses
+    parts — mêmes règles que `GET /api/portfolio/holdings`."""
+    verifier_acces_detenteur(db, current_user, detenteur_id, vue_foyer_permise=True)
     foyer_id = auth_service.id_foyer(current_user)
     compte = db.get(Compte, compte_id)
     if compte is None or compte.foyer_id != foyer_id:
@@ -279,11 +306,30 @@ def get_compte_holdings(compte_id: int, db: Session = Depends(get_db), current_u
     if holdings_visibles_ids is not None:
         requete = requete.filter(Holding.id.in_(holdings_visibles_ids or [-1]))
     holdings = requete.order_by(Holding.ticker).all()
+    quotites_du_membre = (
+        detenteurs_service.quotites_du_membre_par_holding(db, foyer_id, detenteur_id) if detenteur_id is not None else {}
+    )
+    if detenteur_id is not None:
+        holdings = [h for h in holdings if h.id in quotites_du_membre]
     valued = {v.holding.id: v.valeur for v in analysis_service.value_holdings(holdings)}
+    parts = (
+        detenteurs_service.compute_parts_bulk(db, [(h, valued[h.id]) for h in holdings]) if detenteur_id is not None else {}
+    )
+    ids_repartis = {
+        holding_id
+        for (holding_id,) in db.query(QuotiteHolding.holding_id)
+        .join(Holding, Holding.id == QuotiteHolding.holding_id)
+        .filter(Holding.compte_id == compte_id)
+    }
     resultats = []
     for h in holdings:
         out = HoldingOut.model_validate(h)
         out.valeur = valued.get(h.id)
+        out.repartie = h.id in ids_repartis
+        if detenteur_id is not None:
+            out.quotite_pct = float(quotites_du_membre[h.id])
+            out.valeur_ligne = out.valeur
+            out.valeur = parts[h.id][detenteur_id]["part_detenue"]
         resultats.append(out)
     return resultats
 
@@ -308,7 +354,7 @@ def get_compte_quotites(compte_id: int, db: Session = Depends(get_db), current_u
 def set_compte_quotites(compte_id: int, payload: QuotitesUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     """Remplace intégralement la répartition (quotités) de CHAQUE ligne rattachée à
     ce compte entre détenteurs — cf. `comptes_service.set_quotites_compte`. Une
-    liste vide retire toute répartition (retombe à 100 % foyer implicite sur
+    liste vide retire toute répartition (chaque ligne redevient « non répartie », comptée pour le foyer entier, sur
     chaque ligne)."""
     foyer_id = auth_service.id_foyer(current_user)
     compte = db.get(Compte, compte_id)

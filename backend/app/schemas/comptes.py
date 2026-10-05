@@ -143,6 +143,15 @@ class SecteurCompteUpdate(BaseModel):
     secteur: str | None = None
 
 
+class CompteListeOut(CompteOut):
+    """Un compte de `GET /api/comptes`, avec les membres du foyer qui y ont une part (§ BN.1, lot 3) :
+    les listes de comptes affichent « Compte · Établissement · membres » pour distinguer deux
+    comptes de même nom d'établissement. Réservé à cette liste : `CompteOut` est imbriqué dans
+    chaque ligne du patrimoine, où ce calcul serait répété pour rien."""
+
+    membres_ids: list[int] = []
+
+
 class CompteAvecSoldeOut(BaseModel):
     """Un compte avec sa valeur agrégée (`services/comptes_service.solde_par_compte`)
     — écran Comptes uniquement, jamais utilisé pour les routes CRUD nues. `compte`
@@ -166,6 +175,10 @@ class CompteAvecSoldeOut(BaseModel):
     # toujours `False` pour le bucket « Sans compte » (pas de fiche à ouvrir pour y
     # répondre), cf. `services/comptes_service.solde_par_compte`.
     repartition_non_renseignee: bool
+    # Membres du foyer qui ont une part (strictement positive) sur au moins une ligne de ce compte
+    # (§ BN.1, lot 3) : l'écran Comptes les affiche à côté du nom du compte, pour distinguer deux
+    # comptes de même nom d'établissement. Vide pour le bucket « Sans compte », ou si rien n'est réparti.
+    membres_ids: list[int] = []
     # Dernière activité utilisateur sur ce compte (demande directe du 16/09/2026) :
     # le plus récent entre `Compte.updated_at` (renommage, changement
     # d'établissement) et `Holding.updated_at` de chacune de ses lignes (édition,

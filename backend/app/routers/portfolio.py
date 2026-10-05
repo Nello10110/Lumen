@@ -3,6 +3,7 @@ fiche détaillée et historique de prix d'une ligne."""
 
 import logging
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -39,6 +40,7 @@ from ..schemas import (
     HoldingUpdate,
     ImportPreviewResponse,
     ImportResult,
+    LignesNonRepartiesOut,
     QuotitesUpdate,
     ValorisationInput,
     ValuationHistoryPoint,
@@ -56,8 +58,10 @@ from ..services import (
     immobilier_service,
     journal_import_service,
     performance_service,
+    portfolio_reconstruction,
     upload_limits,
 )
+from .acces_detenteur import verifier_acces_detenteur
 from .loans import vers_loan_out
 
 _peut_ecrire = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
@@ -128,6 +132,16 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     skipped = 0
     errors: list[str] = []
     foyer_id = auth_service.id_foyer(current_user)
+    # Répartition des lignes NOUVELLES (§ BN.1, lot 3), résolue avant toute écriture : un membre
+    # d'un autre foyer ou une somme différente de 100 % refusent l'import entier.
+    try:
+        repartition_nouvelles = detenteurs_service.repartition_pour_import(
+            db, foyer_id, None if mapping.quotites is None else [(q.detenteur_id, q.quotite_pct) for q in mapping.quotites]
+        )
+    except detenteurs_service.DetenteurIntrouvableError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Établissement des comptes créés à la volée (refonte import, 05/09/2026,
     # alignement sur l'import du grand livre de transactions) — résolu UNE fois,
@@ -172,6 +186,10 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     # cours de boucle (donnée inattendue, bug) déclenche un rollback explicite plutôt
     # que de laisser le portefeuille dans un état partiel — au pire déjà vidé, jamais
     # réécrit.
+    # Parts des lignes que `replace_existing` retire puis recrée : une ligne qui revient (même
+    # ticker, même compte) garde les siennes, jamais celles de l'import (§ BN.1, lot 3).
+    quotites_conservees: dict[tuple[str, int | None], list[tuple[int, float]]] = {}
+    nouvelles_lignes: list[Holding] = []
     try:
         if mapping.replace_existing:
             # Ne vide que les lignes que l'utilisateur gère lui-même (saisie ou relevé
@@ -179,7 +197,23 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
             # au grand livre : les supprimer ici créerait un état incohérent que le
             # prochain import de transactions rétablirait tout seul, sans que
             # l'utilisateur comprenne pourquoi (cf. `models.Holding.origine`).
-            db.query(Holding).filter(Holding.foyer_id == foyer_id, Holding.origine == ORIGINE_MANUEL).delete()
+            lignes_retirees = (
+                db.query(Holding.id, Holding.ticker, Holding.compte_id)
+                .filter(Holding.foyer_id == foyer_id, Holding.origine == ORIGINE_MANUEL)
+                .all()
+            )
+            if lignes_retirees:
+                ids_retires = [ligne.id for ligne in lignes_retirees]
+                cle_par_id = {ligne.id: (ligne.ticker, ligne.compte_id) for ligne in lignes_retirees}
+                # Une ligne retirée SANS parts garde, elle aussi, son absence de parts si elle revient.
+                for cle in cle_par_id.values():
+                    quotites_conservees.setdefault(cle, [])
+                for holding_id, detenteur_id, pct in db.query(
+                    QuotiteHolding.holding_id, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct
+                ).filter(QuotiteHolding.holding_id.in_(ids_retires)):
+                    quotites_conservees.setdefault(cle_par_id[holding_id], []).append((detenteur_id, float(pct)))
+                portfolio_reconstruction.detacher_references(db, ids_retires)
+                db.query(Holding).filter(Holding.id.in_(ids_retires)).delete(synchronize_session="fetch")
 
         for row in tableau.lignes:
             ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
@@ -190,19 +224,23 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
                 errors.append(tr("Ligne {numero} : ticker ou quantité invalide", numero=row.numero))
                 continue
 
-            db.add(
-                Holding(
-                    foyer_id=foyer_id,
-                    ticker=ticker,
-                    nom=_cellule_texte(row, mapping.nom_col),
-                    quantite=qty_val,
-                    prix_revient_moyen=csv_import.to_float(row.get(mapping.prix_revient_col)) if mapping.prix_revient_col else None,
-                    compte_id=_resoudre_compte_import(_cellule_texte(row, mapping.compte_col)),
-                    origine=ORIGINE_MANUEL,
-                )
+            ligne = Holding(
+                foyer_id=foyer_id,
+                ticker=ticker,
+                nom=_cellule_texte(row, mapping.nom_col),
+                quantite=qty_val,
+                prix_revient_moyen=csv_import.to_float(row.get(mapping.prix_revient_col)) if mapping.prix_revient_col else None,
+                compte_id=_resoudre_compte_import(_cellule_texte(row, mapping.compte_col)),
+                origine=ORIGINE_MANUEL,
             )
+            db.add(ligne)
+            nouvelles_lignes.append(ligne)
             imported += 1
 
+        db.flush()  # les identifiants des lignes, pour leurs parts
+        for ligne in nouvelles_lignes:
+            parts = quotites_conservees.get((ligne.ticker, ligne.compte_id), repartition_nouvelles)
+            db.add_all(QuotiteHolding(holding_id=ligne.id, detenteur_id=d, quotite_pct=p) for d, p in parts)
         db.commit()
     except ValueError as exc:
         # Erreur de contenu (valeur illisible, non finie...) : son message est écrit
@@ -298,18 +336,40 @@ def _holdings_visibles(db: Session, current_user: User):
 
 
 @router.get("/holdings", response_model=list[HoldingOut])
-def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_holdings(detenteur_id: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Lignes du foyer. `detenteur_id` (§ BN.1, lot 3) : la vue d'UN membre — seules les lignes où
+    il a une part, `valeur` devient SA part (la même que `patrimoine_service.compute_patrimoine_net`,
+    donc un total égal à celui de la Synthèse), `valeur_ligne` la valeur entière et `quotite_pct`
+    sa part. Une ligne sans aucune part n'y figure pas."""
+    verifier_acces_detenteur(db, current_user, detenteur_id, vue_foyer_permise=True)
+    foyer_id = auth_service.id_foyer(current_user)
     holdings = _holdings_visibles(db, current_user)
-    rendements = performance_service.compute_holding_returns(db, auth_service.id_foyer(current_user))
+    quotites_du_membre: dict[int, Decimal] = {}
+    if detenteur_id is not None:
+        quotites_du_membre = detenteurs_service.quotites_du_membre_par_holding(db, foyer_id, detenteur_id)
+        holdings = [h for h in holdings if h.id in quotites_du_membre]
+    ids_repartis = {
+        holding_id
+        for (holding_id,) in db.query(QuotiteHolding.holding_id)
+        .join(Holding, Holding.id == QuotiteHolding.holding_id)
+        .filter(Holding.foyer_id == foyer_id)
+    }
+    rendements = performance_service.compute_holding_returns(db, foyer_id)
     # `value_holdings` applique déjà la règle « prix de marché, à défaut prix de
     # revient » ; on la réutilise ici pour ne pas dupliquer ce calcul (LOT 6.7).
     # Elle retombe sur 0 quand aucun prix n'est connu (pratique pour les sommes des
     # écrans d'analyse) : on distingue ce cas ici pour renvoyer `None` plutôt que 0,
     # comme convenu pour l'affichage d'une ligne isolée.
     valued = analysis_service.value_holdings(holdings)
+    parts = (
+        detenteurs_service.compute_parts_bulk(db, [(h, v.valeur) for h, v in zip(holdings, valued, strict=True)])
+        if detenteur_id is not None
+        else {}
+    )
     result = []
     for h, v in zip(holdings, valued, strict=True):
         out = HoldingOut.model_validate(h)
+        out.repartie = h.id in ids_repartis
         r = rendements.get(h.id, {})
         out.rendement_depuis_achat_pct = r.get("rendement_depuis_achat_pct")
         out.rendement_annualise_pct = r.get("rendement_annualise_pct")
@@ -326,8 +386,42 @@ def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(ge
             or h.valeur_estimee is not None
         )
         out.valeur = v.valeur if prix_connu else None
+        if detenteur_id is not None:
+            out.quotite_pct = float(quotites_du_membre[h.id])
+            out.valeur_ligne = out.valeur
+            out.valeur = parts[h.id][detenteur_id]["part_detenue"] if prix_connu else None
         result.append(out)
     return result
+
+
+@router.get("/lignes-non-reparties", response_model=LignesNonRepartiesOut)
+def get_lignes_non_reparties(db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    """Combien d'actifs et de prêts du foyer n'ont aucune part (§ BN.1, lot 3) : ce que le bandeau
+    « Non réparti » annonce et ce que `POST /repartition-globale` attribuerait. Réservé à ceux qui
+    peuvent écrire : un invité n'a pas à connaître le nombre de lignes hors de son périmètre."""
+    foyer_id = auth_service.id_foyer(current_user)
+    return LignesNonRepartiesOut(
+        actifs=len(detenteurs_service.ids_holdings_non_repartis(db, foyer_id)),
+        prets=len(detenteurs_service.ids_prets_non_repartis(db, foyer_id)),
+    )
+
+
+@router.post("/repartition-globale", response_model=LignesNonRepartiesOut)
+def post_repartition_globale(payload: QuotitesUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    """« Tout attribuer » (§ BN.1, lot 3) : applique UNE répartition à tous les actifs et prêts du
+    foyer qui n'en ont aucune, en une seule transaction. Les lignes déjà réparties ne bougent pas.
+    Réponse : ce qui vient d'être attribué. 400 : liste vide, doublon, somme différente de 100 % ;
+    404 : membre d'un autre foyer ; 403 : invité."""
+    try:
+        actifs, prets = detenteurs_service.attribuer_lignes_non_reparties(
+            db, auth_service.id_foyer(current_user), [(q.detenteur_id, q.quotite_pct) for q in payload.quotites]
+        )
+    except detenteurs_service.DetenteurIntrouvableError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    historique_cache.invalider_historiques_patrimoine(db)
+    return LignesNonRepartiesOut(actifs=actifs, prets=prets)
 
 
 def _verifier_holding_visible_invite(db: Session, current_user: User, holding_id: int) -> None:
@@ -488,8 +582,8 @@ def set_holding_quotites(
     current_user: User = Depends(_peut_ecrire),
 ):
     """Remplace intégralement la répartition (quotités) de cette ligne entre
-    détenteurs (backlog 2.L.1). Une liste vide retire toute répartition (retombe à
-    100 % foyer implicite)."""
+    détenteurs (backlog 2.L.1). Une liste vide retire toute répartition (redevient « non répartie »,
+    comptée pour le foyer entier, § BN.1 lot 3)."""
     holding = db.query(Holding).filter(Holding.id == holding_id, Holding.foyer_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
@@ -513,10 +607,27 @@ def get_holding_price_history(holding_id: int, db: Session = Depends(get_db), cu
 @router.post("/holdings", response_model=HoldingOut)
 def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     foyer_id = auth_service.id_foyer(current_user)
+    # Répartition entre membres (§ BN.1, lot 3), résolue et validée AVANT toute écriture : celle du
+    # client, sinon celle des autres lignes du compte, sinon la règle par défaut du foyer.
+    try:
+        fournies = None if payload.quotites is None else [(q.detenteur_id, q.quotite_pct) for q in payload.quotites]
+        if fournies:
+            detenteurs_service.verifier_detenteurs_du_foyer(db, foyer_id, [d for d, _ in fournies])
+        compte_pour_defaut = payload.compte_id
+        if compte_pour_defaut is None and payload.compte_nom:
+            # Une ligne créée par le NOM d'un compte existant rejoint ce compte : elle reprend sa répartition.
+            existant = db.query(Compte.id).filter(Compte.foyer_id == foyer_id, Compte.nom == payload.compte_nom).first()
+            compte_pour_defaut = existant[0] if existant else None
+        repartition = comptes_service.repartition_de_creation(db, foyer_id, compte_pour_defaut, fournies)
+        detenteurs_service.valider_quotites(db, foyer_id, repartition)
+    except detenteurs_service.DetenteurIntrouvableError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
     #
-    donnees = payload.model_dump()
+    donnees = payload.model_dump(exclude={"quotites"})
     # `compte_id`/`compte_nom`/`etablissement_id`/`etablissement_nom` (schéma) ne
     # sont pas des colonnes de `Holding` (qui n'a que `compte_id`, résolu ici) —
     # retirés du dict avant construction. `HoldingCreate._valider_compte_requis`
@@ -565,6 +676,8 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
         donnees["date_acquisition"] = datetime.strptime(donnees["date_acquisition"], "%Y-%m-%d")
     holding = Holding(**donnees, origine=ORIGINE_MANUEL, foyer_id=foyer_id)
     db.add(holding)
+    db.flush()  # l'identifiant de la ligne, pour ses parts — même transaction que la ligne
+    detenteurs_service.set_quotites_holding(db, foyer_id, holding, repartition, commit=False)
     db.commit()
     db.refresh(holding)
     if holding.valeur_estimee is not None:
@@ -575,7 +688,9 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # n'est pas fournie à la création — invalidation séparée pour ne pas la manquer.
     elif holding.date_acquisition is not None:
         historique_cache.invalider_historiques_patrimoine(db)
-    return holding
+    ligne = HoldingOut.model_validate(holding)
+    ligne.repartie = len(repartition) > 0
+    return ligne
 
 
 @router.post("/biens-immobiliers", response_model=BienImmobilierCree, status_code=201)

@@ -8,7 +8,7 @@ from ..i18n import tr
 from ..models import TYPES_ACTIF_SANS_ETABLISSEMENT
 from .commun import RepartitionItem
 from .comptes import CompteOut, EtablissementOut
-from .detenteurs import QuotiteDetenteurItem
+from .detenteurs import QuotiteDetenteurItem, QuotiteEntree
 from .donnees_marche import MarketDataOut
 from .validateurs import (
     MESSAGE_PRIX_NON_NEGATIF,
@@ -110,6 +110,11 @@ class HoldingCreate(HoldingBase):
     # Clé du catalogue d'établissements connus (refonte import, 05/09/2026) — sans
     # objet si `etablissement_id` est fourni ou si `etablissement_nom` est absent.
     etablissement_logo_key: str | None = None
+    # Répartition entre membres du foyer (§ BN.1, lot 3). `None` (champ absent) : le serveur
+    # applique la répartition par défaut (100 % pour l'unique membre, parts égales à partir de
+    # deux, rien sans membre) pour qu'une ligne neuve ne disparaisse pas de la vue d'un membre ;
+    # `[]` : « ne pas répartir », demandé en connaissance de cause (la ligne reste non répartie).
+    quotites: list[QuotiteEntree] | None = None
 
     @field_validator("compte_nom", "etablissement_nom")
     @classmethod
@@ -265,6 +270,14 @@ class HoldingOut(HoldingBase):
     # calculés côté frontend (`PortefeuillePage.tsx`, `gainsParCompte.ts`), qui ne
     # doivent plus recalculer un coût à partir de `prix_revient_moyen` seul.
     cout_acquisition_total: float | None = None
+    # Répartition entre membres du foyer (§ BN.1, lot 3). `repartie` : la ligne a au moins une part
+    # (faux = badge « Non réparti »). `quotite_pct` et `valeur_ligne` ne sont renseignés que dans la
+    # vue d'UN membre (`?detenteur_id=`) : `valeur` est alors SA part, `valeur_ligne` la valeur
+    # entière de la ligne, `quotite_pct` sa part en pourcentage. `quantite` et les prix ne sont
+    # jamais proratisés (ils servent à éditer la ligne).
+    repartie: bool = True
+    quotite_pct: float | None = None
+    valeur_ligne: float | None = None
 
     @field_validator("date_acquisition")
     @classmethod
@@ -289,6 +302,9 @@ class ColumnMapping(BaseModel):
     etablissement_id: int | None = None
     etablissement_nom: str | None = None
     etablissement_logo_key: str | None = None
+    # Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3) — jamais des lignes qui
+    # existaient déjà. `None` : répartition par défaut du foyer ; `[]` : ne pas répartir.
+    quotites: list[QuotiteEntree] | None = None
 
     @field_validator("ticker_col", "quantite_col")
     @classmethod
@@ -382,6 +398,8 @@ class TransactionImportConfirm(BaseModel):
     # ne change pas ici) ou si `etablissement_nom` est absent.
     etablissement_logo_key: str | None = None
     noms_comptes: dict[str, str] = {}
+    # Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3) — cf. `ColumnMapping.quotites`.
+    quotites: list[QuotiteEntree] | None = None
 
     @field_validator("etablissement_nom")
     @classmethod
@@ -434,6 +452,8 @@ class LedgerImportConfirm(BaseModel):
     etablissement_logo_key: str | None = None
     nom_compte: str = "Ledger"
     devises_selectionnees: list[str] = []
+    # Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3) — cf. `ColumnMapping.quotites`.
+    quotites: list[QuotiteEntree] | None = None
 
     @field_validator("etablissement_nom")
     @classmethod
@@ -489,6 +509,8 @@ class BricksImportConfirm(BaseModel):
     etablissement_nom: str | None = None
     etablissement_logo_key: str | None = None
     nom_compte: str = "Bricks.co"
+    # Répartition des lignes NOUVELLES créées par l'import (§ BN.1, lot 3) — cf. `ColumnMapping.quotites`.
+    quotites: list[QuotiteEntree] | None = None
 
     @field_validator("etablissement_nom")
     @classmethod

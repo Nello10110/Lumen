@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Detenteur, User
+from ..models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, User
 from ..schemas import (
     AlerteFraicheurItem,
     CategoryCompositionResponse,
@@ -27,12 +27,12 @@ from ..schemas import (
 )
 from ..services import (
     auth_service,
-    detenteurs_service,
     fraicheur_donnees_service,
     patrimoine_history_service,
     patrimoine_service,
     score_patrimonial_service,
 )
+from .acces_detenteur import verifier_acces_detenteur
 
 router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
 
@@ -43,29 +43,13 @@ router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
 _pas_invite = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
 
 
-def _verifier_acces_detenteur(db: Session, current_user: User, detenteur_id: int | None) -> None:
-    """Mêmes vérifications pour tout endpoint scopé par détenteur (`/net`,
-    `/historique`) : détenteur introuvable/étranger -> 404, invité (2.L.2) hors de son
-    périmètre assigné -> 403. Factorisé pour ne jamais diverger entre les deux routes."""
-    if detenteur_id is not None:
-        detenteur = db.get(Detenteur, detenteur_id)
-        if detenteur is None or detenteur.foyer_id != auth_service.id_foyer(current_user):
-            raise HTTPException(status_code=404, detail="Détenteur introuvable")
-    if current_user.role == ROLE_INVITE:
-        # Un invité (2.L.2) n'a jamais accès à la vue Foyer consolidée : le
-        # `detenteur_id` demandé doit être explicitement dans son périmètre assigné.
-        perimetre = detenteurs_service.perimetre_invite(db, current_user.id, auth_service.id_foyer(current_user))
-        if detenteur_id is None or detenteur_id not in perimetre:
-            raise HTTPException(status_code=403, detail="Détenteur hors de votre périmètre")
-
-
 @router.get("/net", response_model=PatrimoineNetResponse)
 def get_patrimoine_net(
     detenteur_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _verifier_acces_detenteur(db, current_user, detenteur_id)
+    verifier_acces_detenteur(db, current_user, detenteur_id)
     return PatrimoineNetResponse(**patrimoine_service.compute_patrimoine_net(db, auth_service.id_foyer(current_user), detenteur_id))
 
 
@@ -86,7 +70,7 @@ def get_patrimoine_historique(
     avec l'un des deux."""
     if compte_id is not None and etablissement_id is not None:
         raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
-    _verifier_acces_detenteur(db, current_user, detenteur_id)
+    verifier_acces_detenteur(db, current_user, detenteur_id)
     points = patrimoine_history_service.compute_patrimoine_history(
         db, auth_service.id_foyer(current_user), detenteur_id, type_actif, compte_id, etablissement_id
     )
@@ -107,7 +91,7 @@ def get_lignes_patrimoine(
     l'écran Analyse (§ AX, retour utilisateur du 17/09/2026)."""
     if compte_id is not None and etablissement_id is not None:
         raise HTTPException(status_code=400, detail="compte_id et etablissement_id sont mutuellement exclusifs.")
-    _verifier_acces_detenteur(db, current_user, detenteur_id)
+    verifier_acces_detenteur(db, current_user, detenteur_id)
     lignes = patrimoine_service.lignes_patrimoine_filtrees(
         db, auth_service.id_foyer(current_user), type_actif, compte_id, etablissement_id, detenteur_id
     )

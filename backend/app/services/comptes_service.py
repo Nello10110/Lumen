@@ -7,6 +7,7 @@ rattaché (via `Loan.holding_id`), décision délibérée pour ne jamais toucher
 mécanisme de calcul existant (`compute_parts`, `patrimoine_service`...), déjà
 entremêlé dans plusieurs services financiers testés."""
 
+from dataclasses import replace
 from decimal import Decimal
 
 from sqlalchemy import func, or_
@@ -363,8 +364,9 @@ def _holdings_repartition_non_renseignee(db: Session, holding_ids: list[int]) ->
     utilisateur du 20/09/2026) pour INVITER à la renseigner, jamais avec la même
     icône que `repartition_incomplete` : l'une pointe une erreur (une répartition
     rompue après coup), l'autre une simple case pas encore remplie. N'a de sens que
-    si le foyer a déclaré au moins deux détenteurs — sans quoi il n'y a personne
-    entre qui répartir ; à l'appelant de filtrer sur ce critère."""
+    si le foyer a déclaré au moins un membre (§ BN.1, lot 3 : « Non réparti » dès le
+    premier, plus seulement à partir de deux) — sans quoi il n'y a personne à qui
+    attribuer ; à l'appelant de filtrer sur ce critère."""
     if not holding_ids:
         return set()
     holdings_avec_quotite = {
@@ -373,7 +375,26 @@ def _holdings_repartition_non_renseignee(db: Session, holding_ids: list[int]) ->
     return set(holding_ids) - holdings_avec_quotite
 
 
-def solde_par_compte(db: Session, foyer_id: int, holdings_visibles_ids: set[int] | None = None) -> list[dict]:
+def membres_par_compte(db: Session, foyer_id: int, holding_ids: set[int] | None = None) -> dict[int, list[int]]:
+    """`{compte_id: [detenteur_id, ...]}` : les membres du foyer qui ont une part strictement
+    positive sur au moins une ligne du compte, une requête (§ BN.1, lot 3). `holding_ids` restreint
+    aux lignes données (un invité, la vue d'un membre) ; absent, toutes celles du foyer."""
+    requete = (
+        db.query(Holding.compte_id, QuotiteHolding.detenteur_id)
+        .join(QuotiteHolding, QuotiteHolding.holding_id == Holding.id)
+        .filter(Holding.foyer_id == foyer_id, Holding.compte_id.is_not(None), QuotiteHolding.quotite_pct > 0)
+    )
+    if holding_ids is not None:
+        requete = requete.filter(Holding.id.in_(holding_ids))
+    membres: dict[int, set[int]] = {}
+    for compte_id, detenteur_id in requete:
+        membres.setdefault(compte_id, set()).add(detenteur_id)
+    return {compte_id: sorted(ids) for compte_id, ids in membres.items()}
+
+
+def solde_par_compte(
+    db: Session, foyer_id: int, holdings_visibles_ids: set[int] | None = None, detenteur_id: int | None = None
+) -> list[dict]:
     """Solde de chaque compte du foyer, TOUS types d'actifs confondus (contrairement
     à `analysis_service.repartition_par_compte`, restreinte au portefeuille
     financier) — réutilise `value_holdings` pour la valorisation individuelle,
@@ -385,20 +406,36 @@ def solde_par_compte(db: Session, foyer_id: int, holdings_visibles_ids: set[int]
     rattachée apparaît quand même (solde 0, utile pour un compte tout juste créé) ;
     avec un périmètre invité, un compte qui n'a plus AUCUNE ligne visible dans ce
     périmètre est entièrement omis (un invité ne doit jamais voir un compte dont il
-    ne peut voir aucune ligne)."""
+    ne peut voir aucune ligne).
+
+    `detenteur_id` (§ BN.1, lot 3) : la vue d'UN membre. Chaque ligne y vaut SA part
+    (`detenteurs_service.compute_parts_bulk`, la même que `patrimoine_service.compute_patrimoine_net`
+    — le total de cet écran égale donc celui de la Synthèse pour ce membre), une ligne où il n'a
+    aucune part n'y figure pas, et un compte qui n'a plus aucune ligne de lui est omis, comme pour
+    un invité."""
     holdings = db.query(Holding).filter(Holding.foyer_id == foyer_id).all()
     if holdings_visibles_ids is not None:
         holdings = [h for h in holdings if h.id in holdings_visibles_ids]
     valued = analysis_service.value_holdings(holdings)
+    if detenteur_id is not None:
+        parts = detenteurs_service.compute_parts_bulk(db, [(v.holding, v.valeur) for v in valued])
+        valued = [
+            replace(v, valeur=parts[v.holding.id][detenteur_id]["part_detenue"])
+            for v in valued
+            if detenteur_id in parts.get(v.holding.id, {})
+        ]
+        holdings = [v.holding for v in valued]
     holdings_incomplets = _holdings_repartition_incomplete(db, [h.id for h in holdings])
-    # `repartition_non_renseignee` (retour utilisateur du 20/09/2026) : n'a de sens
-    # que si le foyer a au moins deux détenteurs déclarés — avec 0 ou 1, il n'y a
-    # personne entre qui répartir, chaque ligne est légitimement à 100 % implicite.
+    # `repartition_non_renseignee` (retour utilisateur du 20/09/2026, étendu au premier membre
+    # au lot 3 de § BN.1) : n'a de sens que si le foyer a au moins un membre déclaré — sans
+    # personne, chaque ligne est légitimement à 100 % foyer implicite. Dans la vue d'un membre,
+    # les lignes non réparties sont absentes : rien à signaler.
     holdings_non_renseignees = (
         _holdings_repartition_non_renseignee(db, [h.id for h in holdings])
-        if len(detenteurs_service.list_detenteurs(db, foyer_id)) >= 2
+        if detenteur_id is None and len(detenteurs_service.list_detenteurs(db, foyer_id)) >= 1
         else set()
     )
+    membres = membres_par_compte(db, foyer_id, {h.id for h in holdings})
 
     comptes = list_comptes(db, foyer_id)
     par_compte_id: dict[int | None, dict] = {
@@ -408,6 +445,7 @@ def solde_par_compte(db: Session, foyer_id: int, holdings_visibles_ids: set[int]
             "nombre_lignes": 0,
             "repartition_incomplete": False,
             "repartition_non_renseignee": False,
+            "membres_ids": membres.get(compte.id, []),
             "derniere_maj": compte.updated_at,
         }
         for compte in comptes
@@ -422,6 +460,7 @@ def solde_par_compte(db: Session, foyer_id: int, holdings_visibles_ids: set[int]
         "nombre_lignes": 0,
         "repartition_incomplete": False,
         "repartition_non_renseignee": False,
+        "membres_ids": [],
         "derniere_maj": None,
     }
 
@@ -440,10 +479,30 @@ def solde_par_compte(db: Session, foyer_id: int, holdings_visibles_ids: set[int]
             cible["derniere_maj"] = v.holding.updated_at
 
     resultats = list(par_compte_id.values())
-    if holdings_visibles_ids is not None:
-        # Périmètre invité : un compte devenu sans aucune ligne visible est omis en
-        # entier (jamais un solde 0 qui laisserait deviner son existence).
+    if holdings_visibles_ids is not None or detenteur_id is not None:
+        # Périmètre invité ou vue d'un membre : un compte devenu sans aucune ligne visible
+        # est omis en entier (jamais un solde 0 qui laisserait deviner son existence).
         resultats = [r for r in resultats if r["nombre_lignes"] > 0]
     if sans_compte["nombre_lignes"] > 0:
         resultats.append(sans_compte)
     return resultats
+
+
+def repartition_de_creation(
+    db: Session, foyer_id: int, compte_id: int | None, fournies: list[tuple[int, float]] | None
+) -> list[tuple[int, float]]:
+    """Répartition à écrire pour une ligne NOUVELLE (§ BN.1, lot 3). Ce que le client envoie fait
+    foi, y compris `[]` (« ne pas répartir », demandé en connaissance de cause). Sans rien d'envoyé :
+    la répartition commune aux autres lignes du compte, quand il en a une (une ligne ajoutée à un
+    compte partagé 70/30 est elle aussi 70/30, sinon le compte afficherait des lignes qui
+    divergent), sinon la règle par défaut du foyer — 100 % pour l'unique membre, parts égales à
+    partir de deux, rien sans membre (`detenteurs_service.repartition_par_defaut`)."""
+    if fournies is not None:
+        return fournies
+    if compte_id is not None:
+        compte = db.get(Compte, compte_id)
+        if compte is not None and compte.foyer_id == foyer_id:
+            communes, uniforme = quotites_uniformes_compte(db, foyer_id, compte)
+            if uniforme and communes:
+                return [(detenteur_id, float(pct)) for detenteur_id, pct in communes]
+    return detenteurs_service.repartition_par_defaut(db, foyer_id)
