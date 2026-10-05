@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
@@ -167,7 +167,12 @@ export default function PatrimoineNetCard({
   const vide = patrimoine !== null && patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0
   // La page qui l'accueille retire alors ce qui n'a plus de sens autour (invitation
   // à importer, renvoi vers l'analyse) : l'état vide ci-dessous les remplace.
-  useEffect(() => onVide?.(vide), [vide, onVide])
+  // `useLayoutEffect` et non `useEffect` : un effet passif part après le rendu, dans
+  // une tâche à part — l'état vide serait déjà à l'écran alors que la page croit encore
+  // le patrimoine non vide (`false`, l'appel du montage), et l'invitation à importer
+  // ferait doublon avec lui le temps d'un affichage. L'effet de mise en page part dans
+  // le même commit que le DOM : la page est prévenue avant tout affichage.
+  useLayoutEffect(() => onVide?.(vide), [vide, onVide])
 
   if (loading) {
     return (
