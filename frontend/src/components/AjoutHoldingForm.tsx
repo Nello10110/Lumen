@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useRepartitionCreation } from '../hooks/useRepartitionCreation'
 import type { Compte, Etablissement, Holding, Loan } from '../api/types'
 import {
   textePrixRevient,
@@ -17,6 +18,8 @@ import {
   valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
 import { formatEuro } from '../utils/format'
+import { libelleCompteComplet } from '../utils/prorata'
+import BlocQuiLeDetient from './BlocQuiLeDetient'
 import Card from './Card'
 import { PrimaryButton, SegmentedControl } from './Controls'
 import { Field, Input, Select } from './Field'
@@ -142,6 +145,12 @@ export default function AjoutHoldingForm({
   const comptes = comptesFournis ?? comptesCharges
   const etablissements = etablissementsFournis ?? etablissementsCharges
 
+  // Répartition entre membres du foyer (§ BN.1, lot 3) : une ligne neuve ne doit plus disparaître de
+  // la vue d'un membre. Le bloc replié « Qui le détient » dit ce qui sera enregistré ; pour une ligne
+  // ajoutée à un compte déjà réparti, il reprend la répartition de ce compte.
+  const compteExistantId = form.compte_id !== '' && form.compte_id !== NOUVEAU_COMPTE ? Number(form.compte_id) : null
+  const repartition = useRepartitionCreation(modeAjout === 'actif' ? compteExistantId : null)
+
   const [loanForm, setLoanForm] = useState<LoanForm>(LOAN_FORM_VIDE)
   const [savingLoan, setSavingLoan] = useState(false)
   const [errorLoan, setErrorLoan] = useState<string | null>(null)
@@ -223,8 +232,10 @@ export default function AjoutHoldingForm({
         zone_geo: form.zone_geo || null,
         versement_mensuel: form.versement_mensuel ? Number(form.versement_mensuel) : null,
         date_acquisition: form.date_acquisition || null,
+        quotites: repartition.quotites,
       })
       setForm(FORM_VIDE)
+      repartition.reinitialiser()
       setIdentifiantVisible(false)
       // Un compte (et son établissement) a pu être créé à la volée : recharge les
       // listes pour qu'ils apparaissent dans les sélecteurs dès le prochain ajout.
@@ -271,8 +282,10 @@ export default function AjoutHoldingForm({
         mensualite: Number(loanForm.mensualite),
         date_debut: loanForm.date_debut,
         duree_mois: Number(loanForm.duree_mois),
+        quotites: repartition.quotites,
       })
       setLoanForm(LOAN_FORM_VIDE)
+      repartition.reinitialiser()
       onLoanCreated?.(loan)
     } catch (err) {
       setErrorLoan((err as Error).message)
@@ -350,9 +363,10 @@ export default function AjoutHoldingForm({
           <div className="grid grid-cols-2 gap-3">
             <LoanFormFields form={loanForm} onChange={setLoanForm} variant="grille" />
           </div>
+          <BlocQuiLeDetient repartition={repartition} idBase="ajout-pret" />
           <PrimaryButton
             type="submit"
-            disabled={savingLoan || !loanSaisieComplete}
+            disabled={savingLoan || !loanSaisieComplete || !repartition.valide}
             title={loanSaisieComplete ? undefined : t('ajoutHoldingForm.renseignezTousLesChampsDe')}
             className="self-start"
           >{t('ajoutHoldingForm.ajouter')}</PrimaryButton>
@@ -444,7 +458,7 @@ export default function AjoutHoldingForm({
                   {form.compte_id === '' && <option value="">{t('ajoutHoldingForm.choisir')}</option>}
                   {comptes.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.nom}
+                      {libelleCompteComplet(c, repartition.membres ?? [])}
                     </option>
                   ))}
                   <option value={NOUVEAU_COMPTE}>{t('ajoutHoldingForm.nouveauCompte')}</option>
@@ -545,9 +559,10 @@ export default function AjoutHoldingForm({
               un clic sur « Ajouter » avec un formulaire vide ne produisait AUCUN
               retour — l'utilisateur ne savait pas ce qu'on attendait de lui. Le
               `title` dit quoi remplir plutôt que de laisser deviner. */}
+          <BlocQuiLeDetient repartition={repartition} idBase="ajout-actif" />
           <PrimaryButton
             type="submit"
-            disabled={saving || !saisieComplete}
+            disabled={saving || !saisieComplete || !repartition.valide}
             title={saisieComplete ? undefined : t('ajoutHoldingForm.renseignezAuMinimumUnTicker')}
             className="self-start"
           >{t('ajoutHoldingForm.ajouter')}</PrimaryButton>
