@@ -125,7 +125,7 @@ de l'année, et ce qui explique cette variation.* Aujourd'hui ce parcours échou
 - *Trimestriel* — mettre à jour les valeurs estimées (immobilier, véhicule), vérifier les objectifs,
   regarder l'exposition consolidée.
 - *Ponctuel* — produire une déclaration de patrimoine pour une banque ou un notaire, sur un
-  périmètre choisi et pour un détenteur donné.
+  périmètre choisi et pour un membre du foyer donné.
 
 ---
 
@@ -196,7 +196,7 @@ l'état précédent (filtres et position de défilement). Recherche globale au c
 
 Trois sélecteurs persistants dans l'en-tête, mémorisés entre les sessions et appliqués à tous les
 écrans : **lentille** (`Patrimoine net` par défaut, `brut`, `financier`), **période**
-(`1M 3M 6M YTD 1A 3A TOUT` + plage libre), **détenteur** (`Foyer`, une personne, une société). Un
+(`1M 3M 6M YTD 1A 3A TOUT` + plage libre), **membre du foyer** (`Tout le foyer`, une personne, une société). Un
 quatrième contrôle indépendant : **masquer les montants**, qui remplace chaque valeur par des points
 sans modifier les proportions des graphiques.
 
@@ -208,20 +208,22 @@ sans modifier les proportions des graphiques.
 - Le masquage des montants n'altère aucune proportion graphique et ne laisse aucune valeur lisible,
   y compris dans les infobulles et les axes.
 
-#### EF-4 — Personnes, sociétés et quotités *(L.1)*
+#### EF-4 — Membres du foyer, sociétés et parts *(L.1)*
 
-Déclaration de **personnes** (membres du foyer) et de **sociétés** (SCI, holding), réutilisables.
-Chaque actif et chaque passif porte une ou plusieurs quotités, en pourcentage. Calcul, par actif, de
-la **part détenue** (quotité × valeur) et de la **part nette** (part détenue − quote-part du capital
+Déclaration de **membres du foyer** (les personnes dont on suit le patrimoine) et de **sociétés**
+(SCI, holding), réutilisables.
+Chaque actif et chaque passif porte une ou plusieurs parts, en pourcentage. Calcul, par actif, de
+la **part détenue** (part × valeur) et de la **part nette** (part détenue − quote-part du capital
 restant dû des emprunts rattachés).
 
 **Critères d'acceptation**
-- La somme des quotités d'une ligne est contrôlée à 100 % ; une saisie non conforme est refusée avec
+- La somme des parts d'une ligne est contrôlée à 100 % ; une saisie non conforme est refusée avec
   un message explicite.
-- Le filtre détenteur produit un patrimoine cohérent : la somme des vues individuelles égale la vue
+- Le filtre par membre du foyer produit un patrimoine cohérent : la somme des vues individuelles égale la vue
   consolidée, au centime.
-- Un actif sans quotité déclarée est réputé détenu à 100 % par le propriétaire (migration sans perte
-  de données).
+- Un actif sans part déclarée est réputé détenu à 100 % par le propriétaire (migration sans perte
+  de données) ; depuis le 05/10/2026 (§ BN.1, lot 3), une ligne neuve reçoit une répartition par défaut
+  entre les membres du foyer et une ligne sans part est signalée « Non réparti ».
 - La part nette d'un bien financé est vérifiée par un test sur un cas réel du foyer.
 
 #### EF-5 — Rattachement emprunt ↔ actif *(M.2)*
@@ -391,9 +393,9 @@ mesures de **concentration** : part du premier émetteur, des cinq premières li
 
 #### EF-21 — Partage révocable *(Q.1)* · **EF-22 — Déclaration de patrimoine** *(Q.2)*
 
-Lien anonyme et révocable, avec expiration, sélection des catégories et du détenteur, et quatre
+Lien anonyme et révocable, avec expiration, sélection des catégories et du membre du foyer, et quatre
 interrupteurs : partager le budget, partager les objectifs, masquer les valeurs et les quantités,
-exiger un code. Déclaration de patrimoine paramétrable : sélection actif par actif, par détenteur,
+exiger un code. Déclaration de patrimoine paramétrable : sélection actif par actif, par membre du foyer,
 reprise du profil (revenus nets, dépenses mensuelles, taux d'imposition) pour produire aussi le taux
 d'endettement et le reste à vivre, horodatage, pagination, et mention de la méthode de valorisation
 de chaque poste.
@@ -401,7 +403,7 @@ de chaque poste.
 **Critères d'acceptation**
 - Un lien révoqué est inopérant immédiatement, et l'accès tenté est journalisé.
 - Un lien en lecture seule ne permet aucune écriture, y compris par appel direct à l'API.
-- La déclaration d'un détenteur ne contient que ses quotités.
+- La déclaration d'un membre du foyer ne contient que ses parts.
 
 ### 5.5 Lot 8 — Différenciation
 
@@ -492,10 +494,10 @@ flowchart LR
 
 **Justification de l'ordre.** Le lot 4 est indivisible et vient en premier pour deux raisons
 distinctes qui pointent dans le même sens : les défauts d'enveloppe se paient à chaque écran ajouté,
-et les quotités de détention comme le rattachement des emprunts sont des changements de **modèle de
+et les parts de détention comme le rattachement des emprunts sont des changements de **modèle de
 données** — moins coûteux avant les écrans qui s'appuieront dessus qu'après. Les lots 5 et 6 ne
 partagent aucun écran et peuvent avancer côte à côte. Le lot 7 consolide ce que les précédents ont
-produit : sans quotités, pas de déclaration par détenteur ; sans actifs complets, pas d'objectifs
+produit : sans parts, pas de déclaration par membre du foyer ; sans actifs complets, pas d'objectifs
 crédibles ; sans authentification, pas de partage. Le lot 8 est la supériorité technique sur les offres du marché
 — rien ne le bloque, rien ne le rend urgent avant que le reste soit utilisable.
 

@@ -106,7 +106,7 @@ récurrentes, budget cible par catégorie — sans catégorisation par IA, déli
 
 **Foyer et partage**
 
-Plusieurs comptes (propriétaire, membre, invité), répartition des actifs entre détenteurs, liens de
+Plusieurs comptes (propriétaire, membre, invité), répartition des actifs entre membres du foyer, liens de
 partage publics protégés par code, journal d'accès, connexion SSO/OIDC facultative.
 
 </td>
@@ -229,7 +229,7 @@ le backend. Aucune base à créer : le schéma est posé automatiquement au dém
 ## Premiers pas
 
 1. **Créez votre compte.** Le premier inscrit devient propriétaire du foyer. Un assistant de
-   bienvenue propose ensuite de déclarer les détenteurs, les établissements et les comptes.
+   bienvenue propose ensuite de déclarer les membres du foyer, les établissements et les comptes.
 2. **Importez votre portefeuille.** Écran *Import* : déposez l'export de votre courtier sur la tuile
    correspondante. Un aperçu s'affiche avant toute écriture — rien n'est importé sans confirmation.
 3. **Complétez le patrimoine.** Écran *Actifs* : ajoutez à la main ce qu'aucun courtier n'exporte —
