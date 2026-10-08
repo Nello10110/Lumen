@@ -7,7 +7,7 @@ contenu utile est repris ici (§ 4 et annexe A).
 
 **Mode d'emploi.** Pour savoir où en est le produit : § 1. Pour savoir ce qui reste à faire : § 2 —
 c'est la seule liste à tenir à jour, tout le reste est de la trace. Le détail de chaque point, avec
-le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BN), dans
+le raisonnement et la vérification qui l'ont clos, est au § 5, rangé par section (A, B, C… BO), dans
 l'ordre où les sujets sont apparus.
 
 **Conventions d'un point** : `#### X.n — sévérité · effort · statut · priorité — titre`.
@@ -86,6 +86,7 @@ file et reçoit son détail au § 5.
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
 | **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) `traité (04/10/2026)`, vérifié par la CI (pull request n° 13) ; **lot 3** (membres du foyer) `traité (05/10/2026)`, vérifié par la CI (pull request n° 14) | Lot 4 (§ BN.1), conditionnel : assistant en quatre étapes, à décider avec l'utilisateur après usage du formulaire unique |
+| **BO.1** — mise à jour et reconnexion après un déploiement (carte #88) | Correctif réalisé (§ BO.1, pull request n° 16, en brouillon) : nginx résout le backend à chaque requête, l'écran de connexion réessaie seul, la bannière s'actualise en silence quand c'est sans risque ; CI à confirmer | L'accord de l'utilisateur sur les captures ; décider de l'option non implémentée « ne publier une image que si `backend/` ou `frontend/` a changé » |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -260,6 +261,7 @@ l'usage réel a fait remonter.
 | BL | Application multilingue (FR, EN, ES, DE, IT) — cadrage et lots | 23/09 |
 | BM | Budget : mouvements bancaires rattachés à un vrai compte, filtre par compte ; import fiable (doublons légitimes, libellés de carte, périodicités) ; relevé Caisse d'Épargne reconnu, catégories de la banque, exclusion des totaux | 28-29/09 |
 | BN | Saisie d'un bien immobilier et parts par membre : formulaire unique, membres du foyer, ménage des champs inutiles | 04/10 |
+| BO | Mise à jour et reconnexion après un déploiement : nginx qui perd le backend recréé (502), écran de connexion qui réessaie seul, bannière de mise à jour silencieuse | 08/10 |
 
 ---
 
@@ -8921,6 +8923,93 @@ répartition (point tranché 9).
 - *Lot 4 — assistant en quatre étapes* : conditionnel (« si le besoin se confirme »), décision de l'utilisateur du
   04/10/2026 (livraison en deux temps) ; état `non traité`, à décider avec l'utilisateur après usage du formulaire
   unique.
+
+---
+
+### BO. Mise à jour et reconnexion après un déploiement (retour utilisateur, carte #88, 08/10/2026)
+
+#### BO.1 — `majeur` · `M` · `en attente de la CI et de l'accord de l'utilisateur sur les captures` · `P1` — Le message de mise à jour et l'écran de connexion après un redéploiement
+
+**État au 08/10/2026 : correctif réalisé sur la branche `fix-message-mise-a-jour` (pull request n° 16, en brouillon) ;
+`en attente de la CI et de l'accord de l'utilisateur sur les captures`.** Le comportement réel du homelab (déploiement
+horaire par `docker compose pull && docker compose up -d`) n'a pas pu être rejoué d'ici : seule la CI le reproduit.
+
+**Le constat.** « Le message pour vider le cache après la mise à jour de l'application marche bizarrement. » Ce que
+l'utilisateur voyait : sur l'**écran de connexion**, le bloc « Impossible de joindre le serveur… » et son bouton « Vider le
+cache de l'application », après un déploiement. Son homelab déploie toutes les heures (`docker compose pull && docker
+compose up -d`, images en `:latest`), et `docker-publish.yml` publie les deux images à chaque push sur `main`, même pour un
+commit de documentation : le backend est donc recréé souvent, sans qu'aucun code ne change réellement côté utilisateur.
+
+**Diagnostic, prouvé par la CI.**
+
+- **Cause principale : nginx.** `frontend/docker/nginx.conf` faisait `proxy_pass http://backend:8000/api/;`. nginx résout
+  `backend` **une seule fois, à son démarrage**. Quand le backend est recréé il reprend une autre adresse dans le réseau
+  Docker ; nginx continue d'écrire à l'ancienne, et **chaque appel `/api` renvoie 502 jusqu'au redémarrage du conteneur
+  frontend**. L'écran de connexion (dont l'appel `GET /api/auth/oidc/status` échoue) affichait alors « Impossible de joindre le
+  serveur » et le bouton « Vider le cache », qui n'y change rien.
+- **Preuve.** Étape ajoutée au job `deploiement-postgres` de la CI : un conteneur occupe l'adresse que le backend vient de
+  libérer, le backend est recréé seul (`docker compose up -d --force-recreate --no-deps`), puis `/api/health` est interrogé à
+  travers nginx. Avant le correctif : adresse `172.18.0.3 -> 172.18.0.5`, **dix essais, HTTP 000 puis 502**
+  (`connect() failed (113: Host is unreachable) ... upstream: "http://172.18.0.3:8000"`), étape en échec. Après : la même étape
+  répond 200 au premier essai. **Une première version du test passait sans rien prouver** : Docker redonne volontiers au
+  backend recréé l'adresse qu'il vient de libérer ; il a fallu occuper cette adresse pour que le changement soit certain —
+  ce qui est aussi ce qui arrive en vrai quand un autre conteneur s'est installé entre-temps.
+- **Cause aggravante : la session.** `AuthProvider` effaçait le jeton sur **n'importe quelle** erreur de `GET /api/auth/me`,
+  un 502 pendant un redémarrage compris : l'utilisateur était déconnecté par un simple redéploiement.
+- **Bannière de mise à jour.** Pas de faux positif de ce côté (le build est reproductible : deux builds du même code donnent
+  des fichiers identiques). Mais « Plus tard » n'était pas mémorisé (le service worker reste en attente : la bannière
+  revenait à chaque rechargement ou nouvel onglet pour la même version), et l'`setInterval` de vérification n'était jamais
+  nettoyé.
+
+**Décisions de l'utilisateur.** Bannière : **rechargement silencieux quand c'est sans risque, sinon bandeau discret**.
+
+**Ce qui est fait.**
+
+1. **Preuve d'abord** (étape du job `deploiement-postgres`, ci-dessus), commitée seule avant tout correctif.
+2. **nginx** : `resolver 127.0.0.11 valid=5s ipv6=off;`, `set $backend_upstream http://backend:8000;`,
+   `proxy_pass $backend_upstream;` (sans chemin : nginx transmet l'URI de la requête telle quelle, ce qui équivaut à l'ancien
+   `/api/` → `/api/`). Une seule `location` est proxifiée ; `client_max_body_size`, délais, tampons et en-têtes sont inchangés.
+   `docker compose pull && docker compose up -d` **suffit** désormais : plus aucun redémarrage manuel du frontend.
+3. **Écran de connexion** (`LoginPage.tsx`, `useStatutOidc`, `ErreurServeurInjoignable`) : trois cas distincts.
+   *Serveur qui redémarre* (erreur réseau, délai de 8 s dépassé, 502/503/504 sans `detail`) : « Le serveur redémarre,
+   reconnexion en cours… », région `status`, réessai seul après 1 s, 2 s, 4 s, 8 s puis 10 s, **arrêt au bout de 2 minutes** ;
+   aucun bouton. *Panne durable* : « Le serveur ne répond pas pour le moment… » + **Réessayer** ; le repli manuel
+   « Réinitialiser l'application » est un lien dans un bloc dépliable « Le problème persiste ? », jamais en première action ;
+   une réponse d'erreur du serveur (500…) passe directement à ce cas, réessayer seul n'y changerait rien. *Portail
+   d'authentification qui répond du HTML* : comportement conservé (un seul rechargement automatique avec désinstallation du
+   service worker), libellé « Votre session a expiré. Reconnectez-vous pour continuer. » + **Se reconnecter**. « Vider le cache »
+   n'est plus proposé nulle part.
+4. **Session au démarrage** (`AuthContext`) : un serveur qui ne répond pas n'efface plus le jeton ; la vérification est
+   rejouée au même rythme. Tout autre échec (jeton refusé…) le révoque comme avant.
+5. **Bannière de mise à jour** (`MiseAJourDisponible.tsx`, `useSaisieEnCours`, `utils/miseAJourApplication.ts`) : la version en
+   attente est identifiée par l'empreinte de `/sw.js`. **Sans saisie en cours** (aucun champ modifié depuis la dernière
+   navigation ou le dernier envoi de formulaire, aucune modale ouverte), l'application s'actualise **en silence** quand
+   l'onglet passe en arrière-plan ou à la navigation suivante. **Avec saisie** : bandeau « Une mise à jour est prête. »
+   [Actualiser] [Plus tard], posé au-dessus de la barre de navigation mobile, en bas à droite sur grand écran. « Plus tard »
+   est mémorisé **par version** (`sessionStorage`) ; jamais deux rechargements silencieux pour la même version (garde contre
+   toute boucle, distincte de celle de `reinitialisationApplication`) ; une version illisible ne déclenche jamais de
+   rechargement silencieux ; l'intervalle de vérification est nettoyé.
+
+**Vérification.** Tests unitaires (client : classification des erreurs ; connexion : trois cas, réessais en temps simulé,
+panne, absence de « Vider le cache » ; session au démarrage ; bannière : silencieux, bandeau, mémorisation par version,
+intervalle), trois parcours Playwright (`e2e/auth.spec.ts` : 502 puis rétablissement sans action, panne qui dure, session
+conservée sur un 502 de `/auth/me`), et contrôle à l'écran sur une instance isolée avec un **vrai service worker** à deux
+versions de `sw.js` (bureau 1440×900 et mobile 390×844, thèmes clair et sombre, français et allemand) : le bandeau apparaît
+avec une saisie, ne revient pas après « Plus tard » et un rechargement, et la navigation suivante recharge en silence sans
+saisie.
+
+**Limites.** (1) La réponse de nginx pendant les quelques secondes où le backend n'écoute pas encore reste un 502 : c'est
+l'écran de connexion qui l'absorbe, pas nginx. (2) Après le démarrage, `GET /auth/me` est le seul appel de session rejoué ;
+un onglet déjà ouvert qui perd le serveur au milieu d'un écran affiche, comme avant, l'erreur de l'appel en cours.
+(3) La détection de « saisie en cours » est volontairement prudente : un champ de recherche tapé compte, au pire la mise à
+jour passe par le bandeau au lieu d'être silencieuse.
+
+**Option NON implémentée, à décider avec l'utilisateur.** *Ne publier une image Docker que si `backend/` ou `frontend/` a
+changé* (filtre de chemins dans `docker-publish.yml`) : un commit de documentation, de CI ou de backlog ne recréerait plus ni
+le backend ni le frontend de son homelab. C'est le levier qui supprime la cause racine des redéploiements inutiles ; il est
+hors du périmètre de cette carte parce qu'il change ce que `:latest` contient et quand.
+
+---
 
 ---
 
