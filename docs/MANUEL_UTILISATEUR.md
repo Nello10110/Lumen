@@ -18,6 +18,10 @@ Parcours type conseillé :
 et le choix est retenu sur cet appareil. Une fois connecté, c'est la langue du foyer qui s'applique
 (Réglages → Général) ; le tout premier compte crée son foyer dans la langue de l'écran de création.
 
+**Mises à jour de l'application** : quand une nouvelle version est disponible, elle s'applique toute seule, sans rien vous demander, dès que vous changez d'écran ou que vous quittez l'onglet — à condition que vous n'ayez rien en cours de saisie. Si vous êtes au milieu d'un formulaire, un petit bandeau « Une mise à jour est prête. » apparaît en bas de l'écran : « Actualiser » applique la version tout de suite, « Plus tard » le masque (il ne revient pas pour cette version).
+
+**Si le serveur redémarre** (par exemple juste après une mise à jour du serveur), l'écran de connexion affiche « Le serveur redémarre, reconnexion en cours… » et se rétablit tout seul au bout de quelques secondes : il n'y a rien à faire, et votre session est conservée. Si le serveur ne répond toujours pas au bout de deux minutes, le bouton « Réessayer » apparaît. Le lien « Le problème persiste ? » propose, en dernier recours, de réinitialiser l'application sur cet appareil (cela n'efface aucune de vos données).
+
 Un bouton en haut à droite de chaque écran bascule l'apparence entre thème clair, thème sombre et suivi automatique du système (un clic fait passer de l'un à l'autre) ; le choix est mémorisé d'une visite à l'autre.
 
 **Installer l'application** : depuis un navigateur compatible (Chrome, Edge, ou Safari via « Ajouter à l'écran d'accueil » sur iPhone/iPad), l'icône d'installation dans la barre d'adresse (ou le menu du navigateur) ajoute l'application comme une icône dédiée, ouverte en plein écran — pas de store, pas d'installation à maintenir, juste le navigateur qui la sert comme une application native.
