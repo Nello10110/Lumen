@@ -138,7 +138,7 @@ export default function LoginPage() {
                 aria-hidden
                 className="h-4 w-4 shrink-0 rounded-full border-2 border-hairline border-t-accent motion-safe:animate-spin"
               />
-              {t('connexion.serveurRedemarre')}
+              <span className="text-balance">{t('connexion.serveurRedemarre')}</span>
             </p>
           )}
           {statutOidc === 'panne' && (
