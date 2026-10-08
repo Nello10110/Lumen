@@ -80,13 +80,16 @@ const de: Dictionnaire = {
     creerMonCompte: 'Mein Konto erstellen',
     ou: 'oder',
     seConnecterAvec: 'Mit {fournisseur} anmelden',
-    portailExpire:
-      'Die Sitzung mit dem Authentifizierungsportal ist abgelaufen: Die App wird aus dem Cache angezeigt, spricht aber nicht mehr mit dem Server. „Erneut verbinden“ lädt sie aus dem Netzwerk neu, damit Sie sich wieder anmelden können.',
-    serveurInjoignable:
-      'Der Server ist nicht erreichbar: Falls dieser Haushalt eine SSO-Anmeldung nutzt, kann ihre Schaltfläche derzeit nicht angezeigt werden.',
+    serveurRedemarre: "Der Server wird neu gestartet, die Verbindung wird wiederhergestellt …",
+    serveurSilencieux:
+      "Der Server antwortet derzeit nicht. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    portailExpire: "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um fortzufahren.",
     reessayer: 'Erneut versuchen',
     seReconnecter: 'Erneut verbinden',
-    viderCache: 'App-Cache leeren',
+    problemePersiste: "Besteht das Problem weiterhin?",
+    reinitialiserExplication:
+      "Dadurch werden die Daten gelöscht, die die App auf diesem Gerät gespeichert hat, und die App wird neu geladen. Ihre Konten und Daten bleiben unberührt.",
+    reinitialiserApplication: "App zurücksetzen",
     pasEncoreDeCompte: 'Noch kein Konto?',
     dejaUnCompte: 'Bereits ein Konto?',
   },

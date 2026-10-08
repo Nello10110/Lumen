@@ -79,13 +79,16 @@ const en: Dictionnaire = {
     creerMonCompte: 'Create my account',
     ou: 'or',
     seConnecterAvec: 'Log in with {fournisseur}',
-    portailExpire:
-      'The session with the authentication portal has expired: the app is shown from the cache but no longer talks to the server. “Reconnect” reloads it from the network so you can log back in.',
-    serveurInjoignable:
-      'Unable to reach the server: if this household uses SSO login, its button cannot be shown for now.',
+    serveurRedemarre: "The server is restarting, reconnecting…",
+    serveurSilencieux:
+      "The server isn’t responding right now. Check your connection, then try again.",
+    portailExpire: "Your session has expired. Reconnect to continue.",
     reessayer: 'Try again',
     seReconnecter: 'Reconnect',
-    viderCache: 'Clear the app cache',
+    problemePersiste: "Still not working?",
+    reinitialiserExplication:
+      "This clears the data the app saved on this device, then reloads it. Your accounts and data are not affected.",
+    reinitialiserApplication: "Reset the app",
     pasEncoreDeCompte: 'No account yet?',
     dejaUnCompte: 'Already have an account?',
   },

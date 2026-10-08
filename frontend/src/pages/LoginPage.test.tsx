@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { api, ErreurPortailAuthentification } from '../api/client'
+import { api, ErreurPortailAuthentification, ErreurServeurInjoignable } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import { activerLangue } from '../i18n'
 import { LangueProvider } from '../i18n/LangueProvider'
@@ -16,6 +16,12 @@ vi.mock('../api/client', () => ({
     constructor() {
       super("La session avec le portail d'authentification a expiré.")
       this.name = 'ErreurPortailAuthentification'
+    }
+  },
+  ErreurServeurInjoignable: class ErreurServeurInjoignable extends Error {
+    constructor() {
+      super('Impossible de contacter le serveur.')
+      this.name = 'ErreurServeurInjoignable'
     }
   },
 }))
@@ -131,31 +137,145 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
   // connexion amputé de son seul moyen de connexion, sans rien qui l'explique.
   // ---------------------------------------------------------------------------
 
-  it("dit qu'il n'a pas pu vérifier, au lieu de masquer le bouton SSO en silence", async () => {
-    vi.mocked(api.getOidcStatus).mockRejectedValue(new Error('Panne réseau'))
+  // Correctif #88 : après un déploiement, le backend redémarre et ne répond pas pendant
+  // quelques secondes. L'écran l'explique et réessaie tout seul — il ne propose PAS de
+  // « vider le cache », qui n'y change rien et inquiète.
+  it("serveur qui redémarre : le dit, réessaie seul, et ne propose ni « Vider le cache » ni bouton", async () => {
+    vi.mocked(api.getOidcStatus).mockRejectedValue(new ErreurServeurInjoignable())
 
     render(<LoginPage />)
 
-    expect(await screen.findByText(/Impossible de joindre le serveur/)).toBeInTheDocument()
-    // L'utilisateur garde une prise sur la situation : trois issues, dont celle
-    // qu'il devait jusqu'ici aller chercher dans les réglages de son téléphone.
+    const message = await screen.findByText('Le serveur redémarre, reconnexion en cours…')
+    // Annoncé aux lecteurs d'écran : la région `status` existe avant le message.
+    expect(screen.getByRole('status')).toContainElement(message)
+    expect(screen.queryByRole('button', { name: /Vider le cache/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Impossible de joindre le serveur/)).not.toBeInTheDocument()
+  })
+
+  describe('reconnexion automatique (temps simulé)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    async function avancer(ms: number) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms)
+      })
+    }
+
+    it("rétablit l'écran normal (bouton SSO) dès que le serveur répond, sans aucune action", async () => {
+      vi.mocked(api.getOidcStatus)
+        .mockRejectedValueOnce(new ErreurServeurInjoignable())
+        .mockRejectedValueOnce(new ErreurServeurInjoignable())
+        .mockResolvedValueOnce({ enabled: true, display_name: 'Authentik', logo: null })
+
+      render(<LoginPage />)
+      await avancer(0)
+      expect(screen.getByText('Le serveur redémarre, reconnexion en cours…')).toBeInTheDocument()
+
+      await avancer(1000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(2)
+      expect(screen.getByText('Le serveur redémarre, reconnexion en cours…')).toBeInTheDocument()
+
+      await avancer(2000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(3)
+      expect(screen.getByRole('link', { name: /Se connecter avec Authentik/ })).toBeInTheDocument()
+      expect(screen.queryByText('Le serveur redémarre, reconnexion en cours…')).not.toBeInTheDocument()
+    })
+
+    it("espace les essais (1 s, 2 s, 4 s, 8 s puis 10 s), s'arrête au bout de 2 minutes et propose « Réessayer »", async () => {
+      vi.mocked(api.getOidcStatus).mockRejectedValue(new ErreurServeurInjoignable())
+
+      render(<LoginPage />)
+      await avancer(0)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(1)
+      await avancer(1000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(2)
+      await avancer(2000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(3)
+      await avancer(4000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(4)
+      await avancer(8000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(5)
+      await avancer(10_000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(6)
+
+      await avancer(130_000)
+      const essais = vi.mocked(api.getOidcStatus).mock.calls.length
+      expect(screen.getByText(/Le serveur ne répond pas pour le moment/)).toBeInTheDocument()
+      expect(screen.queryByText('Le serveur redémarre, reconnexion en cours…')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument()
+
+      // Plus aucun essai tout seul.
+      await avancer(60_000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(essais)
+    })
+
+    it("après la panne, « Réessayer » relance une série d'essais et rétablit l'écran", async () => {
+      vi.mocked(api.getOidcStatus).mockRejectedValue(new ErreurServeurInjoignable())
+      render(<LoginPage />)
+      await avancer(130_000)
+      expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument()
+
+      vi.mocked(api.getOidcStatus).mockReset().mockResolvedValue({ enabled: true, display_name: 'Authentik', logo: null })
+      fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+      await avancer(0)
+
+      expect(screen.getByRole('link', { name: /Se connecter avec Authentik/ })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Réessayer' })).not.toBeInTheDocument()
+    })
+
+    it('quitter la page arrête les essais', async () => {
+      vi.mocked(api.getOidcStatus).mockRejectedValue(new ErreurServeurInjoignable())
+      const { unmount } = render(<LoginPage />)
+      await avancer(0)
+      unmount()
+
+      await avancer(60_000)
+
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(1)
+    })
+
+    it("panne durable : « Vider le cache » n'est plus proposé ; le repli est un lien discret, dans un bloc dépliable", async () => {
+      vi.mocked(api.getOidcStatus).mockRejectedValue(new ErreurServeurInjoignable())
+      render(<LoginPage />)
+      await avancer(130_000)
+
+      expect(screen.queryByRole('button', { name: /Vider le cache/ })).not.toBeInTheDocument()
+      // « Réessayer » vient en premier ; la réinitialisation n'est jamais l'action principale,
+      // et reste repliée tant que l'utilisateur ne l'ouvre pas.
+      const boutons = screen.getAllByRole('button', { hidden: true }).map((b) => b.textContent)
+      expect(boutons.indexOf('Réessayer')).toBeLessThan(boutons.indexOf('Réinitialiser l’application'))
+      const details = screen.getByText('Le problème persiste ?').closest('details')!
+      expect(details).not.toHaveAttribute('open')
+      expect(details).toContainElement(screen.getByRole('button', { name: 'Réinitialiser l’application', hidden: true }))
+    })
+  })
+
+  it("une réponse d'erreur du serveur (500...) n'est pas une coupure : message de panne tout de suite, sans réessai automatique", async () => {
+    vi.mocked(api.getOidcStatus).mockRejectedValue(new Error('Une erreur interne est survenue côté serveur.'))
+
+    render(<LoginPage />)
+
+    expect(await screen.findByText(/Le serveur ne répond pas pour le moment/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: "Vider le cache de l'application" })).toBeInTheDocument()
-    // Pas de « Recharger la page » : il serait trompeur, le service worker
-    // resservirait la même coquille depuis son cache.
-    expect(screen.queryByRole('button', { name: /Recharger/ })).not.toBeInTheDocument()
+    expect(api.getOidcStatus).toHaveBeenCalledTimes(1)
   })
 
   it('« Réessayer » rétablit le bouton SSO sans rien vider', async () => {
     vi.mocked(api.getOidcStatus)
-      .mockRejectedValueOnce(new Error('Panne réseau'))
+      .mockRejectedValueOnce(new Error('Panne'))
       .mockResolvedValueOnce({ enabled: true, display_name: 'Authentik', logo: null })
 
     render(<LoginPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
 
     expect(await screen.findByRole('link', { name: /Se connecter avec Authentik/ })).toBeInTheDocument()
-    expect(screen.queryByText(/Impossible de joindre le serveur/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Le serveur ne répond pas/)).not.toBeInTheDocument()
   })
 
   it("reconnaît un portail d'authentification qui a repris la main, et se recharge pour lui rendre la main", async () => {
@@ -204,10 +324,12 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
     try {
       render(<LoginPage />)
 
-      expect(await screen.findByText(/portail d.authentification a expiré/)).toBeInTheDocument()
+      expect(await screen.findByText('Votre session a expiré. Reconnectez-vous pour continuer.')).toBeInTheDocument()
       expect(rechargements).not.toHaveBeenCalled()
-      // Le bouton propose bien la seule manœuvre qui sorte de l'impasse.
+      // Le bouton propose bien la seule manœuvre qui sorte de l'impasse — et pas de
+      // « Vider le cache », ni de jargon.
       expect(screen.getByRole('button', { name: 'Se reconnecter' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Vider le cache/ })).not.toBeInTheDocument()
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: vraieLocation })
     }

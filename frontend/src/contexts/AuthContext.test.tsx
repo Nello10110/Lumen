@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { api } from '../api/client'
+import { api, ErreurServeurInjoignable } from '../api/client'
 import type { AuthUser } from '../api/types'
 import { clearToken, getToken } from '../auth/tokenStorage'
 import { useAuth } from '../hooks/useAuth'
@@ -14,6 +14,8 @@ vi.mock('../api/client', () => ({
     register: vi.fn(),
     logout: vi.fn(),
   },
+  // Classe réelle (pas un double) : le fournisseur la reconnaît par `instanceof`.
+  ErreurServeurInjoignable: class ErreurServeurInjoignable extends Error {},
 }))
 
 function utilisateur(overrides: Partial<AuthUser> = {}): AuthUser {
@@ -71,6 +73,80 @@ describe('AuthProvider — retour de connexion Authentik (backlog SSO Authentik)
     )
 
     await screen.findByText('Connecté : bob')
+  })
+})
+
+// Correctif #88 : un déploiement redémarre le backend, et le premier appel de l'application
+// (`GET /auth/me`) tombe dessus. Le jeton n'y est pour rien : le révoquer déconnectait
+// l'utilisateur à chaque mise à jour.
+describe('AuthProvider — serveur qui redémarre pendant la vérification de la session', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearToken()
+    window.history.replaceState(null, '', '/')
+    localStorage.setItem('patrimoine_auth_token', 'jeton-existant')
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('garde le jeton et réessaie : la session est rétablie dès que le serveur répond', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.getMe)
+      .mockRejectedValueOnce(new ErreurServeurInjoignable())
+      .mockRejectedValueOnce(new ErreurServeurInjoignable())
+      .mockResolvedValueOnce(utilisateur({ username: 'carole' }))
+
+    render(
+      <AuthProvider>
+        <Sonde />
+      </AuthProvider>,
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.getByText('Chargement...')).toBeInTheDocument()
+    expect(getToken()).toBe('jeton-existant')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000 + 2000)
+    })
+
+    expect(screen.getByText('Connecté : carole')).toBeInTheDocument()
+    expect(api.getMe).toHaveBeenCalledTimes(3)
+    expect(getToken()).toBe('jeton-existant')
+  })
+
+  it("serveur muet après tous les essais : rend la main à l'écran de connexion SANS effacer le jeton", async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.getMe).mockRejectedValue(new ErreurServeurInjoignable())
+
+    render(
+      <AuthProvider>
+        <Sonde />
+      </AuthProvider>,
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(130_000)
+    })
+
+    expect(screen.getByText('Déconnecté')).toBeInTheDocument()
+    expect(getToken()).toBe('jeton-existant')
+  })
+
+  it('une autre erreur (jeton refusé...) révoque toujours le jeton, sans réessai', async () => {
+    vi.mocked(api.getMe).mockRejectedValue(new Error('Jeton invalide'))
+
+    render(
+      <AuthProvider>
+        <Sonde />
+      </AuthProvider>,
+    )
+
+    await screen.findByText('Déconnecté')
+    expect(getToken()).toBeNull()
+    expect(api.getMe).toHaveBeenCalledTimes(1)
   })
 })
 

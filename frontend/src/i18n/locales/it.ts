@@ -80,13 +80,16 @@ const it: Dictionnaire = {
     creerMonCompte: 'Crea il mio account',
     ou: 'oppure',
     seConnecterAvec: 'Accedi con {fournisseur}',
-    portailExpire:
-      "La sessione con il portale di autenticazione è scaduta: l'app è mostrata dalla cache, ma non comunica più con il server. «Riconnettiti» la ricarica dalla rete per permetterti di accedere di nuovo.",
-    serveurInjoignable:
-      'Impossibile raggiungere il server: se questo nucleo usa un accesso SSO, il suo pulsante non può essere mostrato per ora.',
+    serveurRedemarre: "Il server si sta riavviando, riconnessione in corso…",
+    serveurSilencieux:
+      "Il server non risponde al momento. Verifichi la connessione e riprovi.",
+    portailExpire: "La sessione è scaduta. Riconnettersi per continuare.",
     reessayer: 'Riprova',
     seReconnecter: 'Riconnettiti',
-    viderCache: "Svuota la cache dell'app",
+    problemePersiste: "Il problema persiste?",
+    reinitialiserExplication:
+      "Questa azione cancella i dati salvati dall’app su questo dispositivo, poi la ricarica. I suoi conti e i suoi dati non vengono toccati.",
+    reinitialiserApplication: "Reimposta l’app",
     pasEncoreDeCompte: 'Non ha ancora un account?',
     dejaUnCompte: 'Ha già un account?',
   },
