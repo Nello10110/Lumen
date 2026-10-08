@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken, setUnauthorizedHandler } from '../auth/tokenStorage'
-import { api, ErreurPortailAuthentification } from './client'
+import { api, ErreurApi, ErreurPortailAuthentification, ErreurServeurInjoignable } from './client'
 
 // `api.*` passe systématiquement par `request()` : on teste directement via une
 // méthode existante (`listHoldings`) plutôt que de dupliquer `request` en dur ici.
@@ -93,6 +93,75 @@ describe('api client — messages d\'erreur (LOT 6.8)', () => {
     mockFetchOnce({ ok: true, status: 200, json: async () => [{ id: 1 }] })
 
     await expect(api.listHoldings()).resolves.toEqual([{ id: 1 }])
+  })
+})
+
+// Correctif #88 : après un déploiement, le backend redémarre. Les écrans doivent pouvoir
+// distinguer « le serveur ne répond pas » (transitoire, on réessaie) d'une vraie réponse
+// d'erreur (on l'affiche).
+describe('api client — classification des erreurs de disponibilité du serveur', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('un fetch qui échoue (réseau coupé, serveur arrêté, délai dépassé) est « serveur injoignable »', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    const erreur = await api.listHoldings().catch((e) => e)
+
+    expect(erreur).toBeInstanceOf(ErreurServeurInjoignable)
+    // Message inchangé pour les écrans qui l'affichent tel quel.
+    expect(erreur.message).toBe('Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.')
+  })
+
+  it.each([502, 503, 504])('un %i sans detail (le proxy répond à la place du backend) est « serveur injoignable »', async (status) => {
+    mockFetchOnce({
+      ok: false,
+      status,
+      statusText: 'Bad Gateway',
+      json: async () => {
+        throw new SyntaxError('Unexpected token < in JSON')
+      },
+    })
+
+    await expect(api.listHoldings()).rejects.toBeInstanceOf(ErreurServeurInjoignable)
+  })
+
+  it("un 503 AVEC detail (l'application parle) reste une erreur d'API, message conservé", async () => {
+    mockFetchOnce({ ok: false, status: 503, statusText: 'Service Unavailable', json: async () => ({ detail: 'Foyer suspendu.' }) })
+
+    const erreur = await api.listHoldings().catch((e) => e)
+
+    expect(erreur).toBeInstanceOf(ErreurApi)
+    expect(erreur).not.toBeInstanceOf(ErreurServeurInjoignable)
+    expect(erreur.message).toBe('Foyer suspendu.')
+  })
+
+  it("un 500 sans detail reste une erreur d'API : réessayer seul n'y changerait rien", async () => {
+    mockFetchOnce({ ok: false, status: 500, statusText: 'Internal Server Error', json: async () => ({}) })
+
+    const erreur = await api.listHoldings().catch((e) => e)
+
+    expect(erreur).toBeInstanceOf(ErreurApi)
+    expect(erreur).not.toBeInstanceOf(ErreurServeurInjoignable)
+  })
+
+  it('un portail qui répond du HTML avec un 200 reste distinct du serveur injoignable', async () => {
+    mockFetchOnce({ ok: true, status: 200, headers: new Headers({ 'content-type': 'text/html' }) })
+
+    const erreur = await api.listHoldings().catch((e) => e)
+
+    expect(erreur).toBeInstanceOf(ErreurPortailAuthentification)
+    expect(erreur).not.toBeInstanceOf(ErreurServeurInjoignable)
+  })
+
+  it("le statut SSO est demandé avec un délai borné (le navigateur ne laisse pas la requête pendre)", async () => {
+    const fetchMock = mockFetchOnce({ ok: true, status: 200, json: async () => ({ enabled: false, display_name: 'SSO', logo: null }) })
+
+    await api.getOidcStatus()
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(options.signal).toBeInstanceOf(AbortSignal)
   })
 })
 

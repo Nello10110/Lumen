@@ -80,13 +80,16 @@ const es: Dictionnaire = {
     creerMonCompte: 'Crear mi cuenta',
     ou: 'o',
     seConnecterAvec: 'Iniciar sesión con {fournisseur}',
-    portailExpire:
-      'La sesión con el portal de autenticación ha caducado: la aplicación se muestra desde la caché, pero ya no se comunica con el servidor. «Volver a conectarse» la recarga desde la red para que pueda volver a iniciar sesión.',
-    serveurInjoignable:
-      'No se puede contactar con el servidor: si este hogar usa un inicio de sesión SSO, su botón no puede mostrarse por ahora.',
+    serveurRedemarre: "El servidor se está reiniciando, reconectando…",
+    serveurSilencieux:
+      "El servidor no responde por ahora. Compruebe su conexión y vuelva a intentarlo.",
+    portailExpire: "Su sesión ha caducado. Vuelva a conectarse para continuar.",
     reessayer: 'Reintentar',
     seReconnecter: 'Volver a conectarse',
-    viderCache: 'Vaciar la caché de la aplicación',
+    problemePersiste: "¿Sigue sin funcionar?",
+    reinitialiserExplication:
+      "Esta acción borra los datos que la aplicación guardó en este dispositivo y la vuelve a cargar. Sus cuentas y sus datos no se ven afectados.",
+    reinitialiserApplication: "Restablecer la aplicación",
     pasEncoreDeCompte: '¿Aún no tiene cuenta?',
     dejaUnCompte: '¿Ya tiene una cuenta?',
   },

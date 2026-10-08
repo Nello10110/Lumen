@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { langueActive } from '../i18n'
-import { api } from '../api/client'
+import { api, ErreurServeurInjoignable } from '../api/client'
 import type { AuthUser } from '../api/types'
+import { delaiAvantEssai, peutReessayer } from '../auth/reconnexionServeur'
 import { clearToken, getToken, setToken, setUnauthorizedHandler } from '../auth/tokenStorage'
 import { AuthContext, type AuthContextValue } from './authContextObject'
 
@@ -34,11 +35,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
-    api
-      .getMe()
-      .then(setUser)
-      .catch(() => clearToken())
-      .finally(() => setLoading(false))
+    let actif = true
+    let minuterie: ReturnType<typeof setTimeout> | undefined
+    // Un serveur qui redémarre (déploiement) n'invalide pas le jeton : on le garde et on
+    // réessaie tant que cela reste raisonnable, au lieu de déconnecter l'utilisateur sur
+    // un 502 (correctif #88). Toute autre erreur — un 401 en tête — le révoque.
+    const verifierSession = (essai: number) => {
+      api
+        .getMe()
+        .then((u) => {
+          if (actif) {
+            setUser(u)
+            setLoading(false)
+          }
+        })
+        .catch((err) => {
+          if (!actif) return
+          if (err instanceof ErreurServeurInjoignable && peutReessayer(essai)) {
+            minuterie = setTimeout(() => verifierSession(essai + 1), delaiAvantEssai(essai))
+            return
+          }
+          // Serveur toujours muet après tous les essais : on rend la main à l'écran de
+          // connexion SANS effacer le jeton (il redeviendra utilisable avec le serveur).
+          if (!(err instanceof ErreurServeurInjoignable)) clearToken()
+          setLoading(false)
+        })
+    }
+    verifierSession(0)
+    return () => {
+      actif = false
+      clearTimeout(minuterie)
+    }
   }, [])
 
   const value = useMemo<AuthContextValue>(

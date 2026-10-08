@@ -89,13 +89,16 @@ const fr = {
     creerMonCompte: 'Créer mon compte',
     ou: 'ou',
     seConnecterAvec: 'Se connecter avec {fournisseur}',
-    portailExpire:
-      'La session avec le portail d’authentification a expiré : l’application est affichée depuis le cache, mais elle ne parle plus au serveur. « Se reconnecter » la recharge depuis le réseau pour t’y reconnecter.',
-    serveurInjoignable:
-      'Impossible de joindre le serveur : si ce foyer utilise une connexion SSO, son bouton ne peut pas être affiché pour l’instant.',
+    serveurRedemarre: "Le serveur redémarre, reconnexion en cours…",
+    serveurSilencieux:
+      "Le serveur ne répond pas pour le moment. Vérifiez votre connexion, puis réessayez.",
+    portailExpire: "Votre session a expiré. Reconnectez-vous pour continuer.",
     reessayer: 'Réessayer',
     seReconnecter: 'Se reconnecter',
-    viderCache: "Vider le cache de l'application",
+    problemePersiste: "Le problème persiste ?",
+    reinitialiserExplication:
+      "Cette action efface les données enregistrées par l’application sur cet appareil, puis la recharge. Vos comptes et vos données ne sont pas touchés.",
+    reinitialiserApplication: "Réinitialiser l’application",
     pasEncoreDeCompte: 'Pas encore de compte ?',
     dejaUnCompte: 'Déjà un compte ?',
   },

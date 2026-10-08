@@ -153,6 +153,21 @@ export class ErreurApi extends Error {
   }
 }
 
+/** Le serveur n'a pas répondu, ou le proxy a répondu à sa place (502/503/504) : coupure,
+ * redémarrage du backend après un déploiement, délai dépassé. Transitoire par nature, à
+ * distinguer d'une vraie réponse d'erreur (`ErreurApi`) : un écran peut alors réessayer
+ * tout seul au lieu d'afficher une panne. Sous-classe d'`Error` au message inchangé
+ * (« Impossible de contacter le serveur... ») : aucun appelant existant n'a à changer. */
+export class ErreurServeurInjoignable extends Error {
+  constructor() {
+    super(messageErreurReseau())
+    this.name = 'ErreurServeurInjoignable'
+  }
+}
+
+const STATUTS_SERVEUR_INDISPONIBLE = [502, 503, 504]
+const DELAI_STATUT_OIDC_MS = 8000
+
 // Fetch + gestion d'erreur commune à `request` (JSON) et `requestBlob` (PDF
 // généré côté serveur, backlog 2.Q.2) : seule la lecture du corps en cas de succès
 // diffère entre les deux, tout le reste (jeton, 401, message d'erreur) doit rester
@@ -169,8 +184,8 @@ async function fetchApi(path: string, options?: RequestInit): Promise<Response> 
     res = await fetch(`/api${path}`, { headers, ...options })
   } catch {
     // `fetch` a échoué avant toute réponse (connexion au serveur perdue, serveur non
-    // démarré...) : il n'y a aucun `detail` métier possible à afficher.
-    throw new Error(messageErreurReseau())
+    // démarré, délai dépassé...) : il n'y a aucun `detail` métier possible à afficher.
+    throw new ErreurServeurInjoignable()
   }
   if (!res.ok) {
     if (res.status === 401 && !estRoutePublique(path)) {
@@ -184,6 +199,10 @@ async function fetchApi(path: string, options?: RequestInit): Promise<Response> 
     } catch {
       // Corps de réponse absent ou non-JSON : pas de `detail` à récupérer.
     }
+    // 502/503/504 SANS `detail` JSON : c'est le proxy (nginx) qui répond à la place d'un
+    // backend absent ou en cours de redémarrage, pas l'application — même cas qu'un
+    // `fetch` qui échoue. Avec un `detail`, c'est l'application qui parle : on le garde.
+    if (detail === null && STATUTS_SERVEUR_INDISPONIBLE.includes(res.status)) throw new ErreurServeurInjoignable()
     throw new ErreurApi(detail ?? messageGenerique(res.status, res.statusText), res.status)
   }
   return res
@@ -333,7 +352,9 @@ export const api = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getMe: () => request<AuthUser>('/auth/me'),
   completeOnboarding: () => request<AuthUser>('/auth/onboarding/terminer', { method: 'POST' }),
-  getOidcStatus: () => request<OidcStatus>('/auth/oidc/status'),
+  // Délai borné : l'écran de connexion réessaie de lui-même (`useStatutOidc`), il ne doit pas
+  // rester suspendu à une requête que le navigateur laisserait pendre bien plus longtemps.
+  getOidcStatus: () => request<OidcStatus>('/auth/oidc/status', { signal: AbortSignal.timeout(DELAI_STATUT_OIDC_MS) }),
   // Nom du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité).
   updateFoyerNom: (nom: string) => request<AuthUser>('/auth/foyer', { method: 'PATCH', body: JSON.stringify({ nom }) }),
   updateLangueFoyer: (langue: string) =>

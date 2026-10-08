@@ -1,11 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api, ErreurPortailAuthentification } from '../api/client'
-import {
-  oublierTentativeRechargement,
-  peutRechargerAutomatiquement,
-  reinitialiserApplication,
-} from '../auth/reinitialisationApplication'
+import { useEffect, useState } from 'react'
+import { reinitialiserApplication } from '../auth/reinitialisationApplication'
 import { useAuth } from '../hooks/useAuth'
+import { useStatutOidc } from '../hooks/useStatutOidc'
 import { PrimaryButton, SecondaryButton } from '../components/Controls'
 import { Field, Input } from '../components/Field'
 import { GlassPanel } from '../components/GlassPanel'
@@ -32,59 +28,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(() => erreurOidcDepuisUrl())
-  // Trois états, jamais deux (retour utilisateur du 14/09/2026) : « le SSO n'est pas
-  // configuré » et « je n'ai pas réussi à le demander » ne sont PAS la même chose, et
-  // les confondre est exactement ce qui a fait perdre l'accès à l'application.
-  //
-  // Historique : l'échec était silencieux par choix (backlog 2.K.5), au motif qu'un
-  // bouton absent sur un déploiement sans SSO n'est pas une erreur. Vrai — mais
-  // seulement quand le serveur a RÉPONDU. Quand l'appel échoue, on ne sait rien, et
-  // afficher un écran de connexion amputé revient à mentir : sur un téléphone, avec
-  // l'application servie depuis le cache du service worker, l'utilisateur se
-  // retrouvait devant un écran d'apparence normale, sans son seul moyen de
-  // connexion, sans rien qui l'explique — et sans autre issue que de vider le cache
-  // dans les réglages du système.
-  const [statutOidc, setStatutOidc] = useState<'inconnu' | 'absent' | 'disponible' | 'indisponible'>('inconnu')
-  const [oidcDisplayName, setOidcDisplayName] = useState('SSO')
-  // Logo du bouton, posé depuis les Réglages (22/09/2026) — `null` par défaut, le
-  // bouton se réduit alors à son libellé comme avant ce lot.
-  const [oidcLogo, setOidcLogo] = useState<string | null>(null)
-  const [portailExpire, setPortailExpire] = useState(false)
-
-  const chargerStatutOidc = useCallback(async () => {
-    setStatutOidc('inconnu')
-    setPortailExpire(false)
-    try {
-      const s = await api.getOidcStatus()
-      oublierTentativeRechargement()
-      setOidcDisplayName(s.display_name)
-      setOidcLogo(s.logo)
-      setStatutOidc(s.enabled ? 'disponible' : 'absent')
-    } catch (err) {
-      // Un portail d'authentification s'est interposé (sa propre page de connexion
-      // renvoyée à la place du JSON). Pour lui rendre la main, il faut une navigation
-      // qui parte VRAIMENT au réseau — et un simple `location.reload()` n'en est pas
-      // une ici : le service worker sert toute navigation depuis son précache
-      // (`NavigationRoute(createHandlerBoundToURL("index.html"))`, vérifié dans le
-      // `sw.js` généré), sans jamais contacter le serveur. C'est précisément ce qui
-      // enfermait l'utilisateur : recharger réaffichait indéfiniment la même coquille
-      // en cache, et seul un vidage manuel du cache depuis les réglages du téléphone
-      // en sortait.
-      //
-      // `reinitialiserApplication` désinstalle donc le service worker avant de
-      // recharger : la navigation suivante atteint le réseau, le portail la voit
-      // passer et redirige. Tenté UNE fois automatiquement — l'utilisateur n'a alors
-      // rien à faire —, puis on explique et on lui laisse la main.
-      if (err instanceof ErreurPortailAuthentification) {
-        setPortailExpire(true)
-        if (peutRechargerAutomatiquement()) {
-          void reinitialiserApplication()
-          return
-        }
-      }
-      setStatutOidc('indisponible')
-    }
-  }, [])
+  // Ce que l'écran sait du serveur (cf. `useStatutOidc`) : « le SSO n'est pas configuré »,
+  // « le serveur redémarre » et « une panne dure » ne sont PAS la même chose, et les
+  // confondre est ce qui a fait perdre l'accès à l'application (retour du 14/09/2026).
+  const { statut: statutOidc, nomFournisseur: oidcDisplayName, logo: oidcLogo, reessayer } = useStatutOidc()
 
   useEffect(() => {
     if (erreurOidcDepuisUrl()) {
@@ -93,8 +40,7 @@ export default function LoginPage() {
       const reste = params.toString()
       window.history.replaceState(null, '', window.location.pathname + (reste ? `?${reste}` : ''))
     }
-    void chargerStatutOidc()
-  }, [chargerStatutOidc])
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -179,28 +125,54 @@ export default function LoginPage() {
           </>
         )}
 
-        {/* Le serveur n'a pas répondu : on ne sait pas si le SSO existe. On le DIT,
-            avec les deux issues possibles — au lieu d'afficher un écran amputé qui
-            laisse croire que la connexion par SSO n'existe pas sur ce déploiement. */}
-        {statutOidc === 'indisponible' && (
-          <div className="mt-4 rounded-control border border-hairline bg-chip p-3 text-[13px] text-ink2">
-            <p>
-              {portailExpire ? t('connexion.portailExpire') : t('connexion.serveurInjoignable')}
+        {/* Le serveur ne répond pas : on ne sait pas si le SSO existe. On le DIT, au lieu
+            d'afficher un écran amputé qui laisse croire que la connexion par SSO n'existe
+            pas sur ce déploiement. Même emplacement que le bouton SSO qu'il remplace :
+            rien au-dessus ne bouge quand l'un laisse la place à l'autre. La région
+            `output` (rôle `status`) existe en permanence, pour que le lecteur d'écran annonce le texte
+            quand il apparaît. */}
+        <output className="block">
+          {statutOidc === 'reconnexion' && (
+            <p className="mt-4 flex items-center gap-2.5 rounded-control border border-hairline bg-chip px-3.5 py-3 text-[13px] text-ink2">
+              <span
+                aria-hidden
+                className="h-4 w-4 shrink-0 rounded-full border-2 border-hairline border-t-accent motion-safe:animate-spin"
+              />
+              {t('connexion.serveurRedemarre')}
             </p>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              {/* Deux actions, pas trois : un simple « Recharger la page » serait
-                  trompeur — le service worker resservirait la même coquille depuis
-                  son cache sans jamais contacter le serveur. */}
-              <SecondaryButton onClick={() => void chargerStatutOidc()}>{t('connexion.reessayer')}</SecondaryButton>
-              {/* La sortie de secours, enfin dans l'application : c'est exactement ce
-                  que l'utilisateur devait aller faire à la main dans les réglages de
-                  son téléphone (retour du 14/09/2026). */}
-              <SecondaryButton onClick={() => void reinitialiserApplication()}>
-                {portailExpire ? t('connexion.seReconnecter') : t('connexion.viderCache')}
-              </SecondaryButton>
+          )}
+          {statutOidc === 'panne' && (
+            <div className="mt-4 rounded-control border border-hairline bg-chip p-3.5 text-[13px] text-ink2">
+              <p>{t('connexion.serveurSilencieux')}</p>
+              <div className="mt-2.5">
+                <SecondaryButton onClick={reessayer}>{t('connexion.reessayer')}</SecondaryButton>
+              </div>
+              {/* Repli manuel, discret : utile quand une coquille périmée en cache empêche
+                  d'atteindre le serveur, mais jamais la première chose proposée. */}
+              <details className="mt-3 text-ink3">
+                <summary className="cursor-pointer select-none hover:text-ink2">{t('connexion.problemePersiste')}</summary>
+                <p className="mt-2">{t('connexion.reinitialiserExplication')}</p>
+                <button
+                  type="button"
+                  onClick={() => void reinitialiserApplication()}
+                  className="mt-1.5 font-medium text-accent hover:underline"
+                >
+                  {t('connexion.reinitialiserApplication')}
+                </button>
+              </details>
             </div>
-          </div>
-        )}
+          )}
+          {statutOidc === 'portail' && (
+            <div className="mt-4 rounded-control border border-hairline bg-chip p-3.5 text-[13px] text-ink2">
+              <p>{t('connexion.portailExpire')}</p>
+              <div className="mt-2.5">
+                {/* Pas un simple « Recharger la page » : le service worker resservirait la
+                    même coquille depuis son cache sans jamais contacter le serveur. */}
+                <SecondaryButton onClick={() => void reinitialiserApplication()}>{t('connexion.seReconnecter')}</SecondaryButton>
+              </div>
+            </div>
+          )}
+        </output>
 
         {/* Les deux onglets « Se connecter / Créer un compte » deviennent un simple
             lien (maquette de la refonte) : ils donnaient le même poids visuel aux deux
