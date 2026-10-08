@@ -33,3 +33,5 @@ frontend/blob-report/
 .env
 .env.*
 !.env.exemple
+# Configuration locale de Codex : contient un jeton d'API (ne jamais publier)
+.codex/
