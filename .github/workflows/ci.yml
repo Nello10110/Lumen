@@ -351,10 +351,19 @@ jobs:
           adresse() { docker inspect "$(docker compose ps -q backend)" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'; }
           avant=$(adresse)
           docker compose rm -sf backend
-          docker run -d --rm --name occupant --network "$reseau" --ip "$avant" --entrypoint sleep ghcr.io/nello10110/lumen-frontend:ci 600
+          # Le reseau de Compose n'accepte pas d'adresse imposee : on lance des occupants
+          # jusqu'a ce que l'un d'eux prenne l'adresse liberee (le premier, en pratique).
+          occupe=0
+          for n in 1 2 3 4 5; do
+            docker run -d --rm --name "occupant$n" --network "$reseau" --entrypoint sleep ghcr.io/nello10110/lumen-frontend:ci 600 > /dev/null
+            ip=$(docker inspect "occupant$n" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+            echo "occupant$n : $ip"
+            if [ "$ip" = "$avant" ]; then occupe=1; break; fi
+          done
+          test "$occupe" = 1
           docker compose up -d --no-deps --wait --wait-timeout 300 backend
           apres=$(adresse)
-          docker rm -f occupant
+          docker rm -f occupant1 occupant2 occupant3 occupant4 occupant5 2> /dev/null || true
           echo "adresse du backend : $avant -> $apres"
           test "$avant" != "$apres"
           code=000
