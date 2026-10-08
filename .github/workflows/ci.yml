@@ -292,26 +292,6 @@ jobs:
           echo "tete du code : $tete / revision de la base : $base"
           test -n "$tete" && test "$tete" = "$base"
 
-      # Ce que fait `docker compose pull && docker compose up -d` quand seul le backend
-      # change (correctif #88) : il est recree avec une nouvelle adresse dans le reseau
-      # Docker, le frontend (nginx) reste en place. L'application doit rester joignable
-      # A TRAVERS nginx, sans redemarrer le frontend.
-      - name: Backend recree seul, l'API reste joignable a travers nginx
-        run: |
-          docker compose up -d --force-recreate --no-deps --wait --wait-timeout 300 backend
-          code=000
-          for essai in 1 2 3 4 5 6 7 8 9 10; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$API/health" || true)
-            echo "essai $essai : /api/health via nginx -> HTTP $code"
-            test "$code" = "200" && break
-            sleep 2
-          done
-          if [ "$code" != "200" ]; then
-            echo "::error::apres recreation du seul backend, /api/health via nginx repond HTTP $code au lieu de 200"
-            docker compose logs --no-color frontend backend
-            exit 1
-          fi
-
       - name: Premier compte et une donnee, par l'API authentifiee
         run: |
           jeton=$(curl -fsS -X POST "$API/auth/register" -H 'Content-Type: application/json' \
@@ -357,6 +337,38 @@ jobs:
           test "$(docker compose exec -T postgres psql -U postgres -d lumen -tAc "SELECT string_agg(DISTINCT tableowner, ',') FROM pg_tables WHERE schemaname = 'public'")" = "lumen_app"
           test "$(docker compose exec -T postgres psql -U postgres -d lumen -tAc "SELECT relforcerowsecurity FROM pg_class WHERE relname = 'holdings'")" = "t"
           docker compose exec -T backend sh -c 'ls /app/sauvegardes/patrimoine-avant-restauration-*.dump'
+
+      # Ce que fait `docker compose pull && docker compose up -d` quand le backend est
+      # recree (correctif #88) : il reprend vie avec une AUTRE adresse dans le reseau
+      # Docker, le frontend (nginx) reste en place. L'application doit rester joignable
+      # A TRAVERS nginx, sans redemarrer le frontend. Docker redonne volontiers au backend
+      # recree l'adresse qu'il venait de liberer (premiere version de ce test : elle passait
+      # sans rien prouver) ; un conteneur occupant cette adresse pendant l'absence du backend
+      # rend le changement certain, comme n'importe quel autre conteneur arrive sur un reseau.
+      - name: Backend recree a une autre adresse, l'API reste joignable a travers nginx
+        run: |
+          reseau=$(docker inspect "$(docker compose ps -q frontend)" --format '{{range $nom, $_ := .NetworkSettings.Networks}}{{$nom}}{{end}}')
+          adresse() { docker inspect "$(docker compose ps -q backend)" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'; }
+          avant=$(adresse)
+          docker compose rm -sf backend
+          docker run -d --rm --name occupant --network "$reseau" --ip "$avant" --entrypoint sleep ghcr.io/nello10110/lumen-frontend:ci 600
+          docker compose up -d --no-deps --wait --wait-timeout 300 backend
+          apres=$(adresse)
+          docker rm -f occupant
+          echo "adresse du backend : $avant -> $apres"
+          test "$avant" != "$apres"
+          code=000
+          for essai in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$API/health" || true)
+            echo "essai $essai : /api/health via nginx -> HTTP $code"
+            test "$code" = "200" && break
+            sleep 2
+          done
+          if [ "$code" != "200" ]; then
+            echo "::error::apres recreation du backend a une autre adresse, /api/health via nginx repond HTTP $code au lieu de 200"
+            docker compose logs --no-color frontend backend
+            exit 1
+          fi
 
       - name: Sans le profil, le mode SQLite demarre toujours
         run: |
