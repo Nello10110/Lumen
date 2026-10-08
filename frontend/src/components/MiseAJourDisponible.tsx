@@ -43,6 +43,9 @@ const INTERVALLE_VERIFICATION_MS = 60 * 60 * 1000
  *   est mémorisé PAR VERSION pour l'onglet : la bannière ne revient pas pour la même
  *   version, elle revient pour la suivante.
  *
+ * Posée AU-DESSUS de la barre de navigation mobile (jamais par-dessus : elle en masquerait
+ * les onglets) et en bas à droite sur grand écran, là où l'œil ne cherche pas l'essentiel.
+ *
  * Portail vers `document.body` (même raison que `Modale.tsx`) : `position: fixed`
  * sur un descendant d'un ancêtre `backdrop-filter` devient relatif À CET ANCÊTRE,
  * pas à la fenêtre — sans portail, une bannière posée n'importe où dans l'arbre
@@ -145,7 +148,7 @@ export default function MiseAJourDisponible() {
   return createPortal(
     <div
       role="status"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center gap-3 rounded-panel border border-stroke bg-panel-hi px-4 py-3 text-sm text-ink shadow-glass-lg backdrop-blur-glass"
+      className="fixed inset-x-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center gap-x-4 gap-y-2.5 rounded-panel border border-stroke bg-panel-hi px-4 py-3 text-sm text-ink shadow-glass-lg backdrop-blur-glass md:bottom-6 md:left-auto md:right-6 md:mx-0"
     >
       <span>{t('miseAJourDisponible.miseAJourPrete')}</span>
       <div className="flex gap-2">
