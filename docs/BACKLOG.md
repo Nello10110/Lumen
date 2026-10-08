@@ -86,7 +86,7 @@ file et reçoit son détail au § 5.
 | **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
 | **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) `traité (04/10/2026)`, vérifié par la CI (pull request n° 13) ; **lot 3** (membres du foyer) `traité (05/10/2026)`, vérifié par la CI (pull request n° 14) | Lot 4 (§ BN.1), conditionnel : assistant en quatre étapes, à décider avec l'utilisateur après usage du formulaire unique |
-| **BO.1** — mise à jour et reconnexion après un déploiement (carte #88) | Correctif réalisé (§ BO.1, pull request n° 16, en brouillon) : nginx résout le backend à chaque requête, l'écran de connexion réessaie seul, la bannière s'actualise en silence quand c'est sans risque ; CI à confirmer | L'accord de l'utilisateur sur les captures ; décider de l'option non implémentée « ne publier une image que si `backend/` ou `frontend/` a changé » |
+| **BO.1** — mise à jour et reconnexion après un déploiement (carte #88) | Correctif `traité (08/10/2026)`, vérifié par la CI (§ BO.1, pull request n° 16) : nginx résout le backend à chaque requête, l'écran de connexion réessaie seul, la bannière s'actualise en silence quand c'est sans risque, la session survit à un 502 | Décider de l'option non implémentée, **ouverte** « ne publier une image que si `backend/` ou `frontend/` a changé » |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -8928,11 +8928,12 @@ répartition (point tranché 9).
 
 ### BO. Mise à jour et reconnexion après un déploiement (retour utilisateur, carte #88, 08/10/2026)
 
-#### BO.1 — `majeur` · `M` · `en attente de la CI et de l'accord de l'utilisateur sur les captures` · `P1` — Le message de mise à jour et l'écran de connexion après un redéploiement
+#### BO.1 — `majeur` · `M` · `traité (08/10/2026)` · `P1` — Le message de mise à jour et l'écran de connexion après un redéploiement
 
-**État au 08/10/2026 : correctif réalisé sur la branche `fix-message-mise-a-jour` (pull request n° 16, en brouillon) ;
-`en attente de la CI et de l'accord de l'utilisateur sur les captures`.** Le comportement réel du homelab (déploiement
-horaire par `docker compose pull && docker compose up -d`) n'a pas pu être rejoué d'ici : seule la CI le reproduit.
+**État au 08/10/2026 : correctif `traité (08/10/2026)`, vérifié par la CI (pull request n° 16) ; captures validées par
+l'utilisateur. Reste ouverte, non implémentée, l'option « ne publier une image Docker que si `backend/` ou `frontend/` a
+changé » (voir en fin de section).** Non vérifié : le comportement réel du homelab (déploiement horaire par `docker
+compose pull && docker compose up -d`), que seule la CI reproduit.
 
 **Le constat.** « Le message pour vider le cache après la mise à jour de l'application marche bizarrement. » Ce que
 l'utilisateur voyait : sur l'**écran de connexion**, le bloc « Impossible de joindre le serveur… » et son bouton « Vider le
@@ -8990,13 +8991,21 @@ commit de documentation : le backend est donc recréé souvent, sans qu'aucun co
    toute boucle, distincte de celle de `reinitialisationApplication`) ; une version illisible ne déclenche jamais de
    rechargement silencieux ; l'intervalle de vérification est nettoyé.
 
-**Vérification.** Tests unitaires (client : classification des erreurs ; connexion : trois cas, réessais en temps simulé,
+**Vérification (08/10/2026).** Tests unitaires (client : classification des erreurs ; connexion : trois cas, réessais en temps simulé,
 panne, absence de « Vider le cache » ; session au démarrage ; bannière : silencieux, bandeau, mémorisation par version,
 intervalle), trois parcours Playwright (`e2e/auth.spec.ts` : 502 puis rétablissement sans action, panne qui dure, session
 conservée sur un 502 de `/auth/me`), et contrôle à l'écran sur une instance isolée avec un **vrai service worker** à deux
 versions de `sw.js` (bureau 1440×900 et mobile 390×844, thèmes clair et sombre, français et allemand) : le bandeau apparaît
 avec une saisie, ne revient pas après « Plus tard » et un rechargement, et la navigation suivante recharge en silence sans
-saisie.
+saisie. **Vérifié par la CI** (pull request n° 16, les huit jobs verts), dont `deploiement-postgres` et `montee-version`
+(SQLite et Postgres). L'étape de CI ajoutée **a échoué avant le correctif** (run 37807568038 : après recréation du seul
+backend, l'adresse passe de 172.18.0.3 à 172.18.0.5 et les dix essais via nginx donnent HTTP 000 puis 502,
+« connect() failed (113: Host is unreachable) »), puis **a réussi après** le correctif nginx (run 37808108673, HTTP 200 dès
+le premier essai). La première version du test passait sans rien prouver (Docker redonnait l'ancienne adresse) et a été
+durcie. Le correctif inclut un défaut découvert en route : la session était effacée sur toute erreur de `GET /auth/me`, un
+502 compris (un redéploiement déconnectait l'utilisateur) ; corrigé et validé par l'utilisateur. Captures validées par
+l'utilisateur le 08/10/2026. Non vérifié : le comportement réel du homelab (déploiement horaire par `docker compose pull
+&& docker compose up -d`).
 
 **Limites.** (1) La réponse de nginx pendant les quelques secondes où le backend n'écoute pas encore reste un 502 : c'est
 l'écran de connexion qui l'absorbe, pas nginx. (2) Après le démarrage, `GET /auth/me` est le seul appel de session rejoué ;
@@ -9004,7 +9013,7 @@ un onglet déjà ouvert qui perd le serveur au milieu d'un écran affiche, comme
 (3) La détection de « saisie en cours » est volontairement prudente : un champ de recherche tapé compte, au pire la mise à
 jour passe par le bandeau au lieu d'être silencieuse.
 
-**Option NON implémentée, à décider avec l'utilisateur.** *Ne publier une image Docker que si `backend/` ou `frontend/` a
+**Option NON implémentée, restée OUVERTE, en attente de la décision de l'utilisateur.** *Ne publier une image Docker que si `backend/` ou `frontend/` a
 changé* (filtre de chemins dans `docker-publish.yml`) : un commit de documentation, de CI ou de backlog ne recréerait plus ni
 le backend ni le frontend de son homelab. C'est le levier qui supprime la cause racine des redéploiements inutiles ; il est
 hors du périmètre de cette carte parce qu'il change ce que `:latest` contient et quand.
