@@ -17,6 +17,11 @@ reconnus sans correspondance de colonnes, le wallet Ledger (11/09) et Bricks.co 
 autres courtiers restent en attente d'un fichier d'export réel. EF-25 (Q.3, devise) est toujours
 ouvert. Les chiffres du § 1.1 (lignes de code, nombre de tests) datent du 21/08/2026.
 
+**Mise à jour du 11/10/2026.** EF-25 (Q.3, devise) n'est plus en attente d'une décision : l'utilisateur a choisi
+l'option C, une vraie bascule de devise de référence pour tout le patrimoine. Le chantier reste à cadrer (conception
+avant tout code, taille estimée L) ; détail dans `docs/BACKLOG.md` § Q.3. Les mentions d'EF-25 plus haut et au
+§ 5 décrivent l'état du 31/08 et du 23/09/2026.
+
 Ce document est le **point d'entrée des équipes de développement**. Il dit *ce qu'il faut construire
 et pourquoi*, avec les critères permettant de juger que c'est fait. Il ne dit pas *comment* :
 l'architecture existante fait foi (`docs/MANUEL_EXPLOITATION.md`), les règles métier en vigueur
