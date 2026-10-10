@@ -1,14 +1,24 @@
 name: Docker publish
 
 # Construit et publie les deux images (backend, frontend) sur GitHub Container
-# Registry a chaque push sur main -- "deja build" pour le deploiement homelab
+# Registry a chaque push sur main touchant le code -- "deja build" pour le deploiement homelab
 # (compose.yaml les tire au lieu de les construire, cf.
 # docs/MANUEL_EXPLOITATION.md). Les deux packages sont publics depuis l'ouverture
 # du depot : aucun docker login n'est necessaire pour les tirer.
 
+# Filtre de chemins (backlog BO.1) : un push sur main ne publie que s'il touche le
+# code des images (backend/, frontend/) ou ce workflow lui-meme (pour qu'une
+# modification du workflow soit eprouvee par une vraie publication). Un commit de
+# documentation ou de compose.yaml ne publie rien : le homelab, qui tire les images
+# toutes les heures, ne recree alors plus ses conteneurs pour rien. Le declenchement
+# manuel (workflow_dispatch) n'est pas concerne par le filtre.
 on:
   push:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
 jobs:
