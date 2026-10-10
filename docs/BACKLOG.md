@@ -78,17 +78,21 @@ file et reçoit son détail au § 5.
 | **AA.1** — trois demandes de la maquette sur l'écran Actifs | Arbitrage utilisateur, mis de côté le 07/09/2026 | Reprendre le sujet écran par écran (détail § AA) |
 | **E.1** — autres formats de courtier reconnus automatiquement (Boursorama, Degiro, IBKR…) | Un export réel : écrire un parseur sans en avoir vu un reviendrait à deviner | Fournir un export réel, anonymisé si besoin |
 | **E.2** — agrégation bancaire gratuite | Réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Cette réponse, **avant tout code** |
-| **Q.3** — devise et internationalisation légère | Le besoin : tout est en euros aujourd'hui | Arbitrage utilisateur, le jour où un actif en devise apparaît |
+| **Q.3** — devise et internationalisation légère | **Décidé le 11/10/2026** (carte #101, option C) : vraie bascule de devise de référence pour tout le patrimoine ; taille estimée L | Chantier à **cadrer** : conception à faire avant tout code (§ Q.3) |
 | **AG.7** — mode découverte avec données fictives | Utile seulement si l'application s'ouvre à d'autres utilisateurs | Différé ; à reprendre avec la version hébergée |
-| **BF.1b** — relecture juridique de la licence avant monétisation | Un avocat (droit moral inaliénable en droit français) | Action de l'utilisateur |
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
-| **BJ.3** (suite) — confirmer la suppression d'un compte en recopiant son nom | La suppression est définitive depuis § AK.2, la confirmation reste un simple second clic | Arbitrage utilisateur (le texte d'avertissement, lui, est corrigé) |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
 | **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) `traité (04/10/2026)`, vérifié par la CI (pull request n° 13) ; **lot 3** (membres du foyer) `traité (05/10/2026)`, vérifié par la CI (pull request n° 14) | Lot 4 (§ BN.1), conditionnel : assistant en quatre étapes, à décider avec l'utilisateur après usage du formulaire unique |
-| **BO.1** — mise à jour et reconnexion après un déploiement (carte #88) | Correctif `traité (08/10/2026)`, vérifié par la CI (§ BO.1, pull request n° 16) : nginx résout le backend à chaque requête, l'écran de connexion réessaie seul, la bannière s'actualise en silence quand c'est sans risque, la session survit à un 502 | Décider de l'option non implémentée, **ouverte** « ne publier une image que si `backend/` ou `frontend/` a changé » |
+| **BO.1** — mise à jour et reconnexion après un déploiement (carte #88) | Correctif `traité (08/10/2026)`, vérifié par la CI (§ BO.1, pull request n° 16) : nginx résout le backend à chaque requête, l'écran de connexion réessaie seul, la bannière s'actualise en silence quand c'est sans risque, la session survit à un 502 | Option « ne publier une image que si `backend/` ou `frontend/` a changé » **décidée le 11/10/2026** (carte #92, option A), filtre livré par la branche `decisions-2026-10-11`, `en attente de la CI` jusqu'à fusion ; après fusion sur `main`, constater dans l'onglet Actions qu'un commit « documentation seule » ne publie rien et qu'un commit touchant `backend/` ou `frontend/` publie |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
+
+**Décidés le 11/10/2026, retirés de la liste** (réponses de l'utilisateur sur les cartes Vikunja correspondantes) :
+**BF.1b** (carte #95, option C : ne pas faire relire la licence, « usage ouvert, sans monétisation ») ; **BJ.3** (suite)
+(carte #103, option A : garder le second clic actuel). **Risque connu, gardé** : la clause de cession de droits de
+`CONTRIBUTING.md` n'a pas été relue par un juriste (à rouvrir si des contributions externes sont acceptées ou si une
+monétisation est envisagée) ; détail au § BF.1b.
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
 
@@ -112,9 +116,11 @@ Et, au-delà de ces deux points :
 - **les données de marché** : `yfinance` lit Yahoo Finance sans licence, réservé à un usage personnel ;
   JustETF est lu par extraction de page ; l'offre gratuite de CoinGecko a ses propres conditions. Un
   service commercial doit passer par un fournisseur sous licence — **reporté par l'utilisateur** le
-  23/09/2026 (« plus tard, pas d'urgence ») ;
+  23/09/2026 (« plus tard, pas d'urgence »). **Décidé le 11/10/2026** (réponse de l'utilisateur sur la carte
+  #104, option A) : rien à faire tant qu'il n'y a pas de service commercial ;
 - **remplacer `yfinance`**, indépendamment de la licence : environ 200 Mo de l'image (§ BI.2) —
-  **reporté par l'utilisateur** le 23/09/2026 ;
+  **reporté par l'utilisateur** le 23/09/2026. **Décidé le 11/10/2026** (réponse de l'utilisateur sur la carte
+  #105, option A) : garder `yfinance` ;
 - **les réglages d'installation** (`parametres`, `scheduled_job_config`, logo SSO) deviennent des
   réglages d'opérateur, à sortir de l'écran Réglages des clients — lié à BK.2 (lot BK.2d : les routes sont
   déplacées côté serveur, la console les porte depuis le 01/10/2026).
@@ -1842,7 +1848,7 @@ factorisée avec `request` dans `api/client.ts` — même gestion d'erreur/jeton
 corps de réponse diffère). 27 tests backend (service + routeur + préférences étendues) + 7 tests
 frontend, `tsc`/`oxlint` propres.
 
-#### Q.3 — `mineur` · `S` · `P3` · `en attente d'arbitrage` (25/08/2026) — Devise et internationalisation légère
+#### Q.3 — `mineur` · `L` · `décidé (11/10/2026), à cadrer` · `P3` — Devise et internationalisation légère
 
 Une devise de référence paramétrable (aujourd'hui l'euro est câblé), et la conversion des actifs
 libellés dans une autre devise au cours du jour, avec l'effet de change isolé dans la performance.
@@ -1858,6 +1864,13 @@ dans les données réelles à ce jour — un chantier bien au-delà d'un effort 
 plus contenues existent (permettre d'ajouter UN actif dans une devise étrangère, converti en EUR à
 la cotation — l'euro restant la seule devise d'affichage — ou une vraie bascule de devise de
 référence pour tout le patrimoine). Arbitrage à demander à l'utilisateur avant tout développement.
+
+**Décision du 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #101) : **option C**, « vraie bascule de devise
+de référence pour tout le patrimoine ». La recommandation initiale était l'option A (rien à faire : aucun actif hors
+euro dans le portefeuille réel) ; l'utilisateur a retenu C. **État : décidé, chantier à cadrer** — conception à faire
+avant tout code. Taille estimée **L** (l'effort `S` d'origine est caduc). Points que le cadrage devra trancher : devise
+de référence par foyer ou par installation ; devises gérées ; source des taux de change ; traitement de l'historique ;
+effet sur l'export/import JSON ; `formatEuro` et l'euro codé en dur ; `Holding.devise`, supprimée au lot 1 de § BN.1.
 
 ### R. Revenu du foyer et taux d'épargne (Lot 9, 25/08/2026)
 
@@ -6182,13 +6195,19 @@ du même jour (§ BG). C'est inhérent à l'exercice — une licence sans titula
 protège rien. Si le projet est un jour exploité par une société, c'est sa raison sociale qui
 prendra la place.
 
-#### BF.1b — `majeur` · `XS` · `non traité` · `P1` — Relecture juridique avant monétisation
+#### BF.1b — `majeur` · `XS` · `retiré (11/10/2026)` · `P1` — Relecture juridique avant monétisation
 
 La FSL a été retenue parce qu'elle correspond au besoin exprimé, et son texte est repris mot pour
 mot du gabarit officiel — mais le projet vise une monétisation. **Une relecture par un avocat** vaut
 son coût, en particulier sur l'articulation entre la cession de droits de `CONTRIBUTING.md` et le
 droit français : le droit moral y est inaliénable, contrairement aux droits patrimoniaux
 effectivement cédés. Point volontairement séparé de BF.1, qui est clos.
+
+**Décision du 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #95) : **option C, ne pas faire relire** —
+libellé de l'option : « usage ouvert, sans monétisation ». La relecture n'est plus une action attendue de
+l'utilisateur ; le point sort des listes du § 2. **Risque connu, gardé** : la clause de cession de droits de
+`CONTRIBUTING.md` n'a pas été relue par un juriste (droit moral inaliénable en droit français). À rouvrir si des
+contributions externes sont acceptées ou si une monétisation est envisagée.
 
 #### BF.2 — `mineur` · `XS` · `traité en partie` (23/09/2026) · `P1` — Encart « About » du dépôt GitHub vide
 
@@ -6977,6 +6996,9 @@ corrigé. La confirmation reste un simple second clic : la faire recopier le nom
 plus sûr pour une action désormais définitive, mais c'est un changement d'usage à proposer à
 l'utilisateur plutôt qu'à décider ici.
 
+**Suite close le 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #103) : **option A**, garder le second
+clic actuel. Rien à faire.
+
 **Tests** : 2 dans `CompteDetailContent.test.tsx`, en échec sur l'ancien texte.
 
 
@@ -7696,6 +7718,9 @@ acceptation sans périmètre). Les fixtures `client_jetons` et `jeton_de_session
 transfert de propriété (fait en BK.2c) et le retrait d'un membre avec ses données (écarté : les données restent
 au foyer) ; la limitation de débit est propre à
 chaque processus (elle ne se partage pas entre plusieurs workers).
+
+**Décision du 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #106) : **option A**, garder le compteur
+en mémoire du processus (non partagé entre processus) ; limite acceptée et documentée (manuel d'exploitation, § 12).
 
 
 ##### Lot BK.2c — réalisé (serveur et interface, 30/09/2026), `traité (30/09/2026)`
@@ -8928,11 +8953,12 @@ répartition (point tranché 9).
 
 ### BO. Mise à jour et reconnexion après un déploiement (retour utilisateur, carte #88, 08/10/2026)
 
-#### BO.1 — `majeur` · `M` · `traité (08/10/2026)` · `P1` — Le message de mise à jour et l'écran de connexion après un redéploiement
+#### BO.1 — `majeur` · `M` · `traité (11/10/2026)` · `P1` — Le message de mise à jour et l'écran de connexion après un redéploiement
 
-**État au 08/10/2026 : correctif `traité (08/10/2026)`, vérifié par la CI (pull request n° 16) ; captures validées par
-l'utilisateur. Reste ouverte, non implémentée, l'option « ne publier une image Docker que si `backend/` ou `frontend/` a
-changé » (voir en fin de section).** Non vérifié : le comportement réel du homelab (déploiement horaire par `docker
+**État au 11/10/2026 : correctif `traité (08/10/2026)`, vérifié par la CI (pull request n° 16) ; captures validées par
+l'utilisateur. Option « ne publier une image Docker que si `backend/` ou `frontend/` a changé » `traité (11/10/2026)`
+(carte #92, option A) : filtre livré par la branche `decisions-2026-10-11`, `en attente de la CI` jusqu'à fusion
+(voir en fin de section).** Non vérifié : le comportement réel du homelab (déploiement horaire par `docker
 compose pull && docker compose up -d`), que seule la CI reproduit.
 
 **Le constat.** « Le message pour vider le cache après la mise à jour de l'application marche bizarrement. » Ce que
@@ -9013,10 +9039,21 @@ un onglet déjà ouvert qui perd le serveur au milieu d'un écran affiche, comme
 (3) La détection de « saisie en cours » est volontairement prudente : un champ de recherche tapé compte, au pire la mise à
 jour passe par le bandeau au lieu d'être silencieuse.
 
-**Option NON implémentée, restée OUVERTE, en attente de la décision de l'utilisateur.** *Ne publier une image Docker que si `backend/` ou `frontend/` a
-changé* (filtre de chemins dans `docker-publish.yml`) : un commit de documentation, de CI ou de backlog ne recréerait plus ni
-le backend ni le frontend de son homelab. C'est le levier qui supprime la cause racine des redéploiements inutiles ; il est
-hors du périmètre de cette carte parce qu'il change ce que `:latest` contient et quand.
+**Option « ne publier une image que si `backend/` ou `frontend/` a changé » : `traité (11/10/2026)`, `en attente de la CI`
+jusqu'à fusion.** Décision de l'utilisateur du 11/10/2026, réponse sur la carte Vikunja #92 : **option A**, « filtre de
+chemins dans `docker-publish.yml` : ne publier les images que si `backend/` ou `frontend/` change ». Cause traitée :
+`docker-publish.yml` publiait les deux images à chaque push sur `main`, même pour un commit de documentation, et le
+homelab (`docker compose pull && docker compose up -d` toutes les heures) recréait donc ses conteneurs sans changement de
+code. Livré : un filtre `paths` sous `on.push` (`backend/**`, `frontend/**` et `.github/workflows/docker-publish.yml`, pour
+qu'une modification du workflow soit éprouvée par une vraie publication) ; le déclenchement manuel (`workflow_dispatch`)
+n'est pas bridé ; le job de CI `montee-version`, qui tire `:latest`, n'est pas touché (la première publication suffit à
+ce qu'elle existe). Manuel d'exploitation § 13.1 mis à jour.
+
+**À constater après fusion sur `main`** (onglet Actions, workflow « Docker publish ») : un commit « documentation seule » ne
+doit déclencher aucune publication ; un commit touchant `backend/` ou `frontend/` doit en déclencher une. Le workflow ne
+tourne pas sur les pull requests : la CI de la branche ne peut pas l'éprouver. **Limite connue** : une modification de
+`frontend/` seule republie aussi l'image du backend (un seul job construit les deux) ; une publication par image
+(jobs séparés, chacun filtré sur son dossier) est gardée pour plus tard.
 
 ---
 
