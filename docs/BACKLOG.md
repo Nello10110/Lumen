@@ -49,7 +49,8 @@ au § 4.2.
 
 **Technique.** Backend Python (FastAPI, SQLAlchemy 2, Alembic), montants en `Decimal` exacts au
 centime (§ BI.1). Base **SQLite** par défaut — un fichier, une installation par foyer ; **Postgres**
-possible pour une future version hébergée, avec la séparation des foyers imposée par la base elle-même
+possible pour accueillir plusieurs foyers (homelab, § BK.2 ; la monétisation d'une version hébergée est abandonnée depuis
+le 11/10/2026, § BF.1b), avec la séparation des foyers imposée par la base elle-même
 (sécurité au niveau des lignes, § BI.4-BI.5) — déployable par un profil du compose, sauvegarde
 comprise (§ BK.1, vérifié en CI), et capable de gérer plusieurs foyers
 (§ BK.2, `traité (02/10/2026)`, vérifié par la CI Postgres). Frontend React + TypeScript + Vite. Déploiement par un
@@ -61,7 +62,8 @@ joués sous SQLite et sous Postgres). Lint `ruff` et `oxlint`, typage `tsc`. Tou
 push (`.github/workflows/ci.yml`), y compris un déploiement réel du compose, avec et sans Postgres.
 
 **Licence.** FSL-1.1-ALv2 (§ BE) : code ouvert, usage libre hors concurrence commerciale, bascule
-automatique en Apache 2.0 au bout de deux ans.
+automatique en Apache 2.0 au bout de deux ans. **Monétisation abandonnée le 11/10/2026** (§ BF.1b) : le périmètre reste
+le homelab multi-foyers (§ BK.2). Le choix de licence n'a pas été rouvert (question posée à l'utilisateur, § BE).
 
 ---
 
@@ -79,7 +81,7 @@ file et reçoit son détail au § 5.
 | **E.1** — autres formats de courtier reconnus automatiquement (Boursorama, Degiro, IBKR…) | Un export réel : écrire un parseur sans en avoir vu un reviendrait à deviner | Fournir un export réel, anonymisé si besoin |
 | **E.2** — agrégation bancaire gratuite | Réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Cette réponse, **avant tout code** |
 | **Q.3** — devise et internationalisation légère | **Décidé le 11/10/2026** (carte #101, option C) : vraie bascule de devise de référence pour tout le patrimoine ; taille estimée L | Chantier à **cadrer** : conception à faire avant tout code (§ Q.3) |
-| **AG.7** — mode découverte avec données fictives | Utile seulement si l'application s'ouvre à d'autres utilisateurs | Différé ; à reprendre avec la version hébergée |
+| **AG.7** — mode découverte avec données fictives | Utile seulement si l'application s'ouvre à d'autres utilisateurs | Différé ; rattaché à un scénario SaaS (16/09/2026), scénario commercial abandonné le 11/10/2026 : garder différé ou retirer, **question posée à l'utilisateur** (§ AG.7) |
 | **BF.2** — topics du dépôt GitHub | La description est posée (vérifiée le 23/09/2026) ; les topics et les cases Releases/Packages ne sont pas vérifiables d'ici | Réglages du dépôt, deux minutes |
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
@@ -89,12 +91,17 @@ file et reçoit son détail au § 5.
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
 **Décidés le 11/10/2026, retirés de la liste** (réponses de l'utilisateur sur les cartes Vikunja correspondantes) :
-**BF.1b** (carte #95, option C : ne pas faire relire la licence, « usage ouvert, sans monétisation ») ; **BJ.3** (suite)
-(carte #103, option A : garder le second clic actuel). **Risque connu, gardé** : la clause de cession de droits de
-`CONTRIBUTING.md` n'a pas été relue par un juriste. Le risque grandirait avec des contributions externes ou une
-monétisation (constat de Claude, pas une règle posée par l'utilisateur) ; détail au § BF.1b.
+**BF.1b** (carte #95 : option C, ne pas faire relire la licence, « usage ouvert, sans monétisation », puis « J'abandonne la
+monétisation » : l'action est sans objet) ; **BJ.3** (suite) (carte #103, option A : garder le second clic actuel).
+**Fait gardé** : la clause de cession de droits de `CONTRIBUTING.md` n'a pas été relue par un juriste et reste à
+l'appréciation de l'utilisateur ; détail au § BF.1b.
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
+
+**Décision du 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #95 : « J'abandonne la monétisation. ») : plus de
+service commercial prévu. **Le périmètre reste le homelab multi-foyers** (§ BK.2, `traité`). Ce qui suit est conservé comme
+trace : les points qui ne portaient que sur la monétisation n'ont plus d'objet (voir ci-dessous) ; ceux qui ont une valeur
+propre ne sont pas retirés et font l'objet de questions à l'utilisateur (notes datées aux § AG.7, BE.1, BE.2 et BK.2).
 
 **État au 29/09/2026 : déployable, pas encore multi-foyer.** Le code tourne sous Postgres, la base y
 sépare elle-même les foyers (§ BI.4, BI.5), et le `compose.yaml` sait le déployer — profil
@@ -117,10 +124,12 @@ Et, au-delà de ces deux points :
   JustETF est lu par extraction de page ; l'offre gratuite de CoinGecko a ses propres conditions. Un
   service commercial doit passer par un fournisseur sous licence — **reporté par l'utilisateur** le
   23/09/2026 (« plus tard, pas d'urgence »). **Décidé le 11/10/2026** (réponse de l'utilisateur sur la carte
-  #104, option A) : rien à faire tant qu'il n'y a pas de service commercial ;
+  #104, option A) : rien à faire tant qu'il n'y a pas de service commercial. **Définitif depuis le 11/10/2026** : la
+  monétisation étant abandonnée, aucun service commercial n'est prévu ;
 - **remplacer `yfinance`**, indépendamment de la licence : environ 200 Mo de l'image (§ BI.2) —
   **reporté par l'utilisateur** le 23/09/2026. **Décidé le 11/10/2026** (réponse de l'utilisateur sur la carte
-  #105, option A) : garder `yfinance` ;
+  #105, option A) : garder `yfinance`. Le motif de licence tombe avec la monétisation (11/10/2026) ; la taille de l'image
+  n'a pas été reprise ;
 - **les réglages d'installation** (`parametres`, `scheduled_job_config`, logo SSO) deviennent des
   réglages d'opérateur, à sortir de l'écran Réglages des clients — lié à BK.2 (lot BK.2d : les routes sont
   déplacées côté serveur, la console les porte depuis le 01/10/2026).
@@ -4132,6 +4141,10 @@ public que ce déploiement n'a pas. À reprendre si ce principe change, pas avan
 esquissées (compte de démo unique réamorcé à chaque visite, vs. compte jetable à purge automatique)
 restent posées ci-dessus pour ce moment-là.
 
+**Note du 11/10/2026.** Le scénario auquel l'arbitrage rattachait ce point (« transformer le logiciel en SaaS ») est
+abandonné côté monétisation (§ BF.1b). Le point n'est ni retiré ni repris : il reste `différé` ; le retirer ou le garder pour
+un éventuel accueil d'autres foyers est une **question posée à l'utilisateur**.
+
 #### AG.8 — `traité` (16/09/2026) — Illustrations légères sur les états vides
 
 `EtatVide` gagne une prop `illustration` facultative — réutilise le tracé de `LumenMark` lui-même,
@@ -6159,6 +6172,10 @@ irrévocablement en Apache-2.0 au bout de deux ans. Texte repris **mot pour mot*
 Python comme côté npm, aucune copyleft. Rien n'aurait contaminé une relicence commerciale
 ultérieure ; ce contrôle conditionnait la faisabilité de toute l'option.
 
+**Note du 11/10/2026.** Le besoin « m'offrir le choix de faire une version SaaS vendue » est abandonné avec la monétisation
+(§ BF.1b). Le choix de la FSL n'est pas rouvert par cette décision ; savoir s'il le doit est une **question posée à
+l'utilisateur**.
+
 **Conséquences appliquées.** « Gratuit et open source » remplacé par « gratuit et à code ouvert »
 dans le README, la roadmap et le tableau de positionnement § 6.3 — l'affirmation serait sinon
 inexacte. `docs/EXPRESSION_DE_BESOIN.md` reste inchangé : c'est un instantané daté du 21/08/2026,
@@ -6172,6 +6189,11 @@ l'accord de son auteur — risque d'autant plus concret que le README refondu in
 contribuer. `CONTRIBUTING.md` pose donc une cession des droits patrimoniaux à la proposition d'une
 PR, avec garantie d'originalité et d'absence de code copyleft, et oriente vers les issues ceux que
 cette cession rebute. Même mécanisme que tout projet à modèle commercial.
+
+**Note du 11/10/2026.** La raison d'être de cette cession (garder la possibilité de vendre une version hébergée) disparaît
+avec l'abandon de la monétisation (§ BF.1b). Le point reste `traité` et la clause reste en vigueur dans `CONTRIBUTING.md`,
+dont le texte évoque encore une version hébergée commerciale ; la conserver, l'alléger ou la retirer est une **question
+posée à l'utilisateur** (rien n'a été modifié dans `CONTRIBUTING.md`).
 
 ---
 
@@ -6204,10 +6226,11 @@ droit français : le droit moral y est inaliénable, contrairement aux droits pa
 effectivement cédés. Point volontairement séparé de BF.1, qui est clos.
 
 **Décision du 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #95) : **option C, ne pas faire relire** —
-libellé de l'option : « usage ouvert, sans monétisation ». La relecture n'est plus une action attendue de
-l'utilisateur ; le point sort des listes du § 2. **Risque connu, gardé** : la clause de cession de droits de
-`CONTRIBUTING.md` n'a pas été relue par un juriste (droit moral inaliénable en droit français). Le risque grandirait
-avec des contributions externes ou une monétisation (constat de Claude, pas une règle posée par l'utilisateur).
+libellé de l'option : « usage ouvert, sans monétisation » ; puis, dans la même réponse : « J'abandonne la monétisation. »
+**La monétisation est abandonnée** : la relecture juridique « avant monétisation » est **sans objet** et sort des listes du
+§ 2. Le périmètre reste le homelab multi-foyers (§ BK.2). **Fait gardé** : la clause de cession de droits de
+`CONTRIBUTING.md` n'a pas été relue par un juriste (droit moral inaliénable en droit français) et reste à l'appréciation de
+l'utilisateur.
 
 #### BF.2 — `mineur` · `XS` · `traité en partie` (23/09/2026) · `P1` — Encart « About » du dépôt GitHub vide
 
@@ -7172,6 +7195,11 @@ arbitrés par l'utilisateur (§ 10, « Décisions »).
    foyer) ; supprimer un foyer entièrement (patrimoine, comptes, sessions, journal d'accès), par son
    propriétaire ou par l'opérateur. Fusion de deux foyers : différée.
 8. Quotas, facturation, limitation d'abus : hors périmètre tant qu'il n'y a pas de version publique.
+
+**Note du 11/10/2026.** Monétisation abandonnée (§ BF.1b) : la facturation et l'abonnement évoqués au point 7 ci-dessus
+n'ont plus d'objet. Le périmètre reste le homelab multi-foyers (BK.2, `traité`). Les quotas par foyer et la limitation
+d'abus ont une valeur propre (protéger un homelab ouvert à des tiers) : **non retirés, question posée à l'utilisateur** ;
+de même pour l'inscription libre et la « version hébergée publique » des décisions 1 et 2, aujourd'hui hors périmètre.
 
 ##### 1. État actuel, relevé dans le code
 
