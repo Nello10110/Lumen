@@ -86,7 +86,6 @@ file et reçoit son détail au § 5.
 | **AR.1** (reste) — courbe d'évolution du portefeuille entier sans cours crypto | Choix délibéré du 17/09/2026 : la fiche d'une ligne crypto a son historique CoinGecko, mais la courbe globale valorise la crypto à son prix de revient (crédits CoinGecko à multiplier par titre et par date) | À reprendre si l'écart devient gênant ; aucune décision en attente |
 | **BK.2** — gestion des foyers sur une installation partagée | Conception validée le 29/09/2026 (§ BK.2) ; **BK.2a** (objet `Foyer`, invisible) `traité (30/09/2026)`, vérifié par la CI Postgres — à ce stade, une installation ne savait encore créer qu'un foyer | Lots BK.2b à BK.2e (§ BK.2, point 9), **BK.2b** (invitations) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2c** (cycle de vie côté foyer) `traité (30/09/2026)`, vérifié par la CI Postgres ; **BK.2d** (opérateur et naissance des foyers) `traité (01/10/2026)`, vérifié par la CI Postgres ; **BK.2e** (durcissement) `traité (02/10/2026)`, vérifié par la CI Postgres (renommage `foyer_id` ; jetons hachés et séparation par la base des comptes) ; **le chantier BK.2 entier est `traité (02/10/2026)`** |
 | **BN.1** — saisie d'un bien immobilier et parts par membre (UX) | Conception validée le 04/10/2026 (§ BN.1) ; **lot 1** (ménage des champs et correctifs rapides) `traité (04/10/2026)`, vérifié par la CI (pull request n° 12) ; **lot 2** (formulaire unique à sections repliables) `traité (04/10/2026)`, vérifié par la CI (pull request n° 13) ; **lot 3** (membres du foyer) `traité (05/10/2026)`, vérifié par la CI (pull request n° 14) | Lot 4 (§ BN.1), conditionnel : assistant en quatre étapes, à décider avec l'utilisateur après usage du formulaire unique |
-| **BO.1** — mise à jour et reconnexion après un déploiement (carte #88) | Correctif `traité (08/10/2026)`, vérifié par la CI (§ BO.1, pull request n° 16) : nginx résout le backend à chaque requête, l'écran de connexion réessaie seul, la bannière s'actualise en silence quand c'est sans risque, la session survit à un 502 | Option « ne publier une image que si `backend/` ou `frontend/` a changé » **décidée le 11/10/2026** (carte #92, option A), `livré, à constater après fusion (11/10/2026)` : filtre livré par la branche `decisions-2026-10-11`, non éprouvable avant fusion (le workflow ne tourne pas sur les pull requests) ; après fusion sur `main`, constater dans l'onglet Actions de GitHub qu'un commit « documentation seule » ne publie rien et qu'un commit touchant `backend/` ou `frontend/` publie |
 | **BL.5** — relecture native des traductions | Des locuteurs natifs (anglais, espagnol, allemand, italien) : tout a été traduit par Claude | Quand l'utilisateur trouve des relecteurs ; fichiers prêts à confier (§ BL.5) |
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
@@ -8984,9 +8983,8 @@ répartition (point tranché 9).
 #### BO.1 — `majeur` · `M` · `traité (08/10/2026)` · `P1` — Le message de mise à jour et l'écran de connexion après un redéploiement
 
 **État au 11/10/2026 : correctif `traité (08/10/2026)`, vérifié par la CI (pull request n° 16) ; captures validées par
-l'utilisateur. Option « ne publier une image Docker que si `backend/` ou `frontend/` a changé » `livré, à constater
-après fusion (11/10/2026)` (carte #92, option A) : filtre livré par la branche `decisions-2026-10-11`, à constater sur
-`main` (voir en fin de section).** Non vérifié : le comportement réel du homelab (déploiement horaire par `docker
+l'utilisateur. Option « ne publier une image Docker que si `backend/` ou `frontend/` a changé » `traité (11/10/2026)`
+(carte #92, option A) : filtre livré par la pull request n° 18 et constaté sur `main` (voir en fin de section).** Non vérifié : le comportement réel du homelab (déploiement horaire par `docker
 compose pull && docker compose up -d`), que seule la CI reproduit.
 
 **Le constat.** « Le message pour vider le cache après la mise à jour de l'application marche bizarrement. » Ce que
@@ -9067,8 +9065,7 @@ un onglet déjà ouvert qui perd le serveur au milieu d'un écran affiche, comme
 (3) La détection de « saisie en cours » est volontairement prudente : un champ de recherche tapé compte, au pire la mise à
 jour passe par le bandeau au lieu d'être silencieuse.
 
-**Option « ne publier une image que si `backend/` ou `frontend/` a changé » : `livré, à constater après fusion
-(11/10/2026)`.** Décision de l'utilisateur du 11/10/2026, réponse sur la carte Vikunja #92 : **option A**, « filtre de
+**Option « ne publier une image que si `backend/` ou `frontend/` a changé » : `traité (11/10/2026)`.** Décision de l'utilisateur du 11/10/2026, réponse sur la carte Vikunja #92 : **option A**, « filtre de
 chemins dans `docker-publish.yml` : ne publier les images que si `backend/` ou `frontend/` change ». Cause traitée :
 `docker-publish.yml` publiait les deux images à chaque push sur `main`, même pour un commit de documentation, et le
 homelab (`docker compose pull && docker compose up -d` toutes les heures) recréait donc ses conteneurs sans changement de
@@ -9077,10 +9074,13 @@ qu'une modification du workflow soit éprouvée par une vraie publication) ; le 
 n'est pas bridé ; le job de CI `montee-version`, qui tire `:latest`, n'est pas touché (la première publication suffit à
 ce qu'elle existe). Manuel d'exploitation § 13.1 mis à jour.
 
-**À constater après fusion sur `main`** (onglet Actions de GitHub, workflow « Docker publish ») : un commit « documentation
-seule » ne doit déclencher aucune publication ; un commit touchant `backend/` ou `frontend/` doit en déclencher une. Le
-workflow ne tourne pas sur les pull requests : la CI de la branche ne peut pas l'éprouver, **la seule vérification possible
-est cette constatation sur GitHub après fusion**. L'option passera à `traité` une fois constatée. **Limite connue** : une modification de
+**Constaté sur `main` le 11/10/2026** (onglet Actions de GitHub, workflow « Docker publish »). Le workflow ne tourne pas
+sur les pull requests : la CI de la branche ne pouvait pas l'éprouver, la seule vérification possible était cette
+constatation après fusion. (1) La fusion de la pull request n° 18, dont le push contenait la modification du workflow
+(627d263) et se terminait par le commit 08aeaad : **publication déclenchée**, `build-and-push` en succès. (2) La fusion de
+la pull request n° 19 (commit 593ba73, `docs/` seulement) : **aucun run** « Docker publish », vérifié 45 secondes après
+le push. Le sens « un commit touchant `backend/` ou `frontend/` publie » est couvert pour le workflow par le run du
+point (1) et se constatera au prochain commit de code, sans que ce soit une condition. **Limite connue** : une modification de
 `frontend/` seule republie aussi l'image du backend (un seul job construit les deux) ; une publication par image
 (jobs séparés, chacun filtré sur son dossier) est gardée pour plus tard.
 
