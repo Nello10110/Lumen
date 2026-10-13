@@ -90,14 +90,14 @@ file et reçoit son détail au § 5.
 | **BF.5** — libellés des guides d'export à confirmer | Quelqu'un qui fait ces exports en vrai | **Reporté par l'utilisateur** le 23/09/2026 (« pas maintenant ») |
 
 **Décidés le 11/10/2026, retirés de la liste** (réponses de l'utilisateur sur les cartes Vikunja correspondantes) :
-**BF.1b** (carte #95 : option C, ne pas faire relire la licence, « usage ouvert, sans monétisation », puis « J'abandonne la
-monétisation » : l'action est sans objet) ; **BJ.3** (suite) (carte #103, option A : garder le second clic actuel).
+**BF.1b** (carte #95 : option C, ne pas faire relire la licence, « usage ouvert, sans monétisation » ; la carte ne porte que la
+lettre C, et l'abandon de la monétisation vient d'un message de l'utilisateur du 11/10/2026 : l'action est sans objet) ; **BJ.3** (suite) (carte #103, option A : garder le second clic actuel).
 **Fait gardé** : la clause de cession de droits de `CONTRIBUTING.md` n'a pas été relue par un juriste et reste à
 l'appréciation de l'utilisateur ; détail au § BF.1b.
 
 ### 2.2 Version hébergée (SaaS) — ce qui resterait
 
-**Décision du 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #95 : « J'abandonne la monétisation. ») : plus de
+**Décision du 11/10/2026** (message de l'utilisateur du 11/10/2026 : « J'abandonne la monétisation. » ; la carte Vikunja #95 ne porte que la lettre C) : plus de
 service commercial prévu. **Le périmètre reste le homelab multi-foyers** (§ BK.2, `traité`). Ce qui suit est conservé comme
 trace : les points qui ne portaient que sur la monétisation n'ont plus d'objet (voir ci-dessous) ; ceux qui ont une valeur
 propre ne sont pas retirés et font l'objet de questions à l'utilisateur (notes datées aux § AG.7, BE.1, BE.2 et BK.2).
@@ -6224,8 +6224,8 @@ son coût, en particulier sur l'articulation entre la cession de droits de `CONT
 droit français : le droit moral y est inaliénable, contrairement aux droits patrimoniaux
 effectivement cédés. Point volontairement séparé de BF.1, qui est clos.
 
-**Décision du 11/10/2026** (réponse de l'utilisateur sur la carte Vikunja #95) : **option C, ne pas faire relire** —
-libellé de l'option : « usage ouvert, sans monétisation » ; puis, dans la même réponse : « J'abandonne la monétisation. »
+**Décision du 11/10/2026** (carte Vikunja #95, qui ne porte que la lettre C) : **option C, ne pas faire relire** —
+libellé de l'option : « usage ouvert, sans monétisation » ; puis, dans un message de l'utilisateur du 11/10/2026 : « J'abandonne la monétisation. »
 **La monétisation est abandonnée** : la relecture juridique « avant monétisation » est **sans objet** et sort des listes du
 § 2. Le périmètre reste le homelab multi-foyers (§ BK.2). **Fait gardé** : la clause de cession de droits de
 `CONTRIBUTING.md` n'a pas été relue par un juriste (droit moral inaliénable en droit français) et reste à l'appréciation de
