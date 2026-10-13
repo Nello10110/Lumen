@@ -35,7 +35,7 @@ from app.models import (
     User,
 )
 from app.routers import portfolio
-from app.services import auth_service, foyer_service, installation_service, invitation_service
+from app.services import auth_service, detenteurs_service, foyer_service, installation_service, invitation_service
 
 from .conftest import (
     DECALAGE_FOYER,
@@ -1025,3 +1025,29 @@ def test_creer_une_ligne_avec_un_membre_d_un_autre_foyer_est_introuvable_sans_ri
     db.expire_all()
     assert db.query(Holding).count() == avant
     assert _parts_de_tous_les_foyers(db) == (set(), set())
+
+
+def test_la_liste_des_membres_ne_montre_que_ceux_du_foyer_connecte(foyers_repartis):
+    en_tetes = foyers_repartis["en_tetes"]
+
+    with TestClient(app) as client:
+        foyer_a = client.get("/api/membres-foyer", headers=en_tetes[ID_FOYER_TEST])
+        foyer_b = client.get("/api/membres-foyer", headers=en_tetes[ID_FOYER_B])
+
+    assert [m["nom"] for m in foyer_a.json()] == ["Alice"]
+    assert [m["nom"] for m in foyer_b.json()] == ["Zoé"]
+
+
+def test_la_liste_des_membres_au_filtre_oublie_ne_montre_que_le_foyer_connecte(foyers_repartis, monkeypatch):
+    """Le filtre par foyer de la route est supprimé : sans la base, la liste montrerait aussi Zoé."""
+    monkeypatch.setattr(
+        detenteurs_service,
+        "list_membres_visibles",
+        lambda db, foyer_id, user_id_invite=None: db.query(Detenteur).order_by(Detenteur.nom).all(),
+    )
+
+    with TestClient(app) as client:
+        reponse = client.get("/api/membres-foyer", headers=foyers_repartis["en_tetes"][ID_FOYER_TEST])
+
+    assert reponse.status_code == 200
+    assert [m["nom"] for m in reponse.json()] == ["Alice"]
