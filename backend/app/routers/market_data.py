@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db, session_tous_foyers
-from ..models import Holding, MarketDataCache
+from ..models import MarketDataCache
 from ..schemas import DerniereActualisationResponse, EtatRafraichissement, MarketDataOut
-from ..services import market_data_refresh, scheduler_service
+from ..services import market_data_refresh, scheduler_service, titres_suivis
 
 router = APIRouter(prefix="/api/market-data", tags=["market-data"])
 
@@ -56,8 +56,8 @@ def refresh(db: Session = Depends(get_db)):
     # § 2.I.1) : le cache de marché (MarketDataCache, FundComposition...) reste
     # global, partagé par tous les comptes — ce rafraîchissement doit donc couvrir
     # tous les tickers détenus par tout le monde, pas seulement ceux de qui l'a
-    # déclenché.
-    items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
+    # déclenché — hors foyers suspendus (cf. `titres_suivis`).
+    items = titres_suivis.titres_a_rafraichir(db)
     try:
         return market_data_refresh.demarrer_rafraichissement(items, on_termine=_enregistrer_resultat)
     except market_data_refresh.RafraichissementDejaEnCoursError as exc:
