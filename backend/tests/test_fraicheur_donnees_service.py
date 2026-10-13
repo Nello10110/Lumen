@@ -1,10 +1,15 @@
 """Verrouille `services/fraicheur_donnees_service.py` (backlog § BA.2)."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.services import fraicheur_donnees_service
 
 from .conftest import ID_FOYER_TEST, make_holding
+
+
+def _maintenant_utc() -> datetime:
+    """Horodatage naïf UTC, comme le service et les routes d'écriture (jamais l'heure locale de la machine)."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def test_aucune_alerte_pour_une_valorisation_recente(db):
@@ -14,7 +19,7 @@ def test_aucune_alerte_pour_une_valorisation_recente(db):
         type_actif="REAL_ESTATE",
         quantite=1,
         valeur_estimee=200000.0,
-        date_valeur_estimee=datetime.now() - timedelta(days=30),
+        date_valeur_estimee=_maintenant_utc() - timedelta(days=30),
     )
 
     assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST) == []
@@ -28,7 +33,7 @@ def test_alerte_declenchee_a_partir_du_seuil(db):
         type_actif="REAL_ESTATE",
         quantite=1,
         valeur_estimee=200000.0,
-        date_valeur_estimee=datetime.now() - timedelta(days=fraicheur_donnees_service.SEUIL_JOURS_ALERTE_FRAICHEUR),
+        date_valeur_estimee=_maintenant_utc() - timedelta(days=fraicheur_donnees_service.SEUIL_JOURS_ALERTE_FRAICHEUR),
     )
 
     alertes = fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST)
@@ -48,7 +53,7 @@ def test_juste_en_dessous_du_seuil_aucune_alerte(db):
         type_actif="REAL_ESTATE",
         quantite=1,
         valeur_estimee=200000.0,
-        date_valeur_estimee=datetime.now() - timedelta(days=fraicheur_donnees_service.SEUIL_JOURS_ALERTE_FRAICHEUR - 1),
+        date_valeur_estimee=_maintenant_utc() - timedelta(days=fraicheur_donnees_service.SEUIL_JOURS_ALERTE_FRAICHEUR - 1),
     )
 
     assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST) == []
@@ -74,7 +79,7 @@ def test_aucune_alerte_pour_un_type_non_manuel(db):
         type_actif="STOCK",
         quantite=10,
         valeur_estimee=200000.0,
-        date_valeur_estimee=datetime.now() - timedelta(days=1000),
+        date_valeur_estimee=_maintenant_utc() - timedelta(days=1000),
     )
 
     assert fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST) == []
@@ -88,7 +93,7 @@ def test_tri_du_plus_perime_au_moins_perime(db):
         type_actif="LIFE_INSURANCE",
         quantite=1,
         valeur_estimee=10000.0,
-        date_valeur_estimee=datetime.now() - timedelta(days=400),
+        date_valeur_estimee=_maintenant_utc() - timedelta(days=400),
     )
     tres_ancien = make_holding(
         db,
@@ -97,7 +102,7 @@ def test_tri_du_plus_perime_au_moins_perime(db):
         type_actif="REAL_ESTATE",
         quantite=1,
         valeur_estimee=200000.0,
-        date_valeur_estimee=datetime.now() - timedelta(days=800),
+        date_valeur_estimee=_maintenant_utc() - timedelta(days=800),
     )
 
     alertes = fraicheur_donnees_service.compute_alertes_fraicheur(db, ID_FOYER_TEST)
