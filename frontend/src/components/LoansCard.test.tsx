@@ -17,7 +17,7 @@ vi.mock('../api/client', () => ({
     // dédiée plus bas, résolution neutre par défaut.
     listEtablissements: vi.fn().mockResolvedValue([]),
     // Répartition d'un prêt entre membres (§ BN.1, lot 2) — section dédiée plus bas.
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
     getLoanQuotites: vi.fn(),
     setLoanQuotites: vi.fn(),
   },
@@ -399,7 +399,7 @@ describe('LoansCard — répartition du prêt entre membres (§ BN.1, lot 2)', (
   beforeEach(() => {
     simulerLargeurEcran(false)
     vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4 })])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE, BOB])
     vi.mocked(api.setLoanQuotites).mockClear()
   })
 
@@ -469,7 +469,7 @@ describe("LoansCard — répartition globale et vue d'un membre (§ BN.1, lot 3)
   beforeEach(() => {
     simulerLargeurEcran(false)
     vi.mocked(api.listLoans).mockReset()
-    vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE, BOB])
     vi.mocked(api.getLoanQuotites).mockReset()
     vi.mocked(api.setLoanQuotites).mockReset()
   })
@@ -501,12 +501,12 @@ describe("LoansCard — répartition globale et vue d'un membre (§ BN.1, lot 3)
     })
 
     it("sans membre dans le foyer, aucun badge « Non réparti » n'est affiché", async () => {
-      vi.mocked(api.listDetenteurs).mockResolvedValue([])
+      vi.mocked(api.listMembresFoyer).mockResolvedValue([])
       vi.mocked(api.listLoans).mockResolvedValue([loan({ id: 4, repartie: false })])
       render(<LoansCard />)
 
       await screen.findByText('Crédit immobilier')
-      await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+      await vi.waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
       expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
     })
 
@@ -515,7 +515,7 @@ describe("LoansCard — répartition globale et vue d'un membre (§ BN.1, lot 3)
       render(<LoansCard />)
 
       await screen.findByText('Crédit immobilier')
-      await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+      await vi.waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
       expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
     })
 

@@ -33,9 +33,9 @@ export interface BancImport {
 }
 
 /** Enveloppe de rendu : routeur (les sections naviguent) et foyer courant (clé du dernier choix). */
-export function enveloppeFoyer(foyerId: number | null) {
+export function enveloppeFoyer(foyerId: number | null, role: 'proprietaire' | 'membre' = 'proprietaire') {
   const valeur = {
-    user: { id: 1, username: 'u', role: 'proprietaire', foyer_courant_id: foyerId } as unknown as AuthUser,
+    user: { id: 1, username: 'u', role, foyer_courant_id: foyerId } as unknown as AuthUser,
     loading: false,
   } as unknown as AuthContextValue
   return function Enveloppe(contenu: ReactElement) {
@@ -48,7 +48,7 @@ function boutonConfirmer() {
 }
 
 async function laisserArriverLesMembres() {
-  await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+  await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
   await act(async () => {
     await new Promise((r) => setTimeout(r, 0))
   })
@@ -62,9 +62,9 @@ export function suiteQuestionImport(nom: string, banc: BancImport) {
   describe(`${nom} — question « à quel membre ? » (§ BN.1, lot 3)`, () => {
     beforeEach(() => {
       localStorage.clear()
-      vi.mocked(api.listDetenteurs).mockReset()
+      vi.mocked(api.listMembresFoyer).mockReset()
       banc.confirm().mockReset()
-      vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+      vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE, BOB])
     })
 
     it('avec deux membres, la question s\'affiche, pré-remplie à parts égales quand aucun choix n\'est mémorisé', async () => {
@@ -168,7 +168,7 @@ export function suiteQuestionImport(nom: string, banc: BancImport) {
     })
 
     it('avec un seul membre : aucune question, et `quotites` est absent du payload (le serveur applique 100 % à ce membre)', async () => {
-      vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE])
+      vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE])
       banc.confirmationReussit()
       await banc.ouvrir(enveloppeFoyer(1))
       await laisserArriverLesMembres()
@@ -182,7 +182,7 @@ export function suiteQuestionImport(nom: string, banc: BancImport) {
     })
 
     it('sans membre dans le foyer : aucune question, `quotites` absent du payload', async () => {
-      vi.mocked(api.listDetenteurs).mockResolvedValue([])
+      vi.mocked(api.listMembresFoyer).mockResolvedValue([])
       banc.confirmationReussit()
       await banc.ouvrir(enveloppeFoyer(1))
       await laisserArriverLesMembres()
@@ -194,8 +194,16 @@ export function suiteQuestionImport(nom: string, banc: BancImport) {
       expect(quotitesDuPayload(banc)).toBeUndefined()
     })
 
-    it('liste des membres illisible (403) : même comportement qu\'un foyer sans membre, l\'import reste possible', async () => {
-      vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('Accès refusé'))
+    it('compte au rôle membre : la question s’affiche aussi, les membres venant de la lecture seule', async () => {
+      await banc.ouvrir(enveloppeFoyer(1, 'membre'))
+
+      expect(await screen.findByText(TITRE_QUESTION)).toBeInTheDocument()
+      expect(screen.getByLabelText('Part de Alice (%)')).toHaveValue(50)
+      expect(screen.getByLabelText('Part de Bob (%)')).toHaveValue(50)
+    })
+
+    it('liste des membres illisible (panne) : même comportement qu\'un foyer sans membre, l\'import reste possible', async () => {
+      vi.mocked(api.listMembresFoyer).mockRejectedValue(new Error('Accès refusé'))
       banc.confirmationReussit()
       await banc.ouvrir(enveloppeFoyer(1))
       await laisserArriverLesMembres()

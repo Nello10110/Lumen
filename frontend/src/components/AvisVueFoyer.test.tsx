@@ -6,11 +6,9 @@ import AvisVueFoyer from './AvisVueFoyer'
 
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
   },
 }))
-
-const HORODATAGE = '2026-01-01T00:00:00'
 
 function rendre(ecran: 'analyse' | 'rapport') {
   return render(
@@ -23,9 +21,9 @@ function rendre(ecran: 'analyse' | 'rapport') {
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([
-    { id: 1, nom: 'Alice', created_at: HORODATAGE, updated_at: HORODATAGE },
-    { id: 2, nom: 'Bob', created_at: HORODATAGE, updated_at: HORODATAGE },
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([
+    { id: 1, nom: 'Alice' },
+    { id: 2, nom: 'Bob' },
   ])
 })
 
@@ -34,7 +32,7 @@ describe('AvisVueFoyer (§ BN.1, lot 3)', () => {
     rendre('analyse')
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(api.listDetenteurs).not.toHaveBeenCalled()
+    expect(api.listMembresFoyer).not.toHaveBeenCalled()
   })
 
   it("sur l'Analyse, dit que l'écran montre le foyer entier et que la vue du membre sélectionné ne s'y applique pas", async () => {
@@ -55,7 +53,7 @@ describe('AvisVueFoyer (§ BN.1, lot 3)', () => {
     localStorage.setItem('patrimoine:detenteur-id', '99')
     rendre('rapport')
 
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     await new Promise((r) => setTimeout(r, 0))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })

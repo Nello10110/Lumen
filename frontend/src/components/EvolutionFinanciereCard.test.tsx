@@ -8,7 +8,7 @@ import EvolutionFinanciereCard from './EvolutionFinanciereCard'
 vi.mock('../api/client', () => ({
   api: {
     listHoldings: vi.fn(),
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     getPatrimoineHistory: vi.fn(),
     getLignesPatrimoine: vi.fn(),
   },
@@ -82,7 +82,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.getPatrimoineHistory).mockResolvedValue(reponse())
   vi.mocked(api.getLignesPatrimoine).mockResolvedValue(reponseLignes())
-  vi.mocked(api.listDetenteurs).mockResolvedValue([])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([])
 })
 
 describe('EvolutionFinanciereCard', () => {
@@ -202,7 +202,7 @@ describe('EvolutionFinanciereCard', () => {
 
   it('choisir un détenteur relance getPatrimoineHistory avec detenteurId', async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holding({ ticker: 'AAA', type_actif: 'STOCK', origine: 'reconstruit' })])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([
       { id: 5, nom: 'Alice', created_at: '', updated_at: '' } as Detenteur,
     ])
 

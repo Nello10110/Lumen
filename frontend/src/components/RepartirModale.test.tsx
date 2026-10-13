@@ -6,7 +6,7 @@ import RepartirModale from './RepartirModale'
 
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
   },
 }))
 
@@ -24,7 +24,7 @@ function renderModale(props: Partial<Parameters<typeof RepartirModale>[0]> = {})
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
 })
 
 describe('RepartirModale (§ BN.1, lot 3)', () => {

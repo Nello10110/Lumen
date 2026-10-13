@@ -8,7 +8,7 @@ import AjoutHoldingForm from './AjoutHoldingForm'
 // envoyées à la création. Le reste du formulaire est couvert par PortefeuillePage.test.tsx.
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     listComptes: vi.fn().mockResolvedValue([]),
     listEtablissements: vi.fn().mockResolvedValue([]),
     getCompteQuotites: vi.fn(),
@@ -42,7 +42,7 @@ async function rendre(comptes: Compte[] = []) {
       onImmobilier={vi.fn()}
     />,
   )
-  await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+  await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
   // Laisse le temps à la liste des membres d'arriver (et aux parts égales d'être posées).
   await act(async () => {
     await new Promise((r) => setTimeout(r, 0))
@@ -80,7 +80,7 @@ function ouvrirBloc() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE, BOB])
   vi.mocked(api.listComptes).mockResolvedValue([])
   vi.mocked(api.createHolding).mockResolvedValue({ id: 1, ticker: 'AAPL' } as Holding)
   vi.mocked(api.createLoan).mockResolvedValue({ id: 1 } as Loan)
@@ -131,7 +131,7 @@ describe('AjoutHoldingForm — « Qui le détient » (§ BN.1, lot 3)', () => {
   })
 
   it('avec un seul membre, le résumé dit « Alice 100 % » et createHolding envoie 100 % pour lui', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE])
     await rendre()
     remplirActif()
 
@@ -158,7 +158,7 @@ describe('AjoutHoldingForm — « Qui le détient » (§ BN.1, lot 3)', () => {
   })
 
   it('foyer sans membre : aucun bloc « Qui le détient » et `quotites` est absent du payload (le serveur décide)', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     await rendre()
     remplirActif()
 
@@ -170,7 +170,7 @@ describe('AjoutHoldingForm — « Qui le détient » (§ BN.1, lot 3)', () => {
   })
 
   it('liste des membres illisible (403) : même comportement qu\'un foyer sans membre', async () => {
-    vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('Accès refusé'))
+    vi.mocked(api.listMembresFoyer).mockRejectedValue(new Error('Accès refusé'))
     await rendre()
     remplirActif()
 
@@ -297,7 +297,7 @@ describe('AjoutHoldingForm — mode emprunt (§ BN.1, lot 3)', () => {
   })
 
   it('foyer sans membre : `quotites` est absent du payload de l\'emprunt', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     await rendre()
     remplirEmprunt()
 

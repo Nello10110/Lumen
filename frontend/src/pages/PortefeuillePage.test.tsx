@@ -35,7 +35,7 @@ vi.mock('../api/client', () => ({
     // qui en ont besoin.
     listEtablissements: vi.fn().mockResolvedValue([]),
     // Formulaire d'ajout d'un bien immobilier (§ BN.1, lot 2), ouvert depuis la feuille d'ajout.
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
     // Bandeau « lignes non réparties » (§ BN.1, lot 3) : neutre par défaut, surchargé par les tests de répartition.
     getLignesNonReparties: vi.fn().mockResolvedValue({ actifs: 0, prets: 0 }),
     repartirToutesLesLignes: vi.fn(),
@@ -60,6 +60,7 @@ vi.mock('../components/LoansCard', () => ({ default: () => <div /> }))
 // lit `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
 // `detenteurId` (membre dont on voit la vue, § BN.1 lot 3) est pilotable : `null` = tout le foyer.
 const preferences = vi.hoisted(() => ({ detenteurId: null as number | null }))
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'proprietaire' } }) }))
 vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({
     lentille: 'net',
@@ -160,7 +161,7 @@ describe('PortefeuillePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     preferences.detenteurId = null
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
     vi.mocked(api.getRefreshStatus).mockResolvedValue({
       en_cours: false,
@@ -380,7 +381,7 @@ describe('PortefeuillePage', () => {
   describe('Ajouter une ligne manuellement — un bien immobilier a son formulaire (§ BN.1, lot 2)', () => {
     beforeEach(() => {
       vi.mocked(api.listLoans).mockResolvedValue([])
-      vi.mocked(api.listDetenteurs).mockResolvedValue([])
+      vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     })
 
     it("choisir « Immobilier » dans Type d'actif remplace la feuille par le formulaire « Ajouter un bien immobilier »", async () => {
@@ -1470,7 +1471,7 @@ describe('PortefeuillePage — membres du foyer (§ BN.1, lot 3)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     preferences.detenteurId = null
-    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
     vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
     vi.mocked(api.listHoldings).mockResolvedValue([])
     vi.mocked(api.getRefreshStatus).mockResolvedValue({
@@ -1560,12 +1561,12 @@ describe('PortefeuillePage — membres du foyer (§ BN.1, lot 3)', () => {
   })
 
   it("sans membre dans le foyer, aucun badge « Non réparti » n'est affiché", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'AAA', repartie: false })])
     render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
     await screen.findByText('AAA')
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
   })
 

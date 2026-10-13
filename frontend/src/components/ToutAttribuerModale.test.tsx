@@ -6,7 +6,7 @@ import ToutAttribuerModale from './ToutAttribuerModale'
 
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     getLignesNonReparties: vi.fn(),
     repartirToutesLesLignes: vi.fn(),
   },
@@ -25,9 +25,20 @@ function renderModale(props: { onClose?: () => void; onAttribue?: () => void } =
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
   vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 2, prets: 1 })
   vi.mocked(api.repartirToutesLesLignes).mockResolvedValue({ actifs: 2, prets: 1 })
+})
+
+describe('ToutAttribuerModale — compte au rôle membre (§ BN.1, lot 3)', () => {
+  it('propose les membres du foyer venus de la lecture seule, et attribue', async () => {
+    renderModale()
+    await screen.findByTestId('apercu-lignes')
+
+    expect(api.listMembresFoyer).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Attribuer' }))
+    await waitFor(() => expect(api.repartirToutesLesLignes).toHaveBeenCalledTimes(1))
+  })
 })
 
 describe('ToutAttribuerModale — aperçu (§ BN.1, lot 3)', () => {
@@ -47,7 +58,7 @@ describe('ToutAttribuerModale — aperçu (§ BN.1, lot 3)', () => {
   })
 
   it("avec un seul membre, la répartition proposée est 100 % pour lui", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice')])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice')])
     renderModale()
     await screen.findByTestId('apercu-lignes')
 
@@ -98,7 +109,7 @@ describe("ToutAttribuerModale — attribution (§ BN.1, lot 3)", () => {
   })
 
   it('avec un seul membre, envoie 100 % pour lui', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(7, 'Alice')])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(7, 'Alice')])
     renderModale()
     await screen.findByTestId('apercu-lignes')
 
@@ -109,7 +120,7 @@ describe("ToutAttribuerModale — attribution (§ BN.1, lot 3)", () => {
   })
 
   it('avec trois membres, les parts égales absorbent l\'arrondi dans le dernier : 33,33 / 33,33 / 33,34', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob'), membre(3, 'Clara')])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob'), membre(3, 'Clara')])
     renderModale()
     await screen.findByTestId('apercu-lignes')
 

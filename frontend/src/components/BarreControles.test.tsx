@@ -10,7 +10,7 @@ import BarreControles from './BarreControles'
 // sélecteur « Membre », masqué tant qu'aucun n'est déclaré.
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -33,7 +33,7 @@ function renderBarre() {
 
 beforeEach(() => {
   localStorage.clear()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([])
 })
 
 describe('BarreControles (backlog 2.K.3)', () => {
@@ -67,12 +67,12 @@ describe('BarreControles (backlog 2.K.3)', () => {
 describe('BarreControles — filtre détenteur (backlog 2.L.1)', () => {
   it("n'affiche aucun sélecteur Membre si l'utilisateur n'a déclaré personne", async () => {
     renderBarre()
-    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await vi.waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByText('Membre')).not.toBeInTheDocument()
   })
 
   it('affiche "Tout le foyer" + chaque membre déclaré, "Tout le foyer" sélectionné par défaut', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     renderBarre()
 
     await screen.findByText('Membre')
@@ -84,7 +84,7 @@ describe('BarreControles — filtre détenteur (backlog 2.L.1)', () => {
   })
 
   it('choisir un détenteur persiste son id dans localStorage', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ id: 7, nom: 'Alice' })])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([detenteur({ id: 7, nom: 'Alice' })])
     renderBarre()
     await screen.findByText('Membre')
 
@@ -158,7 +158,7 @@ describe('BarreControles — pilule de contexte retirée (07/09/2026)', () => {
 describe('BarreControles — membre mémorisé supprimé depuis (§ BN.1, lot 3)', () => {
   it("un membre mémorisé qui n'existe plus est désélectionné : retour à « Tout le foyer » et clé effacée", async () => {
     localStorage.setItem('patrimoine:detenteur-id', '99')
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ id: 1, nom: 'Alice' })])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([detenteur({ id: 1, nom: 'Alice' })])
     renderBarre()
 
     await screen.findByText('Membre')
@@ -168,7 +168,7 @@ describe('BarreControles — membre mémorisé supprimé depuis (§ BN.1, lot 3)
 
   it('un membre mémorisé qui existe toujours reste sélectionné', async () => {
     localStorage.setItem('patrimoine:detenteur-id', '2')
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ id: 1, nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([detenteur({ id: 1, nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     renderBarre()
 
     await screen.findByText('Membre')
@@ -178,10 +178,10 @@ describe('BarreControles — membre mémorisé supprimé depuis (§ BN.1, lot 3)
 
   it("si la liste des membres n'est pas lisible, la sélection mémorisée n'est pas touchée", async () => {
     localStorage.setItem('patrimoine:detenteur-id', '2')
-    vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('403'))
+    vi.mocked(api.listMembresFoyer).mockRejectedValue(new Error('403'))
     renderBarre()
 
-    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await vi.waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(localStorage.getItem('patrimoine:detenteur-id')).toBe('2')
   })
 })

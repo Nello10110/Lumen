@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import { TOLERANCE_SOMME_PCT } from '../utils/repartitionMembres'
 import { useEditeurQuotites } from './useEditeurQuotites'
 
-vi.mock('../api/client', () => ({ api: { listDetenteurs: vi.fn() } }))
+vi.mock('../api/client', () => ({ api: { listMembresFoyer: vi.fn() } }))
 
 const HORODATAGE = '2026-01-01T00:00:00'
 const DETENTEURS = [
@@ -14,7 +14,7 @@ const DETENTEURS = [
 
 describe('useEditeurQuotites', () => {
   beforeEach(() => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue(DETENTEURS)
+    vi.mocked(api.listMembresFoyer).mockResolvedValue(DETENTEURS)
   })
 
   it('distingue un échec de chargement d’une absence de détenteur', async () => {
@@ -22,7 +22,7 @@ describe('useEditeurQuotites', () => {
     // `.catch(() => setDetenteurs([]))` puis s'effaçaient si la liste était vide.
     // Un GET en échec faisait donc DISPARAÎTRE le bloc de répartition, sans
     // message ni bouton Réessayer — indiscernable de « aucun détenteur déclaré ».
-    vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('réseau injoignable'))
+    vi.mocked(api.listMembresFoyer).mockRejectedValue(new Error('réseau injoignable'))
     const { result } = renderHook(() => useEditeurQuotites({ enregistrer: vi.fn() }))
 
     await waitFor(() => expect(result.current.erreurChargement).toBe('réseau injoignable'))

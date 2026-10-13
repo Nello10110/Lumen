@@ -6,7 +6,7 @@ import AjoutCompteForm from './AjoutCompteForm'
 
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     listComptes: vi.fn(),
     createCompte: vi.fn(),
     createHolding: vi.fn(),
@@ -31,7 +31,7 @@ async function rendre(props: Props = {}) {
   const onCreated = props.onCreated ?? vi.fn()
   const onAjouterMembre = 'onAjouterMembre' in props ? props.onAjouterMembre : vi.fn()
   render(<AjoutCompteForm etablissements={[BANQUE]} {...props} onCreated={onCreated} onAjouterMembre={onAjouterMembre} />)
-  await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+  await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
   await act(async () => {
     await new Promise((r) => setTimeout(r, 0))
   })
@@ -46,7 +46,7 @@ function soumettre(nom: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE, BOB])
   vi.mocked(api.listComptes).mockResolvedValue([compte()])
   vi.mocked(api.createCompte).mockResolvedValue(compte({ id: 10, nom: 'Livret B' }))
   vi.mocked(api.createHolding).mockResolvedValue({} as never)
@@ -166,7 +166,7 @@ describe('AjoutCompteForm — compte homonyme (§ BN.1, lot 3)', () => {
   })
 
   it("foyer d'un seul membre : pas de sélecteur « Pour quel membre ? », le bouton vise l'unique membre", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE])
     vi.mocked(api.listComptes).mockResolvedValue([compte({ membres_ids: [] })])
     const { onAjouterMembre } = await rendre()
     soumettre('PEA')
@@ -188,7 +188,7 @@ describe('AjoutCompteForm — compte homonyme (§ BN.1, lot 3)', () => {
   })
 
   it("foyer sans membre lisible : le panneau annonce le nom pris mais ne propose ni ajout ni renommage", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     await rendre()
 
     soumettre('PEA')

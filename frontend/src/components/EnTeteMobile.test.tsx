@@ -9,7 +9,7 @@ import EnTeteMobile from './EnTeteMobile'
 
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -43,7 +43,7 @@ function renderEnTete(path = '/', valeurAuth = auth()) {
 
 beforeEach(() => {
   localStorage.clear()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([])
 })
 
 describe('EnTeteMobile (refonte « liquid glass », en-tête < 768 px)', () => {
@@ -77,7 +77,7 @@ describe('EnTeteMobile (refonte « liquid glass », en-tête < 768 px)', () => {
   })
 
   it('la feuille expose le détenteur, et la ligne de contexte reflète le choix', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ id: 7, nom: 'Alice' })])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([detenteur({ id: 7, nom: 'Alice' })])
     renderEnTete()
 
     fireEvent.click(screen.getByRole('button', { name: "Réglages d'affichage" }))
