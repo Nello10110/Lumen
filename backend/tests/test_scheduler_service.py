@@ -18,10 +18,10 @@ import pytest
 
 from app import database
 from app.database import session_tous_foyers
-from app.models import Foyer, Holding, ScheduledJobConfig
+from app.models import STATUT_FOYER_SUSPENDU, Foyer, Holding, ScheduledJobConfig
 from app.services import backup_service, justetf_service, market_data_refresh, market_data_service, scheduler_service
 
-from .conftest import ID_FOYER_TEST, attendre_fin_rafraichissement_arriere_plan, make_holding
+from .conftest import ID_FOYER_B, ID_FOYER_TEST, attendre_fin_rafraichissement_arriere_plan, make_holding
 
 
 def _supprimer_config_job():
@@ -562,3 +562,72 @@ def test_run_cours_historiques_persiste_un_statut_en_cas_decheec(monkeypatch, fo
             db.commit()
         finally:
             db.close()
+
+
+@pytest.fixture
+def foyer_suspendu_de_fond():
+    """Un second foyer, SUSPENDU, dans la base des tâches de fond (cf. `foyer_de_fond`)."""
+    db = session_tous_foyers()
+    try:
+        db.add(Foyer(id=ID_FOYER_B, statut=STATUT_FOYER_SUSPENDU))
+        db.commit()
+    finally:
+        db.close()
+    yield ID_FOYER_B
+    db = session_tous_foyers()
+    try:
+        db.query(Holding).filter(Holding.foyer_id == ID_FOYER_B).delete(synchronize_session=False)
+        db.query(Foyer).filter(Foyer.id == ID_FOYER_B).delete(synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _poser_deux_lignes(foyer_actif: int, foyer_suspendu: int) -> None:
+    db = session_tous_foyers()
+    try:
+        db.query(Holding).delete()
+        db.add(Holding(foyer_id=foyer_actif, ticker="AAA", quantite=1.0, type_actif="STOCK"))
+        db.add(Holding(foyer_id=foyer_suspendu, ticker="BBB", quantite=1.0, type_actif="STOCK"))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _vider_les_lignes() -> None:
+    db = session_tous_foyers()
+    try:
+        db.query(Holding).delete()
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_le_rafraichissement_planifie_des_cours_ignore_les_titres_d_un_foyer_suspendu(monkeypatch, foyer_de_fond, foyer_suspendu_de_fond):
+    """Carte #85 : la tâche de fond parcourt tous les foyers mais n'en rafraîchit que les actifs."""
+    recus = []
+    monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items: recus.append(sorted(items)) or [])
+    _poser_deux_lignes(foyer_de_fond, foyer_suspendu_de_fond)
+
+    try:
+        scheduler_service._run_market_data_refresh()
+    finally:
+        _vider_les_lignes()
+
+    assert recus == [[("AAA", "STOCK")]]
+
+
+def test_le_remplissage_planifie_des_series_ignore_les_titres_d_un_foyer_suspendu(monkeypatch, foyer_de_fond, foyer_suspendu_de_fond):
+    from app.services import cours_service
+
+    rafraichis = []
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db, identifiant, asset_class: identifiant)
+    monkeypatch.setattr(cours_service, "rafraichir", lambda db, ticker, forcer=False: rafraichis.append(ticker))
+    _poser_deux_lignes(foyer_de_fond, foyer_suspendu_de_fond)
+
+    try:
+        scheduler_service._run_cours_historiques()
+    finally:
+        _vider_les_lignes()
+
+    assert rafraichis == ["AAA"]

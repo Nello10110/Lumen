@@ -7324,7 +7324,8 @@ et `role` (lu tel quel par `require_role` et les 38 usages actuels).
 - **Liens de partage** : `lien.user_id` désigne déjà le foyer ; la route publique pose
   `fixer_foyer(db, lien.user_id, "")` (plus de faux utilisateur) et répond 404 si le foyer est suspendu.
 - **Tâches de fond** : inchangées. `startup_maintenance` parcourt `foyers.id` au lieu de `User.id`.
-  Les titres des foyers suspendus peuvent être exclus du rafraîchissement (économie, sans enjeu).
+  Les titres des foyers suspendus peuvent être exclus du rafraîchissement (économie, sans enjeu) : fait le 13/10/2026
+  (carte #85, voir « Lot BK.2d — suite » plus bas).
 
 ##### 4. Invitations
 
@@ -7885,7 +7886,19 @@ Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la con
 
 **Tests.** `test_operateur.py` (connexion de l'opérateur ; **test générique** : toutes les routes du schéma OpenAPI hors `/api/operateur` et `/api/auth` répondent 403 à un jeton d'opérateur, les routes publiques étant listées en clair ; aucune clé de réponse de la console ne désigne un montant ; foyers, suspension complète — sessions, liens, invitations, données intactes, autre foyer intact —, réactivation, suppression avec confirmation et comptes conservés, nouveau propriétaire et ses refus, comptes sans foyer, journal complet et journal du propriétaire ; liens de création par un nouveau compte et par un compte existant, opérateur refusé, révocation, modes `ferme` et `invitation` et extinction des liens, IDOR entre propriétaires ; réglages et déplacement des routes d'installation ; amorçage accepté / refusé (opérateur existant, deux foyers, rôle) ; commande en ligne avec `getpass` simulé ; SSO : nouveau compte avec foyer / sans foyer selon le réglage, compte local homonyme **non pris**, liaison, refus d'une identité déjà liée, refus pour l'opérateur, `state` signé, déliaison, opérateur jamais connecté par SSO). `test_separation_foyers.py` (Postgres) étendu : **zéro ligne de patrimoine sous périmètre opérateur, table par table, même en SQL direct** ; foyers, appartenances et comptes lisibles ; suspendre, désigner, supprimer un foyer et un compte depuis ce périmètre ; jamais d'appartenance pour un opérateur ; un propriétaire ne suspend pas un foyer ; visibilité des liens de création (à leur créateur, tous pour l'opérateur, jamais les invitations d'un foyer) ; naissance du foyer à l'acceptation sans appartenance préalable. Les tests SSO des lots précédents qui décrivaient le rattachement au foyer unique et la liaison par nom sont remplacés.
 
-**Limites.** Les politiques Postgres n'ont pas été jouées localement (aucun Postgres disponible sur le poste de développement) : la CI (`backend-postgres`, `montee-version`) les a vérifiées (voir ci-dessus). Les tâches de fond ne sautent pas les foyers suspendus (facultatif dans la fiche ; sans enjeu). L'interface de la console est décrite dans la section suivante.
+**Limites.** Les politiques Postgres n'ont pas été jouées localement (aucun Postgres disponible sur le poste de développement) : la CI (`backend-postgres`, `montee-version`) les a vérifiées (voir ci-dessus). Les tâches de fond ne sautaient pas les foyers suspendus (facultatif dans la fiche ; sans enjeu) : corrigé le 13/10/2026, voir « Lot BK.2d — suite » ci-dessous. L'interface de la console est décrite dans la section suivante.
+
+##### Lot BK.2d — suite : les foyers suspendus ne font plus rafraîchir leurs titres (carte Vikunja #85, 13/10/2026), `en attente de la CI`
+
+Option laissée de côté au lot BK.2d (« gardé pour plus tard »). Le cache de marché reste global ; ce qui change est l'ensemble des titres que les tâches de fond parcourent : les
+lignes des seuls foyers dont `statut = actif`. Nouveau module `services/titres_suivis.py` (`holdings_des_foyers_actifs`, une jointure SQL `holdings` ⨝ `foyers`, et `titres_a_rafraichir`, les couples
+(ticker, type) distincts), utilisé aux cinq endroits qui parcouraient tous les foyers : le rafraîchissement planifié des cours (`_run_market_data_refresh`), son déclenchement depuis Réglages
+(`run_job_now`) et depuis le Portefeuille (`POST /api/market-data/refresh`), le remplissage planifié des séries de cours (`_run_cours_historiques`) et la composition justETF
+(`justetf_service.refresh_all`). Un titre qu'un foyer actif détient aussi reste rafraîchi (le filtre porte sur le foyer de chaque ligne), et réactiver un foyer le remet dans le cycle suivant, sans autre geste.
+**Séparation des foyers sous Postgres** : aucune politique n'est modifiée ; la table `foyers` est lisible sous le périmètre « tous les foyers » des tâches de fond (politique du lot BK.2d), la jointure
+n'élargit donc rien. Le démarrage (`startup_maintenance`) reconstruit le portefeuille de chaque foyer sans rafraîchir de cours : inchangé. Les logos d'établissement ne sont pas des titres : inchangés.
+Tests : `test_titres_suivis.py` (foyer actif, suspendu, titre partagé, réactivation, déclenchements manuels, justETF) et deux tests de tâche de fond dans `test_scheduler_service.py`. Non vérifié en local : le comportement
+sous Postgres (aucun Postgres sur le poste), laissé à la CI `backend-postgres`.
 
 ##### Lot BK.2d — réalisé (interface, 01/10/2026)
 

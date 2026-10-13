@@ -21,8 +21,17 @@ from scripts import sauvegarde as sauvegarde_module
 from .. import database
 from ..database import obtenir_ou_creer, session_tous_foyers
 from ..i18n import a_traduire
-from ..models import Holding, ScheduledJobConfig
-from . import backup_service, coingecko_service, cours_service, justetf_service, logo_service, market_data_refresh, market_data_service
+from ..models import ScheduledJobConfig
+from . import (
+    backup_service,
+    coingecko_service,
+    cours_service,
+    justetf_service,
+    logo_service,
+    market_data_refresh,
+    market_data_service,
+    titres_suivis,
+)
 
 logger = logging.getLogger("patrimoine.scheduler")
 
@@ -50,8 +59,9 @@ def _run_market_data_refresh() -> None:
     try:
         # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf.
         # docs/BACKLOG.md § 2.I.1) : le cache de marché reste global, partagé par
-        # tous les comptes — ce job doit couvrir les tickers de tout le monde.
-        items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
+        # tous les comptes — ce job doit couvrir les tickers de tous les foyers ACTIFS
+        # (un foyer suspendu ne fait plus rafraîchir ses titres, cf. `titres_suivis`).
+        items = titres_suivis.titres_a_rafraichir(db)
         market_data_service.refresh_tickers(db, items)
         record_result(db, MARKET_DATA_REFRESH, "ok", a_traduire("{total} position(s) rafraîchie(s)").format(total=len(items)))
     except Exception as exc:
@@ -200,7 +210,7 @@ def _run_cours_historiques() -> None:
     try:
         tickers: set[str] = set()
         tickers_crypto: set[str] = set()
-        for holding in db.query(Holding).all():
+        for holding in titres_suivis.holdings_des_foyers_actifs(db).all():
             if holding.type_actif == "CRYPTO":
                 if holding.ticker:
                     tickers_crypto.add(holding.ticker.strip().upper())
@@ -353,9 +363,9 @@ def run_job_now(db: Session, job_key: str, forcer_non_cotables: bool = False) ->
         # tous les comptes — ce job doit couvrir les tickers de tout le monde.
         # Sous Postgres, la session d'une requête ne voit que les lignes de son foyer — et celle de
         # l'opérateur (§ BK.2d), aucune : la restriction est levée le temps de lire les seuls
-        # tickers distincts.
+        # tickers distincts, ceux des foyers actifs (cf. `titres_suivis`).
         with database.tous_les_foyers_le_temps(db):
-            items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
+            items = titres_suivis.titres_a_rafraichir(db)
 
         def _sur_fin(etat) -> None:
             # Session dédiée : ce callback s'exécute dans le fil de fond, bien après

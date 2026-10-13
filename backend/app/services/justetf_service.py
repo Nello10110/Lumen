@@ -38,6 +38,7 @@ from sqlalchemy.orm import Session
 
 from ..database import obtenir_ou_creer
 from ..models import SOURCE_JUSTETF, FundComposition, FundCompositionBrute, FundTopHolding, Holding, MarketDataCache
+from . import titres_suivis
 from .reference_indices import JUSTETF_SECTOR_LABELS, SECTEUR_AUTRES, ZONE_AUTRES, region_for_country
 
 logger = logging.getLogger("patrimoine.justetf")
@@ -316,8 +317,14 @@ def refresh_all(db: Session) -> dict:
     affiché dans Réglages."""
     # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf.
     # docs/BACKLOG.md § 2.I.1) : FundComposition/FundCompositionBrute restent
-    # globaux, partagés par tous les comptes.
-    items = db.query(Holding.ticker, Holding.type_actif).filter(Holding.type_actif == "FUND").distinct().all()
+    # globaux, partagés par tous les comptes ; seuls les foyers actifs font rafraîchir leurs ETF.
+    items = (
+        titres_suivis.holdings_des_foyers_actifs(db)
+        .filter(Holding.type_actif == "FUND")
+        .with_entities(Holding.ticker, Holding.type_actif)
+        .distinct()
+        .all()
+    )
 
     traites = 0
     reussis = 0
