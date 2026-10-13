@@ -8065,6 +8065,24 @@ reset by peer »), avant tout code de la branche.
 
 **Reste** : rien pour ce lot, qui clôt le chantier BK.2 ; le test `invitations.spec.ts` (ligne ~97) reste à surveiller.
 
+**Suivi du 13/10/2026 — `invitations.spec.ts` (ligne 97), carte Vikunja #84 : non résolu : cause non reproduite.** Essais :
+`invitations.spec.ts` seul en `--repeat-each=10` ; la suite complète 3 fois (dont deux sous charge CPU : 8 boucles actives, plus la
+suite pytest en parallèle) ; `--repeat-each=4` deux fois sous charge (6 boucles actives, 34 passages) : aucun échec attribuable au
+test ou à l'interface, 106 tests verts à chaque suite complète (la troisième, sous charge, a vu échouer deux tests d'export de
+`sauvegarde-donnees.spec.ts`, « download.createReadStream: canceled », sans rapport). **Éliminé** : (1) la limitation de débit des
+jetons d'invitation inconnus (10 en 15 minutes depuis une même adresse, 429) : elle fait échouer `--repeat-each=10` aux passages 9
+et 10 (« Trop de tentatives »), mais une suite complète n'envoie que 2 jetons inconnus (relevé du journal du backend), et le
+compteur est en mémoire, remis à zéro à chaque démarrage du backend E2E ; ce n'est pas la cause de l'intermittence de la suite
+complète, seulement un piège de `--repeat-each` (documenté dans l'en-tête du fichier) ; (2) l'état partagé de la base seedée
+(`operateur.spec.ts` rend l'installation comme il l'a trouvée, `cycle-de-vie-foyer.spec.ts` ne touche pas au foyer seedé,
+l'invité repart avec son seul foyer) ; (3) une durée proche du délai de 30 s du test (4 à 9 s mesurées). **Non éliminé, non
+prouvé** : un clic parti pendant le décalage du formulaire quand les listes de la page des comptes arrivent (déjà observé dans
+`cycle-de-vie-foyer.spec.ts`, qui attend la fin du chargement) ; l'assistant `inviter` de `invitations.spec.ts` n'avait pas cette
+attente, elle y est ajoutée par prudence, sans lien établi avec l'échec. **Diagnostic ajouté** : la CI téléverse désormais le
+rapport Playwright (traces des échecs conservées par `trace: 'retain-on-failure'`) aussi quand le job est vert : avec `retries: 1`,
+un test qui n'a réussi qu'à la seconde tentative ne laissait aucune trace, ce qui rend le « jamais en CI » invérifiable. La carte
+reste ouverte ; `en attente de la CI` pour ce diagnostic.
+
 ### BL. Application multilingue (cadrée le 23/09/2026)
 
 **Demande** : « de la sélection de langues, anglais, espagnol… et prévoir l'application pour en

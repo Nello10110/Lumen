@@ -10,7 +10,12 @@ import { seedData } from './seed-data'
  * second reprend le compte créé par le premier.
  *
  * Sans effet sur le reste de la suite : à la fin, l'invité a quitté le foyer seedé (il ne
- * garde que son propre foyer). */
+ * garde que son propre foyer).
+ *
+ * Ne pas l'exécuter avec `--repeat-each` supérieur à 8 sur un même backend : chaque passage ouvre
+ * un lien déjà utilisé (le contrôle « usage unique »), et dix jetons inconnus en quinze minutes depuis
+ * une même adresse valent un refus 429 — la limitation de débit de l'application, qui fait son travail
+ * (§ BK.2b). Une suite complète n'en compte que deux. */
 test.describe.configure({ mode: 'serial' })
 
 const SUFFIXE = Date.now().toString().slice(-6)
@@ -31,6 +36,9 @@ let pageInvite: Page
 async function inviter(page: Page, libelle: string): Promise<string> {
   await page.goto('/reglages?onglet=securite')
   await expect(page.getByRole('heading', { name: 'Accès et invitations' })).toBeVisible()
+  // Les listes de la page arrivent après le titre et décalent le formulaire : même attente que
+  // `cycle-de-vie-foyer.spec.ts`, où un clic parti pendant ce décalage n'a jamais atteint le bouton.
+  await expect(page.getByRole('status', { name: 'Chargement en cours' })).toHaveCount(0)
   await page.getByLabel('Pour qui ? (facultatif)').fill(libelle)
   await page.getByRole('button', { name: "Créer l'invitation" }).click()
   const champ = page.getByLabel("Lien d'invitation")

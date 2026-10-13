@@ -156,8 +156,10 @@ jobs:
           PATRIMOINE_E2E_PYTHON: python
         run: npx playwright test
 
-      - name: Publie le rapport Playwright en cas d'echec
-        if: failure()
+      # Meme apres un succes : un test qui n'a reussi qu'a la seconde tentative (`retries: 1` en CI)
+      # laisse sinon un job vert et AUCUNE trace de son premier echec (carte #84).
+      - name: Publie le rapport Playwright
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
@@ -237,8 +239,10 @@ jobs:
             echo "Le backend E2E contournait la separation des foyers"; exit 1
           fi
 
-      - name: Publie le rapport Playwright en cas d'echec
-        if: failure()
+      # Meme apres un succes : un test qui n'a reussi qu'a la seconde tentative (`retries: 1` en CI)
+      # laisse sinon un job vert et AUCUNE trace de son premier echec (carte #84).
+      - name: Publie le rapport Playwright
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-postgres
