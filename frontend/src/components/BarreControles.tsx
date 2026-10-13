@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur } from '../api/types'
+import type { MembreFoyer } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { Lentille } from '../contexts/preferencesAffichageContextObject'
 import { GlassPanel } from './GlassPanel'
@@ -80,11 +80,11 @@ export default function BarreControles() {
   const { lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId } =
     usePreferencesAffichage()
   const { theme, setTheme } = useTheme()
-  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [detenteurs, setDetenteurs] = useState<MembreFoyer[]>([])
 
   useEffect(() => {
     api
-      .listDetenteurs()
+      .listMembresFoyer()
       .then((liste) => {
         setDetenteurs(liste)
         // Un membre supprimé depuis ne doit pas rester sélectionné : les écrans filtrés (Actifs, Comptes,

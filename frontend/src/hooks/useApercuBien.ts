@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Detenteur, Loan } from '../api/types'
+import type { Loan, MembreFoyer } from '../api/types'
 import {
   aujourdhuiIso,
   capitalRestantDu,
@@ -21,7 +21,7 @@ export interface ApercuBien {
   /** Capital restant dû total des prêts pris en compte. */
   capitalRestantDu: number
   aUnPret: boolean
-  parts: { membre: Detenteur; part: PartMembre }[]
+  parts: { membre: MembreFoyer; part: PartMembre }[]
 }
 
 /** Ce que vaudra le bien et ce qu'il rapportera, calculé à mesure que l'on saisit
@@ -44,7 +44,7 @@ export function useApercuBien({
   pret: FormPret
   pretsDisponibles: Loan[]
   pretsRattaches?: Loan[]
-  membres: Detenteur[]
+  membres: MembreFoyer[]
   repartition: Repartition
 }): ApercuBien {
   return useMemo(() => {

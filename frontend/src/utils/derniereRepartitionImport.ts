@@ -1,4 +1,4 @@
-import type { Detenteur } from '../api/types'
+import type { MembreFoyer } from '../api/types'
 import { depuisQuotites, partsEgales, repartitionEnCours, totalValide, type Repartition } from './repartitionMembres'
 
 /** Dernier choix de répartition fait à un import de patrimoine (§ BN.1, lot 3), mémorisé dans le
@@ -13,7 +13,7 @@ function cle(foyerId: number | null | undefined): string {
 
 /** Le dernier choix, seulement s'il porte encore sur des membres qui existent et fait 100 % ; sinon
  * des parts égales. Un membre supprimé depuis ne ressuscite jamais dans la question. */
-export function repartitionInitialeImport(foyerId: number | null | undefined, membres: Detenteur[]): Repartition {
+export function repartitionInitialeImport(foyerId: number | null | undefined, membres: MembreFoyer[]): Repartition {
   const ids = membres.map((m) => m.id)
   try {
     const brut = window.localStorage.getItem(cle(foyerId))

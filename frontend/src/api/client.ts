@@ -19,6 +19,7 @@ import type {
   CoutGestionConsolide,
   Detenteur,
   LignesNonReparties,
+  MembreFoyer,
   Etablissement,
   DividendeMois,
   RapportPeriode,
@@ -783,6 +784,9 @@ export const api = {
 
   // Personnes du foyer et quotités (backlog 2.L.1).
   listDetenteurs: () => request<Detenteur[]>('/detenteurs'),
+  // Les membres du foyer en lecture seule, ouverte aux trois rôles (§ BN.1, lot 3) : l'invité n'y
+  // voit que son périmètre. `listDetenteurs` (gestion) reste réservée au propriétaire.
+  listMembresFoyer: () => request<MembreFoyer[]>('/membres-foyer'),
   createDetenteur: (nom: string) => request<Detenteur>('/detenteurs', { method: 'POST', body: JSON.stringify({ nom }) }),
   updateDetenteur: (id: number, payload: { nom?: string }) =>
     request<Detenteur>(`/detenteurs/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),

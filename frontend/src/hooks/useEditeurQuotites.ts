@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, QuotiteEntree } from '../api/types'
+import type { MembreFoyer, QuotiteEntree } from '../api/types'
 import {
   depuisQuotites,
   quotitesDepuis,
@@ -46,7 +46,7 @@ export function useEditeurQuotites(options: {
   // éditeurs s'effacent quand la liste est vide, ce qui rendait un échec réseau indiscernable
   // de « aucun membre » — le bloc disparaissait sans message ni bouton Réessayer (revue du
   // 03/09/2026).
-  const [detenteurs, setDetenteurs] = useState<Detenteur[] | null>(null)
+  const [detenteurs, setDetenteurs] = useState<MembreFoyer[] | null>(null)
   const [erreurChargement, setErreurChargement] = useState<string | null>(null)
   const [saisie, setSaisieBrute] = useState<Repartition>({})
   const [source, setSource] = useState<SourceRepartition>('vierge')
@@ -68,7 +68,7 @@ export function useEditeurQuotites(options: {
             .then((actuelle) => actuelle ?? null)
             .catch(() => null)
         : Promise.resolve(null)
-    Promise.all([api.listDetenteurs(), initiales])
+    Promise.all([api.listMembresFoyer(), initiales])
       .then(([liste, actuelle]) => {
         setDetenteurs(liste)
         if (actuelle && actuelle.quotites.length > 0) {

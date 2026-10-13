@@ -81,6 +81,7 @@ const bienImmobilier: Structure<typeof fr> = {
   },
   repartition: {
     aucunMembre: "Nessun membro del nucleo è ancora dichiarato: l’immobile apparterrà all’intero nucleo.",
+    aucunMembreSansDroit: "Nessun membro del nucleo è ancora dichiarato: l’immobile apparterrà all’intero nucleo. Solo il proprietario del nucleo può aggiungerne uno.",
     ajouterUnMembre: "Aggiungi un membro del nucleo",
     aucunePart: "Nessuna quota assegnata",
     erreurMembres: "Impossibile caricare i membri del nucleo: {erreur}",

@@ -80,6 +80,7 @@ const bienImmobilier = {
   },
   repartition: {
     aucunMembre: "Aucun membre du foyer n'est encore déclaré : le bien appartiendra au foyer entier.",
+    aucunMembreSansDroit: "Aucun membre du foyer n'est encore déclaré : le bien appartiendra au foyer entier. Seul le propriétaire du foyer peut en ajouter.",
     ajouterUnMembre: "Ajouter un membre du foyer",
     aucunePart: "Aucune part attribuée",
     erreurMembres: "Impossible de charger les membres du foyer : {erreur}",

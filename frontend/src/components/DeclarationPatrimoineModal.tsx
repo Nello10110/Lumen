@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, Holding, Loan } from '../api/types'
+import type { Holding, Loan, MembreFoyer } from '../api/types'
 import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import { Field, Input, Select } from './Field'
@@ -17,7 +17,7 @@ import { t } from '../i18n'
 export default function DeclarationPatrimoineModal({ onClose }: { onClose: () => void }) {
   const [holdings, setHoldings] = useState<Holding[]>([])
   const [loans, setLoans] = useState<Loan[]>([])
-  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [detenteurs, setDetenteurs] = useState<MembreFoyer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,7 +33,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
   function charger() {
     setLoading(true)
     setError(null)
-    Promise.all([api.listHoldings(), api.listLoans(), api.listDetenteurs()])
+    Promise.all([api.listHoldings(), api.listLoans(), api.listMembresFoyer()])
       .then(([h, l, d]) => {
         setHoldings(h)
         setLoans(l)
