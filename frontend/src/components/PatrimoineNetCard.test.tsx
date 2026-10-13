@@ -1,3 +1,4 @@
+import { StrictMode } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -169,6 +170,53 @@ describe('PatrimoineNetCard', () => {
 
     await screen.findByText(/Patrimoine net · Tout le foyer/)
     expect(onVide).toHaveBeenLastCalledWith(false)
+  })
+
+  it('remet la page à false quand la carte est démontée (la page ne garde pas un patrimoine « vide » fantôme)', async () => {
+    // Sans ce nettoyage, le dernier appel restait `true` : la page qui a retiré la carte
+    // (changement de foyer, écran quitté puis gardé en état) croyait le patrimoine vide
+    // et masquait ses propres blocs à la place d'une carte qui n'existe plus.
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine())
+    const onVide = vi.fn()
+    const { unmount } = renderCard('net', null, undefined, PERIODE_DEFAUT, undefined, onVide)
+    await screen.findByRole('heading', { name: 'Ton patrimoine commence ici' })
+    expect(onVide).toHaveBeenLastCalledWith(true)
+
+    unmount()
+
+    expect(onVide).toHaveBeenLastCalledWith(false)
+  })
+
+  it('en React.StrictMode (double montage), la page finit prévenue de la vraie valeur', async () => {
+    // Le rejeu des effets du développement exécute le nettoyage puis recrée l'effet : le
+    // dernier appel doit rester celui de l'état réel de la carte, ici « vide ».
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine())
+    const onVide = vi.fn()
+    render(
+      <StrictMode>
+        <MemoryRouter>
+          <PreferencesAffichageContext.Provider
+            value={{
+              lentille: 'net',
+              setLentille: vi.fn(),
+              montantsMasques: false,
+              toggleMontantsMasques: vi.fn(),
+              detenteurId: null,
+              setDetenteurId: vi.fn(),
+              periode: PERIODE_DEFAUT,
+              setPeriode: vi.fn(),
+              langageSimple: false,
+              toggleLangageSimple: vi.fn(),
+            }}
+          >
+            <PatrimoineNetCard onVide={onVide} />
+          </PreferencesAffichageContext.Provider>
+        </MemoryRouter>
+      </StrictMode>,
+    )
+
+    await screen.findByRole('heading', { name: 'Ton patrimoine commence ici' })
+    expect(onVide).toHaveBeenLastCalledWith(true)
   })
 
   it('affiche un squelette pendant le chargement, jamais une carte vide', () => {

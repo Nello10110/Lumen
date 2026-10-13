@@ -8970,7 +8970,12 @@ répartition (point tranché 9).
   qui écrivent.
 - *Analyse et Rapport* ne suivent pas encore le filtre par membre (un avis le signale).
 - *Import bancaire du Budget* : pas de notion de membre.
-- *`onVide` de `PatrimoineNetCard`* n'est pas remis à `false` au démontage.
+- *`onVide` de `PatrimoineNetCard`* (carte Vikunja #94) : remis à `false` au démontage de la carte (second effet de mise
+  en page), `en attente de la CI` (13/10/2026). Conséquence réelle constatée avant correction : **aucune visible
+  aujourd'hui**, car la seule page qui l'utilise (`DashboardPage`) rend la carte sans condition et perd son propre état
+  avec elle ; le défaut n'aurait joué que pour une page qui garde son état en retirant la carte. Test qui échoue sans
+  la correction (démontage ⇒ dernier appel à `false`) et test du double montage de `React.StrictMode` ; le test
+  déterministe `MutationObserver` du 05/10/2026 est inchangé.
 - *Lot 4 — assistant en quatre étapes* : conditionnel (« si le besoin se confirme »), décision de l'utilisateur du
   04/10/2026 (livraison en deux temps) ; état `non traité`, à décider avec l'utilisateur après usage du formulaire
   unique.

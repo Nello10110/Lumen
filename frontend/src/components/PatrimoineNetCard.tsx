@@ -173,6 +173,12 @@ export default function PatrimoineNetCard({
   // ferait doublon avec lui le temps d'un affichage. L'effet de mise en page part dans
   // le même commit que le DOM : la page est prévenue avant tout affichage.
   useLayoutEffect(() => onVide?.(vide), [vide, onVide])
+  // Démontée, la carte ne rend plus aucun état vide : elle remet la page à `false` plutôt
+  // que de lui laisser croire le patrimoine vide (et masquer ses propres blocs) à la
+  // place d'une carte qui n'est plus là. Effet à part, pour ne pas rappeler `false` à
+  // chaque bascule de `vide` (le rejeu du double montage de React.StrictMode, en
+  // développement, rappelle `false` puis la valeur courante : inoffensif).
+  useLayoutEffect(() => () => onVide?.(false), [onVide])
 
   if (loading) {
     return (
