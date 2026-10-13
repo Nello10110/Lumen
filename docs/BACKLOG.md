@@ -7888,7 +7888,7 @@ Lot « Opérateur et naissance des foyers » (§ 9), **partie serveur** ; la con
 
 **Limites.** Les politiques Postgres n'ont pas été jouées localement (aucun Postgres disponible sur le poste de développement) : la CI (`backend-postgres`, `montee-version`) les a vérifiées (voir ci-dessus). Les tâches de fond ne sautaient pas les foyers suspendus (facultatif dans la fiche ; sans enjeu) : corrigé le 13/10/2026, voir « Lot BK.2d — suite » ci-dessous. L'interface de la console est décrite dans la section suivante.
 
-##### Lot BK.2d — suite : les foyers suspendus ne font plus rafraîchir leurs titres (carte Vikunja #85, 13/10/2026), `en attente de la CI`
+##### Lot BK.2d — suite : les foyers suspendus ne font plus rafraîchir leurs titres (carte Vikunja #85, 13/10/2026), `traité (13/10/2026)`
 
 Option laissée de côté au lot BK.2d (« gardé pour plus tard »). Le cache de marché reste global ; ce qui change est l'ensemble des titres que les tâches de fond parcourent : les
 lignes des seuls foyers dont `statut = actif`. Nouveau module `services/titres_suivis.py` (`holdings_des_foyers_actifs`, une jointure SQL `holdings` ⨝ `foyers`, et `titres_a_rafraichir`, les couples
@@ -7897,8 +7897,8 @@ lignes des seuls foyers dont `statut = actif`. Nouveau module `services/titres_s
 (`justetf_service.refresh_all`). Un titre qu'un foyer actif détient aussi reste rafraîchi (le filtre porte sur le foyer de chaque ligne), et réactiver un foyer le remet dans le cycle suivant, sans autre geste.
 **Séparation des foyers sous Postgres** : aucune politique n'est modifiée ; la table `foyers` est lisible sous le périmètre « tous les foyers » des tâches de fond (politique du lot BK.2d), la jointure
 n'élargit donc rien. Le démarrage (`startup_maintenance`) reconstruit le portefeuille de chaque foyer sans rafraîchir de cours : inchangé. Les logos d'établissement ne sont pas des titres : inchangés.
-Tests : `test_titres_suivis.py` (foyer actif, suspendu, titre partagé, réactivation, déclenchements manuels, justETF) et deux tests de tâche de fond dans `test_scheduler_service.py`. Non vérifié en local : le comportement
-sous Postgres (aucun Postgres sur le poste), laissé à la CI `backend-postgres`.
+Tests : `test_titres_suivis.py` (foyer actif, suspendu, titre partagé, réactivation, déclenchements manuels, justETF) et deux tests de tâche de fond dans `test_scheduler_service.py`. **Vérifié par la CI de la pull request n° 21**, dont `backend-postgres` (le comportement sous Postgres n'était pas
+jouable en local, aucun Postgres sur le poste).
 
 ##### Lot BK.2d — réalisé (interface, 01/10/2026)
 
@@ -8081,7 +8081,8 @@ prouvé** : un clic parti pendant le décalage du formulaire quand les listes de
 attente, elle y est ajoutée par prudence, sans lien établi avec l'échec. **Diagnostic ajouté** : la CI téléverse désormais le
 rapport Playwright (traces des échecs conservées par `trace: 'retain-on-failure'`) aussi quand le job est vert : avec `retries: 1`,
 un test qui n'a réussi qu'à la seconde tentative ne laissait aucune trace, ce qui rend le « jamais en CI » invérifiable. La carte
-reste ouverte ; `en attente de la CI` pour ce diagnostic.
+reste ouverte (`non résolu : cause non reproduite`) ; la CI de la pull request n° 21 a bien publié les rapports des deux jobs E2E, sans test
+relancé (aucun « flaky » dans ses journaux).
 
 ### BL. Application multilingue (cadrée le 23/09/2026)
 
@@ -9002,7 +9003,7 @@ répartition (point tranché 9).
 - *Analyse et Rapport* ne suivent pas encore le filtre par membre (un avis le signale).
 - *Import bancaire du Budget* : pas de notion de membre.
 - *`onVide` de `PatrimoineNetCard`* (carte Vikunja #94) : remis à `false` au démontage de la carte (second effet de mise
-  en page), `en attente de la CI` (13/10/2026). Conséquence réelle constatée avant correction : **aucune visible
+  en page), `traité (13/10/2026)`, vérifié par la CI de la pull request n° 21. Conséquence réelle constatée avant correction : **aucune visible
   aujourd'hui**, car la seule page qui l'utilise (`DashboardPage`) rend la carte sans condition et perd son propre état
   avec elle ; le défaut n'aurait joué que pour une page qui garde son état en retirant la carte. Test qui échoue sans
   la correction (démontage ⇒ dernier appel à `false`) et test du double montage de `React.StrictMode` ; le test
