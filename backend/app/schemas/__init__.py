@@ -108,6 +108,7 @@ from .detenteurs import (  # noqa: F401
     DetenteurOut,
     DetenteurUpdate,
     LignesNonRepartiesOut,
+    MembreFoyerOut,
     QuotiteDetenteurItem,
     QuotiteEntree,
     QuotitesCompteOut,
