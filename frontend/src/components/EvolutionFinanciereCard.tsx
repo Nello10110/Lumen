@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
-import type { Detenteur, Holding, LignePatrimoineFiltree, PatrimoineHistoryPoint } from '../api/types'
+import type { Holding, LignePatrimoineFiltree, MembreFoyer, PatrimoineHistoryPoint } from '../api/types'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { DeltaBadge, Pill, SegmentedControl } from './Controls'
 import { AXE_VALEURS, DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
@@ -79,9 +79,9 @@ export default function EvolutionFinanciereCard() {
       .catch((err) => setErreurHoldings(err.message))
   }, [])
 
-  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [detenteurs, setDetenteurs] = useState<MembreFoyer[]>([])
   useEffect(() => {
-    api.listDetenteurs().then(setDetenteurs).catch(() => setDetenteurs([]))
+    api.listMembresFoyer().then(setDetenteurs).catch(() => setDetenteurs([]))
   }, [])
 
   const holdingsPertinents = useMemo(

@@ -153,7 +153,7 @@ export default function PatrimoineNetCard({
     if (detenteurId === null) return
     let annule = false
     api
-      .listDetenteurs()
+      .listMembresFoyer()
       .then((liste) => {
         const trouve = liste.find((d) => d.id === detenteurId)
         if (!annule && trouve) setMembre({ id: trouve.id, nom: trouve.nom })

@@ -9,9 +9,9 @@ vi.mock('../api/client', () => ({
   api: {
     getHoldingDetail: vi.fn(),
     getHoldingPriceHistory: vi.fn(),
-    // Détenteurs (backlog 2.L.1) : `HoldingDetailContent` lit `listDetenteurs()` —
+    // Détenteurs (backlog 2.L.1) : `HoldingDetailContent` lit `listMembresFoyer()` —
     // non testé ici, résolution neutre.
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
     updateHolding: vi.fn(),
   },
 }))
@@ -21,6 +21,7 @@ vi.mock('./HoldingPriceHistoryChart', () => ({ default: () => <div /> }))
 // Contrôles transverses (backlog 2.K.3) : `HoldingDetailContent` (rendue par cette
 // modale) lit `usePreferencesAffichage()` (montants masqués) — non testé ici, stub
 // neutre.
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'proprietaire' } }) }))
 vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
 }))

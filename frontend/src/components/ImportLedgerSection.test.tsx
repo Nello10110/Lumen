@@ -11,7 +11,7 @@ vi.mock('../api/client', () => ({
     importLedgerApercu: vi.fn(),
     importLedgerConfirm: vi.fn(),
     // Question « À quel membre ? » d'un import (§ BN.1, lot 3) : sans membre par défaut.
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
   },
 }))
 

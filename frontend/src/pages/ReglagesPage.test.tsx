@@ -54,6 +54,8 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
 vi.mock('../api/client', () => ({
   api: {
     listDetenteurs: vi.fn(),
+    // `DeclarationPatrimoineModal` (ouverte depuis les réglages) lit la liste en lecture seule.
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
     createDetenteur: vi.fn(),
     deleteDetenteur: vi.fn(),
     // Établissements (écran Comptes, backlog X.1) : `EtablissementsCard` est

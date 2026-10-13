@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import type { Detenteur } from '../api/types'
+import type { MembreFoyer } from '../api/types'
 import { formatEuro } from '../utils/format'
 import { partsMembres } from '../utils/apercuImmobilier'
 import {
@@ -44,7 +44,7 @@ export default function RepartitionMembres({
   suitPret = false,
   idBase,
 }: {
-  membres: Detenteur[]
+  membres: MembreFoyer[]
   valeurs: Repartition
   onChange: (valeurs: Repartition) => void
   /** Valeur du bien : active l'affichage des parts détenues et nettes. */

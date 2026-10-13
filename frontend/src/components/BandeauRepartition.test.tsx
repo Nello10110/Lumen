@@ -7,7 +7,7 @@ import BandeauRepartition from './BandeauRepartition'
 
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     getLignesNonReparties: vi.fn(),
     repartirToutesLesLignes: vi.fn(),
   },
@@ -29,8 +29,19 @@ function renderBandeau(onAttribue = vi.fn()) {
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
-  vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
   vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
+})
+
+describe('BandeauRepartition — compte au rôle membre (§ BN.1, lot 3)', () => {
+  it('voit le bandeau et peut ouvrir « Tout attribuer » : les membres viennent de la lecture seule', async () => {
+    vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 2, prets: 0 })
+    renderBandeau()
+
+    expect(await screen.findByText('2 lignes ne sont pas encore réparties entre les membres du foyer.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tout attribuer' })).toBeInTheDocument()
+    expect(api.listMembresFoyer).toHaveBeenCalled()
+  })
 })
 
 describe('BandeauRepartition — vue du foyer (§ BN.1, lot 3)', () => {
@@ -54,18 +65,18 @@ describe('BandeauRepartition — vue du foyer (§ BN.1, lot 3)', () => {
     renderBandeau()
 
     await waitFor(() => expect(api.getLignesNonReparties).toHaveBeenCalled())
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tout attribuer' })).not.toBeInTheDocument()
   })
 
   it("n'affiche rien dans un foyer sans membre, même s'il reste des lignes non réparties", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 4, prets: 0 })
     renderBandeau()
 
     await waitFor(() => expect(api.getLignesNonReparties).toHaveBeenCalled())
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByText(/réparties? entre les membres/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tout attribuer' })).not.toBeInTheDocument()
   })
@@ -75,18 +86,18 @@ describe('BandeauRepartition — vue du foyer (§ BN.1, lot 3)', () => {
     renderBandeau()
 
     await waitFor(() => expect(api.getLignesNonReparties).toHaveBeenCalled())
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByText('Accès refusé')).not.toBeInTheDocument()
   })
 
   it("n'affiche rien quand la liste des membres n'est pas lisible", async () => {
-    vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('403'))
+    vi.mocked(api.listMembresFoyer).mockRejectedValue(new Error('403'))
     vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 2, prets: 0 })
     renderBandeau()
 
     await waitFor(() => expect(api.getLignesNonReparties).toHaveBeenCalled())
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByRole('button', { name: 'Tout attribuer' })).not.toBeInTheDocument()
   })
 })
@@ -123,7 +134,7 @@ describe("BandeauRepartition — vue d'un membre (§ BN.1, lot 3)", () => {
     localStorage.setItem('patrimoine:detenteur-id', '99')
     renderBandeau()
 
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     await waitFor(() => expect(api.getLignesNonReparties).toHaveBeenCalled())
     expect(screen.queryByText(/Vue de/)).not.toBeInTheDocument()
   })

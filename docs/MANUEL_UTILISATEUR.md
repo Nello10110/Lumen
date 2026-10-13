@@ -42,7 +42,8 @@ d'affichage qui valent pour toute l'application et sont mémorisés d'une visite
 - **Vue** — **Net** (ce que vous possédez moins ce que vous devez), **Brut** (sans déduire les
   emprunts) ou **Financier** (actions, ETF, crypto, obligations seuls). Une infobulle rappelle la
   définition de chacune.
-- **Membre** (dès qu'au moins un membre du foyer est déclaré, Réglages → Membres du foyer) : « Tout le
+- **Membre** (dès qu'au moins un membre du foyer est déclaré, Réglages → Membres du foyer ; un accès au rôle
+  « membre » le voit aussi, et un accès « invité » n'y voit que les membres qui lui sont assignés) : « Tout le
   foyer », ou la seule part d'un membre, désigné par son prénom. Sur les écrans Actifs et Comptes et la
   carte des prêts, les valeurs passent alors **au prorata de ses parts** (voir « Membres du foyer :
   répartir, filtrer, importer »).
@@ -383,6 +384,19 @@ un proche qui n'est pas dans le foyer. Le **rôle** d'un accès (propriétaire, 
 2. Le sélecteur **Membre** apparaît dans la barre de contrôles, en haut de chaque écran.
 3. Les lignes qui n'avaient encore aucune part sont maintenant signalées **« Non réparti »** (voir ci-dessous) :
    rien n'est modifié tant que tu ne l'as pas demandé.
+
+### Ce que voit chaque accès
+
+La liste des membres du foyer se **lit** avec tous les accès ; elle ne se **gère** qu'en tant que propriétaire.
+
+- **Propriétaire** : tout, y compris ajouter, renommer ou supprimer un membre (Réglages → Membres du foyer).
+- **Accès « membre »** : voit tous les membres du foyer — le sélecteur **Membre**, les badges « Non réparti », le bandeau
+  avec **Tout attribuer**, le bloc **Qui le détient** et la question d'import — et peut répartir les lignes comme le
+  propriétaire. Il ne peut pas **créer** un membre du foyer : quand il n'y en a encore aucun, l'écran le dit (« Seul le
+  propriétaire du foyer peut en ajouter ») au lieu de proposer le bouton.
+- **Accès « invité »** : ne voit que les membres de son périmètre (ceux que le propriétaire a cochés pour lui). Sans
+  périmètre, il n'a ni sélecteur de membre ni liste. Il ne répartit rien : le bandeau « Tout attribuer » ne lui
+  est pas proposé.
 
 ### Les lignes « Non réparti »
 

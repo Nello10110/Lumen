@@ -10,6 +10,7 @@ const detenteursSection: Structure<typeof fr> = {
   enregistrer: "Salva la ripartizione",
   repartitionEnregistree: "Ripartizione salvata.",
   aucunMembre: "Nessun membro del nucleo è ancora dichiarato: questa riga appartiene all’intero nucleo. Aggiungi un membro per ripartirla.",
+  aucunMembreSansDroit: "Nessun membro del nucleo è ancora dichiarato: questa riga appartiene all’intero nucleo. Solo il proprietario del nucleo può aggiungerne uno.",
   ajouterUnMembre: "Aggiungi un membro del nucleo",
 }
 

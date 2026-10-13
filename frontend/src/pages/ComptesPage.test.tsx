@@ -25,7 +25,7 @@ vi.mock('../api/client', () => ({
     createHolding: vi.fn(),
     // Membres du foyer et répartition (§ BN.1, lot 3) : neutres par défaut (`beforeEach`), surchargés
     // par les tests de la vue d'un membre et du badge « Non réparti ».
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     getLignesNonReparties: vi.fn(),
     getCompteQuotites: vi.fn(),
     setCompteQuotites: vi.fn(),
@@ -121,7 +121,7 @@ describe('ComptesPage', () => {
     preferences.detenteurId = null
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listHoldings).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
     vi.mocked(api.listComptes).mockResolvedValue([])
   })
@@ -167,7 +167,7 @@ describe('ComptesPage', () => {
   // valide, pas une erreur. Depuis le lot 3 (§ BN.1), l'icône neutre a laissé place au badge
   // « Non réparti » (avec son lien « Répartir »), qui n'a de sens que si le foyer a des membres.
   it('signale par un badge « Non réparti » le seul compte dont la répartition est non renseignée', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice')])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice')])
     vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
       ligne({ compte: compte({ id: 1, nom: 'PEA' }), repartition_non_renseignee: true }),
       ligne({ compte: compte({ id: 2, nom: 'Livret A' }), repartition_non_renseignee: false }),
@@ -185,7 +185,7 @@ describe('ComptesPage', () => {
     render(<ComptesPage />)
 
     await screen.findByText('PEA')
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByText('Non réparti')).not.toBeInTheDocument()
   })
 
@@ -348,7 +348,7 @@ describe('ComptesPage — membres du foyer (§ BN.1, lot 3)', () => {
     vi.mocked(api.listHoldings).mockResolvedValue([])
     vi.mocked(api.getLignesNonReparties).mockResolvedValue({ actifs: 0, prets: 0 })
     vi.mocked(api.listComptes).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice'), membre(2, 'Bob')])
     vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: compte({ id: 1, nom: 'PEA' }) })])
   })
 
@@ -396,12 +396,12 @@ describe('ComptesPage — membres du foyer (§ BN.1, lot 3)', () => {
   })
 
   it('avec un seul membre dans le foyer, les noms ne sont pas répétés à côté des comptes', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([membre(1, 'Alice')])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([membre(1, 'Alice')])
     vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: compte({ id: 1, nom: 'PEA' }), membres_ids: [1] })])
     render(<ComptesPage />)
 
     await screen.findByText('PEA')
-    await waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByText('· Alice')).not.toBeInTheDocument()
   })
 

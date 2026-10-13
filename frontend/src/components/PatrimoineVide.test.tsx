@@ -8,7 +8,7 @@ import { PERIODE_DEFAUT } from '../utils/periode'
 import PatrimoineVide from './PatrimoineVide'
 
 vi.mock('../api/client', () => ({
-  api: { listDetenteurs: vi.fn() },
+  api: { listMembresFoyer: vi.fn() },
 }))
 
 type Role = 'proprietaire' | 'membre' | 'invite'
@@ -56,8 +56,8 @@ function afficher({
 }
 
 beforeEach(() => {
-  vi.mocked(api.listDetenteurs).mockResolvedValue([
-    { id: 7, nom: 'Alice', created_at: '2026-01-01', updated_at: '2026-01-01' },
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([
+    { id: 7, nom: 'Alice' },
   ])
 })
 
@@ -81,7 +81,7 @@ describe('PatrimoineVide — accueil sans rien à chiffrer (23/09/2026)', () => 
   })
 
   it("nom introuvable : une formulation neutre, jamais d'erreur", async () => {
-    vi.mocked(api.listDetenteurs).mockRejectedValue(new Error('panne simulée'))
+    vi.mocked(api.listMembresFoyer).mockRejectedValue(new Error('panne simulée'))
     afficher({ detenteurId: 7 })
 
     expect(await screen.findByRole('heading', { name: "Rien n'est encore attribué à ce membre du foyer" })).toBeInTheDocument()

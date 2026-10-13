@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { matchPath, useLocation } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Detenteur } from '../api/types'
+import type { MembreFoyer } from '../api/types'
 import type { Lentille } from '../contexts/preferencesAffichageContextObject'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useAuth } from '../hooks/useAuth'
@@ -47,11 +47,11 @@ export default function EnTeteMobile() {
     usePreferencesAffichage()
   const { user } = useAuth()
   const { pathname } = useLocation()
-  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [detenteurs, setDetenteurs] = useState<MembreFoyer[]>([])
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
 
   useEffect(() => {
-    api.listDetenteurs().then(setDetenteurs).catch(() => setDetenteurs([]))
+    api.listMembresFoyer().then(setDetenteurs).catch(() => setDetenteurs([]))
   }, [])
 
   // `matchPath` et non une égalité stricte : la fiche d'une position (`/patrimoine/:holdingId`)

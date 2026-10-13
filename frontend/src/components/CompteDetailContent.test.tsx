@@ -11,7 +11,7 @@ vi.mock('../api/client', () => ({
     getLogosEtablissements: vi.fn().mockResolvedValue({}),
     updateCompte: vi.fn(),
     listLoans: vi.fn().mockResolvedValue([]),
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
     getCompteQuotites: vi.fn(),
     setCompteQuotites: vi.fn(),
     setCompteZoneGeo: vi.fn(),
@@ -103,7 +103,7 @@ describe('CompteDetailContent — informations et solde', () => {
     vi.clearAllMocks()
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
   })
 
   it('affiche le nom du compte et son établissement', () => {
@@ -147,7 +147,7 @@ describe('CompteDetailContent — lignes rattachées', () => {
     vi.clearAllMocks()
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
   })
 
   it('affiche un état vide quand aucune ligne n\'est rattachée', () => {
@@ -184,7 +184,7 @@ describe('CompteDetailContent — ligne d\'épargne inline (fusion de l\'écran 
     vi.clearAllMocks()
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([])
   })
 
@@ -274,7 +274,7 @@ describe('CompteDetailContent — emprunts rattachés (backlog X.4)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.listEtablissements).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
   })
 
   it("n'affiche aucune carte quand aucun emprunt n'est rattaché à une ligne du compte", async () => {
@@ -316,15 +316,15 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
   })
 
   it("n'affiche pas la carte si aucun détenteur n'est déclaré", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     renderContent(compte(), [holding({ id: 1 })])
 
-    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    await vi.waitFor(() => expect(api.listMembresFoyer).toHaveBeenCalled())
     expect(screen.queryByText('Répartition entre membres du foyer')).not.toBeInTheDocument()
   })
 
   it("mentionne le nombre de lignes et d'emprunts concernés par le remplacement", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur()])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([detenteur()])
     vi.mocked(api.listLoans).mockResolvedValue([loan({ holding_id: 1 })])
     renderContent(compte(), [holding({ id: 1 }), holding({ id: 2 })])
 
@@ -333,7 +333,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
   })
 
   it("s'ouvre sur la répartition ACTUELLE du compte, pas sur un formulaire vide (§ BN.1, lot 2)", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.listMembresFoyer).mockResolvedValue(ALICE_BOB)
     vi.mocked(api.getCompteQuotites).mockResolvedValue({
       quotites: [
         { detenteur_id: 1, quotite_pct: 70 },
@@ -351,7 +351,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
   })
 
   it('sans répartition enregistrée, propose des parts égales et le dit', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.listMembresFoyer).mockResolvedValue(ALICE_BOB)
     renderContent(compte(), [holding({ id: 1 })])
 
     expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(50)
@@ -360,7 +360,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
   })
 
   it("quand les lignes du compte divergent, ne pré-remplit rien et prévient qu'enregistrer les remplace toutes", async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.listMembresFoyer).mockResolvedValue(ALICE_BOB)
     vi.mocked(api.getCompteQuotites).mockResolvedValue({ quotites: [], uniforme: false })
     renderContent(compte(), [holding({ id: 1 }), holding({ id: 2 })])
 
@@ -369,7 +369,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
   })
 
   it('le bouton de répartition est désactivé tant que la somme ne fait pas 100 %, et le message dit quoi faire', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.listMembresFoyer).mockResolvedValue(ALICE_BOB)
     renderContent(compte(), [holding({ id: 1 })])
     await screen.findByLabelText('Part de Alice (%)')
 
@@ -381,7 +381,7 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
   })
 
   it('soumettre une répartition valide appelle setCompteQuotites et affiche la confirmation', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue(ALICE_BOB)
+    vi.mocked(api.listMembresFoyer).mockResolvedValue(ALICE_BOB)
     vi.mocked(api.setCompteQuotites).mockResolvedValue({ ok: true })
     renderContent(compte({ id: 3 }), [holding({ id: 1 })])
     await screen.findByLabelText('Part de Alice (%)')
@@ -405,7 +405,7 @@ describe('CompteDetailContent — classification géographique et sectorielle du
     vi.clearAllMocks()
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
   })
 
   it("n'affiche pas la carte si le compte n'a aucune ligne", () => {
@@ -459,7 +459,7 @@ describe('CompteDetailContent — suppression du compte (paquet de design)', () 
     vi.clearAllMocks()
     vi.mocked(api.listEtablissements).mockResolvedValue([])
     vi.mocked(api.listLoans).mockResolvedValue([])
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
   })
 
   it("ne s'affiche pas quand l'appelant n'a rien à refermer (page pleine page)", async () => {

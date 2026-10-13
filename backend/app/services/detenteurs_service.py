@@ -53,6 +53,16 @@ def list_detenteurs(db: Session, foyer_id: int) -> list[Detenteur]:
     return db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id).order_by(Detenteur.nom).all()
 
 
+def list_membres_visibles(db: Session, foyer_id: int, *, user_id_invite: int | None = None) -> list[Detenteur]:
+    """Membres du foyer `foyer_id` que le compte appelant a le droit de voir, par nom : tous quand
+    `user_id_invite` est absent (propriétaire, membre) ; pour un invité (2.L.2), ceux de son seul
+    périmètre — aucun s'il n'en a pas, jamais la liste complète. Lecture seule."""
+    requete = db.query(Detenteur).filter(Detenteur.foyer_id == foyer_id)
+    if user_id_invite is not None:
+        requete = requete.filter(Detenteur.id.in_(perimetre_invite(db, user_id_invite, foyer_id)))
+    return requete.order_by(Detenteur.nom).all()
+
+
 def _verifier_nom_detenteur_libre(db: Session, foyer_id: int, nom: str, id_exclu: int | None = None) -> None:
     """Contrairement à `Compte`/`Etablissement`, `Detenteur` n'a pas de contrainte
     d'unicité en base : deux « Alice » pouvaient donc coexister, indiscernables dans

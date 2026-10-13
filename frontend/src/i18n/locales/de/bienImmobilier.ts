@@ -81,6 +81,7 @@ const bienImmobilier: Structure<typeof fr> = {
   },
   repartition: {
     aucunMembre: "Noch kein Haushaltsmitglied angelegt: Die Immobilie gehört dem gesamten Haushalt.",
+    aucunMembreSansDroit: "Noch kein Haushaltsmitglied angelegt: Die Immobilie gehört dem gesamten Haushalt. Nur der Eigentümer des Haushalts kann eines hinzufügen.",
     ajouterUnMembre: "Haushaltsmitglied hinzufügen",
     aucunePart: "Kein Anteil zugewiesen",
     erreurMembres: "Haushaltsmitglieder konnten nicht geladen werden: {erreur}",

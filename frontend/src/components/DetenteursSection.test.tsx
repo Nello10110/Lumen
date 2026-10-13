@@ -5,9 +5,13 @@ import { api } from '../api/client'
 import type { Detenteur, QuotiteDetenteurItem } from '../api/types'
 import DetenteursSection from './DetenteursSection'
 
+// Le rôle du compte connecté : créer un membre du foyer est réservé au propriétaire.
+const compte = vi.hoisted(() => ({ role: 'proprietaire' }))
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: compte.role } }) }))
+
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     createDetenteur: vi.fn(),
     setHoldingQuotites: vi.fn(),
   },
@@ -34,7 +38,8 @@ function rendre(props: Partial<React.ComponentProps<typeof DetenteursSection>> =
 describe('DetenteursSection — « Qui le détient » (§ BN.1, lot 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(api.listDetenteurs).mockResolvedValue(DETENTEURS)
+    compte.role = 'proprietaire'
+    vi.mocked(api.listMembresFoyer).mockResolvedValue(DETENTEURS)
   })
 
   it('s’ouvre sur la répartition enregistrée, total visible', async () => {
@@ -82,15 +87,32 @@ describe('DetenteursSection — « Qui le détient » (§ BN.1, lot 2)', () => {
   })
 
   it('sans membre déclaré, dit que le bien appartient au foyer et propose d’en ajouter un', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     rendre({ quotitesInitiales: [] })
 
     expect(await screen.findByText(/Aucun membre du foyer n'est encore déclaré/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ajouter un membre du foyer' })).toBeInTheDocument()
   })
 
+  it('un membre du foyer (rôle membre) voit la liste vide sans pouvoir ajouter quelqu’un : le propriétaire seul le peut', async () => {
+    compte.role = 'membre'
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
+    rendre({ quotitesInitiales: [] })
+
+    expect(await screen.findByText(/Seul le propriétaire du foyer peut en ajouter/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ajouter un membre du foyer' })).not.toBeInTheDocument()
+  })
+
+  it('un membre du foyer (rôle membre) répartit entre les membres que la route de lecture lui donne', async () => {
+    compte.role = 'membre'
+    rendre()
+
+    expect(await screen.findByLabelText('Part de Alice (%)')).toHaveValue(60)
+    expect(api.listMembresFoyer).toHaveBeenCalled()
+  })
+
   it('l’ajout du premier membre recharge la liste et propose 100 % pour lui', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValueOnce([]).mockResolvedValue([DETENTEURS[0]])
+    vi.mocked(api.listMembresFoyer).mockResolvedValueOnce([]).mockResolvedValue([DETENTEURS[0]])
     vi.mocked(api.createDetenteur).mockResolvedValue(DETENTEURS[0])
     rendre({ quotitesInitiales: [] })
 

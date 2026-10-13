@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, Holding, Loan } from '../api/types'
+import type { Holding, Loan, MembreFoyer } from '../api/types'
 import { useApercuBien } from '../hooks/useApercuBien'
+import { useAuth } from '../hooks/useAuth'
 import { useEstEtroit } from '../hooks/useEstEtroit'
 import {
   FORM_BIEN_VIDE,
@@ -59,7 +60,7 @@ type SectionOuvrable = SectionBien | 'apercu'
 export default function AjoutBienImmobilierModale({ onClose, onCree }: { onClose: () => void; onCree: (holding: Holding) => void }) {
   const [form, setForm] = useState<FormBien>(FORM_BIEN_VIDE)
   const [pret, setPret] = useState<FormPret>(PRET_VIDE)
-  const [membres, setMembres] = useState<Detenteur[] | null>(null)
+  const [membres, setMembres] = useState<MembreFoyer[] | null>(null)
   const [erreurMembres, setErreurMembres] = useState<string | null>(null)
   const [repartition, setRepartition] = useState<Repartition>({})
   const [repartitionTouchee, setRepartitionTouchee] = useState(false)
@@ -69,6 +70,9 @@ export default function AjoutBienImmobilierModale({ onClose, onCree }: { onClose
   const [tentative, setTentative] = useState(false)
   const [erreurServeur, setErreurServeur] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const { user } = useAuth()
+  // Créer un membre du foyer est réservé au propriétaire : un membre voit la liste, sans le bouton.
+  const peutAjouterMembre = user?.role === 'proprietaire'
   const [ajoutMembreOuvert, setAjoutMembreOuvert] = useState(false)
   const [fermetureDemandee, setFermetureDemandee] = useState(false)
   const [cible, setCible] = useState<{ champ: string; n: number } | null>(null)
@@ -78,7 +82,7 @@ export default function AjoutBienImmobilierModale({ onClose, onCree }: { onClose
   function chargerMembres() {
     setErreurMembres(null)
     api
-      .listDetenteurs()
+      .listMembresFoyer()
       .then((liste) => {
         setMembres(liste)
         setRepartition((actuelle) => (Object.keys(actuelle).length > 0 ? actuelle : repartitionParDefaut(liste.map((m) => m.id))))
@@ -173,7 +177,7 @@ export default function AjoutBienImmobilierModale({ onClose, onCree }: { onClose
     }
   }
 
-  function ajouterMembre(membre: Detenteur) {
+  function ajouterMembre(membre: MembreFoyer) {
     setAjoutMembreOuvert(false)
     const tous = [...listeMembres, membre]
     setMembres(tous)
@@ -300,8 +304,12 @@ export default function AjoutBienImmobilierModale({ onClose, onCree }: { onClose
                   )}
                   {sansMembre && erreurMembres === null && (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-hairline bg-chip px-4 py-3">
-                      <p className="min-w-0 flex-1 text-sm text-ink2">{t('bienImmobilier.repartition.aucunMembre')}</p>
-                      <SecondaryButton onClick={() => setAjoutMembreOuvert(true)}>{t('bienImmobilier.repartition.ajouterUnMembre')}</SecondaryButton>
+                      <p className="min-w-0 flex-1 text-sm text-ink2">
+                        {t(peutAjouterMembre ? 'bienImmobilier.repartition.aucunMembre' : 'bienImmobilier.repartition.aucunMembreSansDroit')}
+                      </p>
+                      {peutAjouterMembre && (
+                        <SecondaryButton onClick={() => setAjoutMembreOuvert(true)}>{t('bienImmobilier.repartition.ajouterUnMembre')}</SecondaryButton>
+                      )}
                     </div>
                   )}
                   {avecSectionRepartition && (
@@ -328,9 +336,11 @@ export default function AjoutBienImmobilierModale({ onClose, onCree }: { onClose
                           suitPret={pret.mode !== 'aucun'}
                           idBase={`${ID_BASE}-part`}
                         />
-                        <div className="mt-4">
-                          <SecondaryButton onClick={() => setAjoutMembreOuvert(true)}>{t('bienImmobilier.repartition.ajouterUnMembre')}</SecondaryButton>
-                        </div>
+                        {peutAjouterMembre && (
+                          <div className="mt-4">
+                            <SecondaryButton onClick={() => setAjoutMembreOuvert(true)}>{t('bienImmobilier.repartition.ajouterUnMembre')}</SecondaryButton>
+                          </div>
+                        )}
                       </div>
                     </SectionRepliable>
                   )}

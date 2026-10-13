@@ -8643,7 +8643,7 @@ n'a pas d'étape dans l'assistant de bienvenue : la fusion n'a de sens qu'après
 
 ### BN. Saisie d'un bien immobilier et parts par membre — UX (retour utilisateur, 04/10/2026)
 
-#### BN.1 — `majeur` · `L` · `en cours` (lots 1 et 2 `traité (04/10/2026)`, lot 3 `traité (05/10/2026)`, lot 4 conditionnel) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
+#### BN.1 — `majeur` · `L` · `en cours` (lots 1 et 2 `traité (04/10/2026)`, lot 3 `traité (05/10/2026)` — suite : lecture des membres pour tous les rôles `en attente de la CI et de l'accord de l'utilisateur sur les captures`, lot 4 conditionnel) · `P1` — Un seul endroit pour saisir un bien et dire qui le détient
 
 **État au 05/10/2026 : conception validée par l'utilisateur ; lots 1 et 2 `traité (04/10/2026)`, lot 3
 `traité (05/10/2026)`, tous vérifiés par la CI ; lot 4 conditionnel (« si le besoin se confirme »), `non traité`.
@@ -8967,10 +8967,10 @@ de l'utilisateur. Détail du contrat en § 3.29 des spécifications.
    attribuer ; « Tout attribuer » le compte quand le bien ne l'est pas, sans lui donner de parts propres.
 8. *Le lien « Répartir » d'un prêt ouvre l'éditeur sous la ligne* (celui du bouton « Membres du foyer »), pas une
    fenêtre : la carte des prêts avait déjà cet éditeur.
-9. *Le rôle `membre` ne peut pas lister les membres du foyer* (`GET /api/detenteurs` est réservé au propriétaire) : le
-   bandeau, les badges, le bloc « Qui le détient » et la question d'import, qui en dépendent, lui sont invisibles, et
-   ses imports appliquent la règle par défaut du foyer sans question. Limite assumée, **à lever au lot 4 ou par une
-   lecture dédiée** (liste des membres en lecture seule pour les rôles qui écrivent).
+9. *Le rôle `membre` ne pouvait pas lister les membres du foyer* (`GET /api/detenteurs` est réservé au propriétaire) : le
+   bandeau, les badges, le bloc « Qui le détient » et la question d'import, qui en dépendent, lui étaient invisibles, et
+   ses imports appliquaient la règle par défaut du foyer sans question. **Levé le 13/10/2026** par une lecture dédiée
+   (voir « Suite du lot 3 — lecture des membres pour tous les rôles », ci-dessous).
 
 **Tests.** Serveur (environ 190 tests ajoutés) : `test_repartition_membres.py` (répartition par défaut des lignes, des
 prêts et des biens : aucun membre, un, deux, trois avec arrondi, ordre des membres, `[]`, parts fournies, compte déjà
@@ -8991,15 +8991,49 @@ parcours existants adaptés au nouveau vocabulaire. L'import de l'e2e ne crée a
 interceptée pour lire ce que l'interface envoie.
 
 **Limites.** L'import bancaire du Budget (mouvements) n'est pas concerné : un mouvement n'a pas de propriétaire. Les
-écrans Analyse et Rapport portent toujours sur le foyer entier. Le compte de rôle `membre` ne voit pas les blocs de
-répartition (point tranché 9).
+écrans Analyse et Rapport portent toujours sur le foyer entier. Le compte de rôle `membre` ne voyait pas les blocs de
+répartition (point tranché 9, levé depuis : voir la suite du lot 3).
+
+**Suite du lot 3 — lecture des membres pour tous les rôles (carte Vikunja #89, 13/10/2026) : `en attente de la CI et de l'accord de l'utilisateur sur les captures`.**
+Conception relue par Mr TL, option A retenue ; décisions de l'utilisateur du 13/10/2026 : le rôle `membre` **voit et agit comme le serveur
+le permet déjà** (bandeau, badges, question d'import, « Tout attribuer », correction des parts) — aucune modification des
+droits d'écriture ; le rôle `invité` ne voit que les membres de **son** périmètre, aucun s'il n'en a pas, jamais la liste
+complète.
+
+- **Serveur.** Nouvelle route de lecture seule `GET /api/membres-foyer` (`routers/membres_foyer.py`), réponse `[{id, nom}]` triée par
+  nom, rien d'autre (`MembreFoyerOut` : ni dates ni champs de gestion). Sous `get_membre_foyer` : l'opérateur et un compte sans
+  foyer reçoivent 403, une requête sans session 401. Propriétaire et membre : tous les membres du foyer courant ; invité : ceux de
+  son périmètre dans ce foyer (`detenteurs_service.list_membres_visibles`, qui réutilise `perimetre_invite`). Aucun paramètre
+  d'identifiant, donc pas d'IDOR ; la politique de ligne Postgres double le filtre par foyer. `GET /api/detenteurs` et ses écritures
+  sont **inchangés** (propriétaire seul), tests de 403 compris.
+- **Interface.** `api.listMembresFoyer` ; le hook `useMembresFoyer` (bandeau, badges, « Qui le détient », question d'import, Comptes,
+  Actifs…) et les sites d'affichage qui n'ont besoin que de la liste lisent la nouvelle route : `BarreControles`, `EnTeteMobile`,
+  `EvolutionFinanciereCard`, `PatrimoineNetCard`, `PatrimoineVide`, `AjoutBienImmobilierModale`, `useEditeurQuotites`,
+  `DeclarationPatrimoineModal`. Les écrans de **gestion** restent sur l'ancienne route (Réglages : `DetenteursCard`,
+  `GestionFoyerCard`, `SectionInvitations`, `PartageCard`, et `SalairePage`, réservés au propriétaire). Type `MembreFoyer` (`id`, `nom`).
+  Un changement de foyer recharge l'application entière : aucune liste d'un foyer précédent ne survit.
+- **Point tranché en route : créer un membre reste au propriétaire.** Les boutons « Ajouter un membre du foyer » (formulaire d'un bien
+  immobilier, section « Qui le détient ») s'affichaient pour un compte qui n'a plus à être aveugle ; ils sont maintenant **réservés au
+  propriétaire**, un membre voyant à la place « Seul le propriétaire du foyer peut en ajouter » quand le foyer n'a aucun membre. Sans
+  cela, le clic aurait buté sur un refus 403 de `POST /api/detenteurs`.
+- **Aucune migration, aucun réglage** : pas d'étape d'assistant de bienvenue.
+
+**Tests de cette suite.** Serveur : `test_membres_foyer.py` (12 tests : propriétaire et membre, liste complète triée ; réponse limitée à `id`
+et `nom` ; invité avec périmètre, invité sans périmètre, périmètre d'un autre foyer ignoré, deux foyers isolés, opérateur et compte sans foyer
+403, anonyme 401, lecture seule 405, gestion toujours refusée au membre) ; deux tests de `test_separation_foyers.py` (liste limitée au foyer
+connecté, y compris quand le filtre de la route est supprimé ; Postgres, **exécutés par la CI seulement**) ; le test générique de
+`test_operateur.py` (toutes les routes de foyer refusent l'opérateur) couvre la nouvelle route sans changement. Interface : `useMembresFoyer.test.ts`,
+scénarios « rôle membre » du bandeau, de « Tout attribuer », de la question d'import des quatre sections, de « Qui le détient » et du
+formulaire d'un bien (sans bouton d'ajout). Playwright : `frontend/e2e/membres-lecture-role-membre.spec.ts` (membre : sélecteur, bandeau
+« Non réparti », « Tout attribuer », question d'import ; invité limité à Alice : seule Alice ; invité sans périmètre : aucun sélecteur),
+sur des comptes créés puis supprimés par le test lui-même.
+
+**Constaté en route, non traité (hors périmètre).** Un compte `invité` voit encore les boutons d'écriture de l'écran Actifs (« Ajouter une
+ligne », « Modifier », « Supprimer », « Rafraîchir ») : le serveur les refuse, mais l'interface ne les masque pas selon le rôle. Défaut
+antérieur à cette suite, à trancher avec l'utilisateur.
 
 **Gardé pour plus tard, volontairement.**
 
-- *Lecture des membres pour le rôle `membre`* : `GET /api/detenteurs` est réservé au propriétaire, donc un compte au
-  rôle `membre` ne voit ni le bandeau « Non réparti », ni les badges, ni le bloc « Qui le détient », ni la question
-  d'import (le serveur lui applique quand même la répartition par défaut). À prévoir : une lecture dédiée aux rôles
-  qui écrivent.
 - *Analyse et Rapport* ne suivent pas encore le filtre par membre (un avis le signale).
 - *Import bancaire du Budget* : pas de notion de membre.
 - *`onVide` de `PatrimoineNetCard`* (carte Vikunja #94) : remis à `false` au démontage de la carte (second effet de mise
@@ -9119,6 +9153,13 @@ le push. Le sens « un commit touchant `backend/` ou `frontend/` publie » est c
 point (1) et se constatera au prochain commit de code, sans que ce soit une condition. **Limite connue** : une modification de
 `frontend/` seule republie aussi l'image du backend (un seul job construit les deux) ; une publication par image
 (jobs séparés, chacun filtré sur son dossier) est gardée pour plus tard.
+
+**Constaté le 13/10/2026 : « un commit de code publie ».** La fusion de la pull request n° 21 sur `main` (historique linéaire, sans commit de
+fusion ; commit de tête `b2bcd80`, qui ne touche que `docs/`) a bien **déclenché une publication des images** : run « Docker publish »
+38383230925, créé le 13/10/2026 à 10:25 UTC, `headSha` `b2bcd80`, `push`, conclusion `success` (`gh run list --workflow docker-publish.yml`).
+Le filtre `paths` d'un push se juge sur l'ensemble des commits poussés, et ceux de la pull request n° 21 touchent `backend/` et
+`frontend/` (par exemple `PatrimoineNetCard.tsx`) : le sens « un commit de code publie » est donc constaté, et le point en attente de
+la constatation du 11/10/2026 est levé.
 
 ---
 

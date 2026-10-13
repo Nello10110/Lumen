@@ -5,9 +5,13 @@ import type { Detenteur, Holding, Loan } from '../api/types'
 import { simulerLargeurEcran } from '../test/matchMedia'
 import AjoutBienImmobilierModale from './AjoutBienImmobilierModale'
 
+// Le rôle du compte connecté : créer un membre du foyer est réservé au propriétaire.
+const compte = vi.hoisted(() => ({ role: 'proprietaire' }))
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: compte.role } }) }))
+
 vi.mock('../api/client', () => ({
   api: {
-    listDetenteurs: vi.fn(),
+    listMembresFoyer: vi.fn(),
     createDetenteur: vi.fn(),
     listLoans: vi.fn(),
     createBienImmobilier: vi.fn(),
@@ -56,8 +60,9 @@ async function remplirLeBien() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  compte.role = 'proprietaire'
   simulerLargeurEcran(false)
-  vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE, BOB])
   vi.mocked(api.listLoans).mockResolvedValue([])
   vi.mocked(api.createBienImmobilier).mockResolvedValue({ holding: BIEN_CREE, pret: null })
 })
@@ -381,7 +386,7 @@ describe('AjoutBienImmobilierModale — qui le détient', () => {
   })
 
   it('un seul membre : 100 % pour lui', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([ALICE])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([ALICE])
     ouvrir()
     fireEvent.click(await screen.findByRole('button', { name: /^Qui le détient/ }))
 
@@ -389,7 +394,7 @@ describe('AjoutBienImmobilierModale — qui le détient', () => {
   })
 
   it('sans aucun membre : une ligne explicative et l’ajout d’un membre, pas de section vide', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     ouvrir()
 
     expect(await screen.findByText(/Aucun membre du foyer n'est encore déclaré/)).toBeInTheDocument()
@@ -397,8 +402,26 @@ describe('AjoutBienImmobilierModale — qui le détient', () => {
     expect(screen.getByRole('button', { name: 'Ajouter un membre du foyer' })).toBeInTheDocument()
   })
 
+  it('rôle membre : la section « Qui le détient » s’affiche, sans le bouton d’ajout d’un membre (réservé au propriétaire)', async () => {
+    compte.role = 'membre'
+    ouvrir()
+    fireEvent.click(await screen.findByRole('button', { name: /^Qui le détient/ }))
+
+    expect(screen.getByLabelText('Part de Alice (%)')).toHaveValue(50)
+    expect(screen.queryByRole('button', { name: 'Ajouter un membre du foyer' })).not.toBeInTheDocument()
+  })
+
+  it('rôle membre, foyer sans membre : le dit, sans proposer d’en ajouter', async () => {
+    compte.role = 'membre'
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
+    ouvrir()
+
+    expect(await screen.findByText(/Seul le propriétaire du foyer peut en ajouter/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ajouter un membre du foyer' })).not.toBeInTheDocument()
+  })
+
   it('ajouter le premier membre fait apparaître la section, à 100 % pour lui', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     vi.mocked(api.createDetenteur).mockResolvedValue(ALICE)
     ouvrir()
 
@@ -411,7 +434,7 @@ describe('AjoutBienImmobilierModale — qui le détient', () => {
   })
 
   it('sans membre, le bien est créé sans quotités (il appartient au foyer)', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([])
     ouvrir()
     await remplirLeBien()
     await screen.findByText(/Aucun membre du foyer n'est encore déclaré/)

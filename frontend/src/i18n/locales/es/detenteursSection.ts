@@ -10,6 +10,7 @@ const detenteursSection: Structure<typeof fr> = {
   enregistrer: "Guardar el reparto",
   repartitionEnregistree: "Reparto guardado.",
   aucunMembre: "Todavía no hay ningún miembro del hogar declarado: esta línea pertenece a todo el hogar. Añade un miembro para repartirla.",
+  aucunMembreSansDroit: "Todavía no hay ningún miembro del hogar declarado: esta línea pertenece a todo el hogar. Solo el propietario del hogar puede añadir uno.",
   ajouterUnMembre: "Añadir un miembro del hogar",
 }
 

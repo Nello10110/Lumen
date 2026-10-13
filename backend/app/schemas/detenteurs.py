@@ -43,6 +43,16 @@ class DetenteurOut(DetenteurBase):
     updated_at: datetime
 
 
+class MembreFoyerOut(BaseModel):
+    """Un membre du foyer vu en lecture seule (`GET /api/membres-foyer`, tous rôles) : le strict
+    nécessaire pour l'afficher — ni dates, ni champs de gestion."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nom: str
+
+
 class QuotiteDetenteurItem(BaseModel):
     """Une ligne de la répartition d'un actif (backlog 2.L.1) : la quotité saisie,
     plus la part détenue/nette qui en découle — calculées côté serveur, jamais côté

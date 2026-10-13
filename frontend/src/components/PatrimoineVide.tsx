@@ -36,7 +36,7 @@ export default function PatrimoineVide() {
   useEffect(() => {
     if (detenteurId === null) return
     api
-      .listDetenteurs()
+      .listMembresFoyer()
       .then((liste) => setNomDetenteur(liste.find((d) => d.id === detenteurId)?.nom ?? null))
       .catch(() => setNomDetenteur(null))
   }, [detenteurId])

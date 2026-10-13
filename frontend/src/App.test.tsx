@@ -24,8 +24,9 @@ vi.mock('./api/client', () => ({
     register: vi.fn(),
     logout: vi.fn().mockResolvedValue(undefined),
     // Détenteurs (backlog 2.L.1) : `BarreControles` (rendue par `App`) lit
-    // `listDetenteurs()` — non testé ici, résolution neutre. Réutilisée aussi par
-    // l'étape "Détenteurs du foyer" du `WelcomeWizard` (assistant de bienvenue).
+    // `listMembresFoyer()` — non testé ici, résolution neutre. `listDetenteurs()` sert à l'étape
+    // "Détenteurs du foyer" du `WelcomeWizard` (assistant de bienvenue).
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
     listDetenteurs: vi.fn().mockResolvedValue([]),
     // SSO : `LoginPage` (rendue après déconnexion) lit `getOidcStatus()` — non testé
     // ici, bouton simplement absent.

@@ -6,6 +6,13 @@ export interface Detenteur {
   updated_at: string
 }
 
+// Un membre du foyer vu en lecture seule (`GET /membres-foyer`, tous rôles) : de quoi l'afficher,
+// rien de la gestion. Pour un invité, seuls les membres de son périmètre (§ BN.1, lot 3).
+export interface MembreFoyer {
+  id: number
+  nom: string
+}
+
 export interface QuotiteDetenteurItem {
   detenteur_id: number
   detenteur_nom: string

@@ -14,6 +14,7 @@ vi.mock('../../api/client', () => ({
     getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     updatePreferences: vi.fn(),
     listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
     createDetenteur: vi.fn(),
     deleteDetenteur: vi.fn(),
     listHoldings: vi.fn().mockResolvedValue([]),

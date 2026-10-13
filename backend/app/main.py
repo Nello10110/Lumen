@@ -36,6 +36,7 @@ from .routers import (
     jalons,
     loans,
     market_data,
+    membres_foyer,
     operateur,
     partage,
     partage_public,
@@ -227,6 +228,9 @@ app.include_router(reference.router, dependencies=_protegee)
 app.include_router(loans.router, dependencies=_protegee)
 app.include_router(patrimoine.router, dependencies=_protegee)
 app.include_router(detenteurs.router, dependencies=_proprietaire_seul)
+# Liste des membres du foyer en LECTURE SEULE (§ BN.1, lot 3) : ouverte aux 3 rôles, l'invité n'y voit
+# que son périmètre (filtré par la route). La gestion (`/api/detenteurs`) reste au propriétaire.
+app.include_router(membres_foyer.router, dependencies=_protegee)
 app.include_router(budget.router, dependencies=_pas_invite)
 app.include_router(imports.router, dependencies=_pas_invite)
 app.include_router(jalons.router, dependencies=_proprietaire_seul)

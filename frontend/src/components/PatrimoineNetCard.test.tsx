@@ -11,7 +11,7 @@ import PatrimoineNetCard from './PatrimoineNetCard'
 vi.mock('../api/client', () => ({
   api: {
     getPatrimoineNet: vi.fn(),
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -435,7 +435,7 @@ describe('PatrimoineNetCard — filtre détenteur (backlog 2.L.1)', () => {
 
   it('titre la carte du nom du membre sélectionné, avec un libellé générique en attendant', async () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1000, patrimoine_net: 1000 }))
-    vi.mocked(api.listDetenteurs).mockResolvedValue([{ id: 42, nom: 'Alice', created_at: '2026-01-01', updated_at: '2026-01-01' }])
+    vi.mocked(api.listMembresFoyer).mockResolvedValue([{ id: 42, nom: 'Alice' }])
     renderCard('net', 42)
 
     await screen.findByText('Patrimoine net · Alice')

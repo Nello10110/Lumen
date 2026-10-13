@@ -8,6 +8,7 @@ const detenteursSection = {
   enregistrer: "Enregistrer la répartition",
   repartitionEnregistree: "Répartition enregistrée.",
   aucunMembre: "Aucun membre du foyer n'est encore déclaré : cette ligne appartient au foyer entier. Ajoute un membre pour la répartir.",
+  aucunMembreSansDroit: "Aucun membre du foyer n'est encore déclaré : cette ligne appartient au foyer entier. Seul le propriétaire du foyer peut en ajouter.",
   ajouterUnMembre: "Ajouter un membre du foyer",
 } as const
 

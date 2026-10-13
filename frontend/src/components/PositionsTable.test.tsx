@@ -12,7 +12,7 @@ vi.mock('../api/client', () => ({
   api: {
     listComptes: vi.fn().mockResolvedValue([]),
     listEtablissements: vi.fn().mockResolvedValue([]),
-    listDetenteurs: vi.fn().mockResolvedValue([]),
+    listMembresFoyer: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -70,7 +70,7 @@ beforeEach(() => {
   sessionStorage.clear()
   localStorage.clear()
   simulerLargeurEcran(false)
-  vi.mocked(api.listDetenteurs).mockResolvedValue([])
+  vi.mocked(api.listMembresFoyer).mockResolvedValue([])
 })
 
 describe.each([

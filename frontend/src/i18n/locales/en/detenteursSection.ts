@@ -10,6 +10,7 @@ const detenteursSection: Structure<typeof fr> = {
   enregistrer: "Save the split",
   repartitionEnregistree: "Split saved.",
   aucunMembre: "No household member has been declared yet: this line belongs to the whole household. Add a member to split it.",
+  aucunMembreSansDroit: "No household member has been declared yet: this line belongs to the whole household. Only the household owner can add one.",
   ajouterUnMembre: "Add a household member",
 }
 

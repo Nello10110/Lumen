@@ -5,6 +5,7 @@ import type { Compte, HoldingDetail } from '../api/types'
 import AjoutDetenteurModale from './AjoutDetenteurModale'
 import { SecondaryButton } from './Controls'
 import EditeurRepartition from './EditeurRepartition'
+import { useAuth } from '../hooks/useAuth'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { t } from '../i18n'
 
@@ -39,6 +40,9 @@ export default function DetenteursSection({
   suitPret?: boolean
   onEnregistre?: () => void
 }) {
+  const { user } = useAuth()
+  // Créer un membre du foyer est réservé au propriétaire : un membre voit la liste, sans le bouton.
+  const peutAjouter = user?.role === 'proprietaire'
   const [ajoutOuvert, setAjoutOuvert] = useState(false)
   const editeur = useEditeurQuotites({
     enregistrer: (quotites) => api.setHoldingQuotites(holdingId, quotites),
@@ -74,8 +78,10 @@ export default function DetenteursSection({
         idBase={`ligne-${holdingId}`}
         sansMembres={
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="m-0 min-w-0 flex-1 text-sm text-ink2">{t('detenteursSection.aucunMembre')}</p>
-            <SecondaryButton onClick={() => setAjoutOuvert(true)}>{t('detenteursSection.ajouterUnMembre')}</SecondaryButton>
+            <p className="m-0 min-w-0 flex-1 text-sm text-ink2">
+              {t(peutAjouter ? 'detenteursSection.aucunMembre' : 'detenteursSection.aucunMembreSansDroit')}
+            </p>
+            {peutAjouter && <SecondaryButton onClick={() => setAjoutOuvert(true)}>{t('detenteursSection.ajouterUnMembre')}</SecondaryButton>}
           </div>
         }
       />

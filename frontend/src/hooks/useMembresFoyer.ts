@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur } from '../api/types'
+import type { MembreFoyer } from '../api/types'
 
-/** Les membres du foyer, chargés une fois par composant (§ BN.1, lot 3). `null` pendant le
- * chargement ; `[]` si le foyer n'en a aucun OU si la liste n'est pas lisible par ce compte (elle
- * est réservée au propriétaire) — les écrans qui en dépendent s'effacent alors, au lieu d'afficher
- * une erreur que cet utilisateur ne peut pas corriger. */
-export function useMembresFoyer(): Detenteur[] | null {
-  const [membres, setMembres] = useState<Detenteur[] | null>(null)
+/** Les membres du foyer que ce compte peut voir, chargés une fois par composant (§ BN.1, lot 3) :
+ * tous pour le propriétaire et le membre, ceux de son périmètre pour un invité. `null` pendant le
+ * chargement ; `[]` si le foyer n'en a aucun, si l'invité n'a aucun périmètre OU si la liste n'a pas
+ * pu être lue — les écrans qui en dépendent s'effacent alors, au lieu d'afficher une erreur que cet
+ * utilisateur ne peut pas corriger. */
+export function useMembresFoyer(): MembreFoyer[] | null {
+  const [membres, setMembres] = useState<MembreFoyer[] | null>(null)
   useEffect(() => {
     let actif = true
     api
-      .listDetenteurs()
+      .listMembresFoyer()
       .then((liste) => actif && setMembres(liste))
       .catch(() => actif && setMembres([]))
     return () => {

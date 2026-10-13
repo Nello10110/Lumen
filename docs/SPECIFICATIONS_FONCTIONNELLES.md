@@ -1057,15 +1057,18 @@ immobilier reste sans compte.
 
 **Rôles et sécurité.** Tous les identifiants reçus (`detenteur_id` d'une requête ou d'un corps) sont vérifiés dans
 le foyer courant (404 sinon) : « Tout attribuer » et les imports n'attribuent jamais à un membre d'un autre foyer.
-Les rôles sont ceux de l'écriture des parts (propriétaire et membre ; **invité : lecture seule**). Le compte
-`membre` n'a pas la liste des membres du foyer (`GET /api/detenteurs` est réservé au propriétaire) : les blocs,
-le bandeau et la question d'import, qui en dépendent, ne s'affichent pas pour lui, et ses imports appliquent la
-règle par défaut du foyer sans question. Sous Postgres, la séparation des foyers par la base s'applique aux
+Les rôles sont ceux de l'écriture des parts (propriétaire et membre ; **invité : lecture seule**).
+**Liste des membres en lecture seule, pour tous les rôles** : `GET /api/membres-foyer` (`[{id, nom}]`, triée par nom, rien
+d'autre) alimente le sélecteur de membre, les badges, le bandeau « Non réparti », le bloc « Qui le détient » et la
+question d'import. Propriétaire et membre y lisent **tous** les membres du foyer courant ; un **invité** n'y lit que
+ceux de **son** périmètre (aucun s'il n'en a pas — jamais la liste complète) ; l'opérateur et un compte sans foyer sont
+refusés (403), une requête sans session aussi (401). La **gestion** (`GET`, `POST`, `PATCH`, `DELETE /api/detenteurs`)
+reste réservée au propriétaire : un membre voit donc le bandeau, les badges et la question d'import, peut « Tout
+attribuer » et corriger les parts, mais ne crée pas de membre du foyer (les boutons « Ajouter un membre du foyer »
+lui sont retirés). Sous Postgres, la séparation des foyers par la base s'applique aux
 tables de parts comme aux autres (§ 4).
 
-**Limites.** L'import bancaire du Budget n'est pas concerné ; Analyse et Rapport portent sur le foyer entier ; le
-compte `membre` ne voit pas les nouveaux blocs de répartition (liste des membres réservée au propriétaire, à
-lever avec une lecture dédiée).
+**Limites.** L'import bancaire du Budget n'est pas concerné ; Analyse et Rapport portent sur le foyer entier.
 
 ## 4. Modèle de données (tables principales)
 
