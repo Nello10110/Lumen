@@ -8046,7 +8046,7 @@ reset by peer »), avant tout code de la branche.
 - **`username_saisi` comme « soi-même »** : un compte lit et efface aussi les tentatives faites sur son nom (celles
   d'avant la création du compte comprises), ce qui permet l'effacement complet à la suppression d'un compte.
 
-**Vérification** : suite pytest complète sous SQLite : 1885 réussis, 60 ignorés, 1 échec préexistant (`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`) ; sous un Postgres 16 jetable, avec le rôle applicatif ordinaire et le client PostgreSQL (sauvegardes comprises) : 1940 réussis, 5 ignorés, le même échec préexistant. Nouveaux tests : migration des jetons (3), jetons en clair introuvables dans la base (routes d'authentification et de partage), test d'intrusion et état d'authentification (`test_separation_foyers.py`, 11 tests), routes réelles sous RLS (`test_authentification_postgres.py`, 7 tests), archive `pg_dump` complète en comptes (1 test, et les tests d'aller-retour étendus). Montée, descente et remontée de la migration vérifiées sur Postgres 16 (schéma, politiques et déclencheur identiques après la descente). Frontend : `tsc -b --force`, `oxlint`, Vitest (1080) et Playwright sous SQLite (93) propres ; sous Postgres, 92 sur 93, `invitations.spec.ts:97` échouant par intermittence dans la suite complète (le test passe seul, 4 fois sur 4 ; mêmes symptômes une fois sous SQLite, non attribués au lot) — la CI rejoue les échecs une fois.
+**Vérification** : suite pytest complète sous SQLite : 1885 réussis, 60 ignorés, 1 échec (`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil` ; défaut du test lié au fuseau horaire local (il datait l'actif en heure locale, le service en UTC), corrigé le 13/10/2026) ; sous un Postgres 16 jetable, avec le rôle applicatif ordinaire et le client PostgreSQL (sauvegardes comprises) : 1940 réussis, 5 ignorés, le même échec. Nouveaux tests : migration des jetons (3), jetons en clair introuvables dans la base (routes d'authentification et de partage), test d'intrusion et état d'authentification (`test_separation_foyers.py`, 11 tests), routes réelles sous RLS (`test_authentification_postgres.py`, 7 tests), archive `pg_dump` complète en comptes (1 test, et les tests d'aller-retour étendus). Montée, descente et remontée de la migration vérifiées sur Postgres 16 (schéma, politiques et déclencheur identiques après la descente). Frontend : `tsc -b --force`, `oxlint`, Vitest (1080) et Playwright sous SQLite (93) propres ; sous Postgres, 92 sur 93, `invitations.spec.ts:97` échouant par intermittence dans la suite complète (le test passe seul, 4 fois sur 4 ; mêmes symptômes une fois sous SQLite, non attribués au lot) — la CI rejoue les échecs une fois.
 
 **Incident de méthode (sans conséquence sur les données).** Pendant le lot, une commande exploratoire lancée sans base isolée a migré la base de développement locale de l'utilisateur jusqu'à la révision `a9d3c7e1b5f2` (renommage seul, données intactes).
 
@@ -8374,9 +8374,8 @@ isolation ; suppression en cascade ; aller-retour export/import ; migration mont
 message de refus traduit) ; interface 9 (choix d'un compte existant, création d'un
 compte sur un établissement existant et sur un établissement du catalogue, confirmation bloquée sans
 compte, filtre de l'écran Budget, avertissement de suppression). Suites complètes : serveur 1 544
-verts (9 ignorés, propres à Postgres ; un échec préexistant et sans rapport,
-`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`, échoue aussi sur le
-code d'avant), interface 891. Données E2E adaptées (`seed_e2e.py` : relevé importé sur « Compte
+verts (9 ignorés, propres à Postgres ; un échec,
+`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil` : défaut du test lié au fuseau horaire local (il datait l'actif en heure locale, le service en UTC), corrigé le 13/10/2026), interface 891. Données E2E adaptées (`seed_e2e.py` : relevé importé sur « Compte
 courant E2E », établissement « Banque courante E2E ») ; suite Playwright à rejouer.
 
 #### BM.2 — `majeur` · `M` · `traité` (29/09/2026) · `P1` — Import bancaire fiable : doublons légitimes, libellés de carte, périodicités
@@ -8468,7 +8467,7 @@ prélèvements sur 12 mois → mensuelle avec un coût annuel égal à la somme 
 coût suivant un changement de prix, intervalle trop court, trop de prélèvements sautés ; indicateur
 « dépenses récurrentes/mois » limité aux séries périodiques) ; interface (coût annuel, périodicités,
 ampleur de la hausse, bloc « Achats fréquents » replié avec occurrences et total, seul présenté quand
-aucune série périodique). Suites : serveur 1 586 verts (9 ignorés ; l'échec préexistant `test_fraicheur_donnees_service` toujours présent), interface 896, Playwright budget/import/intégrité 11 verts.
+aucune série périodique). Suites : serveur 1 586 verts (9 ignorés ; l'échec de `test_fraicheur_donnees_service` toujours présent : défaut du test lié au fuseau horaire local (il datait l'actif en heure locale, le service en UTC), corrigé le 13/10/2026), interface 896, Playwright budget/import/intégrité 11 verts.
 
 
 #### BM.3 — `majeur` · `M` · `traité` (29/09/2026) · `P1` — Relevé Caisse d'Épargne reconnu, catégories de la banque reprises, virements internes exclus
@@ -8533,7 +8532,7 @@ priorité règle > banque, réapplication, manuel intact, rangement au ré-impor
 dans chaque indicateur, héritage, marquage/démarquage, IDOR, export/import, migration) ; interface 8
 (format annoncé et mapping pré-rempli, mapping modifié envoyé, CSV sans format, marquage et démarquage,
 sous-catégorie exclue avec sa catégorie, mouvement marqué). Suites : serveur 1 617 verts (9 ignorés ;
-l'échec préexistant `test_fraicheur_donnees_service` toujours présent), interface 903, Playwright
+l'échec de `test_fraicheur_donnees_service` toujours présent : défaut du test lié au fuseau horaire local (il datait l'actif en heure locale, le service en UTC), corrigé le 13/10/2026), interface 903, Playwright
 budget/import/intégrité/sauvegarde 14 verts.
 
 
@@ -8682,8 +8681,8 @@ titre coté écrase silencieusement son cours de marché.
 
 ##### Lot 1 — réalisé (04/10/2026), `traité (04/10/2026)`
 
-**Vérification (04/10/2026).** Suite serveur complète : 1 892 tests verts (60 ignorés, propres à Postgres) (un échec préexistant et sans rapport,
-`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`, échoue aussi sur le code d'avant) ;
+**Vérification (04/10/2026).** Suite serveur complète : 1 892 tests verts (60 ignorés, propres à Postgres) (un échec,
+`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil` : défaut du test lié au fuseau horaire local (il datait l'actif en heure locale, le service en UTC), corrigé le 13/10/2026) ;
 interface : 1 117 tests verts (112 fichiers) ; suite Playwright : 96 tests verts (SQLite), dont l'ouverture de session et la console de l'opérateur ; `ruff`, `oxlint` et `tsc` propres. La migration a été
 jouée sous SQLite (test) **et** sous un Postgres embarqué avec le rôle applicatif ordinaire (séparation des foyers
 active) : montée avec données, descente, remontée, puis `alembic check` propre. La fiche d'un bien, l'ajout d'un
@@ -8753,7 +8752,7 @@ tableau et la fiche, « Enregistré ».
 
 ##### Lot 2 — réalisé (04/10/2026), `traité (04/10/2026)`
 
-**Vérification (04/10/2026).** Suite serveur complète : 2 009 tests verts (60 ignorés, propres à Postgres) (un échec préexistant et sans rapport, `test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`). Interface : 1 260 tests Vitest verts (117 fichiers) ; Playwright : 99 tests verts (SQLite), dont l'ajout
+**Vérification (04/10/2026).** Suite serveur complète : 2 009 tests verts (60 ignorés, propres à Postgres) (un échec, `test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil` : défaut du test lié au fuseau horaire local (il datait l'actif en heure locale, le service en UTC), corrigé le 13/10/2026). Interface : 1 260 tests Vitest verts (117 fichiers) ; Playwright : 99 tests verts (SQLite), dont l'ajout
 d'un bien avec prêt et répartition 50/50 de bout en bout, l'édition des parts depuis Paramètres et la feuille mobile ; `ruff`,
 `oxlint` et `tsc` propres. Le formulaire d'ajout, l'édition dans Paramètres, la répartition d'un compte et celle d'un prêt
 ont été vus à l'écran sur une instance isolée (ports 4192/8022), en 1440 × 900 et 390 × 844, thèmes clair et sombre,
@@ -8828,8 +8827,8 @@ Livré avec le lot 2 (le formulaire unique et son aperçu en direct sont côté 
 
 ##### Lot 3 — réalisé (05/10/2026), `traité (05/10/2026)`
 
-**Vérification (05/10/2026).** Suite serveur complète : 2 205 tests verts (68 ignorés, propres à Postgres) (un échec préexistant et sans rapport,
-`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil`). Interface : 1 474 tests Vitest verts (128 fichiers) ;
+**Vérification (05/10/2026).** Suite serveur complète : 2 205 tests verts (68 ignorés, propres à Postgres) (un échec,
+`test_fraicheur_donnees_service::test_alerte_declenchee_a_partir_du_seuil` : défaut du test lié au fuseau horaire local (il datait l'actif en heure locale, le service en UTC), corrigé le 13/10/2026). Interface : 1 474 tests Vitest verts (128 fichiers) ;
 Playwright : 103 tests verts (SQLite) ; `ruff`, `oxlint` et `tsc` propres. Le bandeau, les badges « Non
 réparti », la fenêtre « Tout attribuer », le bloc « Qui le détient », la question d'import, le panneau « Un compte …
 existe déjà » et la vue d'un membre au prorata ont été vus à l'écran sur une instance isolée (ports 4193/8023), en
